@@ -72,7 +72,7 @@ BuildRequires : docbook-xml docbook-utils doxygen
 BuildRequires : util-linux
 
 
-Provides:       gcc10-symlinks
+Provides:       gcc11-symlinks
 Provides:       cpp10
 Provides:       cpp10-symlinks
 Provides:       gcov10
@@ -80,7 +80,7 @@ Provides:       gcov10
 %description
 GNU cc and gcc C compilers.
 
-%package -n gcc10-dev
+%package -n gcc11-dev
 License:        GPL-3.0-with-GCC-exception and GPL-3.0
 Summary:        GNU cc and gcc C compilers
 Group:          devel
@@ -95,7 +95,7 @@ Provides:       libstdc++-dev
 Requires:       gcc-libs-math
 Requires:       libstdc++
 
-%description -n gcc10-dev
+%description -n gcc11-dev
 GNU cc and gcc C compilers dev files
 
 
@@ -108,12 +108,12 @@ Group:          devel
 %description -n libstdc++10
 GNU cc and gcc C compilers.
 
-%package -n gcc10-doc
+%package -n gcc11-doc
 License:        GPL-3.0-with-GCC-exception and GPL-3.0
 Summary:        GNU cc and gcc C compilers
 Group:          doc
 
-%description -n gcc10-doc
+%description -n gcc11-doc
 GNU cc and gcc C compilers.
 
 %package locale
