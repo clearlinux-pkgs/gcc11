@@ -358,10 +358,7 @@ rm -f %{buildroot}/usr/lib64/libsupc++.a
 /usr/lib64/gcc/%{gcc_target}/%{gccver}/plugin/gengtype
 
 # libstdc++
-/usr/lib64/libstdc++.a
-/usr/lib64/libsupc++.a
 /usr/include/c++/*
-/usr/lib64/libstdc++fs.a
 %exclude /usr/lib64/libasan.so
 %exclude /usr/lib64/libasan.so.6
 %exclude /usr/lib64/libasan.so.6.0.0
@@ -390,11 +387,6 @@ rm -f %{buildroot}/usr/lib64/libsupc++.a
 # %exclude /usr/lib64/haswell/avx512_1/libgcc_s.so.1
 
 %files libs-math
-/usr/lib64/libssp.so*
-/usr/lib64/libgomp*so*
-/usr/lib64/libatomic*.so.*
-/usr/lib64/libitm*.so.*
-/usr/lib64/libquadmath*.so.*
 
 #avx2
 
