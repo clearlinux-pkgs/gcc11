@@ -347,12 +347,8 @@ rm -f %{buildroot}/usr/lib64/libsupc++.a
 /usr/lib64/gcc/x86_64-generic-linux/%{gccver}/crtbeginS.o
 /usr/lib64/gcc/x86_64-generic-linux/%{gccver}/crtprec64.o
 /usr/lib64/gcc/x86_64-generic-linux/%{gccver}/crtbeginT.o
-/usr/lib64/libgcc_s.so
 /usr/lib64/gcc/x86_64-generic-linux/%{gccver}/libgcov.a
 /usr/lib64/gcc/%{gcc_target}/%{gccver}/include/ssp
-/usr/lib64/libssp*.a
-/usr/lib64/libgomp.a
-/usr/lib64/libgomp.spec
 # gcc-plugin-dev
 /usr/lib64/gcc/%{gcc_target}/%{gccver}/plugin/gengtype
 
@@ -365,7 +361,6 @@ rm -f %{buildroot}/usr/lib64/libsupc++.a
 %exclude /usr/lib64/liblsan.so
 %exclude /usr/lib64/liblsan.so.0
 %exclude /usr/lib64/liblsan.so.0.0.0
-%exclude /usr/lib64/libsanitizer.spec
 %exclude /usr/lib64/libstdc++.so.6
 %exclude /usr/lib64/libstdc++.so.6.0.29
 %exclude /usr/lib64/libstdc++.so.6.0.29-gdb.py
