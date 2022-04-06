@@ -259,6 +259,29 @@ rm -rf %{buildroot}/usr/share/info
 rm -rf %{buildroot}/usr/share/man
 rm -rf %{buildroot}/usr/lib64/libsanitizer.spec
 
+rm -f %{buildroot}/usr/lib64/libatomic.so.1
+rm -f %{buildroot}/usr/lib64/libatomic.so.1.2.0
+rm -f %{buildroot}/usr/lib64/libcc1.so
+rm -f %{buildroot}/usr/lib64/libcc1.so.0
+rm -f %{buildroot}/usr/lib64/libcc1.so.0.0.0
+rm -f %{buildroot}/usr/lib64/libgcc_s.so
+rm -f %{buildroot}/usr/lib64/libgomp.a
+rm -f %{buildroot}/usr/lib64/libgomp.so
+rm -f %{buildroot}/usr/lib64/libgomp.so.1
+rm -f %{buildroot}/usr/lib64/libgomp.so.1.0.0
+rm -f %{buildroot}/usr/lib64/libgomp.spec
+rm -f %{buildroot}/usr/lib64/libitm.so.1
+rm -f %{buildroot}/usr/lib64/libitm.so.1.0.0
+rm -f %{buildroot}/usr/lib64/libquadmath.so.0
+rm -f %{buildroot}/usr/lib64/libquadmath.so.0.0.0
+rm -f %{buildroot}/usr/lib64/libssp.a
+rm -f %{buildroot}/usr/lib64/libssp.so
+rm -f %{buildroot}/usr/lib64/libssp.so.0
+rm -f %{buildroot}/usr/lib64/libssp.so.0.0.0
+rm -f %{buildroot}/usr/lib64/libssp_nonshared.a
+rm -f %{buildroot}/usr/lib64/libstdc++.a
+rm -f %{buildroot}/usr/lib64/libstdc++fs.a
+rm -f %{buildroot}/usr/lib64/libsupc++.a
 
 %files
 /usr/bin/%{gcc_target}-gcc-ar-11
