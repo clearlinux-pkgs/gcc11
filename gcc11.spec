@@ -303,7 +303,6 @@ rm -f %{buildroot}/usr/lib64/libsupc++.a
 #/usr/lib/cpp-11
 /usr/bin/lto-dump-11
 #/usr/lib64/libvtv*
-/usr/lib64/libcc1*
 /usr/lib64/gcc/%{gcc_target}/%{gccver}/include-fixed/
 /usr/lib64/gcc/%{gcc_target}/%{gccver}/install-tools/
 /usr/lib64/gcc/%{gcc_target}/%{gccver}/include/
