@@ -72,57 +72,18 @@ BuildRequires : docbook-xml docbook-utils doxygen
 BuildRequires : util-linux
 
 
-Provides:       gcc11-symlinks
-Provides:       cpp10
-Provides:       cpp10-symlinks
-Provides:       gcov10
-
 %description
 GNU cc and gcc C compilers.
 
-%package -n gcc11-dev
+%package dev
 License:        GPL-3.0-with-GCC-exception and GPL-3.0
 Summary:        GNU cc and gcc C compilers
 Group:          devel
-Provides:       libgcov-dev
-Provides:       libssp-dev
-Provides:       libssp-staticdev
-Provides:       libgomp-dev
-Provides:       libgomp-staticdev
-Provides:       libgcc-s-dev
-Provides:       gcc-plugin-dev
-Provides:       libstdc++-dev
-Requires:       gcc-libs-math
-Requires:       libstdc++
+Requires:       %{name} = %{version}-%{release}
+Requires:       gcc11-libs-math = %{version}-%{release}
 
-%description -n gcc11-dev
+%description dev
 GNU cc and gcc C compilers dev files
-
-
-
-%package -n libstdc++10
-License:        GPL-3.0-with-GCC-exception and GPL-3.0
-Summary:        GNU cc and gcc C compilers
-Group:          devel
-
-%description -n libstdc++10
-GNU cc and gcc C compilers.
-
-%package -n gcc11-doc
-License:        GPL-3.0-with-GCC-exception and GPL-3.0
-Summary:        GNU cc and gcc C compilers
-Group:          doc
-
-%description -n gcc11-doc
-GNU cc and gcc C compilers.
-
-%package locale
-License:        GPL-3.0-with-GCC-exception and GPL-3.0
-Summary:        GNU cc and gcc C compilers
-Group:          libs
-
-%description locale
-GNU cc and gcc C compilers.
 
 %package libs-math
 License:        GPL-3.0-with-GCC-exception and GPL-3.0
@@ -218,7 +179,7 @@ export LIBRARY_PATH=/usr/lib64
     --with-gcc-major-version-only \
     --enable-default-pie
 
-make %{?_smp_mflags} bootstrap
+make -O %{?_smp_mflags} bootstrap
 
 popd
 
@@ -226,7 +187,7 @@ popd
 %check
 #pushd ../gcc-build
 #export CHECK_TEST_FRAMEWORK=1
-#make -k  %{?_smp_mflags} check  || :
+#make -O -k  %{?_smp_mflags} check  || :
 #popd
 
 
