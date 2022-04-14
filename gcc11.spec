@@ -30,7 +30,6 @@ Patch1   : 0001-Fix-stack-protection-issues.patch
 Patch2   : openmp-vectorize-v2.patch
 Patch3   : fortran-vector-v2.patch
 Patch5   : optimize.patch
-Patch6   : ipa-cp.patch
 Patch9   : gomp-relax.patch
 Patch14  : arch-native-override.patch
 Patch15  : 0001-Ignore-Werror-if-GCC_IGNORE_WERROR-environment-varia.patch
@@ -98,7 +97,6 @@ GNU cc and gcc C compilers.
 %patch2 -p1
 %patch3 -p1
 %patch5 -p1
-%patch6 -p1
 %patch9 -p1
 
 %patch14 -p1
