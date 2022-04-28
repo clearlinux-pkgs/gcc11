@@ -1,11 +1,27 @@
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
+GCC Administrator (7):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+
+Hongyu Wang (1):
+      AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
+
+Iain Buclaw (2):
+      libphobos: Don't call free on the TLS array in the emutls destroy function.
+      libphobos: Give _Unwind_Exception an alignment that best resembles __attribute__((aligned))
+
 Jakub Jelinek (2):
       emit-rtl: Fix -fcompare-debug bug with label references in debug insns [PR105203]
       sparc: Preserve ORIGINAL_REGNO in epilogue_renumber [PR105257]
 
-Jonathan Wakely (27):
+Jonathan Wakely (29):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -33,9 +49,22 @@ Jonathan Wakely (27):
       libstdc++: Fix test failures at -O0
       libstdc++: Remove "no stronger" assertion in compare exchange [PR102177]
       libstdc++: Remove workaround for FE bug in std::tuple [PR96592]
+      libstdc++: Add deduction guides for std::packaged_task [PR105375]
+      libstdc++: Fix error reporting in filesystem::copy [PR99290]
+
+Marek Polacek (4):
+      c++: ambiguous call not diagnosed after DR2352 [PR97296]
+      c++: wrong error with constexpr COMPOUND_EXPR [PR105321]
+      c++: enum in generic lambda at global scope [PR105398]
+      c++: global-namespace-qualified var after class def [PR90107]
 
 Matthias Kretz (1):
       c++: don't ICE on NAMESPACE_DECL inside FUNCTION_DECL
+
+Patrick Palka (3):
+      c++: partial ordering with dependent NTTP type [PR105289]
+      c++: ICE with requires-expr and -Wsequence-point [PR105304]
+      c++: decltype of non-dependent call of class type [PR105386]
 
 Pavel I. Kryukov (1):
       libstdc++: Add self-merge check to std::forward_list::merge [PR103853]
@@ -46,6 +75,12 @@ Richard Biener (1):
 Sergei Trofimovich (1):
       gcov-profile: Allow negative counts of indirect calls [PR105282]
 
+Tamar Christina (1):
+      testsuite: Backport testsuite changes from GCC 12 to GCC 11
+
+Thomas W Rodgers (1):
+      libstdc++: Make atomic notify_one and notify_all non-const
+
 diff --git a/gcc/BASE-VER b/gcc/BASE-VER
 index f628d2eafc5..0a47c95bb14 100644
 --- a/gcc/BASE-VER
@@ -53,6 +88,172 @@ index f628d2eafc5..0a47c95bb14 100644
 @@ -1 +1 @@
 -11.3.0
 +11.3.1
+diff --git a/gcc/ChangeLog b/gcc/ChangeLog
+index a0587d18824..47f3049af9c 100644
+--- a/gcc/ChangeLog
++++ b/gcc/ChangeLog
+@@ -1,3 +1,51 @@
++2022-04-27  Hongyu Wang  <hongyu.wang@intel.com>
++
++	Backported from master:
++	2022-04-25  Hongyu Wang  <hongyu.wang@intel.com>
++
++	PR target/105339
++	* config/i386/avx512fintrin.h (_mm512_scalef_round_pd):
++	Add parentheses for parameters and djust format.
++	(_mm512_mask_scalef_round_pd): Ditto.
++	(_mm512_maskz_scalef_round_pd): Ditto.
++	(_mm512_scalef_round_ps): Ditto.
++	(_mm512_mask_scalef_round_ps): Ditto.
++	(_mm512_maskz_scalef_round_ps): Ditto.
++	(_mm_scalef_round_sd): Use _mm_undefined_pd.
++	(_mm_scalef_round_ss): Use _mm_undefined_ps.
++	(_mm_mask_scalef_round_sd): New macro.
++	(_mm_mask_scalef_round_ss): Ditto.
++	(_mm_maskz_scalef_round_sd): Ditto.
++	(_mm_maskz_scalef_round_ss): Ditto.
++
++2022-04-21  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-04-19  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/105257
++	* config/sparc/sparc.c (epilogue_renumber): If ORIGINAL_REGNO,
++	use gen_raw_REG instead of gen_rtx_REG and copy over also
++	ORIGINAL_REGNO.  Use return 0; instead of /* fallthrough */.
++
++2022-04-21  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-04-21  Jakub Jelinek  <jakub@redhat.com>
++
++	PR debug/105203
++	* emit-rtl.c (emit_copy_of_insn_after): Don't call mark_jump_label
++	on DEBUG_INSNs.
++
++2022-04-21  Sergei Trofimovich  <siarheit@google.com>
++
++	Backported from master:
++	2022-04-19  Sergei Trofimovich  <siarheit@google.com>
++
++	PR gcov-profile/105282
++	* value-prof.c (stream_out_histogram_value): Allow negative counts
++	on HIST_TYPE_INDIR_CALL.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
+diff --git a/gcc/c-family/c-common.c b/gcc/c-family/c-common.c
+index 7b8f49d78dc..16fc52302e5 100644
+--- a/gcc/c-family/c-common.c
++++ b/gcc/c-family/c-common.c
+@@ -1854,12 +1854,12 @@ verify_tree (tree x, struct tlist **pbefore_sp, struct tlist **pno_sp,
+   enum tree_code code;
+   enum tree_code_class cl;
+ 
++ restart:
+   /* X may be NULL if it is the operand of an empty statement expression
+      ({ }).  */
+   if (x == NULL)
+     return;
+ 
+- restart:
+   code = TREE_CODE (x);
+   cl = TREE_CODE_CLASS (code);
+ 
+diff --git a/gcc/config/i386/avx512fintrin.h b/gcc/config/i386/avx512fintrin.h
+index 515ee0c1728..1ce6bade1b4 100644
+--- a/gcc/config/i386/avx512fintrin.h
++++ b/gcc/config/i386/avx512fintrin.h
+@@ -3244,31 +3244,67 @@ _mm_maskz_scalef_round_ss (__mmask8 __U, __m128 __A, __m128 __B, const int __R)
+ 						      (__mmask8) __U, __R);
+ }
+ #else
+-#define _mm512_scalef_round_pd(A, B, C)            \
+-    (__m512d)__builtin_ia32_scalefpd512_mask(A, B, (__v8df)_mm512_undefined_pd(), -1, C)
+-
+-#define _mm512_mask_scalef_round_pd(W, U, A, B, C) \
+-    (__m512d)__builtin_ia32_scalefpd512_mask(A, B, W, U, C)
+-
+-#define _mm512_maskz_scalef_round_pd(U, A, B, C)   \
+-    (__m512d)__builtin_ia32_scalefpd512_mask(A, B, (__v8df)_mm512_setzero_pd(), U, C)
++#define _mm512_scalef_round_pd(A, B, C)					\
++  ((__m512d)								\
++   __builtin_ia32_scalefpd512_mask((A), (B),				\
++				   (__v8df) _mm512_undefined_pd(),	\
++				   -1, (C)))
++
++#define _mm512_mask_scalef_round_pd(W, U, A, B, C)			\
++  ((__m512d) __builtin_ia32_scalefpd512_mask((A), (B), (W), (U), (C)))
++
++#define _mm512_maskz_scalef_round_pd(U, A, B, C)			\
++  ((__m512d)								\
++   __builtin_ia32_scalefpd512_mask((A), (B),				\
++				   (__v8df) _mm512_setzero_pd(),	\
++				   (U), (C)))
++
++#define _mm512_scalef_round_ps(A, B, C)					\
++  ((__m512)								\
++   __builtin_ia32_scalefps512_mask((A), (B),				\
++				   (__v16sf) _mm512_undefined_ps(),	\
++				   -1, (C)))
++
++#define _mm512_mask_scalef_round_ps(W, U, A, B, C)			\
++  ((__m512) __builtin_ia32_scalefps512_mask((A), (B), (W), (U), (C)))
++
++#define _mm512_maskz_scalef_round_ps(U, A, B, C)			\
++  ((__m512)								\
++   __builtin_ia32_scalefps512_mask((A), (B),				\
++				   (__v16sf) _mm512_setzero_ps(),	\
++				   (U), (C)))
++
++#define _mm_scalef_round_sd(A, B, C)					\
++  ((__m128d)								\
++   __builtin_ia32_scalefsd_mask_round ((A), (B),			\
++				       (__v2df) _mm_undefined_pd (),	\
++				       -1, (C)))
+ 
+-#define _mm512_scalef_round_ps(A, B, C)            \
+-    (__m512)__builtin_ia32_scalefps512_mask(A, B, (__v16sf)_mm512_undefined_ps(), -1, C)
++#define _mm_scalef_round_ss(A, B, C)					\
++  ((__m128)								\
++   __builtin_ia32_scalefss_mask_round ((A), (B),			\
++				       (__v4sf) _mm_undefined_ps (),	\
++				       -1, (C)))
+ 
+-#define _mm512_mask_scalef_round_ps(W, U, A, B, C) \
+-    (__m512)__builtin_ia32_scalefps512_mask(A, B, W, U, C)
++#define _mm_mask_scalef_round_sd(W, U, A, B, C)				\
++  ((__m128d)								\
++   __builtin_ia32_scalefsd_mask_round ((A), (B), (W), (U), (C)))
+ 
+-#define _mm512_maskz_scalef_round_ps(U, A, B, C)   \
+-    (__m512)__builtin_ia32_scalefps512_mask(A, B, (__v16sf)_mm512_setzero_ps(), U, C)
++#define _mm_mask_scalef_round_ss(W, U, A, B, C)				\
++  ((__m128)								\
++   __builtin_ia32_scalefss_mask_round ((A), (B), (W), (U), (C)))
+ 
+-#define _mm_scalef_round_sd(A, B, C)            \
+-    (__m128d)__builtin_ia32_scalefsd_mask_round (A, B, \
+-	(__v2df)_mm_setzero_pd (), -1, C)
++#define _mm_maskz_scalef_round_sd(U, A, B, C)				\
++  ((__m128d)								\
++   __builtin_ia32_scalefsd_mask_round ((A), (B),			\
++				       (__v2df) _mm_setzero_pd (),	\
++				       (U), (C)))
+ 
+-#define _mm_scalef_round_ss(A, B, C)            \
+-    (__m128)__builtin_ia32_scalefss_mask_round (A, B, \
+-	(__v4sf)_mm_setzero_ps (), -1, C)
++#define _mm_maskz_scalef_round_ss(U, A, B, C)				\
++  ((__m128)								\
++   __builtin_ia32_scalefss_mask_round ((A), (B),			\
++				       (__v4sf) _mm_setzero_ps (),	\
++				       (U), (C)))
+ #endif
+ 
+ #define _mm_mask_scalef_sd(W, U, A, B) \
 diff --git a/gcc/config/sparc/sparc.c b/gcc/config/sparc/sparc.c
 index 7c8a1f18c39..0ef91935c1e 100644
 --- a/gcc/config/sparc/sparc.c
@@ -80,6 +281,102 @@ index 7c8a1f18c39..0ef91935c1e 100644
      case SCRATCH:
      case CC0:
      case PC:
+diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
+index 85c8fdd38cd..67d7d721985 100644
+--- a/gcc/cp/ChangeLog
++++ b/gcc/cp/ChangeLog
+@@ -1,3 +1,37 @@
++2022-04-27  Marek Polacek  <polacek@redhat.com>
++
++	Backported from master:
++	2022-04-27  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/105398
++	* pt.c (uses_template_parms): Return false for any NAMESPACE_DECL.
++
++2022-04-22  Marek Polacek  <polacek@redhat.com>
++
++	Backported from master:
++	2022-04-21  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/105321
++	* constexpr.c (cxx_eval_logical_expression): Always pass false for lval
++	to cxx_eval_constant_expression.
++
++2022-04-22  Marek Polacek  <polacek@redhat.com>
++
++	Backported from master:
++	2022-04-13  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/97296
++	* call.c (direct_reference_binding): strip_top_quals when creating
++	a ck_qual.
++
++2022-04-21  Matthias Kretz  <m.kretz@gsi.de>
++
++	Backported from master:
++	2021-12-19  Matthias Kretz  <m.kretz@gsi.de>
++
++	* module.cc (trees_out::get_merge_kind): NAMESPACE_DECLs also
++	cannot have a DECL_TEMPLATE_INFO.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
+diff --git a/gcc/cp/call.c b/gcc/cp/call.c
+index 55bb9c45f8c..023e5e0f4b5 100644
+--- a/gcc/cp/call.c
++++ b/gcc/cp/call.c
+@@ -1683,8 +1683,19 @@ direct_reference_binding (tree type, conversion *conv)
+        because the types "int *" and "const int *const" are
+        reference-related and we were binding both directly and they
+        had the same rank.  To break it up, we add a ck_qual under the
+-       ck_ref_bind so that conversion sequence ranking chooses #1.  */
+-    conv = build_conv (ck_qual, t, conv);
++       ck_ref_bind so that conversion sequence ranking chooses #1.
++
++       We strip_top_quals here which is also what standard_conversion
++       does.  Failure to do so would confuse comp_cv_qual_signature
++       into thinking that in
++
++	 void f(const int * const &); // #1
++	 void f(const int *); // #2
++	 int *x;
++	 f(x);
++
++       #2 is a better match than #1 even though they're ambiguous (97296).  */
++    conv = build_conv (ck_qual, strip_top_quals (t), conv);
+ 
+   return build_conv (ck_ref_bind, type, conv);
+ }
+diff --git a/gcc/cp/constexpr.c b/gcc/cp/constexpr.c
+index c13c920ade3..d72a8712dab 100644
+--- a/gcc/cp/constexpr.c
++++ b/gcc/cp/constexpr.c
+@@ -4280,19 +4280,18 @@ cxx_eval_bit_cast (const constexpr_ctx *ctx, tree t, bool *non_constant_p,
+ static tree
+ cxx_eval_logical_expression (const constexpr_ctx *ctx, tree t,
+                              tree bailout_value, tree continue_value,
+-			     bool lval,
+-			     bool *non_constant_p, bool *overflow_p)
++			     bool, bool *non_constant_p, bool *overflow_p)
+ {
+   tree r;
+   tree lhs = cxx_eval_constant_expression (ctx, TREE_OPERAND (t, 0),
+-					   lval,
+-					   non_constant_p, overflow_p);
++					   /*lval*/false, non_constant_p,
++					   overflow_p);
+   VERIFY_CONSTANT (lhs);
+   if (tree_int_cst_equal (lhs, bailout_value))
+     return lhs;
+   gcc_assert (tree_int_cst_equal (lhs, continue_value));
+   r = cxx_eval_constant_expression (ctx, TREE_OPERAND (t, 1),
+-				    lval, non_constant_p,
++				    /*lval*/false, non_constant_p,
+ 				    overflow_p);
+   VERIFY_CONSTANT (r);
+   return r;
 diff --git a/gcc/cp/module.cc b/gcc/cp/module.cc
 index b97b1bcb2f8..6cb926c044a 100644
 --- a/gcc/cp/module.cc
@@ -97,6 +394,65 @@ index b97b1bcb2f8..6cb926c044a 100644
  			       || !DECL_LANG_SPECIFIC (decl)
  			       || !DECL_TEMPLATE_INFO (decl));
  
+diff --git a/gcc/cp/parser.c b/gcc/cp/parser.c
+index 90d119eaa28..365d5989773 100644
+--- a/gcc/cp/parser.c
++++ b/gcc/cp/parser.c
+@@ -24967,6 +24967,7 @@ cp_parser_class_specifier_1 (cp_parser* parser)
+       case CPP_OPEN_PAREN:
+       case CPP_CLOSE_PAREN:
+       case CPP_COMMA:
++      case CPP_SCOPE:
+         want_semicolon = false;
+         break;
+ 
+diff --git a/gcc/cp/pt.c b/gcc/cp/pt.c
+index 318d42d800d..c98acbec481 100644
+--- a/gcc/cp/pt.c
++++ b/gcc/cp/pt.c
+@@ -5200,8 +5200,9 @@ process_partial_specialization (tree decl)
+ 	   && !get_partial_spec_bindings (maintmpl, maintmpl, specargs))
+     {
+       auto_diagnostic_group d;
+-      if (permerror (input_location, "partial specialization %qD is not "
+-		     "more specialized than", decl))
++      if (pedwarn (input_location, 0,
++		   "partial specialization %qD is not more specialized than",
++		   decl))
+ 	inform (DECL_SOURCE_LOCATION (maintmpl), "primary template %qD",
+ 		maintmpl);
+     }
+@@ -10889,7 +10890,7 @@ uses_template_parms (tree t)
+ 		   || uses_template_parms (TREE_CHAIN (t)));
+   else if (TREE_CODE (t) == TYPE_DECL)
+     dependent_p = dependent_type_p (TREE_TYPE (t));
+-  else if (t == error_mark_node)
++  else if (t == error_mark_node || TREE_CODE (t) == NAMESPACE_DECL)
+     dependent_p = false;
+   else
+     dependent_p = instantiation_dependent_expression_p (t);
+@@ -23928,7 +23929,7 @@ unify (tree tparms, tree targs, tree parm, tree arg, int strict,
+ 	      /* Now check whether the type of this parameter is still
+ 		 dependent, and give up if so.  */
+ 	      ++processing_template_decl;
+-	      tparm = tsubst (tparm, targs, tf_none, NULL_TREE);
++	      tparm = tsubst (TREE_TYPE (parm), targs, tf_none, NULL_TREE);
+ 	      --processing_template_decl;
+ 	      if (uses_template_parms (tparm))
+ 		return unify_success (explain_p);
+diff --git a/gcc/cp/semantics.c b/gcc/cp/semantics.c
+index d447ce80174..36ad96febf3 100644
+--- a/gcc/cp/semantics.c
++++ b/gcc/cp/semantics.c
+@@ -10220,7 +10220,7 @@ finish_decltype_type (tree expr, bool id_expression_or_member_access_p,
+     }
+   else if (processing_template_decl)
+     {
+-      expr = instantiate_non_dependent_expr_sfinae (expr, complain);
++      expr = instantiate_non_dependent_expr_sfinae (expr, complain|tf_decltype);
+       if (expr == error_mark_node)
+ 	return error_mark_node;
+     }
 diff --git a/gcc/emit-rtl.c b/gcc/emit-rtl.c
 index 07e908624a0..0dc51220682 100644
 --- a/gcc/emit-rtl.c
@@ -111,6 +467,22 @@ index 07e908624a0..0dc51220682 100644
  
    INSN_LOCATION (new_rtx) = INSN_LOCATION (insn);
  
+diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
+index ee1c7bb4b31..3d03b1cb5d2 100644
+--- a/gcc/fortran/ChangeLog
++++ b/gcc/fortran/ChangeLog
+@@ -1,3 +1,11 @@
++2022-04-21  Fritz Reese  <foreese@gcc.gnu.org>
++
++	Backported from master:
++	2022-04-21  Fritz Reese  <foreese@gcc.gnu.org>
++
++	PR fortran/105310
++	* trans-expr.c (gfc_conv_union_initializer): Pass vec* by reference.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/gcc/fortran/trans-expr.c b/gcc/fortran/trans-expr.c
 index a5c391d077e..9b65b9cf474 100644
 --- a/gcc/fortran/trans-expr.c
@@ -126,6 +498,232 @@ index a5c391d077e..9b65b9cf474 100644
                              gfc_component *un, gfc_expr *init)
  {
    gfc_constructor *ctor;
+diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
+index 5fc23605244..3f0edd90f3e 100644
+--- a/gcc/testsuite/ChangeLog
++++ b/gcc/testsuite/ChangeLog
+@@ -1,3 +1,60 @@
++2022-04-27  Marek Polacek  <polacek@redhat.com>
++
++	Backported from master:
++	2022-04-27  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/105398
++	* g++.dg/cpp1y/lambda-generic-enum2.C: New test.
++
++2022-04-27  Hongyu Wang  <hongyu.wang@intel.com>
++
++	Backported from master:
++	2022-04-25  Hongyu Wang  <hongyu.wang@intel.com>
++
++	PR target/105339
++	* gcc.target/i386/sse-14.c: Add tests for new macro.
++
++2022-04-22  Marek Polacek  <polacek@redhat.com>
++
++	Backported from master:
++	2022-04-21  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/105321
++	* g++.dg/cpp0x/constexpr-105321.C: New test.
++
++2022-04-22  Marek Polacek  <polacek@redhat.com>
++
++	Backported from master:
++	2022-04-13  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/97296
++	* g++.dg/cpp0x/ref-bind4.C: Add dg-error.
++	* g++.dg/cpp0x/ref-bind8.C: New test.
++
++2022-04-21  Fritz Reese  <foreese@gcc.gnu.org>
++
++	Backported from master:
++	2022-04-21  Fritz Reese  <foreese@gcc.gnu.org>
++
++	PR fortran/105310
++	* gfortran.dg/dec_union_12.f90: New test.
++
++2022-04-21  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-04-19  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/105257
++	* gcc.dg/pr105257.c: New test.
++
++2022-04-21  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-04-21  Jakub Jelinek  <jakub@redhat.com>
++
++	PR debug/105203
++	* gfortran.dg/g77/pr105203.f: New test.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
+diff --git a/gcc/testsuite/g++.dg/cpp0x/constexpr-105321.C b/gcc/testsuite/g++.dg/cpp0x/constexpr-105321.C
+new file mode 100644
+index 00000000000..adb6830ff22
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp0x/constexpr-105321.C
+@@ -0,0 +1,18 @@
++// PR c++/105321
++// { dg-do compile { target c++11 } }
++
++bool handle_error();
++
++constexpr int echo(int value, bool yes = true) noexcept
++{
++    return (yes || handle_error()), value;
++}
++
++static_assert(echo(10) == 10, "");
++
++constexpr int echo2(int value, bool no = false) noexcept
++{
++    return (!no || handle_error()), value;
++}
++
++static_assert(echo2(10) == 10, "");
+diff --git a/gcc/testsuite/g++.dg/cpp0x/decltype81.C b/gcc/testsuite/g++.dg/cpp0x/decltype81.C
+new file mode 100644
+index 00000000000..7d25db39d9c
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp0x/decltype81.C
+@@ -0,0 +1,15 @@
++// PR c++/105386
++// { dg-do compile { target c++11 } }
++
++template<class T> struct NoInst {
++  static_assert(sizeof(T) == 9999, "NoInst instantiated");
++};
++
++template<class T> NoInst<T> f(T);
++
++template<class>
++struct A {
++  using type = decltype(f(0));
++};
++
++A<int> a;
+diff --git a/gcc/testsuite/g++.dg/cpp0x/ref-bind4.C b/gcc/testsuite/g++.dg/cpp0x/ref-bind4.C
+index 85ac9fbfd79..d296d7c3b72 100644
+--- a/gcc/testsuite/g++.dg/cpp0x/ref-bind4.C
++++ b/gcc/testsuite/g++.dg/cpp0x/ref-bind4.C
+@@ -51,6 +51,6 @@ g (int *p, const int *pc, const int **q)
+      similar  types  T1 and T2 (_conv.qual_), respectively, and the cv-
+      qualification signature of type T1 is a proper subset of  the  cv-
+      qualification signature of type T2  */
+-  f8 (q);
++  f8 (q); // { dg-error "call of overloaded" }
+   f9 (q);
+ }
+diff --git a/gcc/testsuite/g++.dg/cpp0x/ref-bind8.C b/gcc/testsuite/g++.dg/cpp0x/ref-bind8.C
+new file mode 100644
+index 00000000000..eee78fd5e74
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp0x/ref-bind8.C
+@@ -0,0 +1,10 @@
++// PR c++/97296
++// { dg-do compile }
++
++void f(const int * const &);
++void f(const int *);
++int *x;
++int main()
++{
++  f(x); // { dg-error "call of overloaded" }
++}
+diff --git a/gcc/testsuite/g++.dg/cpp1y/lambda-generic-enum2.C b/gcc/testsuite/g++.dg/cpp1y/lambda-generic-enum2.C
+new file mode 100644
+index 00000000000..77cf0bb9d02
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp1y/lambda-generic-enum2.C
+@@ -0,0 +1,15 @@
++// PR c++/105398
++// { dg-do compile { target c++14 } }
++
++auto f = [](auto &&m) {
++    enum E { _,e3,e2,e1,C4,C3,C2,C1 };
++    static constexpr int x_coeffs[3][4] = {
++        {e1,C2,C3,C4},
++        {e2,C1,C3,C4},
++        {e3,C1,C2,C4},
++    };
++};
++
++int main() {
++    f(0);
++}
+diff --git a/gcc/testsuite/g++.dg/cpp2a/concepts-requires30.C b/gcc/testsuite/g++.dg/cpp2a/concepts-requires30.C
+new file mode 100644
+index 00000000000..f500af3f616
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp2a/concepts-requires30.C
+@@ -0,0 +1,10 @@
++// PR c++/105304
++// { dg-do compile { target c++20 } }
++// { dg-additional-options "-Wall -Wsequence-point" }
++
++struct A { };
++
++int main() {
++  if (requires { A(); })
++    ;
++}
+diff --git a/gcc/testsuite/g++.dg/parse/qualified6.C b/gcc/testsuite/g++.dg/parse/qualified6.C
+new file mode 100644
+index 00000000000..68b51f771ec
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/parse/qualified6.C
+@@ -0,0 +1,10 @@
++// PR c++/90107
++// { dg-do compile }
++
++struct A;
++namespace N { extern A a; }
++struct A {} ::N::a;
++
++struct A1;
++struct B { static A1 a1; };
++struct A1 {} ::B::a1;
+diff --git a/gcc/testsuite/g++.dg/template/partial-specialization11.C b/gcc/testsuite/g++.dg/template/partial-specialization11.C
+new file mode 100644
+index 00000000000..556224a3104
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/template/partial-specialization11.C
+@@ -0,0 +1,11 @@
++// PR c++/86193
++// CWG 455 (active)
++// { dg-options "" } // clear -pedantic-errors
++
++template<class T> struct value_type;
++
++template<class T, typename value_type<T>::type V>
++struct A;
++
++template<class T, int V>
++struct A<T*, V> { }; // { dg-warning "not more specialized" }
+diff --git a/gcc/testsuite/g++.dg/template/partial-specialization12.C b/gcc/testsuite/g++.dg/template/partial-specialization12.C
+new file mode 100644
+index 00000000000..5f51e8a27de
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/template/partial-specialization12.C
+@@ -0,0 +1,12 @@
++// PR c++/105289
++// CWG 455 (active)
++// { dg-do compile { target c++11 } }
++
++template<class T>
++struct value_type;
++
++template<class List, typename value_type<List>::type Element>
++struct push_front_vlist;
++
++template<template<class X, X...> class XList, class T, T Arg, T... Vs>
++struct push_front_vlist<XList<T, Vs...>, Arg> { }; // { dg-error "not more specialized" }
 diff --git a/gcc/testsuite/gcc.dg/pr105257.c b/gcc/testsuite/gcc.dg/pr105257.c
 new file mode 100644
 index 00000000000..4232942d791
@@ -148,6 +746,246 @@ index 00000000000..4232942d791
 +  fn ();
 +  return "";
 +}
+diff --git a/gcc/testsuite/gcc.dg/vect/complex/fast-math-bb-slp-complex-mul-float.c b/gcc/testsuite/gcc.dg/vect/complex/fast-math-bb-slp-complex-mul-float.c
+index 827687b92fa..8eb8baceb31 100644
+--- a/gcc/testsuite/gcc.dg/vect/complex/fast-math-bb-slp-complex-mul-float.c
++++ b/gcc/testsuite/gcc.dg/vect/complex/fast-math-bb-slp-complex-mul-float.c
+@@ -1,10 +1,11 @@
+ /* { dg-do compile } */
+ /* { dg-require-effective-target vect_complex_add_float } */
++/* { dg-additional-options "-fno-tree-loop-vectorize" } */
+ /* { dg-add-options arm_v8_3a_complex_neon } */
+ 
+ #define TYPE float
+ #define N 16
+ #include "complex-mul-template.c"
+ 
+-/* { dg-final { scan-tree-dump "Found COMPLEX_MUL_CONJ" "vect" } } */
+-/* { dg-final { scan-tree-dump "Found COMPLEX_MUL" "vect" } } */
++/* { dg-final { scan-tree-dump "Found COMPLEX_MUL_CONJ" "slp1" { xfail *-*-* } } } */
++/* { dg-final { scan-tree-dump "Found COMPLEX_MUL" "slp1" } } */
+diff --git a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-double.c b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-double.c
+index f935405e3d9..5cff373b80d 100644
+--- a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-double.c
++++ b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-double.c
+@@ -6,7 +6,7 @@
+ #define N 200
+ #include "complex-add-template.c"
+ 
+-/* { dg-final { scan-tree-dump-times "stmt.*COMPLEX_ADD_ROT270" 2 "vect" { target { vect_complex_add_double } } } } */
+-/* { dg-final { scan-tree-dump-times "stmt.*COMPLEX_ADD_ROT90" 2 "vect"  { target { vect_complex_add_double } } } } */
++/* { dg-final { scan-tree-dump-times "stmt.*COMPLEX_ADD_ROT270" 1 "vect" { target { vect_complex_add_double } } } } */
++/* { dg-final { scan-tree-dump-times "stmt.*COMPLEX_ADD_ROT90" 1 "vect"  { target { vect_complex_add_double } } } } */
+ /* { dg-final { scan-tree-dump "Found COMPLEX_ADD_ROT270" "vect" } } */
+ /* { dg-final { scan-tree-dump "Found COMPLEX_ADD_ROT90" "vect" } } */
+diff --git a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-float.c b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-float.c
+index 71f391db7bb..312df88ee68 100644
+--- a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-float.c
++++ b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-float.c
+@@ -6,7 +6,7 @@
+ #define N 200
+ #include "complex-add-template.c"
+ 
+-/* { dg-final { scan-tree-dump-times "stmt.*COMPLEX_ADD_ROT270" 2 "vect" { target { vect_complex_add_float } } } } */
+-/* { dg-final { scan-tree-dump-times "stmt.*COMPLEX_ADD_ROT90" 2 "vect" { target { vect_complex_add_float } } } } */
++/* { dg-final { scan-tree-dump-times "stmt.*COMPLEX_ADD_ROT270" 1 "vect" { target { vect_complex_add_float } } } } */
++/* { dg-final { scan-tree-dump-times "stmt.*COMPLEX_ADD_ROT90" 1 "vect" { target { vect_complex_add_float } } } } */
+ /* { dg-final { scan-tree-dump "Found COMPLEX_ADD_ROT270" "vect" } } */
+ /* { dg-final { scan-tree-dump "Found COMPLEX_ADD_ROT90" "vect" } } */
+diff --git a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-half-float.c b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-half-float.c
+index e5b826f1ca7..046f014240b 100644
+--- a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-half-float.c
++++ b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-half-float.c
+@@ -1,4 +1,5 @@
+ /* { dg-do compile } */
++/* { dg-require-effective-target vect_complex_add_half } */
+ /* { dg-require-effective-target float16 } */
+ /* { dg-add-options arm_v8_3a_fp16_complex_neon } */
+ 
+@@ -6,5 +7,7 @@
+ #define N 200
+ #include "complex-add-template.c"
+ 
+-/* { dg-final { scan-tree-dump-times "stmt.*COMPLEX_ADD_ROT270" 2 "vect" { target { vect_complex_add_half } } } } */
+-/* { dg-final { scan-tree-dump-times "stmt.*COMPLEX_ADD_ROT90" 2 "vect" { target { vect_complex_add_half } } } } */
++/* Vectorization is failing for these cases.  They should work but for now ignore.  */
++
++/* { dg-final { scan-tree-dump-times "stmt.*COMPLEX_ADD_ROT270" 1 "vect" { xfail *-*-* } } } */
++/* { dg-final { scan-tree-dump-times "stmt.*COMPLEX_ADD_ROT90" 1 "vect" { xfail *-*-* } } } */
+diff --git a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-pattern-double.c b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-pattern-double.c
+index 5b70d834c24..9c8b99bc003 100644
+--- a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-pattern-double.c
++++ b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-pattern-double.c
+@@ -6,8 +6,7 @@
+ #define N 200
+ #include "complex-add-pattern-template.c"
+ 
+-/* { dg-final { scan-tree-dump-times "stmt.*COMPLEX_ADD_ROT90" 4 "vect" { target { vect_complex_add_double } } } } */
++/* { dg-final { scan-tree-dump-times "stmt.*COMPLEX_ADD_ROT90" 1 "vect" { target { vect_complex_add_double } } } } */
+ /* { dg-final { scan-tree-dump-times "stmt.*COMPLEX_ADD_ROT270" 1 "vect" { target { vect_complex_add_double } } } } */
+ /* { dg-final { scan-tree-dump "Found COMPLEX_ADD_ROT270" "vect" } } */
+-/* { dg-final { scan-tree-dump "Found COMPLEX_ADD_ROT90" "slp1" } } */
+ /* { dg-final { scan-tree-dump "Found COMPLEX_ADD_ROT90" "vect" } } */
+diff --git a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-pattern-float.c b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-pattern-float.c
+index 3ef05645a2c..ca5f5b257d3 100644
+--- a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-pattern-float.c
++++ b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-pattern-float.c
+@@ -6,8 +6,7 @@
+ #define N 200
+ #include "complex-add-pattern-template.c"
+ 
+-/* { dg-final { scan-tree-dump-times "stmt.*COMPLEX_ADD_ROT90" 4 "vect" { target { vect_complex_add_float } } } } */
++/* { dg-final { scan-tree-dump-times "stmt.*COMPLEX_ADD_ROT90" 1 "vect" { target { vect_complex_add_float } } } } */
+ /* { dg-final { scan-tree-dump-times "stmt.*COMPLEX_ADD_ROT270" 1 "vect" { target { vect_complex_add_float } } } } */
+ /* { dg-final { scan-tree-dump "Found COMPLEX_ADD_ROT270" "vect" } } */
+-/* { dg-final { scan-tree-dump "Found COMPLEX_ADD_ROT90" "slp1" } } */
+ /* { dg-final { scan-tree-dump "Found COMPLEX_ADD_ROT90" "vect" } } */
+diff --git a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-pattern-half-float.c b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-pattern-half-float.c
+index 06a9216add7..c6617f5dad0 100644
+--- a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-pattern-half-float.c
++++ b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-add-pattern-half-float.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile } */
+-/* { dg-require-effective-target vect_float } */
++/* { dg-require-effective-target vect_complex_add_half } */
+ /* { dg-require-effective-target float16 } */
+ /* { dg-add-options arm_v8_3a_fp16_complex_neon } */
+ 
+@@ -7,10 +7,8 @@
+ #define N 200
+ #include "complex-add-pattern-template.c"
+ 
+-/* { dg-final { scan-tree-dump-times "stmt.*COMPLEX_ADD_ROT90" 4 "vect" { target { vect_complex_add_half } } } } */
+-/* { dg-final { scan-tree-dump-times "stmt.*COMPLEX_ADD_ROT270" 1 "vect" { target { vect_complex_add_half } } } } */
++/* { dg-final { scan-tree-dump-times "stmt.*COMPLEX_ADD_ROT90" 1 "vect" { target { vect_complex_add_half } } } } */
++/* { dg-final { scan-tree-dump-times "stmt.*COMPLEX_ADD_ROT270" 1 "vect" { target { vect_complex_add_half } && ! target { arm*-*-* } } } } */
+ 
+-/* { dg-final { scan-tree-dump "Found COMPLEX_ADD_ROT270" "slp1" } } */
+ /* { dg-final { scan-tree-dump "Found COMPLEX_ADD_ROT270" "vect" } } */
+-/* { dg-final { scan-tree-dump "Found COMPLEX_ADD_ROT90" "slp1" } } */
+ /* { dg-final { scan-tree-dump "Found COMPLEX_ADD_ROT90" "vect" } } */
+diff --git a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mla-half-float.c b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mla-half-float.c
+index 34146f3d1e7..7beb6b8b5d8 100644
+--- a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mla-half-float.c
++++ b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mla-half-float.c
+@@ -1,5 +1,7 @@
+ /* { dg-do compile } */
+ /* { dg-add-options arm_v8_3a_fp16_complex_neon } */
++/* { dg-require-effective-target vect_complex_add_half } */
++/* { dg-require-effective-target float16 } */
+ 
+ #define TYPE _Float16
+ #define N 200
+diff --git a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mls-double.c b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mls-double.c
+index 0982a2b8ead..fc4cd6151c7 100644
+--- a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mls-double.c
++++ b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mls-double.c
+@@ -1,4 +1,5 @@
+ /* { dg-do compile } */
++/* { dg-require-effective-target vect_complex_add_double } */
+ /* { dg-add-options arm_v8_3a_complex_neon } */
+ 
+ #define TYPE double
+diff --git a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mls-float.c b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mls-float.c
+index a069533b22a..43a77ff8591 100644
+--- a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mls-float.c
++++ b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mls-float.c
+@@ -1,10 +1,10 @@
+ /* { dg-do compile } */
++/* { dg-require-effective-target vect_complex_add_float } */
+ /* { dg-add-options arm_v8_3a_complex_neon } */
+ 
+ #define TYPE float
+ #define N 200
+ #include "complex-mls-template.c"
+-/* { dg-final { scan-tree-dump "Found COMPLEX_ADD_ROT270" "vect" } } */
+ /* { dg-final { scan-tree-dump "Found COMPLEX_FMA" "vect" } } */
+ /* { dg-final { scan-tree-dump "Found COMPLEX_FMS_CONJ" "vect" } } */
+ /* { dg-final { scan-tree-dump "Found COMPLEX_FMS" "vect" } } */
+diff --git a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mls-half-float.c b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mls-half-float.c
+index 89ac54c2a42..3d1c5755bef 100644
+--- a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mls-half-float.c
++++ b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mls-half-float.c
+@@ -1,9 +1,10 @@
+ /* { dg-do compile } */
++/* { dg-require-effective-target vect_complex_add_half } */
++/* { dg-require-effective-target float16 } */
+ /* { dg-add-options arm_v8_3a_fp16_complex_neon } */
+ 
+ #define TYPE _Float16
+ #define N 200
+ #include "complex-mls-template.c"
+-/* { dg-final { scan-tree-dump "Found COMPLEX_ADD_ROT270" "vect" } } */
+ /* { dg-final { scan-tree-dump "Found COMPLEX_FMS_CONJ" "vect" } } */
+ /* { dg-final { scan-tree-dump "Found COMPLEX_FMS" "vect" } } */
+diff --git a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mul-double.c b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mul-double.c
+index 56a8ea4ae02..b6b21529a10 100644
+--- a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mul-double.c
++++ b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mul-double.c
+@@ -1,4 +1,5 @@
+ /* { dg-do compile } */
++/* { dg-require-effective-target vect_complex_add_double } */
+ /* { dg-add-options arm_v8_3a_complex_neon } */
+ 
+ #define TYPE double
+diff --git a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mul-float.c b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mul-float.c
+index 969416d7dc7..aa8efb4c2db 100644
+--- a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mul-float.c
++++ b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mul-float.c
+@@ -1,4 +1,5 @@
+ /* { dg-do compile } */
++/* { dg-require-effective-target vect_complex_add_float } */
+ /* { dg-add-options arm_v8_3a_complex_neon } */
+ 
+ #define TYPE float
+diff --git a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mul-half-float.c b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mul-half-float.c
+index da1b9213a6b..51331625745 100644
+--- a/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mul-half-float.c
++++ b/gcc/testsuite/gcc.dg/vect/complex/fast-math-complex-mul-half-float.c
+@@ -1,4 +1,6 @@
+ /* { dg-do compile } */
++/* { dg-require-effective-target vect_complex_add_half } */
++/* { dg-require-effective-target float16 } */
+ /* { dg-add-options arm_v8_3a_fp16_complex_neon } */
+ 
+ #define TYPE _Float16
+diff --git a/gcc/testsuite/gcc.dg/vect/vect.exp b/gcc/testsuite/gcc.dg/vect/vect.exp
+index dca9a4db6f6..3c60eff7072 100644
+--- a/gcc/testsuite/gcc.dg/vect/vect.exp
++++ b/gcc/testsuite/gcc.dg/vect/vect.exp
+@@ -118,7 +118,7 @@ et-dg-runtest dg-runtest [lsort \
+ set DEFAULT_VECTCFLAGS $SAVED_DEFAULT_VECTCFLAGS
+ lappend DEFAULT_VECTCFLAGS "-ffast-math"
+ et-dg-runtest dg-runtest [lsort \
+-	[glob -nocomplain $srcdir/$subdir/fast-math-\[ipsv\]*.\[cS\]]] \
++	[glob -nocomplain $srcdir/$subdir/fast-math-\[ipsvc\]*.\[cS\]]] \
+ 	"" $DEFAULT_VECTCFLAGS
+ 
+ # -ffast-math SLP tests
+diff --git a/gcc/testsuite/gcc.target/i386/sse-14.c b/gcc/testsuite/gcc.target/i386/sse-14.c
+index 4ce0ffffaf3..4c728f230f7 100644
+--- a/gcc/testsuite/gcc.target/i386/sse-14.c
++++ b/gcc/testsuite/gcc.target/i386/sse-14.c
+@@ -429,7 +429,9 @@ test_3 (_mm_maskz_mul_round_sd, __m128d, __mmask8, __m128d, __m128d, 9)
+ test_3 (_mm512_maskz_mul_round_ps, __m512, __mmask16, __m512, __m512, 9)
+ test_3 (_mm_maskz_mul_round_ss, __m128, __mmask8, __m128, __m128, 9)
+ test_3 (_mm512_maskz_scalef_round_pd, __m512d, __mmask8, __m512d, __m512d, 9)
++test_3 (_mm_maskz_scalef_round_sd, __m128d, __mmask8, __m128d, __m128d, 9)
+ test_3 (_mm512_maskz_scalef_round_ps, __m512, __mmask16, __m512, __m512, 9)
++test_3 (_mm_maskz_scalef_round_ss, __m128, __mmask8, __m128, __m128, 9)
+ test_3 (_mm512_maskz_shuffle_f32x4, __m512, __mmask16, __m512, __m512, 1)
+ test_3 (_mm512_maskz_shuffle_f64x2, __m512d, __mmask8, __m512d, __m512d, 1)
+ test_3 (_mm512_maskz_shuffle_i32x4, __m512i, __mmask16, __m512i, __m512i, 1)
+@@ -543,7 +545,9 @@ test_4 (_mm_mask_mul_round_sd, __m128d, __m128d, __mmask8, __m128d, __m128d, 9)
+ test_4 (_mm512_mask_mul_round_ps, __m512, __m512, __mmask16, __m512, __m512, 9)
+ test_4 (_mm_mask_mul_round_ss, __m128, __m128, __mmask8, __m128, __m128, 9)
+ test_4 (_mm512_mask_scalef_round_pd, __m512d, __m512d, __mmask8, __m512d, __m512d, 9)
++test_4 (_mm_mask_scalef_round_sd, __m128d, __m128d, __mmask8, __m128d, __m128d, 9)
+ test_4 (_mm512_mask_scalef_round_ps, __m512, __m512, __mmask16, __m512, __m512, 9)
++test_4 (_mm_mask_scalef_round_ss, __m128, __m128, __mmask8, __m128, __m128, 9)
+ test_4 (_mm512_mask_shuffle_f32x4, __m512, __m512, __mmask16, __m512, __m512, 1)
+ test_4 (_mm512_mask_shuffle_f64x2, __m512d, __m512d, __mmask8, __m512d, __m512d, 1)
+ test_4 (_mm512_mask_shuffle_i32x4, __m512i, __m512i, __mmask16, __m512i, __m512i, 1)
 diff --git a/gcc/testsuite/gfortran.dg/dec_union_12.f90 b/gcc/testsuite/gfortran.dg/dec_union_12.f90
 new file mode 100755
 index 00000000000..26671230b05
@@ -238,6 +1076,412 @@ index 42748771192..688089b04d2 100644
        else
  	gcc_assert (value >= 0);
  
+diff --git a/libphobos/ChangeLog b/libphobos/ChangeLog
+index acd0b312ef2..35950df774d 100644
+--- a/libphobos/ChangeLog
++++ b/libphobos/ChangeLog
+@@ -1,3 +1,19 @@
++2022-04-26  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2021-09-30  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	* libdruntime/gcc/unwind/generic.d (__aligned__): Define.
++	(_Unwind_Exception): Align struct to __aligned__.
++
++2022-04-26  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2022-04-26  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	* libdruntime/gcc/emutls.d (emutlsDestroyThread): Clear the per-thread
++	TLS array, don't call free().
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
+diff --git a/libphobos/libdruntime/gcc/emutls.d b/libphobos/libdruntime/gcc/emutls.d
+index 462230508ab..ebeeb8deda3 100644
+--- a/libphobos/libdruntime/gcc/emutls.d
++++ b/libphobos/libdruntime/gcc/emutls.d
+@@ -222,9 +222,9 @@ void** emutlsAlloc(shared __emutls_object* obj) nothrow @nogc
+ }
+ 
+ /*
+- * When a thread has finished, remove the TLS array from the GC
+- * scan list emutlsArrays, free all allocated TLS variables and
+- * finally free the array.
++ * When a thread has finished, free all allocated TLS variables and empty the
++ * array.  The pointer is not free'd as it is stil referenced by the GC scan
++ * list emutlsArrays, which gets destroyed when druntime is unloaded.
+  */
+ extern (C) void emutlsDestroyThread(void* ptr) nothrow @nogc
+ {
+@@ -236,7 +236,7 @@ extern (C) void emutlsDestroyThread(void* ptr) nothrow @nogc
+             free(entry[-1]);
+     }
+ 
+-    free(arr);
++    arr.length = 0;
+ }
+ 
+ /*
+diff --git a/libphobos/libdruntime/gcc/unwind/generic.d b/libphobos/libdruntime/gcc/unwind/generic.d
+index 592b3afcb71..68ddd1d5410 100644
+--- a/libphobos/libdruntime/gcc/unwind/generic.d
++++ b/libphobos/libdruntime/gcc/unwind/generic.d
+@@ -123,7 +123,27 @@ enum : _Unwind_Reason_Code
+ // @@@ The IA-64 ABI says that this structure must be double-word aligned.
+ // Taking that literally does not make much sense generically.  Instead we
+ // provide the maximum alignment required by any type for the machine.
+-struct _Unwind_Exception
++     version (ARM)      private enum __aligned__ = 8;
++else version (AArch64)  private enum __aligned__ = 16;
++else version (HPPA)     private enum __aligned__ = 8;
++else version (HPPA64)   private enum __aligned__ = 16;
++else version (MIPS_N32) private enum __aligned__ = 16;
++else version (MIPS_N64) private enum __aligned__ = 16;
++else version (MIPS32)   private enum __aligned__ = 8;
++else version (MIPS64)   private enum __aligned__ = 8;
++else version (PPC)      private enum __aligned__ = 16;
++else version (PPC64)    private enum __aligned__ = 16;
++else version (RISCV32)  private enum __aligned__ = 16;
++else version (RISCV64)  private enum __aligned__ = 16;
++else version (S390)     private enum __aligned__ = 8;
++else version (SPARC)    private enum __aligned__ = 8;
++else version (SPARC64)  private enum __aligned__ = 16;
++else version (SystemZ)  private enum __aligned__ = 8;
++else version (X86)      private enum __aligned__ = 16;
++else version (X86_64)   private enum __aligned__ = 16;
++else static assert( false, "Platform not supported.");
++
++align(__aligned__) struct _Unwind_Exception
+ {
+     _Unwind_Exception_Class exception_class;
+     _Unwind_Exception_Cleanup_Fn exception_cleanup;
+diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
+index 85e04c45288..94026976c41 100644
+--- a/libstdc++-v3/ChangeLog
++++ b/libstdc++-v3/ChangeLog
+@@ -1,3 +1,318 @@
++2022-04-26  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-04-25  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/105375
++	* include/std/future (packaged_task): Add deduction guides.
++	* testsuite/30_threads/packaged_task/cons/deduction.cc: New test.
++
++2022-04-22  Thomas W Rodgers  <trodgers@redhat.com>
++
++	Backported from master:
++	2022-04-22  Thomas W Rodgers  <trodgers@redhat.com>
++
++	PR libstdc++/102994
++	* include/bits/atomic_base.h (atomic_flag::notify_one,
++	notify_all): Remove const qualification.
++	(__atomic_base::notify_one, notify_all): Likewise.
++	* include/std/atomic (atomic<bool>::notify_one, notify_all):
++	Likewise.
++	(atomic::notify_one, notify_all): Likewise.
++	(atomic<T*>::notify_one, notify_all): Likewise.
++	(atomic_notify_one, atomic_notify_all): Likewise.
++	* testsuite/29_atomics/atomic/wait_notify/102994.cc: Adjust test
++	to account for change in notify_one/notify_all signature.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-11-26  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/96592
++	* include/std/tuple (tuple::is_constructible): Remove.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-09-02  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR c++/102177
++	* include/bits/atomic_base.h (__is_valid_cmpexch_failure_order):
++	New function to check if a memory order is valid for the failure
++	case of compare exchange operations.
++	(__atomic_base<I>::compare_exchange_weak): Simplify assertions
++	by using __is_valid_cmpexch_failure_order.
++	(__atomic_base<I>::compare_exchange_strong): Likewise.
++	(__atomic_base<P*>::compare_exchange_weak): Likewise.
++	(__atomic_base<P*>::compare_exchange_strong): Likewise.
++	(__atomic_impl::compare_exchange_weak): Add assertion.
++	(__atomic_impl::compare_exchange_strong): Likewise.
++	* include/std/atomic (atomic::compare_exchange_weak): Likewise.
++	(atomic::compare_exchange_strong): Likewise.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-02-11  Jonathan Wakely  <jwakely@redhat.com>
++
++	* testsuite/20_util/monotonic_buffer_resource/allocate.cc:
++	Ignore -Walloc-larger-than warning.
++	* testsuite/20_util/unsynchronized_pool_resource/allocate.cc:
++	Likewise.
++	* testsuite/29_atomics/atomic/cons/user_pod.cc: Compile with -O1
++	to avoid linker error for __atomic_is_lock_free.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-12-09  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/bits/stl_iterator.h (operator==, operator<=>): Define
++	overloads for homogeneous specializations of reverse_iterator,
++	__normal_iterator and move_iterator.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-11-26  Jonathan Wakely  <jwakely@redhat.com>
++
++	* testsuite/24_iterators/move_iterator/dr3265.cc: Fix test to
++	account for LWG 3435 resolution.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-08-02  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/101709
++	* src/filesystem/ops-common.h (get_temp_directory_from_env):
++	Add error_code parameter.
++	* src/c++17/fs_ops.cc (fs::temp_directory_path): Pass error_code
++	argument to get_temp_directory_from_env and check it.
++	* src/filesystem/ops.cc (fs::temp_directory_path): Likewise.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/105324
++	* src/c++17/floating_from_chars.cc (buffer_resource::do_allocate):
++	Remove assertion.
++	* testsuite/20_util/from_chars/pr105324.cc: New test.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-07-30  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/65018
++	* configure.ac: Check for secure_getenv.
++	* config.h.in: Regenerate.
++	* configure: Regenerate.
++	* src/filesystem/ops-common.h (get_temp_directory_from_env): New
++	helper function to obtain path from the environment.
++	* src/c++17/fs_ops.cc (fs::temp_directory_path): Use new helper.
++	* src/filesystem/ops.cc (fs::temp_directory_path): Likewise.
++	* testsuite/27_io/filesystem/operations/temp_directory_path.cc:
++	Print messages if test cannot be run.
++	* testsuite/experimental/filesystem/operations/temp_directory_path.cc:
++	Likewise. Fix incorrect condition. Use "TMP" to work with
++	Windows as well as POSIX.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-11-30  Jonathan Wakely  <jwakely@redhat.com>
++
++	* src/c++20/sstream-inst.cc (_GLIBCXX_USE_CXX11_ABI): Define to
++	select new ABI.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-11-30  Jonathan Wakely  <jwakely@redhat.com>
++
++	* testsuite/21_strings/basic_string/cons/char/moveable.cc: Allow
++	moved-from string to be non-empty.
++	* testsuite/21_strings/basic_string/cons/char/moveable2.cc:
++	Likewise.
++	* testsuite/21_strings/basic_string/cons/char/moveable2_c++17.cc:
++	Likewise.
++	* testsuite/21_strings/basic_string/cons/wchar_t/moveable.cc:
++	Likewise.
++	* testsuite/21_strings/basic_string/cons/wchar_t/moveable2.cc:
++	Likewise.
++	* testsuite/21_strings/basic_string/cons/wchar_t/moveable2_c++17.cc:
++	Likewise.
++	* testsuite/21_strings/basic_string/modifiers/assign/char/87749.cc:
++	Construct empty string before setting oom flag.
++	* testsuite/21_strings/basic_string/modifiers/assign/wchar_t/87749.cc:
++	Likewise.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-12-14  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/bits/regex_compiler.tcc (_Compiler::_M_match_token):
++	Use reserved name for parameter.
++	* testsuite/17_intro/names.cc: Check "token".
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-08-25  Jonathan Wakely  <jwakely@redhat.com>
++
++	* testsuite/17_intro/names.cc: Check 'sz'.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-01-11  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/std/ranges (ranges::lazy_split_view::_InnerIter::end()):
++	Add neoxcept (LWG 3593).
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-11-17  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/experimental/internet (address): Use std::_Construct
++	to initialize union members.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-01-05  Jonathan Wakely  <jwakely@redhat.com>
++
++	* src/c++11/cxx11-ios_failure.cc (io_error_category): Define
++	class and virtual functions as 'final'.
++	(io_category_instance): Use constinit union to make the object
++	immortal.
++	* src/c++11/future.cc (future_error_category): Define class and
++	virtual functions as 'final'.
++	(future_category_instance): Use constinit union.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-11-01  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/std/span (span(Range&&)): Reorder constraints.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-12-01  Jonathan Wakely  <jwakely@redhat.com>
++
++	* src/c++17/fs_path.cc (path::_M_split_cmpts()): Remove
++	micro-optimization for "/" path.
++	* src/filesystem/path.cc (path::_M_split_cmpts()): Only access
++	the contents of _M_pathname using const member functions.
++
++2022-04-21  Pavel I. Kryukov  <pavel.kryukov@phystech.edu>
++
++	Backported from master:
++	2022-01-06  Pavel I. Kryukov  <pavel.kryukov@phystech.edu>
++		    Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/103853
++	* include/bits/forward_list.tcc (forward_list::merge): Check for
++	self-merge.
++	* testsuite/23_containers/forward_list/operations/merge.cc: New test.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-01-14  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/bits/stl_construct.h (_Construct, _Construct_novalue):
++	Also cast away cv-qualifiers when converting pointer to void.
++	* testsuite/20_util/allocator/void.cc: Test construct function
++	with cv-qualified types.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-01-06  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/103911
++	* include/std/charconv (__from_chars_alpha_to_num): Return
++	char instead of unsigned char. Change invalid return value to
++	127 instead of using numeric trait.
++	(__from_chars_alnum): Fix comment. Do not use std::isdigit.
++	Change type of variable to char.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-01-27  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/bits/ranges_base.h (ranges::advance): Avoid signed
++	overflow. Do nothing if already equal to desired result.
++	* testsuite/24_iterators/range_operations/advance_overflow.cc:
++	New test.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-01-06  Jonathan Wakely  <jwakely@redhat.com>
++
++	* testsuite/ext/rope/pthread7-rope.cc: Add dg-timeout-factor.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-03-03  Jonathan Wakely  <jwakely@redhat.com>
++
++	* testsuite/17_intro/names.cc (func): Undef on AIX.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-04-20  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/93602
++	* doc/xml/manual/prerequisites.xml: Document libiconv
++	workarounds.
++	* doc/html/manual/setup.html: Regenerate.
++	* src/Makefile.am (CXXLINK): Add $(LTLIBICONV).
++	* src/Makefile.in: Regenerate.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-04-14  Jonathan Wakely  <jwakely@redhat.com>
++
++	* doc/xml/manual/intro.xml: Fix comment.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-04-20  Jonathan Wakely  <jwakely@redhat.com>
++
++	* testsuite/21_strings/basic_string_view/operations/copy/char/constexpr.cc:
++	Check correct feature test macro.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR middle-end/104966
++	* include/bits/locale_facets_nonio.tcc
++	(__moneypunct_cache::_M_cache): Store string sizes in local
++	variable that doesn't escape.
++
++2022-04-21  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-01-05  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/103848
++	* include/bits/stl_deque.h (operator-): Do not use 0 as null
++	pointer constant.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/libstdc++-v3/config.h.in b/libstdc++-v3/config.h.in
 index 61c342681d4..ea88281f438 100644
 --- a/libstdc++-v3/config.h.in
@@ -405,7 +1649,7 @@ index 22e90a7e79d..8799487c821 100644
  	<para>
  	  If GCC 3.1.0 or later on is being used on GNU/Linux, an attempt
 diff --git a/libstdc++-v3/include/bits/atomic_base.h b/libstdc++-v3/include/bits/atomic_base.h
-index 60b976bf8d1..315f5a25e93 100644
+index 60b976bf8d1..2abdc400260 100644
 --- a/libstdc++-v3/include/bits/atomic_base.h
 +++ b/libstdc++-v3/include/bits/atomic_base.h
 @@ -121,6 +121,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
@@ -422,6 +1666,22 @@ index 60b976bf8d1..315f5a25e93 100644
    _GLIBCXX_ALWAYS_INLINE void
    atomic_thread_fence(memory_order __m) noexcept
    { __atomic_thread_fence(int(__m)); }
+@@ -245,13 +252,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     // TODO add const volatile overload
+ 
+     _GLIBCXX_ALWAYS_INLINE void
+-    notify_one() const noexcept
++    notify_one() noexcept
+     { std::__atomic_notify_address(&_M_i, false); }
+ 
+     // TODO add const volatile overload
+ 
+     _GLIBCXX_ALWAYS_INLINE void
+-    notify_all() const noexcept
++    notify_all() noexcept
+     { std::__atomic_notify_address(&_M_i, true); }
+ 
+     // TODO add const volatile overload
 @@ -511,13 +518,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        compare_exchange_weak(__int_type& __i1, __int_type __i2,
  			    memory_order __m1, memory_order __m2) noexcept
@@ -483,6 +1743,22 @@ index 60b976bf8d1..315f5a25e93 100644
  
  	return __atomic_compare_exchange_n(&_M_i, &__i1, __i2, 0,
  					   int(__m1), int(__m2));
+@@ -618,13 +600,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       // TODO add const volatile overload
+ 
+       _GLIBCXX_ALWAYS_INLINE void
+-      notify_one() const noexcept
++      notify_one() noexcept
+       { std::__atomic_notify_address(&_M_i, false); }
+ 
+       // TODO add const volatile overload
+ 
+       _GLIBCXX_ALWAYS_INLINE void
+-      notify_all() const noexcept
++      notify_all() noexcept
+       { std::__atomic_notify_address(&_M_i, true); }
+ 
+       // TODO add const volatile overload
 @@ -869,13 +851,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
  			      memory_order __m1,
  			      memory_order __m2) noexcept
@@ -818,9 +2094,23 @@ index 6ce070ae775..07eb137fb80 100644
        return *this;
      }
 diff --git a/libstdc++-v3/include/std/atomic b/libstdc++-v3/include/std/atomic
-index fdffacc35df..e9d906f2485 100644
+index fdffacc35df..0d4e3a7396e 100644
 --- a/libstdc++-v3/include/std/atomic
 +++ b/libstdc++-v3/include/std/atomic
+@@ -172,11 +172,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     // TODO add const volatile overload
+ 
+     void
+-    notify_one() const noexcept
++    notify_one() noexcept
+     { _M_base.notify_one(); }
+ 
+     void
+-    notify_all() const noexcept
++    notify_all() noexcept
+     { _M_base.notify_all(); }
+ #endif // __cpp_lib_atomic_wait
+   };
 @@ -320,6 +320,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        compare_exchange_weak(_Tp& __e, _Tp __i, memory_order __s,
  			    memory_order __f) noexcept
@@ -857,6 +2147,49 @@ index fdffacc35df..e9d906f2485 100644
  	return __atomic_compare_exchange(std::__addressof(_M_i),
  					 std::__addressof(__e),
  					 std::__addressof(__i),
+@@ -391,11 +399,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     // TODO add const volatile overload
+ 
+     void
+-    notify_one() const noexcept
++    notify_one() noexcept
+     { std::__atomic_notify_address(&_M_i, false); }
+ 
+     void
+-    notify_all() const noexcept
++    notify_all() noexcept
+     { std::__atomic_notify_address(&_M_i, true); }
+ #endif // __cpp_lib_atomic_wait 
+ 
+@@ -645,11 +653,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     // TODO add const volatile overload
+ 
+     void
+-    notify_one() const noexcept
++    notify_one() noexcept
+     { _M_b.notify_one(); }
+ 
+     void
+-    notify_all() const noexcept
++    notify_all() noexcept
+     { _M_b.notify_all(); }
+ #endif // __cpp_lib_atomic_wait
+       __pointer_type
+@@ -1421,12 +1429,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 
+   template<typename _Tp>
+     inline void
+-    atomic_notify_one(const atomic<_Tp>* __a) noexcept
++    atomic_notify_one(atomic<_Tp>* __a) noexcept
+     { __a->notify_one(); }
+ 
+   template<typename _Tp>
+     inline void
+-    atomic_notify_all(const atomic<_Tp>* __a) noexcept
++    atomic_notify_all(atomic<_Tp>* __a) noexcept
+     { __a->notify_all(); }
+ #endif // __cpp_lib_atomic_wait
+ 
 diff --git a/libstdc++-v3/include/std/charconv b/libstdc++-v3/include/std/charconv
 index 8572e376c92..65f923993fa 100644
 --- a/libstdc++-v3/include/std/charconv
@@ -902,6 +2235,28 @@ index 8572e376c92..65f923993fa 100644
  	    __c -= '0';
  	  else
  	    {
+diff --git a/libstdc++-v3/include/std/future b/libstdc++-v3/include/std/future
+index 09e54c3703b..f5d8da472f5 100644
+--- a/libstdc++-v3/include/std/future
++++ b/libstdc++-v3/include/std/future
+@@ -1621,6 +1621,17 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       }
+     };
+ 
++  // _GLIBCXX_RESOLVE_LIB_DEFECTS
++  // 3117. Missing packaged_task deduction guides
++#if __cpp_deduction_guides >= 201606
++  template<typename _Res, typename... _ArgTypes>
++    packaged_task(_Res(*)(_ArgTypes...)) -> packaged_task<_Res(_ArgTypes...)>;
++
++  template<typename _Fun, typename _Signature = typename
++	   __function_guide_helper<decltype(&_Fun::operator())>::type>
++    packaged_task(_Fun) -> packaged_task<_Signature>;
++#endif
++
+   /// swap
+   template<typename _Res, typename... _ArgTypes>
+     inline void
 diff --git a/libstdc++-v3/include/std/ranges b/libstdc++-v3/include/std/ranges
 index f55ee15e1b1..bbdfb7dbe5c 100644
 --- a/libstdc++-v3/include/std/ranges
@@ -1104,10 +2459,25 @@ index aa074869872..f815e4981dd 100644
        m_ptr = operator new(bytes);
        m_bytes = bytes;
 diff --git a/libstdc++-v3/src/c++17/fs_ops.cc b/libstdc++-v3/src/c++17/fs_ops.cc
-index acff0ff926e..2eac9977785 100644
+index acff0ff926e..e308cab6fa0 100644
 --- a/libstdc++-v3/src/c++17/fs_ops.cc
 +++ b/libstdc++-v3/src/c++17/fs_ops.cc
-@@ -1584,7 +1584,8 @@ fs::symlink_status(const fs::path& p)
+@@ -404,8 +404,12 @@ fs::copy(const path& from, const path& to, copy_options options,
+       // set an unused bit in options to disable further recursion
+       if (!is_set(options, copy_options::recursive))
+ 	options |= static_cast<copy_options>(4096);
+-      for (const directory_entry& x : directory_iterator(from))
+-	copy(x.path(), to/x.path().filename(), options, ec);
++      for (const directory_entry& x : directory_iterator(from, ec))
++	{
++	  copy(x.path(), to/x.path().filename(), options, ec);
++	  if (ec)
++	    return;
++	}
+     }
+   // _GLIBCXX_RESOLVE_LIB_DEFECTS
+   // 2683. filesystem::copy() says "no effects"
+@@ -1584,7 +1588,8 @@ fs::symlink_status(const fs::path& p)
    return result;
  }
  
@@ -1117,7 +2487,7 @@ index acff0ff926e..2eac9977785 100644
  {
    error_code ec;
    path tmp = temp_directory_path(ec);
-@@ -1593,32 +1594,12 @@ fs::path fs::temp_directory_path()
+@@ -1593,32 +1598,12 @@ fs::path fs::temp_directory_path()
    return tmp;
  }
  
@@ -1239,10 +2609,25 @@ index 529d4e09016..a76a2e6198d 100644
  
  _GLIBCXX_END_NAMESPACE_VERSION
 diff --git a/libstdc++-v3/src/filesystem/ops.cc b/libstdc++-v3/src/filesystem/ops.cc
-index 3f2290f372d..1ee22967a4f 100644
+index 3f2290f372d..bd5347468cf 100644
 --- a/libstdc++-v3/src/filesystem/ops.cc
 +++ b/libstdc++-v3/src/filesystem/ops.cc
-@@ -1289,7 +1289,8 @@ fs::system_complete(const path& p, error_code& ec)
+@@ -344,8 +344,12 @@ fs::copy(const path& from, const path& to, copy_options options,
+       // set an unused bit in options to disable further recursion
+       if (!is_set(options, copy_options::recursive))
+ 	options |= static_cast<copy_options>(4096);
+-      for (const directory_entry& x : directory_iterator(from))
+-	copy(x.path(), to/x.path().filename(), options, ec);
++      for (const directory_entry& x : directory_iterator(from, ec))
++	{
++	  copy(x.path(), to/x.path().filename(), options, ec);
++	  if (ec)
++	    return;
++	}
+     }
+   // _GLIBCXX_RESOLVE_LIB_DEFECTS
+   // 2683. filesystem::copy() says "no effects"
+@@ -1289,7 +1293,8 @@ fs::system_complete(const path& p, error_code& ec)
  #endif
  }
  
@@ -1252,7 +2637,7 @@ index 3f2290f372d..1ee22967a4f 100644
  {
    error_code ec;
    path tmp = temp_directory_path(ec);
-@@ -1298,31 +1299,12 @@ fs::path fs::temp_directory_path()
+@@ -1298,31 +1303,12 @@ fs::path fs::temp_directory_path()
    return tmp;
  }
  
@@ -1289,7 +2674,7 @@ index 3f2290f372d..1ee22967a4f 100644
    auto st = status(p, ec);
    if (ec)
      p.clear();
-@@ -1331,7 +1313,5 @@ fs::path fs::temp_directory_path(error_code& ec)
+@@ -1331,7 +1317,5 @@ fs::path fs::temp_directory_path(error_code& ec)
        p.clear();
        ec = std::make_error_code(std::errc::not_a_directory);
      }
@@ -1784,6 +3169,51 @@ index 00000000000..0fadcd6e99a
 +    return std::ranges::advance(i, L::min(), I{-4}) == L::min() + 2;
 +}
 +static_assert(test());
+diff --git a/libstdc++-v3/testsuite/27_io/filesystem/operations/copy.cc b/libstdc++-v3/testsuite/27_io/filesystem/operations/copy.cc
+index 761cfc29b13..c00cf85641e 100644
+--- a/libstdc++-v3/testsuite/27_io/filesystem/operations/copy.cc
++++ b/libstdc++-v3/testsuite/27_io/filesystem/operations/copy.cc
+@@ -193,6 +193,34 @@ test05()
+   VERIFY( !ec );  // Previous value should be cleared (LWG 2683)
+ }
+ 
++void
++test_pr99290()
++{
++  auto dir = __gnu_test::nonexistent_path();
++  auto source = dir/"source";
++  auto dest = dir/"dest";
++  create_directories(source/"emptydir");
++  create_directories(dest/"emptydir");
++  std::ofstream{source/"file"} << 'a';
++  std::ofstream{dest/"file"} << 'b';
++  // PR libstdc++/99290
++  // std::filesystem::copy does not always report errors for recursion
++  std::error_code ec;
++  copy(source, dest, ec);
++  VERIFY( ec == std::errc::file_exists );
++
++#if __cpp_exceptions
++  try {
++    copy(source, dest);
++    VERIFY( false );
++  } catch (const fs::filesystem_error& e) {
++    VERIFY( e.code() == std::errc::file_exists );
++  }
++#endif
++
++  remove_all(dir);
++}
++
+ int
+ main()
+ {
+@@ -201,4 +229,5 @@ main()
+   test03();
+   test04();
+   test05();
++  test_pr99290();
+ }
 diff --git a/libstdc++-v3/testsuite/27_io/filesystem/operations/temp_directory_path.cc b/libstdc++-v3/testsuite/27_io/filesystem/operations/temp_directory_path.cc
 index b55cd6c60b6..1cfda583be3 100644
 --- a/libstdc++-v3/testsuite/27_io/filesystem/operations/temp_directory_path.cc
@@ -1827,6 +3257,162 @@ index 7eab17b12e0..dffdaef7afd 100644
  // { dg-do link { target c++11 } }
  
  // Copyright (C) 2009-2021 Free Software Foundation, Inc.
+diff --git a/libstdc++-v3/testsuite/29_atomics/atomic/wait_notify/102994.cc b/libstdc++-v3/testsuite/29_atomics/atomic/wait_notify/102994.cc
+index 9d92ff954f1..f572ce7ef11 100644
+--- a/libstdc++-v3/testsuite/29_atomics/atomic/wait_notify/102994.cc
++++ b/libstdc++-v3/testsuite/29_atomics/atomic/wait_notify/102994.cc
+@@ -5,13 +5,13 @@
+ #include <atomic>
+ 
+ void
+-test1(const std::atomic<char*>& a, char* p)
++test1(std::atomic<char*>& a, char* p)
+ {
+   a.wait(p);
+ }
+ 
+ void
+-test2(const std::atomic<int>* a, int v)
++test2(std::atomic<int>* a, int v)
+ {
+   std::atomic_wait(a, v);
+   std::atomic_notify_one(a);
+diff --git a/libstdc++-v3/testsuite/30_threads/packaged_task/cons/deduction.cc b/libstdc++-v3/testsuite/30_threads/packaged_task/cons/deduction.cc
+new file mode 100644
+index 00000000000..0eb69763ab9
+--- /dev/null
++++ b/libstdc++-v3/testsuite/30_threads/packaged_task/cons/deduction.cc
+@@ -0,0 +1,85 @@
++// // Copyright (C) 2017-2022 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do compile { target c++17 } }
++
++#include <future>
++
++template<typename T, typename U> struct require_same;
++template<typename T> struct require_same<T, T> { using type = void; };
++
++template<typename T, typename U>
++  typename require_same<T, U>::type
++  check_type(U&) { }
++
++void f0v();
++void f0vn() noexcept;
++int f0i();
++int f0in() noexcept;
++long f1l(int&);
++long f1ln(double*) noexcept;
++
++void
++test01()
++{
++  std::packaged_task task1{f0v};
++  check_type<std::packaged_task<void()>>(task1);
++
++  std::packaged_task task2{f0vn};
++  check_type<std::packaged_task<void()>>(task2);
++
++  std::packaged_task task3{f0i};
++  check_type<std::packaged_task<int()>>(task3);
++
++  std::packaged_task task4{f0in};
++  check_type<std::packaged_task<int()>>(task4);
++
++  std::packaged_task task5{f1l};
++  check_type<std::packaged_task<long(int&)>>(task5);
++
++  std::packaged_task task6{f1ln};
++  check_type<std::packaged_task<long(double*)>>(task6);
++
++  std::packaged_task task5a{std::move(task5)};
++  check_type<std::packaged_task<long(int&)>>(task5a);
++
++  std::packaged_task task6a{std::move(task6)};
++  check_type<std::packaged_task<long(double*)>>(task6a);
++}
++
++struct X {
++  int operator()(const short&, void*);
++};
++
++struct Y {
++  void operator()(int) const & noexcept;
++};
++
++void
++test02()
++{
++  X x;
++  std::packaged_task task1{x};
++  check_type<std::packaged_task<int(const short&, void*)>>(task1);
++
++  Y y;
++  std::packaged_task task2{y};
++  check_type<std::packaged_task<void(int)>>(task2);
++
++  std::packaged_task task3{[&x](float) -> X& { return x; }};
++  check_type<std::packaged_task<X&(float)>>(task3);
++}
+diff --git a/libstdc++-v3/testsuite/experimental/filesystem/operations/copy.cc b/libstdc++-v3/testsuite/experimental/filesystem/operations/copy.cc
+index 947d270e6a4..817e51d2d21 100644
+--- a/libstdc++-v3/testsuite/experimental/filesystem/operations/copy.cc
++++ b/libstdc++-v3/testsuite/experimental/filesystem/operations/copy.cc
+@@ -190,6 +190,34 @@ test05()
+   VERIFY( !ec );  // Previous value should be cleared (LWG 2683)
+ }
+ 
++void
++test_pr99290()
++{
++  auto dir = __gnu_test::nonexistent_path();
++  auto source = dir/"source";
++  auto dest = dir/"dest";
++  create_directories(source/"emptydir");
++  create_directories(dest/"emptydir");
++  std::ofstream{source/"file"} << 'a';
++  std::ofstream{dest/"file"} << 'b';
++  // PR libstdc++/99290
++  // std::filesystem::copy does not always report errors for recursion
++  std::error_code ec;
++  copy(source, dest, ec);
++  VERIFY( ec == std::errc::file_exists );
++
++#if __cpp_exceptions
++  try {
++    copy(source, dest);
++    VERIFY( false );
++  } catch (const fs::filesystem_error& e) {
++    VERIFY( e.code() == std::errc::file_exists );
++  }
++#endif
++
++  remove_all(dir);
++}
++
+ int
+ main()
+ {
+@@ -198,4 +226,5 @@ main()
+   test03();
+   test04();
+   test05();
++  test_pr99290();
+ }
 diff --git a/libstdc++-v3/testsuite/experimental/filesystem/operations/temp_directory_path.cc b/libstdc++-v3/testsuite/experimental/filesystem/operations/temp_directory_path.cc
 index 03e777b0041..badd8a884cc 100644
 --- a/libstdc++-v3/testsuite/experimental/filesystem/operations/temp_directory_path.cc
