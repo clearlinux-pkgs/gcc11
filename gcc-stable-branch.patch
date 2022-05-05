@@ -1,7 +1,21 @@
+Alexandre Oliva (1):
+      testsuite: vect: update unaligned message
+
+David Malcolm (2):
+      analyzer: fix ICE comparing VECTOR_CSTs [PR105252]
+      analyzer: fix ICEs on complex constants [PR105365,105366]
+
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (7):
+GCC Administrator (14):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -144,6 +158,125 @@ index a0587d18824..47f3049af9c 100644
  2022-04-21  Release Manager
  
  	* GCC 11.3.0 released.
+diff --git a/gcc/analyzer/ChangeLog b/gcc/analyzer/ChangeLog
+index 7ae3901445e..a051997909c 100644
+--- a/gcc/analyzer/ChangeLog
++++ b/gcc/analyzer/ChangeLog
+@@ -1,3 +1,20 @@
++2022-04-28  David Malcolm  <dmalcolm@redhat.com>
++
++	PR analyzer/105365
++	PR analyzer/105366
++	* svalue.cc
++	(cmp_cst): Rename to...
++	(cmp_csts_same_type): ...this.  Convert all recursive calls to
++	calls to...
++	(cmp_csts_and_types): ....this new function.
++	(svalue::cmp_ptr): Update for renaming of cmp_cst
++
++2022-04-28  David Malcolm  <dmalcolm@redhat.com>
++
++	PR analyzer/105252
++	* svalue.cc (cmp_cst): When comparing VECTOR_CSTs, compare the
++	types of the encoded elements before calling cmp_cst on them.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
+diff --git a/gcc/analyzer/svalue.cc b/gcc/analyzer/svalue.cc
+index a16563d912a..fa33e956d41 100644
+--- a/gcc/analyzer/svalue.cc
++++ b/gcc/analyzer/svalue.cc
+@@ -59,6 +59,8 @@ along with GCC; see the file COPYING3.  If not see
+ 
+ namespace ana {
+ 
++static int cmp_csts_and_types (const_tree cst1, const_tree cst2);
++
+ /* class svalue and its various subclasses.  */
+ 
+ /* class svalue.  */
+@@ -276,7 +278,7 @@ svalue::implicitly_live_p (const svalue_set *, const region_model *) const
+    of the same type.  */
+ 
+ static int
+-cmp_cst (const_tree cst1, const_tree cst2)
++cmp_csts_same_type (const_tree cst1, const_tree cst2)
+ {
+   gcc_assert (TREE_TYPE (cst1) == TREE_TYPE (cst2));
+   gcc_assert (TREE_CODE (cst1) == TREE_CODE (cst2));
+@@ -295,9 +297,10 @@ cmp_cst (const_tree cst1, const_tree cst2)
+ 		     TREE_REAL_CST_PTR (cst2),
+ 		     sizeof (real_value));
+     case COMPLEX_CST:
+-      if (int cmp_real = cmp_cst (TREE_REALPART (cst1), TREE_REALPART (cst2)))
++      if (int cmp_real = cmp_csts_and_types (TREE_REALPART (cst1),
++					     TREE_REALPART (cst2)))
+ 	return cmp_real;
+-      return cmp_cst (TREE_IMAGPART (cst1), TREE_IMAGPART (cst2));
++      return cmp_csts_and_types (TREE_IMAGPART (cst1), TREE_IMAGPART (cst2));
+     case VECTOR_CST:
+       if (int cmp_log2_npatterns
+ 	    = ((int)VECTOR_CST_LOG2_NPATTERNS (cst1)
+@@ -309,13 +312,29 @@ cmp_cst (const_tree cst1, const_tree cst2)
+ 	return cmp_nelts_per_pattern;
+       unsigned encoded_nelts = vector_cst_encoded_nelts (cst1);
+       for (unsigned i = 0; i < encoded_nelts; i++)
+-	if (int el_cmp = cmp_cst (VECTOR_CST_ENCODED_ELT (cst1, i),
+-				  VECTOR_CST_ENCODED_ELT (cst2, i)))
+-	  return el_cmp;
++	{
++	  const_tree elt1 = VECTOR_CST_ENCODED_ELT (cst1, i);
++	  const_tree elt2 = VECTOR_CST_ENCODED_ELT (cst2, i);
++	  if (int el_cmp = cmp_csts_and_types (elt1, elt2))
++	    return el_cmp;
++	}
+       return 0;
+     }
+ }
+ 
++/* Comparator for imposing a deterministic order on constants that might
++   not be of the same type.  */
++
++static int
++cmp_csts_and_types (const_tree cst1, const_tree cst2)
++{
++  int t1 = TYPE_UID (TREE_TYPE (cst1));
++  int t2 = TYPE_UID (TREE_TYPE (cst2));
++  if (int cmp_type = t1 - t2)
++    return cmp_type;
++  return cmp_csts_same_type (cst1, cst2);
++}
++
+ /* Comparator for imposing a deterministic order on svalues.  */
+ 
+ int
+@@ -347,7 +366,7 @@ svalue::cmp_ptr (const svalue *sval1, const svalue *sval2)
+ 	const constant_svalue *constant_sval2 = (const constant_svalue *)sval2;
+ 	const_tree cst1 = constant_sval1->get_constant ();
+ 	const_tree cst2 = constant_sval2->get_constant ();
+-	return cmp_cst (cst1, cst2);
++	return cmp_csts_same_type (cst1, cst2);
+       }
+       break;
+     case SK_UNKNOWN:
+diff --git a/gcc/c-family/ChangeLog b/gcc/c-family/ChangeLog
+index dff48ba4655..65de3d901d3 100644
+--- a/gcc/c-family/ChangeLog
++++ b/gcc/c-family/ChangeLog
+@@ -1,3 +1,12 @@
++2022-04-28  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2022-04-26  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/105304
++	* c-common.c (verify_tree) [restart]: Move up to before the
++	NULL test.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/gcc/c-family/c-common.c b/gcc/c-family/c-common.c
 index 7b8f49d78dc..16fc52302e5 100644
 --- a/gcc/c-family/c-common.c
@@ -282,10 +415,42 @@ index 7c8a1f18c39..0ef91935c1e 100644
      case CC0:
      case PC:
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..67d7d721985 100644
+index 85c8fdd38cd..df0c1197905 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,37 @@
+@@ -1,3 +1,69 @@
++2022-04-28  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2022-04-26  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/105386
++	* semantics.c (finish_decltype_type): Pass tf_decltype to
++	instantiate_non_dependent_expr_sfinae.
++
++2022-04-28  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2022-04-26  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/105289
++	PR c++/86193
++	* pt.c (process_partial_specialization): Downgrade "partial
++	specialization isn't more specialized" diagnostic from permerror
++	to an on-by-default pedwarn.
++	(unify) <case TEMPLATE_PARM_INDEX>: When substituting into the
++	NTTP type a second time, use the original type not the
++	substituted type.
++
++2022-04-28  Marek Polacek  <polacek@redhat.com>
++
++	Backported from master:
++	2022-04-28  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/90107
++	* parser.c (cp_parser_class_specifier_1): Accept :: after a class
++	definition.
++
 +2022-04-27  Marek Polacek  <polacek@redhat.com>
 +
 +	Backported from master:
@@ -499,10 +664,86 @@ index a5c391d077e..9b65b9cf474 100644
  {
    gfc_constructor *ctor;
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..3f0edd90f3e 100644
+index 5fc23605244..43ab06e9f80 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,60 @@
+@@ -1,3 +1,136 @@
++2022-05-03  Alexandre Oliva  <oliva@adacore.com>
++
++	Backported from master:
++	2022-05-03  Alexandre Oliva  <oliva@adacore.com>
++
++	* gcc.dg/vect/costmodel/ppc/costmodel-vect-31a.c: Update
++	the expected message for the case in which unaligned accesses
++	are not allowed.
++
++2022-04-28  David Malcolm  <dmalcolm@redhat.com>
++
++	PR analyzer/105365
++	PR analyzer/105366
++	* gcc.dg/analyzer/pr105365.c: New test.
++	* gcc.dg/analyzer/pr105366.c: New test.
++
++2022-04-28  David Malcolm  <dmalcolm@redhat.com>
++
++	PR analyzer/105252
++	* gcc.dg/analyzer/pr105252.c: New test.
++
++2022-04-28  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2022-04-26  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/105386
++	* g++.dg/cpp0x/decltype81.C: New test.
++
++2022-04-28  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2022-04-26  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/105304
++	* g++.dg/cpp2a/concepts-requires30.C: New test.
++
++2022-04-28  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2022-04-26  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/105289
++	PR c++/86193
++	* g++.dg/template/partial-specialization11.C: New test.
++	* g++.dg/template/partial-specialization12.C: New test.
++
++2022-04-28  Marek Polacek  <polacek@redhat.com>
++
++	Backported from master:
++	2022-04-28  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/90107
++	* g++.dg/parse/qualified6.C: New test.
++
++2022-04-28  Tamar Christina  <tamar.christina@arm.com>
++
++	PR testsuite/105095
++	* gcc.dg/vect/complex/fast-math-bb-slp-complex-mul-float.c: Update for
++	codegen.
++	* gcc.dg/vect/complex/fast-math-complex-add-double.c: Likewise.
++	* gcc.dg/vect/complex/fast-math-complex-add-float.c: Likewise.
++	* gcc.dg/vect/complex/fast-math-complex-add-half-float.c: Likewise.
++	* gcc.dg/vect/complex/fast-math-complex-add-pattern-double.c: Likewise.
++	* gcc.dg/vect/complex/fast-math-complex-add-pattern-float.c: Likewise.
++	* gcc.dg/vect/complex/fast-math-complex-add-pattern-half-float.c:
++	Likewise.
++	* gcc.dg/vect/complex/fast-math-complex-mla-half-float.c: Likewise.
++	* gcc.dg/vect/complex/fast-math-complex-mls-double.c: Likewise.
++	* gcc.dg/vect/complex/fast-math-complex-mls-float.c: Likewise.
++	* gcc.dg/vect/complex/fast-math-complex-mls-half-float.c: Likewise.
++	* gcc.dg/vect/complex/fast-math-complex-mul-double.c: Likewise.
++	* gcc.dg/vect/complex/fast-math-complex-mul-float.c: Likewise.
++	* gcc.dg/vect/complex/fast-math-complex-mul-half-float.c: Likewise.
++	* gcc.dg/vect/vect.exp: Add extra letter to filter.
++
 +2022-04-27  Marek Polacek  <polacek@redhat.com>
 +
 +	Backported from master:
@@ -724,6 +965,80 @@ index 00000000000..5f51e8a27de
 +
 +template<template<class X, X...> class XList, class T, T Arg, T... Vs>
 +struct push_front_vlist<XList<T, Vs...>, Arg> { }; // { dg-error "not more specialized" }
+diff --git a/gcc/testsuite/gcc.dg/analyzer/pr105252.c b/gcc/testsuite/gcc.dg/analyzer/pr105252.c
+new file mode 100644
+index 00000000000..a093eababc5
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/analyzer/pr105252.c
+@@ -0,0 +1,20 @@
++/* { dg-additional-options "-fnon-call-exceptions -O" } */
++
++typedef unsigned char C;
++typedef unsigned char __attribute__((__vector_size__ (4))) V;
++
++C m;
++
++static inline void
++bar (C c, V v, V *r)
++{
++  v %= (c | v) % m;
++  *r = v;
++}
++
++void
++foo (void)
++{
++  V x;
++  bar (0, (V){2}, &x);
++}
+diff --git a/gcc/testsuite/gcc.dg/analyzer/pr105365.c b/gcc/testsuite/gcc.dg/analyzer/pr105365.c
+new file mode 100644
+index 00000000000..aa576d08632
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/analyzer/pr105365.c
+@@ -0,0 +1,17 @@
++/* { dg-require-effective-target int128 } */
++
++typedef _Float32 f32;
++typedef _Complex _Float32 cf32;
++_Float32 g;
++__int128 i;
++
++extern void bar(int);
++
++void
++foo(_Float32 k) {
++  f32 f = 0;
++  f /= (_Complex char)__builtin_llround(g);
++  k /= (cf32)__builtin_copysignf(0, i);
++  bar(f + k);
++  foo(0);
++}
+diff --git a/gcc/testsuite/gcc.dg/analyzer/pr105366.c b/gcc/testsuite/gcc.dg/analyzer/pr105366.c
+new file mode 100644
+index 00000000000..3dba870e4e9
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/analyzer/pr105366.c
+@@ -0,0 +1,19 @@
++/* { dg-require-effective-target int128 } */
++/* { dg-additional-options "-O" } */
++
++extern void bar(int);
++extern void baz(void);
++
++typedef unsigned u32;
++
++void
++foo(u32 u, __int128 i) {
++  baz();
++  _Complex int c = i;
++  c /= (u32)(__UINTPTR_TYPE__)foo;
++  short s = (short)(__UINTPTR_TYPE__)foo;
++  u /= (_Complex short)s;
++  u32 r = u + c;
++  bar(r);
++  foo(0, 0);
++}
 diff --git a/gcc/testsuite/gcc.dg/pr105257.c b/gcc/testsuite/gcc.dg/pr105257.c
 new file mode 100644
 index 00000000000..4232942d791
@@ -949,6 +1264,17 @@ index da1b9213a6b..51331625745 100644
  /* { dg-add-options arm_v8_3a_fp16_complex_neon } */
  
  #define TYPE _Float16
+diff --git a/gcc/testsuite/gcc.dg/vect/costmodel/ppc/costmodel-vect-31a.c b/gcc/testsuite/gcc.dg/vect/costmodel/ppc/costmodel-vect-31a.c
+index 72b4930d9bb..c57f065cccd 100644
+--- a/gcc/testsuite/gcc.dg/vect/costmodel/ppc/costmodel-vect-31a.c
++++ b/gcc/testsuite/gcc.dg/vect/costmodel/ppc/costmodel-vect-31a.c
+@@ -46,5 +46,5 @@ int main (void)
+   return main1 ();
+ } 
+ 
+-/* { dg-final { scan-tree-dump-times "not vectorized: unsupported unaligned store" 1 "vect" { target { ! vect_hw_misalign } } } } */
++/* { dg-final { scan-tree-dump-times "unsupported unaligned access" 1 "vect" { target { ! vect_hw_misalign } } } } */
+ /* { dg-final { scan-tree-dump-times "vectorized 1 loops" 0 "vect" { target { ! vect_hw_misalign } } } } */
 diff --git a/gcc/testsuite/gcc.dg/vect/vect.exp b/gcc/testsuite/gcc.dg/vect/vect.exp
 index dca9a4db6f6..3c60eff7072 100644
 --- a/gcc/testsuite/gcc.dg/vect/vect.exp
@@ -1160,10 +1486,24 @@ index 592b3afcb71..68ddd1d5410 100644
      _Unwind_Exception_Class exception_class;
      _Unwind_Exception_Cleanup_Fn exception_cleanup;
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..94026976c41 100644
+index 85e04c45288..d0b6afdb3f2 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,318 @@
+@@ -1,3 +1,332 @@
++2022-04-28  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-04-28  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/99290
++	* src/c++17/fs_ops.cc (fs::copy): Pass error_code to
++	directory_iterator constructor, and check on each iteration.
++	* src/filesystem/ops.cc (fs::copy): Likewise.
++	* testsuite/27_io/filesystem/operations/copy.cc: Check for
++	errors during recursion.
++	* testsuite/experimental/filesystem/operations/copy.cc:
++	Likewise.
++
 +2022-04-26  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backported from master:
