@@ -1,5 +1,6 @@
-Alexandre Oliva (1):
+Alexandre Oliva (2):
       testsuite: vect: update unaligned message
+      [PR105324] libstdc++: testsuite: pr105324 requires FP from_char
 
 David Malcolm (2):
       analyzer: fix ICE comparing VECTOR_CSTs [PR105252]
@@ -8,7 +9,7 @@ David Malcolm (2):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (14):
+GCC Administrator (17):
       Daily bump.
       Daily bump.
       Daily bump.
@@ -23,6 +24,12 @@ GCC Administrator (14):
       Daily bump.
       Daily bump.
       Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+
+H.J. Lu (1):
+      x86: Add missing .note.GNU-stack to assembly source
 
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
@@ -31,9 +38,13 @@ Iain Buclaw (2):
       libphobos: Don't call free on the TLS array in the emutls destroy function.
       libphobos: Give _Unwind_Exception an alignment that best resembles __attribute__((aligned))
 
-Jakub Jelinek (2):
+Jakub Jelinek (6):
       emit-rtl: Fix -fcompare-debug bug with label references in debug insns [PR105203]
       sparc: Preserve ORIGINAL_REGNO in epilogue_renumber [PR105257]
+      rtlanal: Fix up replace_rtx [PR105333]
+      asan: Fix up asan_redzone_buffer::emit_redzone_byte [PR105396]
+      i386: Fix up ix86_gimplify_va_arg [PR105331]
+      c++: Don't emit deprecated warnings on lambda declarations
 
 Jonathan Wakely (29):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
@@ -103,10 +114,42 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..47f3049af9c 100644
+index a0587d18824..de56f8654ca 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,51 @@
+@@ -1,3 +1,83 @@
++2022-05-06  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-04-28  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/105331
++	* config/i386/i386.c (ix86_gimplify_va_arg): Mark va_arg_tmp
++	temporary TREE_ADDRESSABLE before trying to gimplify ADDR_EXPR
++	of it.
++
++2022-05-06  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-04-27  Jakub Jelinek  <jakub@redhat.com>
++
++	PR sanitizer/105396
++	* asan.c (asan_redzone_buffer::emit_redzone_byte): Handle the case
++	where offset is bigger than off but smaller than m_prev_offset + 32
++	bits by pushing one or more 0 bytes.  Sink the
++	m_shadow_bytes.safe_push (value); flush_if_full (); statements from
++	all cases to the end of the function.
++
++2022-05-06  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-04-22  Jakub Jelinek  <jakub@redhat.com>
++
++	PR rtl-optimization/105333
++	* rtlanal.c (replace_rtx): Use simplify_subreg or
++	simplify_unary_operation if CONST_SCALAR_INT_P rather than just
++	CONST_INT_P.
++
 +2022-04-27  Hongyu Wang  <hongyu.wang@intel.com>
 +
 +	Backported from master:
@@ -260,6 +303,40 @@ index a16563d912a..fa33e956d41 100644
        }
        break;
      case SK_UNKNOWN:
+diff --git a/gcc/asan.c b/gcc/asan.c
+index ca036767134..3884f111d82 100644
+--- a/gcc/asan.c
++++ b/gcc/asan.c
+@@ -1497,10 +1497,14 @@ asan_redzone_buffer::emit_redzone_byte (HOST_WIDE_INT offset,
+   HOST_WIDE_INT off
+     = m_prev_offset + ASAN_SHADOW_GRANULARITY * m_shadow_bytes.length ();
+   if (off == offset)
++    /* Consecutive shadow memory byte.  */;
++  else if (offset < m_prev_offset + (HOST_WIDE_INT) (ASAN_SHADOW_GRANULARITY
++						     * RZ_BUFFER_SIZE)
++	   && !m_shadow_bytes.is_empty ())
+     {
+-      /* Consecutive shadow memory byte.  */
+-      m_shadow_bytes.safe_push (value);
+-      flush_if_full ();
++      /* Shadow memory byte with a small gap.  */
++      for (; off < offset; off += ASAN_SHADOW_GRANULARITY)
++	m_shadow_bytes.safe_push (0);
+     }
+   else
+     {
+@@ -1521,9 +1525,9 @@ asan_redzone_buffer::emit_redzone_byte (HOST_WIDE_INT offset,
+       m_shadow_mem = adjust_address (m_shadow_mem, VOIDmode,
+ 				     diff >> ASAN_SHADOW_SHIFT);
+       m_prev_offset = offset;
+-      m_shadow_bytes.safe_push (value);
+-      flush_if_full ();
+     }
++  m_shadow_bytes.safe_push (value);
++  flush_if_full ();
+ }
+ 
+ /* Emit RTX emission of the content of the buffer.  */
 diff --git a/gcc/c-family/ChangeLog b/gcc/c-family/ChangeLog
 index dff48ba4655..65de3d901d3 100644
 --- a/gcc/c-family/ChangeLog
@@ -387,6 +464,18 @@ index 515ee0c1728..1ce6bade1b4 100644
  #endif
  
  #define _mm_mask_scalef_sd(W, U, A, B) \
+diff --git a/gcc/config/i386/i386.c b/gcc/config/i386/i386.c
+index 48300af9a09..16fde42a9e0 100644
+--- a/gcc/config/i386/i386.c
++++ b/gcc/config/i386/i386.c
+@@ -4754,6 +4754,7 @@ ix86_gimplify_va_arg (tree valist, tree type, gimple_seq *pre_p,
+ 	{
+ 	  int i, prev_size = 0;
+ 	  tree temp = create_tmp_var (type, "va_arg_tmp");
++	  TREE_ADDRESSABLE (temp) = 1;
+ 
+ 	  /* addr = &temp; */
+ 	  t = build1 (ADDR_EXPR, build_pointer_type (type), temp);
 diff --git a/gcc/config/sparc/sparc.c b/gcc/config/sparc/sparc.c
 index 7c8a1f18c39..0ef91935c1e 100644
 --- a/gcc/config/sparc/sparc.c
@@ -415,10 +504,19 @@ index 7c8a1f18c39..0ef91935c1e 100644
      case CC0:
      case PC:
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..df0c1197905 100644
+index 85c8fdd38cd..f0812f2d648 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,69 @@
+@@ -1,3 +1,78 @@
++2022-05-06  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-05-04  Jakub Jelinek  <jakub@redhat.com>
++
++	* lambda.c: Include decl.h.
++	(maybe_add_lambda_conv_op): Temporarily override deprecated_state to
++	DEPRECATED_SUPPRESS.
++
 +2022-04-28  Patrick Palka  <ppalka@redhat.com>
 +
 +	Backported from master:
@@ -542,6 +640,35 @@ index c13c920ade3..d72a8712dab 100644
  				    overflow_p);
    VERIFY_CONSTANT (r);
    return r;
+diff --git a/gcc/cp/lambda.c b/gcc/cp/lambda.c
+index d8efe91d9fe..cca414c1a69 100644
+--- a/gcc/cp/lambda.c
++++ b/gcc/cp/lambda.c
+@@ -31,6 +31,7 @@ along with GCC; see the file COPYING3.  If not see
+ #include "toplev.h"
+ #include "gimplify.h"
+ #include "target.h"
++#include "decl.h"
+ 
+ /* Constructor for a lambda expression.  */
+ 
+@@ -1177,9 +1178,13 @@ maybe_add_lambda_conv_op (tree type)
+ 	}
+     }
+   else
+-    call = build_call_a (callop,
+-			 direct_argvec->length (),
+-			 direct_argvec->address ());
++    {
++      /* Don't warn on deprecated lambda declarations, unless
++	 the lambda is actually called.  */
++      auto du = make_temp_override (deprecated_state, DEPRECATED_SUPPRESS);
++      call = build_call_a (callop, direct_argvec->length (),
++			   direct_argvec->address ());
++    }
+ 
+   CALL_FROM_THUNK_P (call) = 1;
+   SET_EXPR_LOCATION (call, UNKNOWN_LOCATION);
 diff --git a/gcc/cp/module.cc b/gcc/cp/module.cc
 index b97b1bcb2f8..6cb926c044a 100644
 --- a/gcc/cp/module.cc
@@ -663,11 +790,76 @@ index a5c391d077e..9b65b9cf474 100644
                              gfc_component *un, gfc_expr *init)
  {
    gfc_constructor *ctor;
+diff --git a/gcc/rtlanal.c b/gcc/rtlanal.c
+index 67a49e65fd8..88b37584f74 100644
+--- a/gcc/rtlanal.c
++++ b/gcc/rtlanal.c
+@@ -3405,7 +3405,7 @@ replace_rtx (rtx x, rtx from, rtx to, bool all_regs)
+     {
+       rtx new_rtx = replace_rtx (SUBREG_REG (x), from, to, all_regs);
+ 
+-      if (CONST_INT_P (new_rtx))
++      if (CONST_SCALAR_INT_P (new_rtx))
+ 	{
+ 	  x = simplify_subreg (GET_MODE (x), new_rtx,
+ 			       GET_MODE (SUBREG_REG (x)),
+@@ -3421,7 +3421,7 @@ replace_rtx (rtx x, rtx from, rtx to, bool all_regs)
+     {
+       rtx new_rtx = replace_rtx (XEXP (x, 0), from, to, all_regs);
+ 
+-      if (CONST_INT_P (new_rtx))
++      if (CONST_SCALAR_INT_P (new_rtx))
+ 	{
+ 	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
+ 					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..43ab06e9f80 100644
+index 5fc23605244..dcc834cde45 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,136 @@
+@@ -1,3 +1,179 @@
++2022-05-06  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-05-04  Jakub Jelinek  <jakub@redhat.com>
++
++	* g++.dg/cpp23/lambda-attr1.C: New test.
++
++2022-05-06  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-04-28  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/105331
++	* gcc.dg/pr105331.c: New test.
++
++2022-05-06  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-04-27  Jakub Jelinek  <jakub@redhat.com>
++
++	PR sanitizer/105396
++	* gcc.dg/asan/pr105396.c: New test.
++
++2022-05-06  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-04-22  Jakub Jelinek  <jakub@redhat.com>
++
++	PR rtl-optimization/105333
++	* gcc.dg/pr105333.c: New test.
++
++2022-05-06  H.J. Lu  <hjl.tools@gmail.com>
++
++	Backported from master:
++	2022-05-02  H.J. Lu  <hjl.tools@gmail.com>
++
++	PR testsuite/105433
++	* gcc.target/i386/iamcu/asm-support.S: Add .note.GNU-stack.
++	* gcc.target/x86_64/abi/asm-support.S: Likewise.
++	* gcc.target/x86_64/abi/avx/asm-support.S: Likewise.
++	* gcc.target/x86_64/abi/avx512f/asm-support.S: Likewise.
++	* gcc.target/x86_64/abi/ms-sysv/do-test.S: Likewise.
++
 +2022-05-03  Alexandre Oliva  <oliva@adacore.com>
 +
 +	Backported from master:
@@ -898,6 +1090,41 @@ index 00000000000..77cf0bb9d02
 +int main() {
 +    f(0);
 +}
+diff --git a/gcc/testsuite/g++.dg/cpp23/lambda-attr1.C b/gcc/testsuite/g++.dg/cpp23/lambda-attr1.C
+new file mode 100644
+index 00000000000..1528f734461
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp23/lambda-attr1.C
+@@ -0,0 +1,29 @@
++// P2173R1 - Attributes on Lambda-Expressions
++// { dg-do compile { target c++11 } }
++
++void
++foo (bool x, bool y)
++{
++  auto a = [][[noreturn]] () {};	// { dg-warning "'noreturn' function does return" }
++  if (x)
++    a ();
++  auto b = [][[noreturn]] {};		// { dg-warning "'noreturn' function does return" }
++  if (y)
++    b ();
++  auto c = [] [[ deprecated ]] () {};	// { dg-bogus "is deprecated" }
++  c ();					// { dg-warning "'foo\\\(bool, bool\\\)::<lambda\\\(\\\)>' is deprecated" }
++  auto d = [][[deprecated]] {};		// { dg-bogus "is deprecated" }
++  d ();					// { dg-warning "'foo\\\(bool, bool\\\)::<lambda\\\(\\\)>' is deprecated" }
++#if __cpp_generic_lambdas >= 201304
++  auto e = [] [[deprecated]] (auto x) {};	// { dg-bogus "is deprecated" }
++  e (0.0);				// { dg-warning "'foo\\\(bool, bool\\\)::<lambda\\\(auto:1\\\)>\[^\n\r]*' is deprecated" "" { target c++14 } }
++#endif
++#if __cpp_generic_lambdas >= 201707
++  auto f = [] <typename T> [[deprecated]] (T) {};	// { dg-bogus "is deprecated" }
++  f (1);				// { dg-warning "'foo\\\(bool, bool\\\)::<lambda\\\(T\\\)>\[^\n\r]*' is deprecated" "" { target c++20 } }
++#endif
++  auto g = [][[nodiscard]](int) { return 1; };
++  g (1);				// { dg-warning "ignoring return value of 'foo\\\(bool, bool\\\)::<lambda\\\(int\\\)>', declared with attribute 'nodiscard'" }
++  auto h = [] [[nodiscard]] { return 0; };
++  h ();					// { dg-warning "ignoring return value of 'foo\\\(bool, bool\\\)::<lambda\\\(\\\)>', declared with attribute 'nodiscard'" }
++}
 diff --git a/gcc/testsuite/g++.dg/cpp2a/concepts-requires30.C b/gcc/testsuite/g++.dg/cpp2a/concepts-requires30.C
 new file mode 100644
 index 00000000000..f500af3f616
@@ -1039,6 +1266,31 @@ index 00000000000..3dba870e4e9
 +  bar(r);
 +  foo(0, 0);
 +}
+diff --git a/gcc/testsuite/gcc.dg/asan/pr105396.c b/gcc/testsuite/gcc.dg/asan/pr105396.c
+new file mode 100644
+index 00000000000..d4bd7f12476
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/asan/pr105396.c
+@@ -0,0 +1,19 @@
++/* PR sanitizer/105396 */
++/* { dg-do run } */
++/* { dg-skip-if "" { *-*-* } { "*" } { "-O0" } } */
++/* { dg-shouldfail "asan" } */
++
++int
++main ()
++{
++  int a;
++  int *b[1];
++  int c[10];
++  int d[1][1];
++  for (a = 0; a < 1; a++)
++    d[1][a] = 0;
++  return 0;
++}
++
++/* { dg-output "ERROR: AddressSanitizer: stack-buffer-overflow on address.*(\n|\r\n|\r)" } */
++/* { dg-output "WRITE of size.*" } */
 diff --git a/gcc/testsuite/gcc.dg/pr105257.c b/gcc/testsuite/gcc.dg/pr105257.c
 new file mode 100644
 index 00000000000..4232942d791
@@ -1060,6 +1312,50 @@ index 00000000000..4232942d791
 +  sigsetjmp (buf, 0);
 +  fn ();
 +  return "";
++}
+diff --git a/gcc/testsuite/gcc.dg/pr105331.c b/gcc/testsuite/gcc.dg/pr105331.c
+new file mode 100644
+index 00000000000..06cf6d6d901
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/pr105331.c
+@@ -0,0 +1,11 @@
++/* PR target/105331 */
++/* { dg-do compile } */
++/* { dg-options "-O -Wuninitialized" } */
++
++#include <stdarg.h>
++
++int
++foo (va_list *va)
++{
++  return va_arg (*va, double _Complex);	/* { dg-bogus "may be used uninitialized" } */
++}
+diff --git a/gcc/testsuite/gcc.dg/pr105333.c b/gcc/testsuite/gcc.dg/pr105333.c
+new file mode 100644
+index 00000000000..bd8bd4cd56c
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/pr105333.c
+@@ -0,0 +1,21 @@
++/* PR rtl-optimization/105333 */
++/* { dg-do compile { target int128 } } */
++/* { dg-options "-Og -fno-tree-coalesce-vars -fno-tree-fre" } */
++
++int g;
++short s;
++
++static inline unsigned short
++bar (short a, __int128 b)
++{
++  b ^= (unsigned long) -a;
++  __builtin_strncpy ((void *) &s, (void *) &a, 1);
++  b *= 14;
++  return b;
++}
++
++void
++foo (void)
++{
++  g *= (__int128) bar (1, 1);
 +}
 diff --git a/gcc/testsuite/gcc.dg/vect/complex/fast-math-bb-slp-complex-mul-float.c b/gcc/testsuite/gcc.dg/vect/complex/fast-math-bb-slp-complex-mul-float.c
 index 827687b92fa..8eb8baceb31 100644
@@ -1288,6 +1584,15 @@ index dca9a4db6f6..3c60eff7072 100644
  	"" $DEFAULT_VECTCFLAGS
  
  # -ffast-math SLP tests
+diff --git a/gcc/testsuite/gcc.target/i386/iamcu/asm-support.S b/gcc/testsuite/gcc.target/i386/iamcu/asm-support.S
+index b4a4a140e54..db08f52a34f 100644
+--- a/gcc/testsuite/gcc.target/i386/iamcu/asm-support.S
++++ b/gcc/testsuite/gcc.target/i386/iamcu/asm-support.S
+@@ -300,3 +300,4 @@ iamcu_noprintf:
+ 	.align 4
+ .LCiamcu_noprintf1:
+ 	.long	1132527616
++	.section	.note.GNU-stack,"",@progbits
 diff --git a/gcc/testsuite/gcc.target/i386/sse-14.c b/gcc/testsuite/gcc.target/i386/sse-14.c
 index 4ce0ffffaf3..4c728f230f7 100644
 --- a/gcc/testsuite/gcc.target/i386/sse-14.c
@@ -1312,6 +1617,45 @@ index 4ce0ffffaf3..4c728f230f7 100644
  test_4 (_mm512_mask_shuffle_f32x4, __m512, __m512, __mmask16, __m512, __m512, 1)
  test_4 (_mm512_mask_shuffle_f64x2, __m512d, __m512d, __mmask8, __m512d, __m512d, 1)
  test_4 (_mm512_mask_shuffle_i32x4, __m512i, __m512i, __mmask16, __m512i, __m512i, 1)
+diff --git a/gcc/testsuite/gcc.target/x86_64/abi/asm-support.S b/gcc/testsuite/gcc.target/x86_64/abi/asm-support.S
+index 7a8ed03d119..2f8d3a09c6b 100644
+--- a/gcc/testsuite/gcc.target/x86_64/abi/asm-support.S
++++ b/gcc/testsuite/gcc.target/x86_64/abi/asm-support.S
+@@ -82,3 +82,4 @@ snapshot_ret:
+ 	.comm	xmm_regs,256,32
+ 	.comm	x87_regs,128,32
+ 	.comm   volatile_var,8,8
++	.section	.note.GNU-stack,"",@progbits
+diff --git a/gcc/testsuite/gcc.target/x86_64/abi/avx/asm-support.S b/gcc/testsuite/gcc.target/x86_64/abi/avx/asm-support.S
+index 73a59191d6d..77b3480ac32 100644
+--- a/gcc/testsuite/gcc.target/x86_64/abi/avx/asm-support.S
++++ b/gcc/testsuite/gcc.target/x86_64/abi/avx/asm-support.S
+@@ -79,3 +79,4 @@ snapshot_ret:
+ 	.comm	ymm_regs,512,32
+ 	.comm	x87_regs,128,32
+ 	.comm   volatile_var,8,8
++	.section	.note.GNU-stack,"",@progbits
+diff --git a/gcc/testsuite/gcc.target/x86_64/abi/avx512f/asm-support.S b/gcc/testsuite/gcc.target/x86_64/abi/avx512f/asm-support.S
+index 0ef82876dd9..2e3306c44cb 100644
+--- a/gcc/testsuite/gcc.target/x86_64/abi/avx512f/asm-support.S
++++ b/gcc/testsuite/gcc.target/x86_64/abi/avx512f/asm-support.S
+@@ -95,3 +95,4 @@ snapshot_ret:
+ 	.comm	zmm_regs,2048,64
+ 	.comm	x87_regs,128,32
+ 	.comm   volatile_var,8,8
++	.section	.note.GNU-stack,"",@progbits
+diff --git a/gcc/testsuite/gcc.target/x86_64/abi/ms-sysv/do-test.S b/gcc/testsuite/gcc.target/x86_64/abi/ms-sysv/do-test.S
+index 1d6cd9503e2..98e01691015 100644
+--- a/gcc/testsuite/gcc.target/x86_64/abi/ms-sysv/do-test.S
++++ b/gcc/testsuite/gcc.target/x86_64/abi/ms-sysv/do-test.S
+@@ -30,6 +30,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+ #ifdef __ELF__
+ # define FN_TYPE(fn) .type fn,@function
+ # define FN_SIZE(fn) .size fn,.-fn
++	.section	.note.GNU-stack,"",@progbits
+ #else
+ # define FN_TYPE(fn)
+ # define FN_SIZE(fn)
 diff --git a/gcc/testsuite/gfortran.dg/dec_union_12.f90 b/gcc/testsuite/gfortran.dg/dec_union_12.f90
 new file mode 100755
 index 00000000000..26671230b05
@@ -1486,10 +1830,19 @@ index 592b3afcb71..68ddd1d5410 100644
      _Unwind_Exception_Class exception_class;
      _Unwind_Exception_Cleanup_Fn exception_cleanup;
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..d0b6afdb3f2 100644
+index 85e04c45288..27f0df59b2a 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,332 @@
+@@ -1,3 +1,341 @@
++2022-05-06  Alexandre Oliva  <oliva@adacore.com>
++
++	Backported from master:
++	2022-05-03  Alexandre Oliva  <oliva@adacore.com>
++
++	PR c++/105324
++	* testsuite/20_util/from_chars/pr105324.cc: Guard test body
++	with conditional for floating-point overloads of from_char.
++
 +2022-04-28  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backported from master:
@@ -3179,10 +3532,10 @@ index e3d024d525b..3720774abaf 100644
  }
 diff --git a/libstdc++-v3/testsuite/20_util/from_chars/pr105324.cc b/libstdc++-v3/testsuite/20_util/from_chars/pr105324.cc
 new file mode 100644
-index 00000000000..cecb17e41cc
+index 00000000000..ef24b4c5c7b
 --- /dev/null
 +++ b/libstdc++-v3/testsuite/20_util/from_chars/pr105324.cc
-@@ -0,0 +1,14 @@
+@@ -0,0 +1,16 @@
 +// { dg-do run { target c++17 } }
 +
 +#include <charconv>
@@ -3190,12 +3543,14 @@ index 00000000000..cecb17e41cc
 +
 +int main()
 +{
++#if __cpp_lib_to_chars >= 201611L // FP from_char not available otherwise.
 +  // PR libstdc++/105324
 +  // std::from_chars() assertion at floating_from_chars.cc:78
 +  std::string s(512, '1');
 +  s[1] = '.';
 +  long double d;
 +  std::from_chars(s.data(), s.data() + s.size(), d);
++#endif
 +}
 diff --git a/libstdc++-v3/testsuite/20_util/monotonic_buffer_resource/allocate.cc b/libstdc++-v3/testsuite/20_util/monotonic_buffer_resource/allocate.cc
 index 40180223bae..a98815d932b 100644
