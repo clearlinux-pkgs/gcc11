@@ -6,10 +6,17 @@ David Malcolm (2):
       analyzer: fix ICE comparing VECTOR_CSTs [PR105252]
       analyzer: fix ICEs on complex constants [PR105365,105366]
 
+Eric Botcazou (1):
+      Fix internal error with vectorization on SPARC
+
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (17):
+GCC Administrator (21):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -28,8 +35,9 @@ GCC Administrator (17):
       Daily bump.
       Daily bump.
 
-H.J. Lu (1):
+H.J. Lu (2):
       x86: Add missing .note.GNU-stack to assembly source
+      x86: Add .note.GNU-stack section only for Linux
 
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
@@ -38,15 +46,19 @@ Iain Buclaw (2):
       libphobos: Don't call free on the TLS array in the emutls destroy function.
       libphobos: Give _Unwind_Exception an alignment that best resembles __attribute__((aligned))
 
-Jakub Jelinek (6):
+Jakub Jelinek (7):
       emit-rtl: Fix -fcompare-debug bug with label references in debug insns [PR105203]
       sparc: Preserve ORIGINAL_REGNO in epilogue_renumber [PR105257]
       rtlanal: Fix up replace_rtx [PR105333]
       asan: Fix up asan_redzone_buffer::emit_redzone_byte [PR105396]
       i386: Fix up ix86_gimplify_va_arg [PR105331]
       c++: Don't emit deprecated warnings on lambda declarations
+      isel: Fix up gimple_expand_vec_set_expr [PR105528]
 
-Jonathan Wakely (29):
+Jeff Law (1):
+      [committed] Fix more problems with new linker warnings
+
+Jonathan Wakely (33):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -76,6 +88,10 @@ Jonathan Wakely (29):
       libstdc++: Remove workaround for FE bug in std::tuple [PR96592]
       libstdc++: Add deduction guides for std::packaged_task [PR105375]
       libstdc++: Fix error reporting in filesystem::copy [PR99290]
+      libstdc++: Fix test that fails on Solaris [PR104731]
+      libstdc++: Fix deserialization for std::normal_distribution [PR105502]
+      libstdc++: Define _GNU_SOURCE for secure_getenv on Cygwin [PR104217]
+      libstdc++: Add <syncstream> declarations to <iosfwd> [PR105284]
 
 Marek Polacek (4):
       c++: ambiguous call not diagnosed after DR2352 [PR97296]
@@ -86,10 +102,11 @@ Marek Polacek (4):
 Matthias Kretz (1):
       c++: don't ICE on NAMESPACE_DECL inside FUNCTION_DECL
 
-Patrick Palka (3):
+Patrick Palka (4):
       c++: partial ordering with dependent NTTP type [PR105289]
       c++: ICE with requires-expr and -Wsequence-point [PR105304]
       c++: decltype of non-dependent call of class type [PR105386]
+      libstdc++: Don't use std::tolower in <charconv> [PR103911]
 
 Pavel I. Kryukov (1):
       libstdc++: Add self-merge check to std::forward_list::merge [PR103853]
@@ -114,10 +131,25 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..de56f8654ca 100644
+index a0587d18824..13597dfd6b8 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,83 @@
+@@ -1,3 +1,98 @@
++2022-05-10  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-05-10  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/105528
++	* gimple-isel.cc (gimple_expand_vec_set_expr): After gsi_remove
++	set *gsi to gsi_for_stmt (ass_stmt).  Fix up function comment.
++
++2022-05-10  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR target/105292
++	* config/sparc/sparc.c (sparc_vectorize_vec_perm_const): Return
++	true only for 8-byte vector modes.
++
 +2022-05-06  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -477,7 +509,7 @@ index 48300af9a09..16fde42a9e0 100644
  	  /* addr = &temp; */
  	  t = build1 (ADDR_EXPR, build_pointer_type (type), temp);
 diff --git a/gcc/config/sparc/sparc.c b/gcc/config/sparc/sparc.c
-index 7c8a1f18c39..0ef91935c1e 100644
+index 7c8a1f18c39..e4fe2f065c9 100644
 --- a/gcc/config/sparc/sparc.c
 +++ b/gcc/config/sparc/sparc.c
 @@ -8956,8 +8956,20 @@ epilogue_renumber (rtx *where, int test)
@@ -503,6 +535,18 @@ index 7c8a1f18c39..0ef91935c1e 100644
      case SCRATCH:
      case CC0:
      case PC:
+@@ -13074,9 +13086,9 @@ sparc_vectorize_vec_perm_const (machine_mode vmode, rtx target, rtx op0,
+   if (!TARGET_VIS2)
+     return false;
+ 
+-  /* All permutes are supported.  */
++  /* All 8-byte permutes are supported.  */
+   if (!target)
+-    return true;
++    return GET_MODE_SIZE (vmode) == 8;
+ 
+   /* Force target-independent code to convert constant permutations on other
+      modes down to V8QI.  Rely on this to avoid the complexity of the byte
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
 index 85c8fdd38cd..f0812f2d648 100644
 --- a/gcc/cp/ChangeLog
@@ -790,6 +834,27 @@ index a5c391d077e..9b65b9cf474 100644
                              gfc_component *un, gfc_expr *init)
  {
    gfc_constructor *ctor;
+diff --git a/gcc/gimple-isel.cc b/gcc/gimple-isel.cc
+index 2c78a08d3f1..b8cc03025b1 100644
+--- a/gcc/gimple-isel.cc
++++ b/gcc/gimple-isel.cc
+@@ -43,7 +43,7 @@ along with GCC; see the file COPYING3.  If not see
+ /* Expand all ARRAY_REF(VIEW_CONVERT_EXPR) gimple assignments into calls to
+    internal function based on vector type of selected expansion.
+    i.e.:
+-     VIEW_CONVERT_EXPR<int[4]>(u)[_1] =  = i_4(D);
++     VIEW_CONVERT_EXPR<int[4]>(u)[_1] = i_4(D);
+    =>
+      _7 = u;
+      _8 = .VEC_SET (_7, i_4(D), _1);
+@@ -100,6 +100,7 @@ gimple_expand_vec_set_expr (gimple_stmt_iterator *gsi)
+ 
+ 	  gimple_move_vops (ass_stmt, stmt);
+ 	  gsi_remove (gsi, true);
++	  *gsi = gsi_for_stmt (ass_stmt);
+ 	}
+     }
+ 
 diff --git a/gcc/rtlanal.c b/gcc/rtlanal.c
 index 67a49e65fd8..88b37584f74 100644
 --- a/gcc/rtlanal.c
@@ -813,10 +878,42 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..dcc834cde45 100644
+index 5fc23605244..69b69efd483 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,179 @@
+@@ -1,3 +1,211 @@
++2022-05-10  H.J. Lu  <hjl.tools@gmail.com>
++
++	Backported from master:
++	2022-05-10  H.J. Lu  <hjl.tools@gmail.com>
++
++	PR target/105472
++	* gcc.target/i386/iamcu/asm-support.S: Add .note.GNU-stack section
++	only for Linux.
++	* gcc.target/x86_64/abi/asm-support.S: Likewise.
++	* gcc.target/x86_64/abi/avx/asm-support.S: Likewise.
++	* gcc.target/x86_64/abi/avx512f/asm-support.S: Likewise.
++	* gcc.target/x86_64/abi/ms-sysv/do-test.S: Likewise.
++
++2022-05-10  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-05-10  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/105528
++	* gcc.dg/pr105528.c: New test.
++
++2022-05-10  Jeff Law  <jeffreyalaw@gmail.com>
++
++	Backported from master:
++	2022-04-28  Jeff Law  <jeffreyalaw@gmail.com>
++
++	* lib/prune.exp (prune_gcc_output): Prune new linker warning.
++
++2022-05-10  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gcc.target/sparc/20220510-1.c: New test.
++
 +2022-05-06  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -1357,6 +1454,35 @@ index 00000000000..bd8bd4cd56c
 +{
 +  g *= (__int128) bar (1, 1);
 +}
+diff --git a/gcc/testsuite/gcc.dg/pr105528.c b/gcc/testsuite/gcc.dg/pr105528.c
+new file mode 100644
+index 00000000000..e380d56ee06
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/pr105528.c
+@@ -0,0 +1,23 @@
++/* PR tree-optimization/105528 */
++/* { dg-do compile } */
++/* { dg-options "-O2 -Wno-psabi -fcompare-debug" } */
++/* { dg-additional-options "-mavx512f" { target i?86-*-* x86_64-*-* } } */
++
++typedef unsigned V __attribute__((__vector_size__ (64)));
++V g;
++
++V
++bar (V v)
++{
++  V w;
++  v <<= (V){(V){}[53]} >= v & 5;
++  w[w[5]] -= ~0;
++  v %= ~0;
++  return v + w;
++}
++
++void
++foo (void)
++{
++  g -= (V){bar((V){~0})[3]};
++}
 diff --git a/gcc/testsuite/gcc.dg/vect/complex/fast-math-bb-slp-complex-mul-float.c b/gcc/testsuite/gcc.dg/vect/complex/fast-math-bb-slp-complex-mul-float.c
 index 827687b92fa..8eb8baceb31 100644
 --- a/gcc/testsuite/gcc.dg/vect/complex/fast-math-bb-slp-complex-mul-float.c
@@ -1585,14 +1711,16 @@ index dca9a4db6f6..3c60eff7072 100644
  
  # -ffast-math SLP tests
 diff --git a/gcc/testsuite/gcc.target/i386/iamcu/asm-support.S b/gcc/testsuite/gcc.target/i386/iamcu/asm-support.S
-index b4a4a140e54..db08f52a34f 100644
+index b4a4a140e54..9d6be88e7d5 100644
 --- a/gcc/testsuite/gcc.target/i386/iamcu/asm-support.S
 +++ b/gcc/testsuite/gcc.target/i386/iamcu/asm-support.S
-@@ -300,3 +300,4 @@ iamcu_noprintf:
+@@ -300,3 +300,6 @@ iamcu_noprintf:
  	.align 4
  .LCiamcu_noprintf1:
  	.long	1132527616
++#ifdef __linux__
 +	.section	.note.GNU-stack,"",@progbits
++#endif
 diff --git a/gcc/testsuite/gcc.target/i386/sse-14.c b/gcc/testsuite/gcc.target/i386/sse-14.c
 index 4ce0ffffaf3..4c728f230f7 100644
 --- a/gcc/testsuite/gcc.target/i386/sse-14.c
@@ -1617,42 +1745,87 @@ index 4ce0ffffaf3..4c728f230f7 100644
  test_4 (_mm512_mask_shuffle_f32x4, __m512, __m512, __mmask16, __m512, __m512, 1)
  test_4 (_mm512_mask_shuffle_f64x2, __m512d, __m512d, __mmask8, __m512d, __m512d, 1)
  test_4 (_mm512_mask_shuffle_i32x4, __m512i, __m512i, __mmask16, __m512i, __m512i, 1)
+diff --git a/gcc/testsuite/gcc.target/sparc/20220510-1.c b/gcc/testsuite/gcc.target/sparc/20220510-1.c
+new file mode 100644
+index 00000000000..f321cab8482
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/sparc/20220510-1.c
+@@ -0,0 +1,31 @@
++/* PR target/105292 */
++/* Reported by Koakuma <koachan+gccbugs@protonmail.com> */
++
++/* { dg-do compile } */
++/* { dg-options "-O3 -mvis2" } */
++
++extern void get_vbytes_v2 (unsigned);
++
++typedef struct {
++  unsigned ctt_info;
++  unsigned ctt_size;
++} ctf_type_t;
++
++typedef struct {
++  unsigned short cts_offset;
++  unsigned short cts_bits;
++} ctf_slice_t;
++
++void flip_types_len (ctf_type_t *t, int bsx1, int bsx2)
++{
++  const int kind = t->ctt_info;
++
++  get_vbytes_v2 (t->ctt_size);
++
++  if (kind == 4)
++    {
++      ctf_slice_t *s = (ctf_slice_t *)t;
++      s->cts_offset = __builtin_bswap16(bsx1);
++      s->cts_bits   = __builtin_bswap16(bsx2);
++    }
++}
 diff --git a/gcc/testsuite/gcc.target/x86_64/abi/asm-support.S b/gcc/testsuite/gcc.target/x86_64/abi/asm-support.S
-index 7a8ed03d119..2f8d3a09c6b 100644
+index 7a8ed03d119..b2ad67aef87 100644
 --- a/gcc/testsuite/gcc.target/x86_64/abi/asm-support.S
 +++ b/gcc/testsuite/gcc.target/x86_64/abi/asm-support.S
-@@ -82,3 +82,4 @@ snapshot_ret:
+@@ -82,3 +82,6 @@ snapshot_ret:
  	.comm	xmm_regs,256,32
  	.comm	x87_regs,128,32
  	.comm   volatile_var,8,8
++#ifdef __linux__
 +	.section	.note.GNU-stack,"",@progbits
++#endif
 diff --git a/gcc/testsuite/gcc.target/x86_64/abi/avx/asm-support.S b/gcc/testsuite/gcc.target/x86_64/abi/avx/asm-support.S
-index 73a59191d6d..77b3480ac32 100644
+index 73a59191d6d..24c8b3c9023 100644
 --- a/gcc/testsuite/gcc.target/x86_64/abi/avx/asm-support.S
 +++ b/gcc/testsuite/gcc.target/x86_64/abi/avx/asm-support.S
-@@ -79,3 +79,4 @@ snapshot_ret:
+@@ -79,3 +79,6 @@ snapshot_ret:
  	.comm	ymm_regs,512,32
  	.comm	x87_regs,128,32
  	.comm   volatile_var,8,8
++#ifdef __linux__
 +	.section	.note.GNU-stack,"",@progbits
++#endif
 diff --git a/gcc/testsuite/gcc.target/x86_64/abi/avx512f/asm-support.S b/gcc/testsuite/gcc.target/x86_64/abi/avx512f/asm-support.S
-index 0ef82876dd9..2e3306c44cb 100644
+index 0ef82876dd9..86d54d11c58 100644
 --- a/gcc/testsuite/gcc.target/x86_64/abi/avx512f/asm-support.S
 +++ b/gcc/testsuite/gcc.target/x86_64/abi/avx512f/asm-support.S
-@@ -95,3 +95,4 @@ snapshot_ret:
+@@ -95,3 +95,6 @@ snapshot_ret:
  	.comm	zmm_regs,2048,64
  	.comm	x87_regs,128,32
  	.comm   volatile_var,8,8
++#ifdef __linux__
 +	.section	.note.GNU-stack,"",@progbits
++#endif
 diff --git a/gcc/testsuite/gcc.target/x86_64/abi/ms-sysv/do-test.S b/gcc/testsuite/gcc.target/x86_64/abi/ms-sysv/do-test.S
-index 1d6cd9503e2..98e01691015 100644
+index 1d6cd9503e2..ed6f32ea041 100644
 --- a/gcc/testsuite/gcc.target/x86_64/abi/ms-sysv/do-test.S
 +++ b/gcc/testsuite/gcc.target/x86_64/abi/ms-sysv/do-test.S
-@@ -30,6 +30,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+@@ -30,6 +30,9 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
  #ifdef __ELF__
  # define FN_TYPE(fn) .type fn,@function
  # define FN_SIZE(fn) .size fn,.-fn
++# ifdef __linux__
 +	.section	.note.GNU-stack,"",@progbits
++# endif
  #else
  # define FN_TYPE(fn)
  # define FN_SIZE(fn)
@@ -1731,6 +1904,22 @@ index 00000000000..3b47210fb40
 +  30  ASSIGN 10 TO M
 +  40  GOTO M,(10,20,30)
 +      END
+diff --git a/gcc/testsuite/lib/prune.exp b/gcc/testsuite/lib/prune.exp
+index 2809f88b16f..25fb98c6bed 100644
+--- a/gcc/testsuite/lib/prune.exp
++++ b/gcc/testsuite/lib/prune.exp
+@@ -76,6 +76,11 @@ proc prune_gcc_output { text } {
+     regsub -all "(^|\n)\[^\n\]*file path prefix \[^\n\]* never used" $text "" text
+     regsub -all "(^|\n)\[^\n\]*linker input file unused since linking not done" $text "" text
+ 
++    # Ideally the tests would indicate that executable stacks were needed
++    # to the linker.  But the option for that varies and may not even exist
++    # on some targets.  So we're stuck pruning the warning.
++    regsub -all "(^|\n)(\[^\n\]*: warning:\[^\n\]*requires executable stack\[^\n\]*\n?)+" $text "\\1" text
++
+     # Ignore harmless warnings from Xcode 3.2.x.
+     regsub -all "(^|\n)\[^\n\]*ld: warning: can't add line info to anonymous symbol\[^\n\]*" $text "" text
+     regsub -all "(^|\n)\[^\n\]*warning: DWARFDebugInfoEntry::AppendDependants\[^\n\]*AT_\[^\n\]*FORM_ref4\[^\n\]*" $text "" text
 diff --git a/gcc/value-prof.c b/gcc/value-prof.c
 index 42748771192..688089b04d2 100644
 --- a/gcc/value-prof.c
@@ -1830,10 +2019,65 @@ index 592b3afcb71..68ddd1d5410 100644
      _Unwind_Exception_Class exception_class;
      _Unwind_Exception_Cleanup_Fn exception_cleanup;
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..27f0df59b2a 100644
+index 85e04c45288..ff49e4bae49 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,341 @@
+@@ -1,3 +1,396 @@
++2022-05-11  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2022-05-02  Patrick Palka  <ppalka@redhat.com>
++
++	PR libstdc++/103911
++	* src/c++17/floating_from_chars.cc (find_end_of_float): Accept
++	two delimeters for the exponent part in the form of a possibly
++	NULL string of length two.  Don't use std::tolower.
++	(pattern): Adjust calls to find_end_of_float accordingly.
++
++2022-05-10  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-05-10  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/105284
++	* include/std/iosfwd: Add declarations for <synstream> class
++	templates and typedefs.
++	* include/std/syncstream (basic_syncbuf, basic_osyncstream):
++	Remove default template arguments.
++	* testsuite/27_io/headers/iosfwd/synopsis.cc: New test.
++	* testsuite/27_io/headers/iosfwd/types.cc: New test.
++
++2022-05-09  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-01-25  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/104217
++	* src/c++17/fs_ops.cc (_GNU_SOURCE): Define.
++	* src/filesystem/dir.cc (_GNU_SOURCE): Define.
++	* src/filesystem/ops.cc (_GNU_SOURCE): Define.
++
++2022-05-09  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-05-06  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/105502
++	* include/bits/random.tcc
++	(operator>>(basic_istream<C,T>&, normal_distribution<R>&)):
++	Update state when __state_avail is false.
++	* testsuite/26_numerics/random/normal_distribution/operators/serialize.cc:
++	Check that deserialized object equals serialized one.
++
++2022-05-09  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-05-06  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/104731
++	* testsuite/27_io/filesystem/iterators/error_reporting.cc:
++	Use a trailing char array as storage for dirent::d_name.
++
 +2022-05-06  Alexandre Oliva  <oliva@adacore.com>
 +
 +	Backported from master:
@@ -2568,6 +2812,19 @@ index 51c23d8003a..4aef5502032 100644
  
  	  _M_pos_format = __mp.pos_format();
  	  _M_neg_format = __mp.neg_format();
+diff --git a/libstdc++-v3/include/bits/random.tcc b/libstdc++-v3/include/bits/random.tcc
+index 22ae1f38ebb..2898f7f17e6 100644
+--- a/libstdc++-v3/include/bits/random.tcc
++++ b/libstdc++-v3/include/bits/random.tcc
+@@ -1955,7 +1955,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       bool __saved_avail;
+       if (__is >> __mean >> __stddev >> __saved_avail)
+ 	{
+-	  if (__saved_avail && (__is >> __x._M_saved))
++	  if (!__saved_avail || (__is >> __x._M_saved))
+ 	    {
+ 	      __x._M_saved_available = __saved_avail;
+ 	      __x.param(param_type(__mean, __stddev));
 diff --git a/libstdc++-v3/include/bits/ranges_base.h b/libstdc++-v3/include/bits/ranges_base.h
 index 87283b84028..6d2d5bf939d 100644
 --- a/libstdc++-v3/include/bits/ranges_base.h
@@ -2950,6 +3207,35 @@ index 09e54c3703b..f5d8da472f5 100644
    /// swap
    template<typename _Res, typename... _ArgTypes>
      inline void
+diff --git a/libstdc++-v3/include/std/iosfwd b/libstdc++-v3/include/std/iosfwd
+index 52fa4b6cccb..610383992fb 100644
+--- a/libstdc++-v3/include/std/iosfwd
++++ b/libstdc++-v3/include/std/iosfwd
+@@ -207,6 +207,24 @@ _GLIBCXX_END_NAMESPACE_CXX11
+   /// Class for @c wchar_t mixed input and output file streams.
+   typedef basic_fstream<wchar_t> 	wfstream;
+ #endif
++
++#if __cplusplus >= 202002L && _GLIBCXX_USE_CXX11_ABI
++  template<typename _CharT, typename _Traits = char_traits<_CharT>,
++           typename _Allocator = allocator<_CharT>>
++    class basic_syncbuf;
++  template<typename _CharT, typename _Traits = char_traits<_CharT>,
++           typename _Allocator = allocator<_CharT>>
++    class basic_osyncstream;
++
++  using syncbuf = basic_syncbuf<char>;
++  using osyncstream = basic_osyncstream<char>;
++
++#ifdef _GLIBCXX_USE_WCHAR_T
++  using wsyncbuf = basic_syncbuf<wchar_t>;
++  using wosyncstream = basic_osyncstream<wchar_t>;
++#endif
++#endif // C++20 && CXX11_ABI
++
+   /** @}  */
+ 
+ _GLIBCXX_END_NAMESPACE_VERSION
 diff --git a/libstdc++-v3/include/std/ranges b/libstdc++-v3/include/std/ranges
 index f55ee15e1b1..bbdfb7dbe5c 100644
 --- a/libstdc++-v3/include/std/ranges
@@ -2982,6 +3268,30 @@ index af0d24b29f2..2adf1ca2e09 100644
  	  && __is_compatible_ref<ranges::range_reference_t<_Range>>::value
  	constexpr explicit(extent != dynamic_extent)
  	span(_Range&& __range)
+diff --git a/libstdc++-v3/include/std/syncstream b/libstdc++-v3/include/std/syncstream
+index db6ebd50471..ac39d0f2243 100644
+--- a/libstdc++-v3/include/std/syncstream
++++ b/libstdc++-v3/include/std/syncstream
+@@ -50,8 +50,7 @@ namespace std _GLIBCXX_VISIBILITY(default)
+ {
+ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 
+-  template<typename _CharT, typename _Traits = char_traits<_CharT>,
+-	    typename _Alloc = allocator<_CharT>>
++  template<typename _CharT, typename _Traits, typename _Alloc>
+     class basic_syncbuf : public __syncbuf_base<_CharT, _Traits>
+     {
+     public:
+@@ -241,8 +240,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       __mutex _M_mtx;
+     };
+ 
+-  template <typename _CharT, typename _Traits = char_traits<_CharT>,
+-	    typename _Alloc = allocator<_CharT>>
++  template <typename _CharT, typename _Traits, typename _Alloc>
+     class basic_osyncstream : public basic_ostream<_CharT, _Traits>
+     {
+       using __ostream_type = basic_ostream<_CharT, _Traits>;
 diff --git a/libstdc++-v3/include/std/tuple b/libstdc++-v3/include/std/tuple
 index dcf30bd9a8d..63bd68fbe43 100644
 --- a/libstdc++-v3/include/std/tuple
@@ -3140,10 +3450,18 @@ index c1a1a828e27..75f832ec1c5 100644
    future_error::~future_error() noexcept { }
  
 diff --git a/libstdc++-v3/src/c++17/floating_from_chars.cc b/libstdc++-v3/src/c++17/floating_from_chars.cc
-index aa074869872..f815e4981dd 100644
+index aa074869872..ca1ad84e2ca 100644
 --- a/libstdc++-v3/src/c++17/floating_from_chars.cc
 +++ b/libstdc++-v3/src/c++17/floating_from_chars.cc
-@@ -75,7 +75,6 @@ namespace
+@@ -37,7 +37,6 @@
+ #include <cmath>
+ #include <cstdlib>
+ #include <cstring>
+-#include <cctype>
+ #include <locale.h>
+ #include <bits/functexcept.h>
+ #if _GLIBCXX_HAVE_XLOCALE_H
+@@ -75,7 +74,6 @@ namespace
  	return m_buf + std::__exchange(m_bytes, m_bytes + bytes);
  
        __glibcxx_assert(m_ptr == nullptr);
@@ -3151,11 +3469,62 @@ index aa074869872..f815e4981dd 100644
  
        m_ptr = operator new(bytes);
        m_bytes = bytes;
+@@ -116,10 +114,10 @@ namespace
+ 
+   // Find initial portion of [first, last) containing a floating-point number.
+   // The string `digits` is either `dec_digits` or `hex_digits`
+-  // and `exp` is 'e' or 'p' or '\0'.
++  // and `exp` is "eE", "pP" or NULL.
+   const char*
+   find_end_of_float(const char* first, const char* last, const char* digits,
+-		    char exp)
++		    const char *exp)
+   {
+     while (first < last && strchr(digits, *first) != nullptr)
+       ++first;
+@@ -129,7 +127,7 @@ namespace
+ 	while (first < last && strchr(digits, *first))
+ 	  ++first;
+       }
+-    if (first < last && exp != 0 && std::tolower((unsigned char)*first) == exp)
++    if (first < last && exp != nullptr && (*first == exp[0] || *first == exp[1]))
+       {
+ 	++first;
+ 	if (first < last && (*first == '-' || *first == '+'))
+@@ -211,7 +209,7 @@ namespace
+ 
+ 	if ((last - first + 2) > buffer_resource::guaranteed_capacity())
+ 	  {
+-	    last = find_end_of_float(first + neg, last, digits, 'p');
++	    last = find_end_of_float(first + neg, last, digits, "pP");
+ #ifndef __cpp_exceptions
+ 	    if ((last - first + 2) > buffer_resource::guaranteed_capacity())
+ 	      {
+@@ -235,7 +233,7 @@ namespace
+ 	if ((last - first) > buffer_resource::guaranteed_capacity())
+ 	  {
+ 	    last = find_end_of_float(first + neg, last, digits,
+-				     "e"[fmt == chars_format::fixed]);
++				     fmt == chars_format::fixed ? nullptr : "eE");
+ #ifndef __cpp_exceptions
+ 	    if ((last - first) > buffer_resource::guaranteed_capacity())
+ 	      {
 diff --git a/libstdc++-v3/src/c++17/fs_ops.cc b/libstdc++-v3/src/c++17/fs_ops.cc
-index acff0ff926e..e308cab6fa0 100644
+index acff0ff926e..481b49d20be 100644
 --- a/libstdc++-v3/src/c++17/fs_ops.cc
 +++ b/libstdc++-v3/src/c++17/fs_ops.cc
-@@ -404,8 +404,12 @@ fs::copy(const path& from, const path& to, copy_options options,
+@@ -27,6 +27,10 @@
+ # define NEED_DO_COPY_FILE
+ # define NEED_DO_SPACE
+ #endif
++#ifndef _GNU_SOURCE
++// Cygwin needs this for secure_getenv
++# define _GNU_SOURCE 1
++#endif
+ 
+ #include <bits/largefile-config.h>
+ #include <filesystem>
+@@ -404,8 +408,12 @@ fs::copy(const path& from, const path& to, copy_options options,
        // set an unused bit in options to disable further recursion
        if (!is_set(options, copy_options::recursive))
  	options |= static_cast<copy_options>(4096);
@@ -3170,7 +3539,7 @@ index acff0ff926e..e308cab6fa0 100644
      }
    // _GLIBCXX_RESOLVE_LIB_DEFECTS
    // 2683. filesystem::copy() says "no effects"
-@@ -1584,7 +1588,8 @@ fs::symlink_status(const fs::path& p)
+@@ -1584,7 +1592,8 @@ fs::symlink_status(const fs::path& p)
    return result;
  }
  
@@ -3180,7 +3549,7 @@ index acff0ff926e..e308cab6fa0 100644
  {
    error_code ec;
    path tmp = temp_directory_path(ec);
-@@ -1593,32 +1598,12 @@ fs::path fs::temp_directory_path()
+@@ -1593,32 +1602,12 @@ fs::path fs::temp_directory_path()
    return tmp;
  }
  
@@ -3249,6 +3618,21 @@ index b3fbd6ead44..55d1fe5234d 100644
  #include <sstream>
  
  #if _GLIBCXX_USE_CXX11_ABI
+diff --git a/libstdc++-v3/src/filesystem/dir.cc b/libstdc++-v3/src/filesystem/dir.cc
+index 06e165b8888..446ddf0d2f2 100644
+--- a/libstdc++-v3/src/filesystem/dir.cc
++++ b/libstdc++-v3/src/filesystem/dir.cc
+@@ -25,6 +25,10 @@
+ #ifndef _GLIBCXX_USE_CXX11_ABI
+ # define _GLIBCXX_USE_CXX11_ABI 1
+ #endif
++#ifndef _GNU_SOURCE
++// Cygwin needs this for secure_getenv
++# define _GNU_SOURCE 1
++#endif
+ 
+ #include <bits/largefile-config.h>
+ #include <experimental/filesystem>
 diff --git a/libstdc++-v3/src/filesystem/ops-common.h b/libstdc++-v3/src/filesystem/ops-common.h
 index 529d4e09016..a76a2e6198d 100644
 --- a/libstdc++-v3/src/filesystem/ops-common.h
@@ -3302,10 +3686,21 @@ index 529d4e09016..a76a2e6198d 100644
  
  _GLIBCXX_END_NAMESPACE_VERSION
 diff --git a/libstdc++-v3/src/filesystem/ops.cc b/libstdc++-v3/src/filesystem/ops.cc
-index 3f2290f372d..bd5347468cf 100644
+index 3f2290f372d..0eaa4b655a1 100644
 --- a/libstdc++-v3/src/filesystem/ops.cc
 +++ b/libstdc++-v3/src/filesystem/ops.cc
-@@ -344,8 +344,12 @@ fs::copy(const path& from, const path& to, copy_options options,
+@@ -27,6 +27,10 @@
+ # define NEED_DO_COPY_FILE
+ # define NEED_DO_SPACE
+ #endif
++#ifndef _GNU_SOURCE
++// Cygwin needs this for secure_getenv
++# define _GNU_SOURCE 1
++#endif
+ 
+ #include <bits/largefile-config.h>
+ #include <experimental/filesystem>
+@@ -344,8 +348,12 @@ fs::copy(const path& from, const path& to, copy_options options,
        // set an unused bit in options to disable further recursion
        if (!is_set(options, copy_options::recursive))
  	options |= static_cast<copy_options>(4096);
@@ -3320,7 +3715,7 @@ index 3f2290f372d..bd5347468cf 100644
      }
    // _GLIBCXX_RESOLVE_LIB_DEFECTS
    // 2683. filesystem::copy() says "no effects"
-@@ -1289,7 +1293,8 @@ fs::system_complete(const path& p, error_code& ec)
+@@ -1289,7 +1297,8 @@ fs::system_complete(const path& p, error_code& ec)
  #endif
  }
  
@@ -3330,7 +3725,7 @@ index 3f2290f372d..bd5347468cf 100644
  {
    error_code ec;
    path tmp = temp_directory_path(ec);
-@@ -1298,31 +1303,12 @@ fs::path fs::temp_directory_path()
+@@ -1298,31 +1307,12 @@ fs::path fs::temp_directory_path()
    return tmp;
  }
  
@@ -3367,7 +3762,7 @@ index 3f2290f372d..bd5347468cf 100644
    auto st = status(p, ec);
    if (ec)
      p.clear();
-@@ -1331,7 +1317,5 @@ fs::path fs::temp_directory_path(error_code& ec)
+@@ -1331,7 +1321,5 @@ fs::path fs::temp_directory_path(error_code& ec)
        p.clear();
        ec = std::make_error_code(std::errc::not_a_directory);
      }
@@ -3864,6 +4259,125 @@ index 00000000000..0fadcd6e99a
 +    return std::ranges::advance(i, L::min(), I{-4}) == L::min() + 2;
 +}
 +static_assert(test());
+diff --git a/libstdc++-v3/testsuite/26_numerics/random/normal_distribution/operators/serialize.cc b/libstdc++-v3/testsuite/26_numerics/random/normal_distribution/operators/serialize.cc
+index f947f8ae848..e8705ca7879 100644
+--- a/libstdc++-v3/testsuite/26_numerics/random/normal_distribution/operators/serialize.cc
++++ b/libstdc++-v3/testsuite/26_numerics/random/normal_distribution/operators/serialize.cc
+@@ -25,6 +25,7 @@
+ 
+ #include <random>
+ #include <sstream>
++#include <testsuite_hooks.h>
+ 
+ void
+ test01()
+@@ -37,10 +38,43 @@ test01()
+   str << u;
+ 
+   str >> v;
++  VERIFY( u == v );
++}
++
++void
++test_pr105502()
++{
++  // PR libstdc++/105502 std::normal_distribution deserialization issue
++  std::stringstream str;
++  std::normal_distribution<> d{1, 2}, d2;
++  std::minstd_rand0 g;
++  str << d;
++  VERIFY( str );
++  str >> d2;
++  VERIFY( str );
++  VERIFY( d == d2 );
++
++  (void) d(g); // sets d._M_saved_available = true
++  str.str("");
++  str.clear();
++  str << d;
++  VERIFY( str );
++  str >> d2;
++  VERIFY( str );
++  VERIFY( d == d2 );
++
++  (void) d(g); // sets d._M_saved_available = false
++  str.str("");
++  str.clear();
++  str << d;
++  VERIFY( str );
++  str >> d2;
++  VERIFY( str );
++  VERIFY( d == d2 );
+ }
+ 
+ int main()
+ {
+   test01();
+-  return 0;
++  test_pr105502();
+ }
+diff --git a/libstdc++-v3/testsuite/27_io/filesystem/iterators/error_reporting.cc b/libstdc++-v3/testsuite/27_io/filesystem/iterators/error_reporting.cc
+index 1f297a731a3..1c8ea4c9249 100644
+--- a/libstdc++-v3/testsuite/27_io/filesystem/iterators/error_reporting.cc
++++ b/libstdc++-v3/testsuite/27_io/filesystem/iterators/error_reporting.cc
+@@ -28,35 +28,44 @@
+ 
+ int choice;
+ 
+-struct dirent global_dirent;
+-
+ extern "C" struct dirent* readdir(DIR*)
+ {
++  // On some targets dirent::d_name is very small, but the OS allocates
++  // a trailing char array after the dirent struct. Emulate that here.
++  union State
++  {
++    struct dirent d;
++    char buf[sizeof(struct dirent) + 16] = {};
++  };
++
++  static State state;
++  char* d_name = state.buf + offsetof(struct dirent, d_name);
++
+   switch (choice)
+   {
+   case 1:
+-    global_dirent.d_ino = 999;
++    state.d.d_ino = 999;
+ #if defined _GLIBCXX_HAVE_STRUCT_DIRENT_D_TYPE && defined DT_REG
+-    global_dirent.d_type = DT_REG;
++    state.d.d_type = DT_REG;
+ #endif
+-    global_dirent.d_reclen = 0;
+-    std::char_traits<char>::copy(global_dirent.d_name, "file", 5);
++    state.d.d_reclen = 0;
++    std::char_traits<char>::copy(d_name, "file", 5);
+     choice = 0;
+-    return &global_dirent;
++    return &state.d;
+   case 2:
+-    global_dirent.d_ino = 111;
++    state.d.d_ino = 111;
+ #if defined _GLIBCXX_HAVE_STRUCT_DIRENT_D_TYPE && defined DT_DIR
+-    global_dirent.d_type = DT_DIR;
++    state.d.d_type = DT_DIR;
+ #endif
+-    global_dirent.d_reclen = 60;
+-    std::char_traits<char>::copy(global_dirent.d_name, "subdir", 7);
++    state.d.d_reclen = 60;
++    std::char_traits<char>::copy(d_name, "subdir", 7);
+     choice = 1;
+-    return &global_dirent;
++    return &state.d;
+   default:
+     errno = EIO;
+     return nullptr;
+   }
+-  return &global_dirent;
++  return &state.d;
+ }
+ 
+ void
 diff --git a/libstdc++-v3/testsuite/27_io/filesystem/operations/copy.cc b/libstdc++-v3/testsuite/27_io/filesystem/operations/copy.cc
 index 761cfc29b13..c00cf85641e 100644
 --- a/libstdc++-v3/testsuite/27_io/filesystem/operations/copy.cc
@@ -3943,6 +4457,351 @@ index b55cd6c60b6..1cfda583be3 100644
  
    std::error_code ec;
    fs::path p = fs::temp_directory_path(ec);
+diff --git a/libstdc++-v3/testsuite/27_io/headers/iosfwd/synopsis.cc b/libstdc++-v3/testsuite/27_io/headers/iosfwd/synopsis.cc
+new file mode 100644
+index 00000000000..48f733bf28a
+--- /dev/null
++++ b/libstdc++-v3/testsuite/27_io/headers/iosfwd/synopsis.cc
+@@ -0,0 +1,119 @@
++// { dg-do compile }
++
++#include <iosfwd>
++
++namespace std
++{
++  // [iosfwd.syn]
++
++  template<class charT> struct char_traits;
++  template<> struct char_traits<char>;
++#if __cplusplus >= 202002L
++  template<> struct char_traits<char8_t>;
++#endif
++#if __cplusplus >= 201103L
++  template<> struct char_traits<char16_t>;
++  template<> struct char_traits<char32_t>;
++#endif
++  template<> struct char_traits<wchar_t>;
++
++  template<class T> class allocator;
++
++  template<class charT, class traits>
++    class basic_ios;
++  template<class charT, class traits>
++    class basic_streambuf;
++  template<class charT, class traits>
++    class basic_istream;
++  template<class charT, class traits>
++    class basic_ostream;
++  template<class charT, class traits>
++    class basic_iostream;
++
++_GLIBCXX_BEGIN_NAMESPACE_CXX11
++  template<class charT, class traits, class Allocator>
++    class basic_stringbuf;
++  template<class charT, class traits, class Allocator>
++    class basic_istringstream;
++  template<class charT, class traits, class Allocator>
++    class basic_ostringstream;
++  template<class charT, class traits, class Allocator>
++    class basic_stringstream;
++_GLIBCXX_END_NAMESPACE_CXX11
++
++  template<class charT, class traits>
++    class basic_filebuf;
++  template<class charT, class traits>
++    class basic_ifstream;
++  template<class charT, class traits>
++    class basic_ofstream;
++  template<class charT, class traits>
++    class basic_fstream;
++
++#if __cplusplus >= 202002L && _GLIBCXX_USE_CXX11_ABI
++  template<class charT, class traits, class Allocator>
++    class basic_syncbuf;
++  template<class charT, class traits, class Allocator>
++    class basic_osyncstream;
++#endif
++
++  template<class charT, class traits>
++    class istreambuf_iterator;
++  template<class charT, class traits>
++    class ostreambuf_iterator;
++
++  typedef basic_ios<char>    ios;
++  typedef basic_ios<wchar_t> wios;
++
++  typedef basic_streambuf<char> streambuf;
++  typedef basic_istream<char>   istream;
++  typedef basic_ostream<char>   ostream;
++  typedef basic_iostream<char>  iostream;
++
++  typedef basic_stringbuf<char>     stringbuf;
++  typedef basic_istringstream<char> istringstream;
++  typedef basic_ostringstream<char> ostringstream;
++  typedef basic_stringstream<char>  stringstream;
++
++
++  typedef basic_filebuf<char>  filebuf;
++  typedef basic_ifstream<char> ifstream;
++  typedef basic_ofstream<char> ofstream;
++  typedef basic_fstream<char>  fstream;
++
++#if __cplusplus >= 202002L && _GLIBCXX_USE_CXX11_ABI
++  typedef basic_syncbuf<char>     syncbuf;
++  typedef basic_osyncstream<char> osyncstream;
++#endif
++
++  typedef basic_streambuf<wchar_t> wstreambuf;
++  typedef basic_istream<wchar_t>   wistream;
++  typedef basic_ostream<wchar_t>   wostream;
++  typedef basic_iostream<wchar_t>  wiostream;
++
++  typedef basic_stringbuf<wchar_t>     wstringbuf;
++  typedef basic_istringstream<wchar_t> wistringstream;
++  typedef basic_ostringstream<wchar_t> wostringstream;
++  typedef basic_stringstream<wchar_t>  wstringstream;
++
++  typedef basic_filebuf<wchar_t>  wfilebuf;
++  typedef basic_ifstream<wchar_t> wifstream;
++  typedef basic_ofstream<wchar_t> wofstream;
++  typedef basic_fstream<wchar_t>  wfstream;
++
++#if __cplusplus >= 202002L
++  typedef basic_syncbuf<wchar_t>     wsyncbuf;
++  typedef basic_osyncstream<wchar_t> wosyncstream;
++#endif
++
++  template<class state> class fpos;
++  typedef fpos<std::mbstate_t> streampos;
++  typedef fpos<std::mbstate_t> wstreampos;
++#if __cplusplus >= 202002L
++  typedef fpos<std::mbstate_t> u8streampos;
++#endif
++#if __cplusplus >= 201103L
++  typedef fpos<std::mbstate_t> u16streampos;
++  typedef fpos<std::mbstate_t> u32streampos;
++#endif
++}
+diff --git a/libstdc++-v3/testsuite/27_io/headers/iosfwd/types.cc b/libstdc++-v3/testsuite/27_io/headers/iosfwd/types.cc
+new file mode 100644
+index 00000000000..e2c9c9b8dfa
+--- /dev/null
++++ b/libstdc++-v3/testsuite/27_io/headers/iosfwd/types.cc
+@@ -0,0 +1,214 @@
++// { dg-do compile { target c++11 } }
++
++#include <iosfwd>
++
++template<class, class> struct Same { static constexpr bool value = false; };
++template<class T> struct Same<T, T> { static constexpr bool value = true; };
++
++template<class T> using Traits = std::char_traits<T>;
++template<class T> using Alloc = std::allocator<T>;
++
++using std::basic_ios;
++
++static_assert(Same<basic_ios<char>,
++		   basic_ios<char, Traits<char>>
++		   >::value,
++    "std::basic_ios<char> has the correct default template argument");
++
++static_assert(Same<basic_ios<wchar_t>,
++		   basic_ios<wchar_t, Traits<wchar_t>>
++		   >::value,
++    "std::basic_ios<wchar_t> has the correct default template argument");
++
++using std::basic_streambuf;
++
++static_assert(Same<basic_streambuf<char>,
++		   basic_streambuf<char, Traits<char>>
++		   >::value,
++    "std::basic_streambuf<char> has the correct default template argument");
++
++static_assert(Same<basic_streambuf<wchar_t>,
++		   basic_streambuf<wchar_t, Traits<wchar_t>>
++		   >::value,
++    "std::basic_streambuf<wchar_t> has the correct default template argument");
++
++using std::basic_istream;
++
++static_assert(Same<basic_istream<char>,
++		   basic_istream<char, Traits<char>>
++		   >::value,
++    "std::basic_istream<char> has the correct default template argument");
++
++static_assert(Same<basic_istream<wchar_t>,
++		   basic_istream<wchar_t, Traits<wchar_t>>
++		   >::value,
++    "std::basic_istream<wchar_t> has the correct default template argument");
++
++using std::basic_ostream;
++
++static_assert(Same<basic_ostream<char>,
++		   basic_ostream<char, Traits<char>>
++		   >::value,
++    "std::basic_ostream<char> has the correct default template argument");
++
++static_assert(Same<basic_ostream<wchar_t>,
++		   basic_ostream<wchar_t, Traits<wchar_t>>
++		   >::value,
++    "std::basic_ostream<wchar_t> has the correct default template argument");
++
++using std::basic_iostream;
++
++static_assert(Same<basic_iostream<char>,
++		   basic_iostream<char, Traits<char>>>::value,
++    "std::basic_iostream<char> has the correct default template argument");
++
++static_assert(Same<basic_iostream<wchar_t>,
++		   basic_iostream<wchar_t, Traits<wchar_t>>
++		   >::value,
++    "std::basic_iostream<wchar_t> has the correct default template argument");
++
++using std::basic_stringbuf;
++
++static_assert(Same<basic_stringbuf<char>,
++		   basic_stringbuf<char, Traits<char>, Alloc<char>>
++		   >::value,
++    "std::basic_stringbuf<char> has the correct default template argument");
++
++static_assert(Same<basic_stringbuf<wchar_t>,
++		   basic_stringbuf<wchar_t, Traits<wchar_t>, Alloc<wchar_t>>
++		   >::value,
++    "std::basic_stringbuf<wchar_t> has the correct default template argument");
++
++using std::basic_istringstream;
++
++static_assert(Same<basic_istringstream<char>,
++		   basic_istringstream<char, Traits<char>, Alloc<char>>
++		   >::value,
++    "std::basic_istringstream<char> has the correct default template argument");
++
++static_assert(Same<basic_istringstream<wchar_t>,
++		   basic_istringstream<wchar_t, Traits<wchar_t>, Alloc<wchar_t>>
++		   >::value,
++    "std::basic_istringstream<wchar_t> has the correct default template argument");
++
++using std::basic_ostringstream;
++
++static_assert(Same<basic_ostringstream<char>,
++		   basic_ostringstream<char, Traits<char>, Alloc<char>>
++		   >::value,
++    "std::basic_ostringstream<char> has the correct default template argument");
++
++static_assert(Same<basic_ostringstream<wchar_t>,
++		   basic_ostringstream<wchar_t, Traits<wchar_t>, Alloc<wchar_t>>
++		   >::value,
++    "std::basic_ostringstream<wchar_t> has the correct default template argument");
++
++using std::basic_stringstream;
++
++static_assert(Same<basic_stringstream<char>,
++		   basic_stringstream<char, Traits<char>, Alloc<char>>
++		   >::value,
++    "std::basic_stringstream<char> has the correct default template argument");
++
++static_assert(Same<basic_stringstream<wchar_t>,
++		   basic_stringstream<wchar_t, Traits<wchar_t>, Alloc<wchar_t>>
++		   >::value,
++    "std::basic_stringstream<wchar_t> has the correct default template argument");
++
++using std::basic_filebuf;
++
++static_assert(Same<basic_filebuf<char>,
++		   basic_filebuf<char, Traits<char>>
++		   >::value,
++    "std::basic_filebuf<char> has the correct default template argument");
++
++static_assert(Same<basic_filebuf<wchar_t>,
++		   basic_filebuf<wchar_t, Traits<wchar_t>>
++		   >::value,
++    "std::basic_filebuf<wchar_t> has the correct default template argument");
++
++using std::basic_ifstream;
++
++static_assert(Same<basic_ifstream<char>,
++		   basic_ifstream<char, Traits<char>>
++		   >::value,
++    "std::basic_ifstream<char> has the correct default template argument");
++
++static_assert(Same<basic_ifstream<wchar_t>,
++		   basic_ifstream<wchar_t, Traits<wchar_t>>
++		   >::value,
++    "std::basic_ifstream<wchar_t> has the correct default template argument");
++
++using std::basic_ofstream;
++
++static_assert(Same<basic_ofstream<char>,
++		   basic_ofstream<char, Traits<char>>
++		   >::value,
++    "std::basic_ofstream<char> has the correct default template argument");
++
++static_assert(Same<basic_ofstream<wchar_t>,
++		   basic_ofstream<wchar_t, Traits<wchar_t>>
++		   >::value,
++    "std::basic_ofstream<wchar_t> has the correct default template argument");
++
++using std::basic_fstream;
++
++static_assert(Same<basic_fstream<char>,
++		   basic_fstream<char, Traits<char>>
++		   >::value,
++    "std::basic_fstream<char> has the correct default template argument");
++
++static_assert(Same<basic_fstream<wchar_t>,
++		   basic_fstream<wchar_t, Traits<wchar_t>>
++		   >::value,
++    "std::basic_fstream<wchar_t> has the correct default template argument");
++
++#if __cplusplus >= 202002L && _GLIBCXX_USE_CXX11_ABI
++using std::basic_syncbuf;
++
++static_assert(Same<basic_syncbuf<char>,
++		   basic_syncbuf<char, Traits<char>, Alloc<char>>
++		   >::value,
++    "std::basic_syncbuf<char> has the correct default template argument");
++
++static_assert(Same<basic_syncbuf<wchar_t>,
++		   basic_syncbuf<wchar_t, Traits<wchar_t>, Alloc<wchar_t>>
++		   >::value,
++    "std::basic_syncbuf<wchar_t> has the correct default template argument");
++
++using std::basic_osyncstream;
++
++static_assert(Same<basic_osyncstream<char>,
++		   basic_osyncstream<char, Traits<char>, Alloc<char>>
++		   >::value,
++    "std::basic_osyncstream<char> has the correct default template argument");
++
++static_assert(Same<basic_osyncstream<wchar_t>,
++		   basic_osyncstream<wchar_t, Traits<wchar_t>, Alloc<wchar_t>>
++		   >::value,
++    "std::basic_osyncstream<wchar_t> has the correct default template argument");
++#endif
++
++using std::istreambuf_iterator;
++
++static_assert(Same<istreambuf_iterator<char>,
++		   istreambuf_iterator<char, Traits<char>>
++		   >::value,
++    "std::istreambuf_iterator<char> has the correct default template argument");
++
++static_assert(Same<istreambuf_iterator<wchar_t>,
++		   istreambuf_iterator<wchar_t, Traits<wchar_t>>
++		   >::value,
++    "std::istreambuf_iterator<wchar_t> has the correct default template argument");
++
++using std::ostreambuf_iterator;
++
++static_assert(Same<ostreambuf_iterator<char>,
++		   ostreambuf_iterator<char, Traits<char>>
++		   >::value,
++    "std::ostreambuf_iterator<char> has the correct default template argument");
++
++static_assert(Same<ostreambuf_iterator<wchar_t>,
++		   ostreambuf_iterator<wchar_t, Traits<wchar_t>>
++		   >::value,
++    "std::ostreambuf_iterator<wchar_t> has the correct default template argument");
 diff --git a/libstdc++-v3/testsuite/29_atomics/atomic/cons/user_pod.cc b/libstdc++-v3/testsuite/29_atomics/atomic/cons/user_pod.cc
 index 7eab17b12e0..dffdaef7afd 100644
 --- a/libstdc++-v3/testsuite/29_atomics/atomic/cons/user_pod.cc
