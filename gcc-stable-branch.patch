@@ -1,6 +1,7 @@
-Alexandre Oliva (2):
+Alexandre Oliva (3):
       testsuite: vect: update unaligned message
       [PR105324] libstdc++: testsuite: pr105324 requires FP from_char
+      libstdc++: ppc: conditionalize vsx-only simd intrinsics
 
 David Malcolm (2):
       analyzer: fix ICE comparing VECTOR_CSTs [PR105252]
@@ -12,7 +13,9 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (21):
+GCC Administrator (23):
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -54,6 +57,20 @@ Jakub Jelinek (7):
       i386: Fix up ix86_gimplify_va_arg [PR105331]
       c++: Don't emit deprecated warnings on lambda declarations
       isel: Fix up gimple_expand_vec_set_expr [PR105528]
+
+Jason Merrill (12):
+      c++: rodata and defaulted ctor [PR104142]
+      c++: low -faligned-new [PR102071]
+      c++: local function versioning [PR104669]
+      c++: empty base constexpr -fno-elide-ctors [PR105245]
+      c++: temp cleanup in new [PR105265]
+      c++: lambda and the current instantiation [PR82980]
+      c++: constexpr trivial -fno-elide-ctors [PR104646]
+      c++: pack init-capture of unresolved overload [PR102629]
+      c++: template-id with current inst qualifier [PR102300]
+      c++: alignment of local typedef in template [PR65211]
+      c++: template conversion op [PR101698]
+      c++: NRV and ref-extended temps [PR101442]
 
 Jeff Law (1):
       [committed] Fix more problems with new linker warnings
@@ -102,11 +119,12 @@ Marek Polacek (4):
 Matthias Kretz (1):
       c++: don't ICE on NAMESPACE_DECL inside FUNCTION_DECL
 
-Patrick Palka (4):
+Patrick Palka (5):
       c++: partial ordering with dependent NTTP type [PR105289]
       c++: ICE with requires-expr and -Wsequence-point [PR105304]
       c++: decltype of non-dependent call of class type [PR105386]
       libstdc++: Don't use std::tolower in <charconv> [PR103911]
+      c++: deduction guides and ttp rewriting [PR102479]
 
 Pavel I. Kryukov (1):
       libstdc++: Add self-merge check to std::forward_list::merge [PR103853]
@@ -548,10 +566,94 @@ index 7c8a1f18c39..e4fe2f065c9 100644
    /* Force target-independent code to convert constant permutations on other
       modes down to V8QI.  Rely on this to avoid the complexity of the byte
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..f0812f2d648 100644
+index 85c8fdd38cd..5a7d8d07538 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,78 @@
+@@ -1,3 +1,162 @@
++2022-05-13  Jason Merrill  <jason@redhat.com>
++
++	PR c++/101442
++	* decl.c (cp_finish_decl): Don't pass decl to push_cleanup.
++	* init.c (perform_member_init): Likewise.
++	* semantics.c (push_cleanup): Adjust comment.
++
++2022-05-13  Jason Merrill  <jason@redhat.com>
++
++	PR c++/101698
++	* pt.c (tsubst_baselink): Also check dependent optype.
++
++2022-05-13  Jason Merrill  <jason@redhat.com>
++
++	PR c++/65211
++	* pt.c (tsubst_decl) [TYPE_DECL]: Copy TYPE_ALIGN.
++
++2022-05-13  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2021-09-27  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/102479
++	* pt.c (rewrite_template_parm): Handle single-level tsubst_args.
++	Avoid a tree cycle when assigning the DECL_TEMPLATE_PARMS for a
++	rewritten ttp.
++	(alias_ctad_tweaks): Set current_template_parms accordingly.
++
++2022-05-13  Jason Merrill  <jason@redhat.com>
++
++	PR c++/102300
++	* parser.c (cp_parser_template_name): Use dependent_scope_p.
++
++2022-05-12  Jason Merrill  <jason@redhat.com>
++
++	PR c++/102629
++	* pt.c (gen_elem_of_pack_expansion_instantiation): Clear
++	TEMPLATE_TYPE_PARAMETER_PACK on auto.
++
++2022-05-12  Jason Merrill  <jason@redhat.com>
++
++	PR c++/104646
++	* constexpr.c (maybe_save_constexpr_fundef): Don't do extra
++	checks for defaulted ctors.
++
++2022-05-12  Jason Merrill  <jason@redhat.com>
++
++	PR c++/82980
++	* lambda.c (type_deducible_expression_p): New.
++	(lambda_capture_field_type): Check it.
++
++2022-05-12  Jason Merrill  <jason@redhat.com>
++
++	PR c++/105265
++	PR c++/100838
++	* call.c (build_user_type_conversion_1): Drop
++	flag_elide_constructors check.
++	(convert_like_internal): Likewise.
++
++2022-05-12  Jason Merrill  <jason@redhat.com>
++
++	PR c++/105245
++	PR c++/100111
++	* constexpr.c (cxx_eval_store_expression): Build a CONSTRUCTOR
++	as needed in empty base handling.
++
++2022-05-12  Jason Merrill  <jason@redhat.com>
++
++	PR c++/104669
++	* decl.c (decls_match): Compare versions even if not recording.
++	(duplicate_decls): Propagate attributes to alias.
++	* decl2.c (find_last_decl): Give up if versioned.
++
++2022-05-12  Jason Merrill  <jason@redhat.com>
++
++	PR c++/102071
++	* init.c (build_new_1): Include cookie in alignment.  Omit
++	constexpr wrapper from alloc_call.
++
++2022-05-12  Jason Merrill  <jason@redhat.com>
++
++	PR c++/104142
++	* decl.c (check_initializer): Check TREE_SIDE_EFFECTS.
++
 +2022-05-06  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -631,7 +733,7 @@ index 85c8fdd38cd..f0812f2d648 100644
  
  	* GCC 11.3.0 released.
 diff --git a/gcc/cp/call.c b/gcc/cp/call.c
-index 55bb9c45f8c..023e5e0f4b5 100644
+index 55bb9c45f8c..46c2a066499 100644
 --- a/gcc/cp/call.c
 +++ b/gcc/cp/call.c
 @@ -1683,8 +1683,19 @@ direct_reference_binding (tree type, conversion *conv)
@@ -656,10 +758,44 @@ index 55bb9c45f8c..023e5e0f4b5 100644
  
    return build_conv (ck_ref_bind, type, conv);
  }
+@@ -4117,7 +4128,8 @@ build_user_type_conversion_1 (tree totype, tree expr, int flags,
+ 	     We represent this in the conversion sequence with an
+ 	     rvalue conversion, which means a constructor call.  */
+ 	  if (!TYPE_REF_P (totype)
+-	      && (flag_elide_constructors || (flags & LOOKUP_ONLYCONVERTING))
++	      && cxx_dialect < cxx17
++	      && (flags & LOOKUP_ONLYCONVERTING)
+ 	      && !(convflags & LOOKUP_NO_TEMP_BIND))
+ 	    cand->second_conv
+ 	      = build_conv (ck_rvalue, totype, cand->second_conv);
+@@ -7804,13 +7816,10 @@ convert_like_internal (conversion *convs, tree expr, tree fn, int argnum,
+       break;
+     };
+ 
+-  tsubst_flags_t sub_complain = complain;
+-  if (!flag_elide_constructors)
+-    sub_complain &= ~tf_no_cleanup;
+   expr = convert_like (next_conversion (convs), expr, fn, argnum,
+ 		       convs->kind == ck_ref_bind
+ 		       ? issue_conversion_warnings : false,
+-		       c_cast_p, sub_complain);
++		       c_cast_p, complain & ~tf_no_cleanup);
+   if (expr == error_mark_node)
+     return error_mark_node;
+ 
 diff --git a/gcc/cp/constexpr.c b/gcc/cp/constexpr.c
-index c13c920ade3..d72a8712dab 100644
+index c13c920ade3..5a1db17a14d 100644
 --- a/gcc/cp/constexpr.c
 +++ b/gcc/cp/constexpr.c
+@@ -890,7 +890,7 @@ maybe_save_constexpr_fundef (tree fun)
+   if (!potential && !DECL_GENERATED_P (fun))
+     require_potential_rvalue_constant_expression (massaged);
+ 
+-  if (DECL_CONSTRUCTOR_P (fun)
++  if (DECL_CONSTRUCTOR_P (fun) && !DECL_DEFAULTED_FN (fun)
+       && cx_check_missing_mem_inits (DECL_CONTEXT (fun),
+ 				     massaged, !DECL_GENERATED_P (fun)))
+     potential = false;
 @@ -4280,19 +4280,18 @@ cxx_eval_bit_cast (const constexpr_ctx *ctx, tree t, bool *non_constant_p,
  static tree
  cxx_eval_logical_expression (const constexpr_ctx *ctx, tree t,
@@ -684,8 +820,153 @@ index c13c920ade3..d72a8712dab 100644
  				    overflow_p);
    VERIFY_CONSTANT (r);
    return r;
+@@ -5579,6 +5578,12 @@ cxx_eval_store_expression (const constexpr_ctx *ctx, tree t,
+     {
+       /* See above on initialization of empty bases.  */
+       gcc_assert (is_empty_class (TREE_TYPE (init)) && !lval);
++      if (!*valp)
++	{
++	  /* But do make sure we have something in *valp.  */
++	  *valp = build_constructor (type, nullptr);
++	  CONSTRUCTOR_NO_CLEARING (*valp) = no_zero_init;
++	}
+       return init;
+     }
+   else
+diff --git a/gcc/cp/decl.c b/gcc/cp/decl.c
+index bffbd004167..bb6535a415b 100644
+--- a/gcc/cp/decl.c
++++ b/gcc/cp/decl.c
+@@ -1059,11 +1059,14 @@ decls_match (tree newdecl, tree olddecl, bool record_versions /* = true */)
+       if (types_match
+ 	  && !DECL_EXTERN_C_P (newdecl)
+ 	  && !DECL_EXTERN_C_P (olddecl)
+-	  && record_versions
+-	  && maybe_version_functions (newdecl, olddecl,
+-				      (!DECL_FUNCTION_VERSIONED (newdecl)
+-				       || !DECL_FUNCTION_VERSIONED (olddecl))))
+-	return 0;
++	  && targetm.target_option.function_versions (newdecl, olddecl))
++	{
++	  if (record_versions)
++	    maybe_version_functions (newdecl, olddecl,
++				     (!DECL_FUNCTION_VERSIONED (newdecl)
++				      || !DECL_FUNCTION_VERSIONED (olddecl)));
++	  return 0;
++	}
+     }
+   else if (TREE_CODE (newdecl) == TEMPLATE_DECL)
+     {
+@@ -2523,7 +2526,12 @@ duplicate_decls (tree newdecl, tree olddecl, bool hiding, bool was_hidden)
+       else
+ 	{
+ 	  retrofit_lang_decl (newdecl);
+-	  DECL_LOCAL_DECL_ALIAS (newdecl) = DECL_LOCAL_DECL_ALIAS (olddecl);
++	  tree alias = DECL_LOCAL_DECL_ALIAS (newdecl)
++	    = DECL_LOCAL_DECL_ALIAS (olddecl);
++	  DECL_ATTRIBUTES (alias)
++	    = (*targetm.merge_decl_attributes) (alias, newdecl);
++	  if (TREE_CODE (newdecl) == FUNCTION_DECL)
++	    merge_attribute_bits (newdecl, alias);
+ 	}
+     }
+ 
+@@ -7227,6 +7235,10 @@ check_initializer (tree decl, tree init, int flags, vec<tree, va_gc> **cleanups)
+   if (init && init != error_mark_node)
+     init_code = build2 (INIT_EXPR, type, decl, init);
+ 
++  if (init_code && !TREE_SIDE_EFFECTS (init_code)
++      && init_code != error_mark_node)
++    init_code = NULL_TREE;
++
+   if (init_code)
+     {
+       /* We might have set these in cp_finish_decl.  */
+@@ -8300,7 +8312,7 @@ cp_finish_decl (tree decl, tree init, bool init_const_expr_p,
+     {
+       unsigned i; tree t;
+       FOR_EACH_VEC_ELT (*cleanups, i, t)
+-	push_cleanup (decl, t, false);
++	push_cleanup (NULL_TREE, t, false);
+       release_tree_vector (cleanups);
+     }
+ 
+diff --git a/gcc/cp/decl2.c b/gcc/cp/decl2.c
+index 885c4749989..c00508103e9 100644
+--- a/gcc/cp/decl2.c
++++ b/gcc/cp/decl2.c
+@@ -1531,8 +1531,16 @@ find_last_decl (tree decl)
+ 	  if (TREE_CODE (*iter) == OVERLOAD)
+ 	    continue;
+ 
+-	  if (decls_match (decl, *iter, /*record_decls=*/false))
+-	    return *iter;
++	  tree d = *iter;
++
++	  /* We can't compare versions in the middle of processing the
++	     attribute that has the version.  */
++	  if (TREE_CODE (d) == FUNCTION_DECL
++	      && DECL_FUNCTION_VERSIONED (d))
++	    return NULL_TREE;
++
++	  if (decls_match (decl, d, /*record_decls=*/false))
++	    return d;
+ 	}
+       return NULL_TREE;
+     }
+diff --git a/gcc/cp/init.c b/gcc/cp/init.c
+index bd27c92324b..f694c9a5776 100644
+--- a/gcc/cp/init.c
++++ b/gcc/cp/init.c
+@@ -911,7 +911,7 @@ perform_member_init (tree member, tree init)
+       init = build2 (INIT_EXPR, type, decl, init);
+       finish_expr_stmt (init);
+       FOR_EACH_VEC_ELT (*cleanups, i, t)
+-	push_cleanup (decl, t, false);
++	push_cleanup (NULL_TREE, t, false);
+     }
+   else if (type_build_ctor_call (type)
+ 	   || (init && CLASS_TYPE_P (strip_array_types (type))))
+@@ -3079,7 +3079,13 @@ build_new_1 (vec<tree, va_gc> **placement, tree type, tree nelts,
+ 
+   tree align_arg = NULL_TREE;
+   if (type_has_new_extended_alignment (elt_type))
+-    align_arg = build_int_cst (align_type_node, TYPE_ALIGN_UNIT (elt_type));
++    {
++      unsigned align = TYPE_ALIGN_UNIT (elt_type);
++      /* Also consider the alignment of the cookie, if any.  */
++      if (array_p && TYPE_VEC_NEW_USES_COOKIE (elt_type))
++	align = MAX (align, TYPE_ALIGN_UNIT (size_type_node));
++      align_arg = build_int_cst (align_type_node, align);
++    }
+ 
+   alloc_fn = NULL_TREE;
+ 
+@@ -3261,18 +3267,19 @@ build_new_1 (vec<tree, va_gc> **placement, tree type, tree nelts,
+ 	}
+     }
+ 
++  alloc_expr = alloc_call;
+   if (cookie_size)
+-    alloc_call = maybe_wrap_new_for_constexpr (alloc_call, type,
++    alloc_expr = maybe_wrap_new_for_constexpr (alloc_call, type,
+ 					       cookie_size);
+ 
+   /* In the simple case, we can stop now.  */
+   pointer_type = build_pointer_type (type);
+   if (!cookie_size && !is_initialized)
+-    return build_nop (pointer_type, alloc_call);
++    return build_nop (pointer_type, alloc_expr);
+ 
+   /* Store the result of the allocation call in a variable so that we can
+      use it more than once.  */
+-  alloc_expr = get_target_expr (alloc_call);
++  alloc_expr = get_target_expr (alloc_expr);
+   alloc_node = TARGET_EXPR_SLOT (alloc_expr);
+ 
+   /* Strip any COMPOUND_EXPRs from ALLOC_CALL.  */
 diff --git a/gcc/cp/lambda.c b/gcc/cp/lambda.c
-index d8efe91d9fe..cca414c1a69 100644
+index d8efe91d9fe..1508e232091 100644
 --- a/gcc/cp/lambda.c
 +++ b/gcc/cp/lambda.c
 @@ -31,6 +31,7 @@ along with GCC; see the file COPYING3.  If not see
@@ -696,7 +977,41 @@ index d8efe91d9fe..cca414c1a69 100644
  
  /* Constructor for a lambda expression.  */
  
-@@ -1177,9 +1178,13 @@ maybe_add_lambda_conv_op (tree type)
+@@ -202,6 +203,24 @@ lambda_function (tree lambda)
+   return lambda;
+ }
+ 
++/* True if EXPR is an expression whose type can be used directly in lambda
++   capture.  Not to be used for 'auto'.  */
++
++static bool
++type_deducible_expression_p (tree expr)
++{
++  if (!type_dependent_expression_p (expr))
++    return true;
++  if (BRACE_ENCLOSED_INITIALIZER_P (expr)
++      || TREE_CODE (expr) == EXPR_PACK_EXPANSION)
++    return false;
++  tree t = non_reference (TREE_TYPE (expr));
++  if (!t) return false;
++  while (TREE_CODE (t) == POINTER_TYPE)
++    t = TREE_TYPE (t);
++  return currently_open_class (t);
++}
++
+ /* Returns the type to use for the FIELD_DECL corresponding to the
+    capture of EXPR.  EXPLICIT_INIT_P indicates whether this is a
+    C++14 init capture, and BY_REFERENCE_P indicates whether we're
+@@ -228,7 +247,7 @@ lambda_capture_field_type (tree expr, bool explicit_init_p,
+       else
+ 	type = do_auto_deduction (type, expr, auto_node);
+     }
+-  else if (!is_this && type_dependent_expression_p (expr))
++  else if (!is_this && !type_deducible_expression_p (expr))
+     {
+       type = cxx_make_type (DECLTYPE_TYPE);
+       DECLTYPE_TYPE_EXPR (type) = expr;
+@@ -1177,9 +1196,13 @@ maybe_add_lambda_conv_op (tree type)
  	}
      }
    else
@@ -731,10 +1046,97 @@ index b97b1bcb2f8..6cb926c044a 100644
  			       || !DECL_TEMPLATE_INFO (decl));
  
 diff --git a/gcc/cp/parser.c b/gcc/cp/parser.c
-index 90d119eaa28..365d5989773 100644
+index 90d119eaa28..b53cc6d360e 100644
 --- a/gcc/cp/parser.c
 +++ b/gcc/cp/parser.c
-@@ -24967,6 +24967,7 @@ cp_parser_class_specifier_1 (cp_parser* parser)
+@@ -17728,7 +17728,7 @@ cp_parser_template_name (cp_parser* parser,
+ 			: parser->context->object_type);
+ 	  if (scope && TYPE_P (scope)
+ 	      && (!CLASS_TYPE_P (scope)
+-		  || (check_dependency_p && dependent_type_p (scope))))
++		  || (check_dependency_p && dependent_scope_p (scope))))
+ 	    {
+ 	      /* We're optimizing away the call to cp_parser_lookup_name, but
+ 		 we still need to do this.  */
+@@ -17739,8 +17739,8 @@ cp_parser_template_name (cp_parser* parser,
+     }
+ 
+   /* cp_parser_lookup_name clears OBJECT_TYPE.  */
+-  const bool scoped_p = ((parser->scope ? parser->scope
+-			  : parser->context->object_type) != NULL_TREE);
++  tree scope = (parser->scope ? parser->scope
++		: parser->context->object_type);
+ 
+   /* Look up the name.  */
+   decl = cp_parser_lookup_name (parser, identifier,
+@@ -17753,6 +17753,19 @@ cp_parser_template_name (cp_parser* parser,
+ 
+   decl = strip_using_decl (decl);
+ 
++  /* 13.3 [temp.names] A < is interpreted as the delimiter of a
++    template-argument-list if it follows a name that is not a
++    conversion-function-id and
++    - that follows the keyword template or a ~ after a nested-name-specifier or
++    in a class member access expression, or
++    - for which name lookup finds the injected-class-name of a class template
++    or finds any declaration of a template, or
++    - that is an unqualified name for which name lookup either finds one or
++    more functions or finds nothing, or
++    - that is a terminal name in a using-declarator (9.9), in a declarator-id
++    (9.3.4), or in a type-only context other than a nested-name-specifier
++    (13.8).  */
++
+   /* If DECL is a template, then the name was a template-name.  */
+   if (TREE_CODE (decl) == TEMPLATE_DECL)
+     {
+@@ -17772,11 +17785,7 @@ cp_parser_template_name (cp_parser* parser,
+     }
+   else
+     {
+-      /* The standard does not explicitly indicate whether a name that
+-	 names a set of overloaded declarations, some of which are
+-	 templates, is a template-name.  However, such a name should
+-	 be a template-name; otherwise, there is no way to form a
+-	 template-id for the overloaded templates.  */
++      /* Look through an overload set for any templates.  */
+       bool found = false;
+ 
+       for (lkp_iterator iter (MAYBE_BASELINK_FUNCTIONS (decl));
+@@ -17784,16 +17793,14 @@ cp_parser_template_name (cp_parser* parser,
+ 	if (TREE_CODE (*iter) == TEMPLATE_DECL)
+ 	  found = true;
+ 
++      /* "an unqualified name for which name lookup either finds one or more
++	 functions or finds nothing".  */
+       if (!found
+ 	  && (cxx_dialect > cxx17)
+-	  && !scoped_p
++	  && !scope
+ 	  && cp_lexer_next_token_is (parser->lexer, CPP_LESS)
+ 	  && tag_type == none_type)
+ 	{
+-	  /* [temp.names] says "A name is also considered to refer to a template
+-	     if it is an unqualified-id followed by a < and name lookup finds
+-	     either one or more functions or finds nothing."  */
+-
+ 	  /* The "more functions" case.  Just use the OVERLOAD as normally.
+ 	     We don't use is_overloaded_fn here to avoid considering
+ 	     BASELINKs.  */
+@@ -17806,6 +17813,13 @@ cp_parser_template_name (cp_parser* parser,
+ 	    return identifier;
+ 	}
+ 
++      /* "that follows the keyword template"..."in a type-only context" */
++      if (!found && scope
++	  && (template_keyword_p || tag_type != none_type)
++	  && TYPE_P (scope) && dependent_type_p (scope)
++	  && cp_parser_nth_token_starts_template_argument_list_p (parser, 1))
++	return identifier;
++
+       if (!found)
+ 	{
+ 	  /* The name does not name a template.  */
+@@ -24967,6 +24981,7 @@ cp_parser_class_specifier_1 (cp_parser* parser)
        case CPP_OPEN_PAREN:
        case CPP_CLOSE_PAREN:
        case CPP_COMMA:
@@ -743,7 +1145,7 @@ index 90d119eaa28..365d5989773 100644
          break;
  
 diff --git a/gcc/cp/pt.c b/gcc/cp/pt.c
-index 318d42d800d..c98acbec481 100644
+index 318d42d800d..ec8bf229740 100644
 --- a/gcc/cp/pt.c
 +++ b/gcc/cp/pt.c
 @@ -5200,8 +5200,9 @@ process_partial_specialization (tree decl)
@@ -767,7 +1169,45 @@ index 318d42d800d..c98acbec481 100644
      dependent_p = false;
    else
      dependent_p = instantiation_dependent_expression_p (t);
-@@ -23928,7 +23929,7 @@ unify (tree tparms, tree targs, tree parm, tree arg, int strict,
+@@ -12641,7 +12642,13 @@ gen_elem_of_pack_expansion_instantiation (tree pattern,
+     t = tsubst_expr (pattern, args, complain, in_decl,
+ 		     /*integral_constant_expression_p=*/false);
+   else
+-    t = tsubst (pattern, args, complain, in_decl);
++    {
++      t = tsubst (pattern, args, complain, in_decl);
++      if (is_auto (t) && !ith_elem_is_expansion)
++	/* When expanding the fake auto... pack expansion from add_capture, we
++	   need to mark that the expansion is no longer a pack.  */
++	TEMPLATE_TYPE_PARAMETER_PACK (t) = false;
++    }
+ 
+   /*  If the Ith argument pack element is a pack expansion, then
+       the Ith element resulting from the substituting is going to
+@@ -15110,6 +15117,12 @@ tsubst_decl (tree t, tree args, tsubst_flags_t complain)
+ 	  {
+ 	    DECL_ORIGINAL_TYPE (r) = NULL_TREE;
+ 	    set_underlying_type (r);
++
++	    /* common_handle_aligned_attribute doesn't apply the alignment
++	       to DECL_ORIGINAL_TYPE.  */
++	    if (TYPE_USER_ALIGN (TREE_TYPE (t)))
++	      TREE_TYPE (r) = build_aligned_type (TREE_TYPE (r),
++						  TYPE_ALIGN (TREE_TYPE (t)));
+ 	  }
+ 
+ 	layout_decl (r, 0);
+@@ -16404,7 +16417,8 @@ tsubst_baselink (tree baselink, tree object_type,
+ 
+   tree binfo_type = BINFO_TYPE (BASELINK_BINFO (baselink));
+   binfo_type = tsubst (binfo_type, args, complain, in_decl);
+-  bool dependent_p = binfo_type != BINFO_TYPE (BASELINK_BINFO (baselink));
++  bool dependent_p = (binfo_type != BINFO_TYPE (BASELINK_BINFO (baselink))
++		      || optype != BASELINK_OPTYPE (baselink));
+ 
+   if (dependent_p)
+     {
+@@ -23928,7 +23942,7 @@ unify (tree tparms, tree targs, tree parm, tree arg, int strict,
  	      /* Now check whether the type of this parameter is still
  		 dependent, and give up if so.  */
  	      ++processing_template_decl;
@@ -776,11 +1216,62 @@ index 318d42d800d..c98acbec481 100644
  	      --processing_template_decl;
  	      if (uses_template_parms (tparm))
  		return unify_success (explain_p);
+@@ -28726,7 +28740,7 @@ rewrite_template_parm (tree olddecl, unsigned index, unsigned level,
+ 	  const int depth = TMPL_ARGS_DEPTH (tsubst_args);
+ 	  tree ttargs = make_tree_vec (depth + 1);
+ 	  for (int i = 0; i < depth; ++i)
+-	    TREE_VEC_ELT (ttargs, i) = TREE_VEC_ELT (tsubst_args, i);
++	    TREE_VEC_ELT (ttargs, i) = TMPL_ARGS_LEVEL (tsubst_args, i + 1);
+ 	  TREE_VEC_ELT (ttargs, depth)
+ 	    = template_parms_level_to_args (ttparms);
+ 	  // Substitute ttargs into ttparms to fix references to
+@@ -28739,8 +28753,17 @@ rewrite_template_parm (tree olddecl, unsigned index, unsigned level,
+ 	  ttparms = tsubst_template_parms_level (ttparms, ttargs,
+ 						 complain);
+ 	  // Finally, tack the adjusted parms onto tparms.
+-	  ttparms = tree_cons (size_int (depth), ttparms,
+-			       current_template_parms);
++	  ttparms = tree_cons (size_int (level + 1), ttparms,
++			       copy_node (current_template_parms));
++	  // As with all template template parms, the parameter list captured
++	  // by this template template parm that corresponds to its own level
++	  // should be empty.  This avoids infinite recursion when structurally
++	  // comparing two such rewritten template template parms (PR102479).
++	  gcc_assert (!TREE_VEC_LENGTH
++		      (TREE_VALUE (TREE_CHAIN (DECL_TEMPLATE_PARMS (olddecl)))));
++	  gcc_assert (TMPL_PARMS_DEPTH (TREE_CHAIN (ttparms)) == level);
++	  TREE_VALUE (TREE_CHAIN (ttparms)) = make_tree_vec (0);
++	  // All done.
+ 	  DECL_TEMPLATE_PARMS (newdecl) = ttparms;
+ 	}
+     }
+@@ -29238,6 +29261,11 @@ alias_ctad_tweaks (tree tmpl, tree uguides)
+ 	      ++ndlen;
+ 	  tree gtparms = make_tree_vec (natparms + ndlen);
+ 
++	  /* Set current_template_parms as in build_deduction_guide.  */
++	  auto ctp = make_temp_override (current_template_parms);
++	  current_template_parms = copy_node (DECL_TEMPLATE_PARMS (tmpl));
++	  TREE_VALUE (current_template_parms) = gtparms;
++
+ 	  /* First copy over the parms of A.  */
+ 	  for (j = 0; j < natparms; ++j)
+ 	    TREE_VEC_ELT (gtparms, j) = TREE_VEC_ELT (atparms, j);
 diff --git a/gcc/cp/semantics.c b/gcc/cp/semantics.c
-index d447ce80174..36ad96febf3 100644
+index d447ce80174..baae5a0f1e4 100644
 --- a/gcc/cp/semantics.c
 +++ b/gcc/cp/semantics.c
-@@ -10220,7 +10220,7 @@ finish_decltype_type (tree expr, bool id_expression_or_member_access_p,
+@@ -655,7 +655,8 @@ do_pushlevel (scope_kind sk)
+ 
+ /* Queue a cleanup.  CLEANUP is an expression/statement to be executed
+    when the current scope is exited.  EH_ONLY is true when this is not
+-   meant to apply to normal control flow transfer.  */
++   meant to apply to normal control flow transfer.  DECL is the VAR_DECL
++   being cleaned up, if any, or null for temporaries or subobjects.  */
+ 
+ void
+ push_cleanup (tree decl, tree cleanup, bool eh_only)
+@@ -10220,7 +10221,7 @@ finish_decltype_type (tree expr, bool id_expression_or_member_access_p,
      }
    else if (processing_template_decl)
      {
@@ -878,10 +1369,83 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..69b69efd483 100644
+index 5fc23605244..649b258ef64 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,211 @@
+@@ -1,3 +1,284 @@
++2022-05-13  Jason Merrill  <jason@redhat.com>
++
++	PR c++/101442
++	* g++.dg/cpp0x/initlist-nrv1.C: New test.
++
++2022-05-13  Jason Merrill  <jason@redhat.com>
++
++	PR c++/101698
++	* g++.dg/template/conv19.C: New test.
++
++2022-05-13  Jason Merrill  <jason@redhat.com>
++
++	PR c++/65211
++	* g++.target/i386/vec-tmpl1.C: New test.
++
++2022-05-13  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2021-09-27  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/102479
++	* g++.dg/cpp1z/class-deduction12.C: Also test alias CTAD in the
++	same way.
++	* g++.dg/cpp1z/class-deduction99.C: New test.
++
++2022-05-13  Jason Merrill  <jason@redhat.com>
++
++	PR c++/102300
++	* g++.dg/parse/no-typename1.C: Remove expected error.
++	* g++.dg/template/nested7.C: New test.
++
++2022-05-12  Jason Merrill  <jason@redhat.com>
++
++	PR c++/102629
++	* g++.dg/cpp2a/lambda-pack-init7.C: New test.
++
++2022-05-12  Jason Merrill  <jason@redhat.com>
++
++	PR c++/104646
++	* g++.dg/cpp0x/constexpr-fno-elide-ctors1.C: New test.
++
++2022-05-12  Jason Merrill  <jason@redhat.com>
++
++	PR c++/82980
++	* g++.dg/cpp0x/lambda/lambda-current-inst1.C: New test.
++
++2022-05-12  Jason Merrill  <jason@redhat.com>
++
++	PR c++/105265
++	PR c++/100838
++	* g++.dg/cpp0x/initlist-new6.C: New test.
++
++2022-05-12  Jason Merrill  <jason@redhat.com>
++
++	PR c++/105245
++	PR c++/100111
++	* g++.dg/cpp1y/constexpr-empty2.C: Add -fno-elide-constructors.
++
++2022-05-12  Jason Merrill  <jason@redhat.com>
++
++	PR c++/104669
++	* g++.target/i386/mv31.C: New test.
++
++2022-05-12  Jason Merrill  <jason@redhat.com>
++
++	PR c++/102071
++	* g++.dg/cpp1z/aligned-new9.C: New test.
++
++2022-05-12  Jason Merrill  <jason@redhat.com>
++
++	PR c++/104142
++	* g++.dg/opt/const7.C: New test.
++
 +2022-05-10  H.J. Lu  <hjl.tools@gmail.com>
 +
 +	Backported from master:
@@ -1117,6 +1681,101 @@ index 00000000000..adb6830ff22
 +}
 +
 +static_assert(echo2(10) == 10, "");
+diff --git a/gcc/testsuite/g++.dg/cpp0x/constexpr-fno-elide-ctors1.C b/gcc/testsuite/g++.dg/cpp0x/constexpr-fno-elide-ctors1.C
+new file mode 100644
+index 00000000000..71c76fa0247
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp0x/constexpr-fno-elide-ctors1.C
+@@ -0,0 +1,89 @@
++// PR c++/104646
++// { dg-do compile { target c++11 } }
++// { dg-additional-options -fno-elide-constructors }
++
++template <typename _T1> struct pair {
++  _T1 first;
++  int second;
++};
++template <typename _Iterator> class __normal_iterator {
++  _Iterator __traits_type;
++
++public:
++  constexpr __normal_iterator() {}
++};
++template <typename> class allocator;
++template <typename> struct allocator_traits;
++template <typename _Tp> struct allocator_traits<allocator<_Tp>> {
++  using value_type = _Tp;
++  template <typename _Up> using rebind_alloc = allocator<_Up>;
++};
++template <typename _Alloc> struct __alloc_traits {
++  typedef allocator_traits<_Alloc> _Base_type;
++  typedef typename _Base_type::value_type &const_reference;
++  template <typename _Tp> struct rebind {
++    typedef typename _Base_type::template rebind_alloc<_Tp> other;
++  };
++};
++template <typename _Tp, typename _Alloc> struct _Vector_base {
++  typedef typename __alloc_traits<_Alloc>::template rebind<_Tp>::other _Tp_alloc_type;
++};
++template <typename _Tp, typename _Alloc = allocator<_Tp>> class vector {
++public:
++  typename __alloc_traits<
++      typename _Vector_base<_Tp, _Alloc>::_Tp_alloc_type>::const_reference
++  operator[](long);
++};
++enum match_flag_type {};
++template <typename, typename> class Trans_NS___cxx11_basic_regex;
++class Trans_NS___cxx11_match_results;
++enum _RegexExecutorPolicy { _S_auto };
++template <typename, typename, typename _CharT, typename _TraitsT,
++          _RegexExecutorPolicy, bool>
++bool __regex_algo_impl(Trans_NS___cxx11_match_results &,
++                       const Trans_NS___cxx11_basic_regex<_CharT, _TraitsT> &);
++template <typename, typename, typename, bool> class _Executor;
++template <typename _Ch_type, typename = _Ch_type>
++class Trans_NS___cxx11_basic_regex {};
++class Trans_NS___cxx11_match_results : vector<int> {
++  template <typename, typename, typename _Cp, typename _Rp,
++            _RegexExecutorPolicy, bool>
++  friend bool __regex_algo_impl(Trans_NS___cxx11_match_results &,
++                                const Trans_NS___cxx11_basic_regex<_Cp, _Rp> &);
++};
++template <typename _Bi_iter, typename _Alloc, typename _Ch_type,
++          typename _Rx_traits>
++void regex_search(_Bi_iter, _Alloc,
++                  Trans_NS___cxx11_basic_regex<_Ch_type, _Rx_traits>) {
++  __regex_algo_impl<_Bi_iter, _Alloc, _Ch_type, _Rx_traits, _S_auto, false>;
++}
++match_flag_type __regex_algo_impl___flags;
++template <typename, typename, typename _CharT, typename _TraitsT,
++          _RegexExecutorPolicy, bool>
++bool __regex_algo_impl(
++    Trans_NS___cxx11_match_results &__m,
++    const Trans_NS___cxx11_basic_regex<_CharT, _TraitsT> &__re) {
++  __normal_iterator<const char *> __e, __s;
++  _Executor<int, int, _TraitsT, false> __executor(__s, __e, __m, __re,
++                                                  __regex_algo_impl___flags);
++  __executor._M_match();
++  return false;
++}
++template <typename, typename, typename, bool> class _Executor {
++public:
++  _Executor(__normal_iterator<const char *>, __normal_iterator<const char *>,
++            vector<int>, Trans_NS___cxx11_basic_regex<char>, match_flag_type);
++  void _M_match() { _M_dfs(); }
++  void _M_dfs();
++  vector<pair<__normal_iterator<char *>>> _M_rep_count;
++};
++long _M_rep_once_more___i;
++template <typename _BiIter, typename _Alloc, typename _TraitsT, bool __dfs_mode>
++void _Executor<_BiIter, _Alloc, _TraitsT, __dfs_mode>::_M_dfs() {
++  auto __rep_count = _M_rep_count[_M_rep_once_more___i];
++}
++char main___trans_tmp_1;
++void main___trans_tmp_2() {
++  Trans_NS___cxx11_basic_regex<char> re;
++  regex_search(main___trans_tmp_1, main___trans_tmp_2, re);
++}
 diff --git a/gcc/testsuite/g++.dg/cpp0x/decltype81.C b/gcc/testsuite/g++.dg/cpp0x/decltype81.C
 new file mode 100644
 index 00000000000..7d25db39d9c
@@ -1138,6 +1797,115 @@ index 00000000000..7d25db39d9c
 +};
 +
 +A<int> a;
+diff --git a/gcc/testsuite/g++.dg/cpp0x/initlist-new6.C b/gcc/testsuite/g++.dg/cpp0x/initlist-new6.C
+new file mode 100644
+index 00000000000..0ef27806acf
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp0x/initlist-new6.C
+@@ -0,0 +1,39 @@
++// PR c++/105265
++// { dg-do run { target c++11 } }
++
++int c;
++
++class Block
++{
++public:
++  Block(int n) : data{new char[n]}, size{n}
++  {
++    ++c;
++  }
++
++  ~Block()
++  {
++    --c;
++    delete[] data;
++  }
++
++private:
++  char* data;
++  int size;
++};
++
++struct Cargo
++{
++  Block const& block;
++};
++
++int main()
++{
++  {
++    Cargo* c = new Cargo{{4000}};
++    delete c;
++  }
++  if (c != 0)
++    __builtin_abort ();
++  return 0;
++}
+diff --git a/gcc/testsuite/g++.dg/cpp0x/initlist-nrv1.C b/gcc/testsuite/g++.dg/cpp0x/initlist-nrv1.C
+new file mode 100644
+index 00000000000..e44dbecfece
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp0x/initlist-nrv1.C
+@@ -0,0 +1,34 @@
++// PR c++/101442
++// { dg-do run { target c++11 } }
++
++bool destroyed = false;
++
++struct A
++{
++  A() {}
++  A(const A &) = delete;
++  A &operator=(const A &) = delete;
++  ~A() {destroyed = true;}
++};
++
++struct B
++{
++  const A &a;
++  struct string {
++    string(const char*) { }
++    ~string() { }
++  } s;
++};
++
++B foo()
++{
++  B ret{ A{}, "" };
++  return ret;
++}
++
++int main()
++{
++  B b = foo();
++  if (!destroyed)
++    __builtin_abort();
++}
+diff --git a/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-current-inst1.C b/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-current-inst1.C
+new file mode 100644
+index 00000000000..a6631c5ca99
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-current-inst1.C
+@@ -0,0 +1,18 @@
++// PR c++/82980
++// { dg-do compile { target c++11 } }
++
++template <class T>
++struct Outer
++{
++  template <class U>
++  void f();
++
++  void bar(Outer outer) {
++    [outer](){ outer.f<int>(); };
++  }
++  void baz(Outer *p) {
++    [&](){ p->f<int>(); };
++  }
++};
++
++int main() { }
 diff --git a/gcc/testsuite/g++.dg/cpp0x/ref-bind4.C b/gcc/testsuite/g++.dg/cpp0x/ref-bind4.C
 index 85ac9fbfd79..d296d7c3b72 100644
 --- a/gcc/testsuite/g++.dg/cpp0x/ref-bind4.C
@@ -1166,6 +1934,16 @@ index 00000000000..eee78fd5e74
 +{
 +  f(x); // { dg-error "call of overloaded" }
 +}
+diff --git a/gcc/testsuite/g++.dg/cpp1y/constexpr-empty2.C b/gcc/testsuite/g++.dg/cpp1y/constexpr-empty2.C
+index 2acfa98364b..9768b89904e 100644
+--- a/gcc/testsuite/g++.dg/cpp1y/constexpr-empty2.C
++++ b/gcc/testsuite/g++.dg/cpp1y/constexpr-empty2.C
+@@ -1,4 +1,5 @@
+ // { dg-do compile { target c++14 } }
++// { dg-additional-options -fno-elide-constructors }
+ 
+ struct A
+ {
 diff --git a/gcc/testsuite/g++.dg/cpp1y/lambda-generic-enum2.C b/gcc/testsuite/g++.dg/cpp1y/lambda-generic-enum2.C
 new file mode 100644
 index 00000000000..77cf0bb9d02
@@ -1187,6 +1965,97 @@ index 00000000000..77cf0bb9d02
 +int main() {
 +    f(0);
 +}
+diff --git a/gcc/testsuite/g++.dg/cpp1z/aligned-new9.C b/gcc/testsuite/g++.dg/cpp1z/aligned-new9.C
+new file mode 100644
+index 00000000000..3fa0ed996bd
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp1z/aligned-new9.C
+@@ -0,0 +1,30 @@
++// PR c++/102071
++// { dg-do run { target c++17 } }
++// { dg-additional-options -faligned-new=2 }
++
++#include <new>
++
++int nalign;
++void *operator new (std::size_t s, std::align_val_t a)
++{
++  nalign = (int)a;
++  return operator new (s);
++}
++
++struct X { ~X(); int c; };
++
++int align = (alignof (X) > alignof (std::size_t)
++	     ? alignof (X) : alignof (std::size_t));
++
++int n = 4;
++
++int main()
++{
++  X *p = new X[n];
++  if (nalign != align)
++    __builtin_abort ();
++
++  X *p2 = new X;
++  if (nalign != alignof (X))
++    __builtin_abort ();
++}
+diff --git a/gcc/testsuite/g++.dg/cpp1z/class-deduction12.C b/gcc/testsuite/g++.dg/cpp1z/class-deduction12.C
+index a31cc1526db..f0d7ea0e16b 100644
+--- a/gcc/testsuite/g++.dg/cpp1z/class-deduction12.C
++++ b/gcc/testsuite/g++.dg/cpp1z/class-deduction12.C
+@@ -15,3 +15,9 @@ A a(&i,2,B<42>());
+ template <class,class> class same;
+ template <class T> class same<T,T> {};
+ same<decltype(a), A<int*>> s;
++
++#if __cpp_deduction_guides >= 201907
++template <class T> using C = A<const T*>;
++
++same<decltype(C(&i, 2, B<42>())), A<const int*>> t;
++#endif
+diff --git a/gcc/testsuite/g++.dg/cpp1z/class-deduction99.C b/gcc/testsuite/g++.dg/cpp1z/class-deduction99.C
+new file mode 100644
+index 00000000000..6daa4b7c55c
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp1z/class-deduction99.C
+@@ -0,0 +1,35 @@
++// PR c++/102479
++// { dg-do compile { target c++17 } }
++
++template<class T> struct A;
++
++template<class T>
++struct tuple {
++  tuple(T);
++
++  template<template<class> class Tmpl>
++  tuple(Tmpl<T>);
++
++  template<template<class> class Tmpl, typename A<Tmpl<char>>::type = 0>
++  tuple(Tmpl<T>);
++
++  template<template<class> class Tmpl, typename A<Tmpl<long>>::type = 0>
++  tuple(Tmpl<T>);
++};
++
++template<class T> struct B { };
++
++using ty1 = tuple<int>;
++using ty1 = decltype(tuple(0));
++using ty1 = decltype(tuple(B<int>{}));
++
++#if __cpp_deduction_guides >= 201907
++template<class T> using const_tuple = tuple<const T>;
++
++using ty2 = const_tuple<int>;
++using ty2 = decltype(const_tuple(0));
++using ty2 = decltype(const_tuple(B<const int>{}));
++
++using ty3 = const_tuple<B<int>>;
++using ty3 = decltype(const_tuple(B<int>{}));
++#endif
 diff --git a/gcc/testsuite/g++.dg/cpp23/lambda-attr1.C b/gcc/testsuite/g++.dg/cpp23/lambda-attr1.C
 new file mode 100644
 index 00000000000..1528f734461
@@ -1238,6 +2107,55 @@ index 00000000000..f500af3f616
 +  if (requires { A(); })
 +    ;
 +}
+diff --git a/gcc/testsuite/g++.dg/cpp2a/lambda-pack-init7.C b/gcc/testsuite/g++.dg/cpp2a/lambda-pack-init7.C
+new file mode 100644
+index 00000000000..f3c3899e97a
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp2a/lambda-pack-init7.C
+@@ -0,0 +1,18 @@
++// PR c++/102629
++// { dg-do compile { target c++20 } }
++
++template <class T> T&& forward(T&);
++template <class T> T&& forward(T&&);
++
++struct S {};
++
++template <typename... Args>
++void foo(Args&&... args) {
++  [...args = forward<Args> /*(args)*/] { // { dg-error "" }
++    [](auto...) { } (forward<Args>(args)...);
++  };
++}
++
++void bar( ) {
++  foo(S{});
++}
+diff --git a/gcc/testsuite/g++.dg/opt/const7.C b/gcc/testsuite/g++.dg/opt/const7.C
+new file mode 100644
+index 00000000000..5bcf94897a8
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/opt/const7.C
+@@ -0,0 +1,7 @@
++// PR c++/104142
++// { dg-do compile { target c++11 } }
++// { dg-additional-options -Wunused-variable }
++
++struct B { B()=default; };
++static const B b_var;		//  { dg-bogus "" }
++// { dg-final { scan-assembler-symbol-section {b_var} {^\.(const|rodata)|\[RO\]} } }
+diff --git a/gcc/testsuite/g++.dg/parse/no-typename1.C b/gcc/testsuite/g++.dg/parse/no-typename1.C
+index 711c621e26a..f40ea0ec13c 100644
+--- a/gcc/testsuite/g++.dg/parse/no-typename1.C
++++ b/gcc/testsuite/g++.dg/parse/no-typename1.C
+@@ -6,6 +6,6 @@ template <typename T> struct A
+ {
+     template <typename U> struct B
+     {
+-        A<T>::template B<U> foo(); // { dg-error "" "" { target c++17_down } }
++        A<T>::template B<U> foo();
+     };
+ };
 diff --git a/gcc/testsuite/g++.dg/parse/qualified6.C b/gcc/testsuite/g++.dg/parse/qualified6.C
 new file mode 100644
 index 00000000000..68b51f771ec
@@ -1254,6 +2172,64 @@ index 00000000000..68b51f771ec
 +struct A1;
 +struct B { static A1 a1; };
 +struct A1 {} ::B::a1;
+diff --git a/gcc/testsuite/g++.dg/template/conv19.C b/gcc/testsuite/g++.dg/template/conv19.C
+new file mode 100644
+index 00000000000..7a3da939c1f
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/template/conv19.C
+@@ -0,0 +1,34 @@
++// PR c++/101698
++// { dg-do compile { target c++11 } }
++
++class Base {
++ public:
++  template <class T>
++  operator const T&() const = delete;
++
++  virtual operator const int&() const {
++    static int res;
++    return res;
++  }
++};
++
++template <class T>
++class Derive : public Base {
++ public:
++  operator const T&() const override {
++    using Y = int;
++    //static_assert(__is_same_as(T,Y), "");
++
++    static int res;
++
++    res = Base::operator const Y&(); // OK
++    res = Base::operator const T&(); // { dg-bogus "deleted" }
++    return res;
++  }
++};
++
++int main() {
++  Derive<int> a;
++  const int& b = a;
++  (void)b;
++}
+diff --git a/gcc/testsuite/g++.dg/template/nested7.C b/gcc/testsuite/g++.dg/template/nested7.C
+new file mode 100644
+index 00000000000..3a5930c0f31
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/template/nested7.C
+@@ -0,0 +1,12 @@
++// PR c++/102300
++
++template<typename T>
++struct holder
++{
++  template<typename F> struct fn {};
++
++  struct t1 : fn<T> {};                      // pass
++  struct t2 : holder<T >::fn<T> {};          // fail
++  struct t3 : holder<T >::template fn<T> {}; // fail
++  struct t4 : holder<T*>::template fn<T> {}; // pass
++};
 diff --git a/gcc/testsuite/g++.dg/template/partial-specialization11.C b/gcc/testsuite/g++.dg/template/partial-specialization11.C
 new file mode 100644
 index 00000000000..556224a3104
@@ -1289,6 +2265,45 @@ index 00000000000..5f51e8a27de
 +
 +template<template<class X, X...> class XList, class T, T Arg, T... Vs>
 +struct push_front_vlist<XList<T, Vs...>, Arg> { }; // { dg-error "not more specialized" }
+diff --git a/gcc/testsuite/g++.target/i386/mv31.C b/gcc/testsuite/g++.target/i386/mv31.C
+new file mode 100644
+index 00000000000..5d8fd1ddf75
+--- /dev/null
++++ b/gcc/testsuite/g++.target/i386/mv31.C
+@@ -0,0 +1,10 @@
++// PR c++/104669
++
++void bar()
++{
++  int foo(void);
++  int foo(void) __attribute__((target("sse")));
++  int foo(void) __attribute__((target("default")));
++  int (*p)(void) = &foo;
++  return;
++}
+diff --git a/gcc/testsuite/g++.target/i386/vec-tmpl1.C b/gcc/testsuite/g++.target/i386/vec-tmpl1.C
+new file mode 100644
+index 00000000000..e0865e3515b
+--- /dev/null
++++ b/gcc/testsuite/g++.target/i386/vec-tmpl1.C
+@@ -0,0 +1,17 @@
++// PR c++/65211
++// { dg-additional-options "-Wno-psabi" }
++// { dg-final { scan-assembler-not "movdqa" } }
++
++typedef unsigned v4ui __attribute__ ((vector_size(16), aligned (16)));
++
++template<int I>
++static v4ui t1(unsigned *dest_data)
++{
++  typedef unsigned v4ui_1 __attribute__ ((vector_size (16), aligned (4)));
++  return ((const v4ui_1*)dest_data)[0];
++}
++
++v4ui f(unsigned int *array)
++{
++    return t1<1>(array+7);
++}
 diff --git a/gcc/testsuite/gcc.dg/analyzer/pr105252.c b/gcc/testsuite/gcc.dg/analyzer/pr105252.c
 new file mode 100644
 index 00000000000..a093eababc5
@@ -2019,10 +3034,21 @@ index 592b3afcb71..68ddd1d5410 100644
      _Unwind_Exception_Class exception_class;
      _Unwind_Exception_Cleanup_Fn exception_cleanup;
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..ff49e4bae49 100644
+index 85e04c45288..3ed78a64585 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,396 @@
+@@ -1,3 +1,407 @@
++2022-05-13  Alexandre Oliva  <oliva@adacore.com>
++
++	Backported from master:
++	2022-05-06  Alexandre Oliva  <oliva@adacore.com>
++
++	* include/experimental/bits/simd.h [__ALTIVEC__]: Require VSX
++	for double, long long, and 64-bit long intrinsic types.
++	[__ALTIVEC__] (__intrinsic_type): Mention 128-bit in
++	preexisting long double diagnostic, adjust no-VSX double
++	diagnostic to cover 64-bit long double as well.
++
 +2022-05-11  Patrick Palka  <ppalka@redhat.com>
 +
 +	Backported from master:
@@ -3003,6 +4029,49 @@ index beeb4ef4c8a..4247bb116c3 100644
    template<typename _Iterator>
      inline _GLIBCXX17_CONSTEXPR bool
      operator!=(const move_iterator<_Iterator>& __x,
+diff --git a/libstdc++-v3/include/experimental/bits/simd.h b/libstdc++-v3/include/experimental/bits/simd.h
+index 421c923e7b0..0e58ae01b17 100644
+--- a/libstdc++-v3/include/experimental/bits/simd.h
++++ b/libstdc++-v3/include/experimental/bits/simd.h
+@@ -2303,17 +2303,23 @@ template <typename _Tp>
+   template <>                                                                  \
+     struct __intrinsic_type_impl<_Tp> { using type = __vector _Tp; }
+ _GLIBCXX_SIMD_PPC_INTRIN(float);
++#ifdef __VSX__
+ _GLIBCXX_SIMD_PPC_INTRIN(double);
++#endif
+ _GLIBCXX_SIMD_PPC_INTRIN(signed char);
+ _GLIBCXX_SIMD_PPC_INTRIN(unsigned char);
+ _GLIBCXX_SIMD_PPC_INTRIN(signed short);
+ _GLIBCXX_SIMD_PPC_INTRIN(unsigned short);
+ _GLIBCXX_SIMD_PPC_INTRIN(signed int);
+ _GLIBCXX_SIMD_PPC_INTRIN(unsigned int);
++#if defined __VSX__ || __SIZEOF_LONG__ == 4
+ _GLIBCXX_SIMD_PPC_INTRIN(signed long);
+ _GLIBCXX_SIMD_PPC_INTRIN(unsigned long);
++#endif
++#ifdef __VSX__
+ _GLIBCXX_SIMD_PPC_INTRIN(signed long long);
+ _GLIBCXX_SIMD_PPC_INTRIN(unsigned long long);
++#endif
+ #undef _GLIBCXX_SIMD_PPC_INTRIN
+ 
+ template <typename _Tp, size_t _Bytes>
+@@ -2323,10 +2329,11 @@ template <typename _Tp, size_t _Bytes>
+     static constexpr bool _S_is_ldouble = is_same_v<_Tp, long double>;
+     // allow _Tp == long double with -mlong-double-64
+     static_assert(!(_S_is_ldouble && sizeof(long double) > sizeof(double)),
+-		  "no __intrinsic_type support for long double on PPC");
++		  "no __intrinsic_type support for 128-bit floating point on PowerPC");
+ #ifndef __VSX__
+-    static_assert(!is_same_v<_Tp, double>,
+-		  "no __intrinsic_type support for double on PPC w/o VSX");
++    static_assert(!(is_same_v<_Tp, double>
++		    || (_S_is_ldouble && sizeof(long double) == sizeof(double))),
++		  "no __intrinsic_type support for 64-bit floating point on PowerPC w/o VSX");
+ #endif
+     using type =
+       typename __intrinsic_type_impl<
 diff --git a/libstdc++-v3/include/experimental/internet b/libstdc++-v3/include/experimental/internet
 index 6ce070ae775..07eb137fb80 100644
 --- a/libstdc++-v3/include/experimental/internet
