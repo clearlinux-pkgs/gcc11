@@ -13,7 +13,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (32):
+GCC Administrator (33):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -192,10 +193,22 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..c429e1aefa6 100644
+index a0587d18824..717051909ab 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,226 @@
+@@ -1,3 +1,238 @@
++2022-05-23  Paul A. Clarke  <pc@us.ibm.com>
++
++	PR target/104257
++	* config/rs6000/bmi2intrin.h: Uglify local variables.
++	* config/rs6000/emmintrin.h: Likewise.
++	* config/rs6000/mm_malloc.h: Likewise.
++	* config/rs6000/mmintrin.h: Likewise.
++	* config/rs6000/pmmintrin.h: Likewise.
++	* config/rs6000/smmintrin.h: Likewise.
++	* config/rs6000/tmmintrin.h: Likewise.
++	* config/rs6000/xmmintrin.h: Likewise.
++
 +2022-05-19  Michael Meissner  <meissner@linux.ibm.com>
 +
 +	Backported from master:
