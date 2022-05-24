@@ -159,6 +159,9 @@ Paul A. Clarke (1):
 Pavel I. Kryukov (1):
       libstdc++: Add self-merge check to std::forward_list::merge [PR103853]
 
+Qing Zhao (1):
+      i386: Adjust -fzero-call-used-regs to always use XOR [PR101891]
+
 Richard Biener (12):
       Update BASE-VER to 11.3.1
       ipa/105598 - testcase for PR105598
@@ -785,10 +788,138 @@ index 515ee0c1728..1ce6bade1b4 100644
  
  #define _mm_mask_scalef_sd(W, U, A, B) \
 diff --git a/gcc/config/i386/i386.c b/gcc/config/i386/i386.c
-index 48300af9a09..16fde42a9e0 100644
+index 48300af9a09..a90f64e9d39 100644
 --- a/gcc/config/i386/i386.c
 +++ b/gcc/config/i386/i386.c
-@@ -4754,6 +4754,7 @@ ix86_gimplify_va_arg (tree valist, tree type, gimple_seq *pre_p,
+@@ -3607,7 +3607,7 @@ zero_call_used_regno_mode (const unsigned int regno)
+   else if (MASK_REGNO_P (regno))
+     return HImode;
+   else if (MMX_REGNO_P (regno))
+-    return V4HImode;
++    return V2SImode;
+   else
+     gcc_unreachable ();
+ }
+@@ -3726,19 +3726,12 @@ zero_all_mm_registers (HARD_REG_SET need_zeroed_hardregs,
+   if (!need_zero_all_mm)
+     return false;
+ 
+-  rtx zero_mmx = NULL_RTX;
+-  machine_mode mode = V4HImode;
++  machine_mode mode = V2SImode;
+   for (unsigned int regno = FIRST_MMX_REG; regno <= LAST_MMX_REG; regno++)
+     if (regno != ret_mmx_regno)
+       {
+ 	rtx reg = gen_rtx_REG (mode, regno);
+-	if (zero_mmx == NULL_RTX)
+-	  {
+-	    zero_mmx = reg;
+-	    emit_insn (gen_rtx_SET (reg, CONST0_RTX (mode)));
+-	  }
+-	else
+-	  emit_move_insn (reg, zero_mmx);
++	emit_insn (gen_rtx_SET (reg, CONST0_RTX (mode)));
+       }
+   return true;
+ }
+@@ -3800,11 +3793,6 @@ ix86_zero_call_used_regs (HARD_REG_SET need_zeroed_hardregs)
+ 
+   /* Now, generate instructions to zero all the other registers.  */
+ 
+-  rtx zero_gpr = NULL_RTX;
+-  rtx zero_vector = NULL_RTX;
+-  rtx zero_mask = NULL_RTX;
+-  rtx zero_mmx = NULL_RTX;
+-
+   for (unsigned int regno = 0; regno < FIRST_PSEUDO_REGISTER; regno++)
+     {
+       if (!TEST_HARD_REG_BIT (need_zeroed_hardregs, regno))
+@@ -3815,59 +3803,34 @@ ix86_zero_call_used_regs (HARD_REG_SET need_zeroed_hardregs)
+ 
+       SET_HARD_REG_BIT (zeroed_hardregs, regno);
+ 
+-      rtx reg, tmp, zero_rtx;
+       machine_mode mode = zero_call_used_regno_mode (regno);
+ 
+-      reg = gen_rtx_REG (mode, regno);
+-      zero_rtx = CONST0_RTX (mode);
++      rtx reg = gen_rtx_REG (mode, regno);
++      rtx tmp = gen_rtx_SET (reg, CONST0_RTX (mode));
+ 
+-      if (mode == SImode)
+-	if (zero_gpr == NULL_RTX)
+-	  {
+-	    zero_gpr = reg;
+-	    tmp = gen_rtx_SET (reg, zero_rtx);
+-	    if (!TARGET_USE_MOV0 || optimize_insn_for_size_p ())
+-	      {
+-		rtx clob = gen_rtx_CLOBBER (VOIDmode,
+-					    gen_rtx_REG (CCmode,
+-							 FLAGS_REG));
+-		tmp = gen_rtx_PARALLEL (VOIDmode, gen_rtvec (2,
+-							     tmp,
+-							     clob));
+-	      }
+-	    emit_insn (tmp);
+-	  }
+-	else
+-	  emit_move_insn (reg, zero_gpr);
+-      else if (mode == V4SFmode)
+-	if (zero_vector == NULL_RTX)
+-	  {
+-	    zero_vector = reg;
+-	    tmp = gen_rtx_SET (reg, zero_rtx);
+-	    emit_insn (tmp);
+-	  }
+-	else
+-	  emit_move_insn (reg, zero_vector);
+-      else if (mode == HImode)
+-	if (zero_mask == NULL_RTX)
+-	  {
+-	    zero_mask = reg;
+-	    tmp = gen_rtx_SET (reg, zero_rtx);
+-	    emit_insn (tmp);
+-	  }
+-	else
+-	  emit_move_insn (reg, zero_mask);
+-      else if (mode == V4HImode)
+-	if (zero_mmx == NULL_RTX)
+-	  {
+-	    zero_mmx = reg;
+-	    tmp = gen_rtx_SET (reg, zero_rtx);
+-	    emit_insn (tmp);
+-	  }
+-	else
+-	  emit_move_insn (reg, zero_mmx);
+-      else
+-	gcc_unreachable ();
++      switch (mode)
++	{
++	case E_SImode:
++	  if (!TARGET_USE_MOV0 || optimize_insn_for_size_p ())
++	    {
++	      rtx clob = gen_rtx_CLOBBER (VOIDmode,
++					  gen_rtx_REG (CCmode,
++						       FLAGS_REG));
++	      tmp = gen_rtx_PARALLEL (VOIDmode, gen_rtvec (2,
++							   tmp,
++							   clob));
++	    }
++	  /* FALLTHRU.  */
++
++	case E_V4SFmode:
++	case E_HImode:
++	case E_V2SImode:
++	  emit_insn (tmp);
++	  break;
++
++	default:
++	  gcc_unreachable ();
++	}
+     }
+   return zeroed_hardregs;
+ }
+@@ -4754,6 +4717,7 @@ ix86_gimplify_va_arg (tree valist, tree type, gimple_seq *pre_p,
  	{
  	  int i, prev_size = 0;
  	  tree temp = create_tmp_var (type, "va_arg_tmp");
@@ -8122,6 +8253,520 @@ index 4ce0ffffaf3..4c728f230f7 100644
  test_4 (_mm512_mask_shuffle_f32x4, __m512, __m512, __mmask16, __m512, __m512, 1)
  test_4 (_mm512_mask_shuffle_f64x2, __m512d, __m512d, __mmask8, __m512d, __m512d, 1)
  test_4 (_mm512_mask_shuffle_i32x4, __m512i, __m512i, __mmask16, __m512i, __m512i, 1)
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-1.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-1.c
+index 1ea6de880aa..818a56f1116 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-1.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-1.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target *-*-linux* } } */
+-/* { dg-options "-O2 -fzero-call-used-regs=used" } */
++/* { dg-options "-O2 -fzero-call-used-regs=used -fno-stack-protector -fno-PIC" } */
+ 
+ void
+ foo (void)
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-10.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-10.c
+index 389b1142264..01f6857fb56 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-10.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-10.c
+@@ -11,11 +11,11 @@ foo (int x)
+ 
+ /* { dg-final { scan-assembler-not "vzeroall" } } */
+ /* { dg-final { scan-assembler-not "%xmm" } } */
+-/* { dg-final { scan-assembler "xorl\[ \t\]+%edx, %edx" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %ecx" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %esi" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %edi" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %r8d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %r9d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %r10d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %r11d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[\t\]+%edx, %edx" } } */
++/* { dg-final { scan-assembler "xorl\[\t\]+%ecx, %ecx" } } */
++/* { dg-final { scan-assembler "xorl\[\t\]+%esi, %esi" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[\t\]+%edi, %edi" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[\t\]+%r8d, %r8d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[\t\]+%r9d, %r9d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[\t\]+%r10d, %r10d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[\t\]+%r11d, %r11d" { target { ! ia32 } } } } */
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-13.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-13.c
+index 07d8de7c66f..4ed036e9f88 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-13.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-13.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target *-*-linux* } } */
+-/* { dg-options "-O2 -fzero-call-used-regs=all -march=corei7" } */
++/* { dg-options "-O2 -fzero-call-used-regs=all -march=corei7 -msse" } */
+ 
+ void
+ foo (void)
+@@ -7,15 +7,28 @@ foo (void)
+ }
+ 
+ /* { dg-final { scan-assembler-not "vzeroall" } } */
+-/* { dg-final { scan-assembler "pxor\[ \t\]+%xmm0, %xmm0" } } */
+-/* { dg-final { scan-assembler-times "movaps\[ \t\]+%xmm0, %xmm\[0-9\]+" 7 { target { ia32 } } } } */
+-/* { dg-final { scan-assembler-times "movaps\[ \t\]+%xmm0, %xmm\[0-9\]+" 15 { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm0, %xmm0" } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm1, %xmm1" } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm2, %xmm2" } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm3, %xmm3" } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm4, %xmm4" } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm5, %xmm5" } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm6, %xmm6" } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm7, %xmm7" } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%xmm8, %xmm8" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%xmm9, %xmm9" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%xmm10, %xmm10" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%xmm11, %xmm11" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%xmm12, %xmm12" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%xmm13, %xmm13" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%xmm14, %xmm14" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%xmm15, %xmm15" { target { ! ia32 } } } } */
+ /* { dg-final { scan-assembler "xorl\[ \t\]+%eax, %eax" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %edx" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %ecx" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %esi" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %edi" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r8d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r9d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r10d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r11d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%edx, %edx" } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%ecx, %ecx" } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%esi, %esi" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%edi, %edi" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r8d, %r8d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r9d, %r9d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r10d, %r10d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r11d, %r11d" { target { ! ia32 } } } } */
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-14.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-14.c
+index 55a272cc53f..c361c0b3afd 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-14.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-14.c
+@@ -9,11 +9,11 @@ foo (void)
+ /* { dg-final { scan-assembler-times "vzeroall" 1 } } */
+ /* { dg-final { scan-assembler-not "%xmm" } } */
+ /* { dg-final { scan-assembler "xorl\[ \t\]+%eax, %eax" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %edx" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %ecx" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %esi" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %edi" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r8d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r9d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r10d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r11d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%edx, %edx" } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%ecx, %ecx" } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%esi, %esi" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%edi, %edi" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r8d, %r8d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r9d, %r9d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r10d, %r10d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r11d, %r11d" { target { ! ia32 } } } } */
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-15.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-15.c
+index d0e975cb3d3..4d45fa56b2a 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-15.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-15.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target *-*-linux* } } */
+-/* { dg-options "-O2 -fzero-call-used-regs=skip" } */
++/* { dg-options "-O2 -fzero-call-used-regs=skip -fno-stack-protector -fno-PIC" } */
+ 
+ extern void foo (void) __attribute__ ((zero_call_used_regs("used")));
+ 
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-16.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-16.c
+index d41a2557d10..fb5e6ddc1cd 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-16.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-16.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target *-*-linux* } } */
+-/* { dg-options "-O2 -fzero-call-used-regs=all" } */
++/* { dg-options "-O2 -fzero-call-used-regs=all -fno-stack-protector -fno-PIC" } */
+ 
+ extern void foo (void) __attribute__ ((zero_call_used_regs("skip")));
+ 
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-17.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-17.c
+index c79fcd39d7b..10cfa12f9ca 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-17.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-17.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target *-*-linux* } } */
+-/* { dg-options "-O2 -fzero-call-used-regs=used" } */
++/* { dg-options "-O2 -fzero-call-used-regs=used -fno-stack-protector" } */
+ 
+ int
+ foo (int x)
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-18.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-18.c
+index 6f90723cc8e..0e399d4ebb0 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-18.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-18.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target *-*-linux* } } */
+-/* { dg-options "-O2 -fzero-call-used-regs=used -march=corei7" } */
++/* { dg-options "-O2 -fzero-call-used-regs=used -march=corei7 -fno-stack-protector -fno-PIC" } */
+ 
+ float
+ foo (float z, float y, float x)
+@@ -9,5 +9,5 @@ foo (float z, float y, float x)
+ 
+ /* { dg-final { scan-assembler-not "vzeroall" } } */
+ /* { dg-final { scan-assembler "pxor\[ \t\]+%xmm1, %xmm1" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movaps\[ \t\]+%xmm1, %xmm2" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%xmm2, %xmm2" { target { ! ia32 } } } } */
+ /* { dg-final { scan-assembler-not "xorl\[ \t\]+%" } } */
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-19.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-19.c
+index 491d2d56774..cb0d5ebce04 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-19.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-19.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target *-*-linux* } } */
+-/* { dg-options "-O2 -fzero-call-used-regs=used -march=corei7" } */
++/* { dg-options "-O2 -fzero-call-used-regs=used -march=corei7 -fno-stack-protector -fno-PIC" } */
+ 
+ float
+ foo (float z, float y, float x)
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-2.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-2.c
+index 52406fc70aa..cb93209a8ba 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-2.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-2.c
+@@ -9,11 +9,11 @@ foo (void)
+ /* { dg-final { scan-assembler-not "vzeroall" } } */
+ /* { dg-final { scan-assembler-not "%xmm" } } */
+ /* { dg-final { scan-assembler "xorl\[ \t\]+%eax, %eax" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %edx" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %ecx" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %esi" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %edi" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r8d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r9d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r10d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r11d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%edx, %edx" } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%ecx, %ecx" } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%esi, %esi" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%edi, %edi" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r8d, %r8d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r9d, %r9d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r10d, %r10d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r11d, %r11d" { target { ! ia32 } } } } */
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-20.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-20.c
+index ccd491775c2..123bd05b51e 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-20.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-20.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target *-*-linux* } } */
+-/* { dg-options "-O2 -fzero-call-used-regs=all -march=corei7" } */
++/* { dg-options "-O2 -fzero-call-used-regs=all -march=corei7 -msse" } */
+ 
+ float
+ foo (float z, float y, float x)
+@@ -8,16 +8,28 @@ foo (float z, float y, float x)
+ }
+ 
+ /* { dg-final { scan-assembler-not "vzeroall" } } */
+-/* { dg-final { scan-assembler "pxor\[ \t\]+%xmm0, %xmm0" { target { ia32 } } } } */
+-/* { dg-final { scan-assembler "pxor\[ \t\]+%xmm1, %xmm1" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler-times "movaps\[ \t\]+%xmm0, %xmm\[0-9\]+" 7 { target { ia32 } } } } */
+-/* { dg-final { scan-assembler-times "movaps\[ \t\]+%xmm1, %xmm\[0-9\]+" 14 { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm0, %xmm0" { target { ia32 } } } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm1, %xmm1" { target { ia32 } } } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm2, %xmm2" { target { ia32 } } } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm3, %xmm3" { target { ia32 } } } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm4, %xmm4" { target { ia32 } } } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm5, %xmm5" { target { ia32 } } } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm6, %xmm6" { target { ia32 } } } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm7, %xmm7" { target { ia32 } } } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%xmm8, %xmm8" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%xmm9, %xmm9" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%xmm10, %xmm10" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%xmm11, %xmm11" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%xmm12, %xmm12" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%xmm13, %xmm13" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%xmm14, %xmm14" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%xmm15, %xmm15" { target { ! ia32 } } } } */
+ /* { dg-final { scan-assembler "xorl\[ \t\]+%eax, %eax" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %edx" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %ecx" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %esi" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %edi" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r8d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r9d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r10d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r11d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%edx, %edx" } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%ecx, %ecx" } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%esi, %esi" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%edi, %edi" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r8d, %r8d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r9d, %r9d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r10d, %r10d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r11d, %r11d" { target { ! ia32 } } } } */
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-21.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-21.c
+index b3570f318c1..e8c3d9b5f3d 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-21.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-21.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target *-*-linux* } } */
+-/* { dg-options "-O2 -fzero-call-used-regs=skip -march=corei7" } */
++/* { dg-options "-O2 -fzero-call-used-regs=skip -march=corei7 -fno-stack-protector -fno-PIC" } */
+ 
+ __attribute__ ((zero_call_used_regs("used")))
+ float
+@@ -10,5 +10,5 @@ foo (float z, float y, float x)
+ 
+ /* { dg-final { scan-assembler-not "vzeroall" } } */
+ /* { dg-final { scan-assembler "pxor\[ \t\]+%xmm1, %xmm1" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movaps\[ \t\]+%xmm1, %xmm2" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%xmm2, %xmm2" { target { ! ia32 } } } } */
+ /* { dg-final { scan-assembler-not "xorl\[ \t\]+%" } } */
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-22.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-22.c
+index b25342065e9..63adbb9d356 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-22.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-22.c
+@@ -11,11 +11,11 @@ foo (void)
+ /* { dg-final { scan-assembler-times "fstp\[ \t\]+%st\\(0\\)" 8 } } */
+ /* { dg-final { scan-assembler-not "%xmm" } } */
+ /* { dg-final { scan-assembler "xorl\[ \t\]+%eax, %eax" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %edx" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %ecx" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %esi" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %edi" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r8d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r9d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r10d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r11d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%edx, %edx" } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%ecx, %ecx" } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%esi, %esi" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%edi, %edi" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r8d, %r8d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r9d, %r9d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r10d, %r10d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r11d, %r11d" { target { ! ia32 } } } } */
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-23.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-23.c
+index 69d42d732fd..a3285bed8a0 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-23.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-23.c
+@@ -11,19 +11,19 @@ foo (void)
+ /* { dg-final { scan-assembler-times "fstp\[ \t\]+%st\\(0\\)" 8 } } */
+ /* { dg-final { scan-assembler-not "%xmm" } } */
+ /* { dg-final { scan-assembler "xorl\[ \t\]+%eax, %eax" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %edx" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %ecx" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %esi" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %edi" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r8d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r9d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r10d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r11d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%edx, %edx" } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%ecx, %ecx" } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%esi, %esi" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%edi, %edi" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r8d, %r8d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r9d, %r9d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r10d, %r10d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r11d, %r11d" { target { ! ia32 } } } } */
+ /* { dg-final { scan-assembler "kxorw\[ \t\]+%k0, %k0, %k0" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "kmovw\[ \t\]+%k0, %k1" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "kmovw\[ \t\]+%k0, %k2" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "kmovw\[ \t\]+%k0, %k3" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "kmovw\[ \t\]+%k0, %k4" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "kmovw\[ \t\]+%k0, %k5" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "kmovw\[ \t\]+%k0, %k6" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "kmovw\[ \t\]+%k0, %k7" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "kxorw\[ \t\]+%k1, %k1, %k1" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "kxorw\[ \t\]+%k2, %k2, %k2" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "kxorw\[ \t\]+%k3, %k3, %k3" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "kxorw\[ \t\]+%k4, %k4, %k4" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "kxorw\[ \t\]+%k5, %k5, %k5" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "kxorw\[ \t\]+%k6, %k6, %k6" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "kxorw\[ \t\]+%k7, %k7, %k7" { target { ! ia32 } } } } */
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-26.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-26.c
+index 8fb5299be56..3f22375d2fa 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-26.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-26.c
+@@ -8,16 +8,16 @@ foo (int x)
+ }
+ 
+ /* { dg-final { scan-assembler "xorl\[ \t\]+%edx, %edx" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %ecx" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %esi" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %edi" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %r8d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %r9d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "pxor\[ \t\]+%xmm0, %xmm0" } } */
+-/* { dg-final { scan-assembler "movaps\[ \t\]+%xmm0, %xmm1" } } */
+-/* { dg-final { scan-assembler "movaps\[ \t\]+%xmm0, %xmm2" } } */
+-/* { dg-final { scan-assembler "movaps\[ \t\]+%xmm0, %xmm3" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movaps\[ \t\]+%xmm0, %xmm4" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movaps\[ \t\]+%xmm0, %xmm5" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movaps\[ \t\]+%xmm0, %xmm6" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movaps\[ \t\]+%xmm0, %xmm7" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%ecx, %ecx" } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%esi, %esi" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%edi, %edi" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r8d, %r8d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r9d, %r9d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm0, %xmm0" } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm1, %xmm1" } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm2, %xmm2" } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm3, %xmm3" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm4, %xmm4" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm5, %xmm5" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm6, %xmm6" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "\[a-z\]*xor\[a-z\]*\[ \t\]+%xmm7, %xmm7" { target { ! ia32 } } } } */
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-27.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-27.c
+index 26ceacf435d..b307d107319 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-27.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-27.c
+@@ -8,8 +8,8 @@ foo (int x)
+ }
+ 
+ /* { dg-final { scan-assembler "xorl\[ \t\]+%edx, %edx" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %ecx" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %esi" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %edi" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %r8d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %r9d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%ecx, %ecx" } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%esi, %esi" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%edi, %edi" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r8d, %r8d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r9d, %r9d" { target { ! ia32 } } } } */
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-28.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-28.c
+index 044e4af10f0..dfa8e01dc38 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-28.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-28.c
+@@ -10,9 +10,9 @@ __v2si ret_mmx (void)
+ }
+ 
+ /* { dg-final { scan-assembler "pxor\[ \t\]+%mm1, %mm1" } } */
+-/* { dg-final { scan-assembler "movq\[ \t\]+%mm1, %mm2" } } */
+-/* { dg-final { scan-assembler "movq\[ \t\]+%mm1, %mm3" } } */
+-/* { dg-final { scan-assembler "movq\[ \t\]+%mm1, %mm4" } } */
+-/* { dg-final { scan-assembler "movq\[ \t\]+%mm1, %mm5" } } */
+-/* { dg-final { scan-assembler "movq\[ \t\]+%mm1, %mm6" } } */
+-/* { dg-final { scan-assembler "movq\[ \t\]+%mm1, %mm7" } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%mm2, %mm2" } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%mm3, %mm3" } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%mm4, %mm4" } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%mm5, %mm5" } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%mm6, %mm6" } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%mm7, %mm7" } } */
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-3.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-3.c
+index 89e69b8ba72..6cd5c4cb067 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-3.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-3.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target *-*-linux* } } */
+-/* { dg-options "-O2 -fzero-call-used-regs=skip" } */
++/* { dg-options "-O2 -fzero-call-used-regs=skip -fno-stack-protector" } */
+ 
+ void
+ foo (void)
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-31.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-31.c
+index afa8b337b36..5a0e53110e6 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-31.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-31.c
+@@ -10,5 +10,5 @@ __v2si ret_mmx (void)
+ }
+ 
+ /* { dg-final { scan-assembler "pxor\[ \t\]+%mm1, %mm1" } } */
+-/* { dg-final { scan-assembler "movq\[ \t\]+%mm1, %mm2" } } */
+-/* { dg-final { scan-assembler-not "movq\[ \t\]+%mm1, %mm\[34567\]" } } */
++/* { dg-final { scan-assembler "pxor\[ \t\]+%mm2, %mm2" } } */
++/* { dg-final { scan-assembler-not "pxor\[ \t\]+%mm\[34567\], %mm\[34567\]" } } */
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-4.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-4.c
+index 1e98d17df7f..becc5b8b438 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-4.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-4.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target *-*-linux* } } */
+-/* { dg-options "-O2 -fzero-call-used-regs=skip" } */
++/* { dg-options "-O2 -fzero-call-used-regs=skip -fno-stack-protector -fno-PIC" } */
+ 
+ extern void foo (void) __attribute__ ((zero_call_used_regs("used-gpr")));
+ 
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-5.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-5.c
+index 56aecdafad8..4367f96a859 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-5.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-5.c
+@@ -10,11 +10,11 @@ foo (void)
+ /* { dg-final { scan-assembler-not "vzeroall" } } */
+ /* { dg-final { scan-assembler-not "%xmm" } } */
+ /* { dg-final { scan-assembler "xorl\[ \t\]+%eax, %eax" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %edx" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %ecx" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %esi" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %edi" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r8d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r9d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r10d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%eax, %r11d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%edx, %edx" } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%ecx, %ecx" } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%esi, %esi" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%edi, %edi" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r8d, %r8d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r9d, %r9d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r10d, %r10d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r11d, %r11d" { target { ! ia32 } } } } */
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-6.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-6.c
+index fa831857ad8..88e3156b132 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-6.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-6.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target *-*-linux* } } */
+-/* { dg-options "-O2 -fzero-call-used-regs=all-gpr" } */
++/* { dg-options "-O2 -fzero-call-used-regs=all-gpr -fno-stack-protector" } */
+ 
+ extern void foo (void) __attribute__ ((zero_call_used_regs("skip")));
+ 
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-7.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-7.c
+index 0444a21f4da..460c301ec12 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-7.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-7.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target *-*-linux* } } */
+-/* { dg-options "-O2 -fzero-call-used-regs=used-gpr" } */
++/* { dg-options "-O2 -fzero-call-used-regs=used-gpr -fno-stack-protector" } */
+ 
+ int
+ foo (int x)
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-8.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-8.c
+index 75356db63c3..0eab76933f5 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-8.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-8.c
+@@ -10,10 +10,10 @@ foo (int x)
+ /* { dg-final { scan-assembler-not "vzeroall" } } */
+ /* { dg-final { scan-assembler-not "%xmm" } } */
+ /* { dg-final { scan-assembler "xorl\[ \t\]+%edx, %edx" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %ecx" } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %esi" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %edi" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %r8d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %r9d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %r10d" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "movl\[ \t\]+%edx, %r11d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%ecx, %ecx" } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%esi, %esi" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%edi, %edi" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r8d, %r8d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r9d, %r9d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r10d, %r10d" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "xorl\[ \t\]+%r11d, %r11d" { target { ! ia32 } } } } */
+diff --git a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-9.c b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-9.c
+index 64755b00c39..42dcaea4988 100644
+--- a/gcc/testsuite/gcc.target/i386/zero-scratch-regs-9.c
++++ b/gcc/testsuite/gcc.target/i386/zero-scratch-regs-9.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target *-*-linux* } } */
+-/* { dg-options "-O2 -fzero-call-used-regs=skip" } */
++/* { dg-options "-O2 -fzero-call-used-regs=skip -fno-stack-protector" } */
+ 
+ extern int foo (int) __attribute__ ((zero_call_used_regs("used-gpr")));
+ 
 diff --git a/gcc/testsuite/gcc.target/powerpc/pr102059-4.c b/gcc/testsuite/gcc.target/powerpc/pr102059-4.c
 new file mode 100644
 index 00000000000..4a0ad3daf73
