@@ -3,6 +3,9 @@ Alexandre Oliva (3):
       [PR105324] libstdc++: testsuite: pr105324 requires FP from_char
       libstdc++: ppc: conditionalize vsx-only simd intrinsics
 
+Andreas Krebbel (1):
+      IBM zSystems/testsuite: PR105147: Skip pr105140.c
+
 David Malcolm (2):
       analyzer: fix ICE comparing VECTOR_CSTs [PR105252]
       analyzer: fix ICEs on complex constants [PR105365,105366]
@@ -13,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (33):
+GCC Administrator (34):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -179,6 +183,9 @@ Richard Biener (12):
 Sebastian Pop (1):
       [AArch64] add barriers to ool __sync builtins
 
+Segher Boessenkool (1):
+      rs6000/testsuite: Skip pr105140.c
+
 Sergei Trofimovich (1):
       gcov-profile: Allow negative counts of indirect calls [PR105282]
 
@@ -196,10 +203,22 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..717051909ab 100644
+index a0587d18824..343b1d49b39 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,238 @@
+@@ -1,3 +1,250 @@
++2022-05-24  Qing Zhao  <qing.zhao@oracle.com>
++
++	Backported from master:
++	2022-05-09  Qing Zhao  <qing.zhao@oracle.com>
++
++	PR target/101891
++	* config/i386/i386.c (zero_call_used_regno_mode): use V2SImode
++	as a generic MMX mode instead of V4HImode.
++	(zero_all_mm_registers): Use SET to zero instead of MOV for
++	zeroing scratch registers.
++	(ix86_zero_call_used_regs): Likewise.
++
 +2022-05-23  Paul A. Clarke  <pc@us.ibm.com>
 +
 +	PR target/104257
@@ -6414,10 +6433,47 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..fbec5caf201 100644
+index 5fc23605244..8acc0ef0050 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,390 @@
+@@ -1,3 +1,427 @@
++2022-05-24  Qing Zhao  <qing.zhao@oracle.com>
++
++	Backported from master:
++	2022-05-09  Qing Zhao  <qing.zhao@oracle.com>
++
++	* gcc.target/i386/zero-scratch-regs-1.c: Add -fno-stack-protector
++	-fno-PIC.
++	* gcc.target/i386/zero-scratch-regs-10.c: Adjust mov to xor.
++	* gcc.target/i386/zero-scratch-regs-13.c: Add -msse.
++	* gcc.target/i386/zero-scratch-regs-14.c: Adjust mov to xor.
++	* gcc.target/i386/zero-scratch-regs-15.c: Add -fno-stack-protector
++	-fno-PIC.
++	* gcc.target/i386/zero-scratch-regs-16.c: Likewise.
++	* gcc.target/i386/zero-scratch-regs-17.c: Likewise.
++	* gcc.target/i386/zero-scratch-regs-18.c: Add -fno-stack-protector
++	-fno-PIC, adjust mov to xor.
++	* gcc.target/i386/zero-scratch-regs-19.c: Add -fno-stack-protector
++	-fno-PIC.
++	* gcc.target/i386/zero-scratch-regs-2.c: Adjust mov to xor.
++	* gcc.target/i386/zero-scratch-regs-20.c: Add -msse.
++	* gcc.target/i386/zero-scratch-regs-21.c: Add -fno-stack-protector
++	-fno-PIC, Adjust mov to xor.
++	* gcc.target/i386/zero-scratch-regs-22.c: Adjust mov to xor.
++	* gcc.target/i386/zero-scratch-regs-23.c: Likewise.
++	* gcc.target/i386/zero-scratch-regs-26.c: Likewise.
++	* gcc.target/i386/zero-scratch-regs-27.c: Likewise.
++	* gcc.target/i386/zero-scratch-regs-28.c: Likewise.
++	* gcc.target/i386/zero-scratch-regs-3.c: Add -fno-stack-protector.
++	* gcc.target/i386/zero-scratch-regs-31.c: Adjust mov to xor.
++	* gcc.target/i386/zero-scratch-regs-4.c: Add -fno-stack-protector
++	-fno-PIC.
++	* gcc.target/i386/zero-scratch-regs-5.c: Adjust mov to xor.
++	* gcc.target/i386/zero-scratch-regs-6.c: Add -fno-stack-protector.
++	* gcc.target/i386/zero-scratch-regs-7.c: Likewise.
++	* gcc.target/i386/zero-scratch-regs-8.c: Adjust mov to xor.
++	* gcc.target/i386/zero-scratch-regs-9.c: Add -fno-stack-protector.
++
 +2022-05-19  Michael Meissner  <meissner@linux.ibm.com>
 +
 +	Backported from master:
@@ -7626,12 +7682,13 @@ index 00000000000..d4bd7f12476
 +/* { dg-output "WRITE of size.*" } */
 diff --git a/gcc/testsuite/gcc.dg/pr105140.c b/gcc/testsuite/gcc.dg/pr105140.c
 new file mode 100644
-index 00000000000..14bff2f7f9c
+index 00000000000..7d30985e850
 --- /dev/null
 +++ b/gcc/testsuite/gcc.dg/pr105140.c
-@@ -0,0 +1,17 @@
+@@ -0,0 +1,18 @@
 +/* { dg-do compile } */
 +/* { dg-options "-Os -w -Wno-psabi" } */
++/* { dg-skip-if "PR105147" { powerpc*-*-* s390*-*-* } } */
 +
 +typedef char __attribute__((__vector_size__ (16 * sizeof (char)))) U;
 +typedef int __attribute__((__vector_size__ (16 * sizeof (int)))) V;
