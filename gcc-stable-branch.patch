@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (34):
+GCC Administrator (35):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -6433,10 +6434,26 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..8acc0ef0050 100644
+index 5fc23605244..d841170dd1d 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,427 @@
+@@ -1,3 +1,443 @@
++2022-05-25  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	Backported from master:
++	2022-04-07  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	PR target/105147
++	* gcc.dg/pr105140.c: Skip for s390*-*-*.
++
++2022-05-25  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	Backported from master:
++	2022-04-06  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	PR target/105147
++	* gcc.dg/pr105140.c: Skip for powerpc*-*-*.
++
 +2022-05-24  Qing Zhao  <qing.zhao@oracle.com>
 +
 +	Backported from master:
