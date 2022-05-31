@@ -16,7 +16,9 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (38):
+GCC Administrator (40):
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -83,7 +85,7 @@ Jakub Jelinek (7):
 Jan Hubicka (1):
       Fix modref_tree::remap_params
 
-Jason Merrill (12):
+Jason Merrill (13):
       c++: rodata and defaulted ctor [PR104142]
       c++: low -faligned-new [PR102071]
       c++: local function versioning [PR104669]
@@ -96,6 +98,7 @@ Jason Merrill (12):
       c++: alignment of local typedef in template [PR65211]
       c++: template conversion op [PR101698]
       c++: NRV and ref-extended temps [PR101442]
+      c++: constexpr ref to array of array [PR102307]
 
 Jeff Law (1):
       [committed] Fix more problems with new linker warnings
@@ -5872,7 +5875,7 @@ index c13c920ade3..5a1db17a14d 100644
      }
    else
 diff --git a/gcc/cp/decl.c b/gcc/cp/decl.c
-index bffbd004167..bb6535a415b 100644
+index bffbd004167..8a7fbb875a9 100644
 --- a/gcc/cp/decl.c
 +++ b/gcc/cp/decl.c
 @@ -1059,11 +1059,14 @@ decls_match (tree newdecl, tree olddecl, bool record_versions /* = true */)
@@ -5909,7 +5912,32 @@ index bffbd004167..bb6535a415b 100644
  	}
      }
  
-@@ -7227,6 +7235,10 @@ check_initializer (tree decl, tree init, int flags, vec<tree, va_gc> **cleanups)
+@@ -7167,12 +7175,19 @@ check_initializer (tree decl, tree init, int flags, vec<tree, va_gc> **cleanups)
+ 	      /* Declared constexpr or constinit, but no suitable initializer;
+ 		 massage init appropriately so we can pass it into
+ 		 store_init_value for the error.  */
+-	      if (CLASS_TYPE_P (type)
+-		  && (!init || TREE_CODE (init) == TREE_LIST))
++	      tree new_init = NULL_TREE;
++	      if (!processing_template_decl
++		  && TREE_CODE (init_code) == CALL_EXPR)
++		new_init = build_cplus_new (type, init_code, tf_none);
++	      else if (CLASS_TYPE_P (type)
++		       && (!init || TREE_CODE (init) == TREE_LIST))
++		new_init = build_functional_cast (input_location, type,
++						  init, tf_none);
++	      if (new_init)
+ 		{
+-		  init = build_functional_cast (input_location, type,
+-						init, tf_none);
+-		  if (TREE_CODE (init) == TARGET_EXPR)
++		  init = new_init;
++		  if (TREE_CODE (init) == TARGET_EXPR
++		      && !(flags & LOOKUP_ONLYCONVERTING))
+ 		    TARGET_EXPR_DIRECT_INIT_P (init) = true;
+ 		}
+ 	      init_code = NULL_TREE;
+@@ -7227,6 +7242,10 @@ check_initializer (tree decl, tree init, int flags, vec<tree, va_gc> **cleanups)
    if (init && init != error_mark_node)
      init_code = build2 (INIT_EXPR, type, decl, init);
  
@@ -5920,7 +5948,7 @@ index bffbd004167..bb6535a415b 100644
    if (init_code)
      {
        /* We might have set these in cp_finish_decl.  */
-@@ -8300,7 +8312,7 @@ cp_finish_decl (tree decl, tree init, bool init_const_expr_p,
+@@ -8300,7 +8319,7 @@ cp_finish_decl (tree decl, tree init, bool init_const_expr_p,
      {
        unsigned i; tree t;
        FOR_EACH_VEC_ELT (*cleanups, i, t)
@@ -7345,6 +7373,24 @@ index 00000000000..6daa4b7c55c
 +using ty3 = const_tuple<B<int>>;
 +using ty3 = decltype(const_tuple(B<int>{}));
 +#endif
+diff --git a/gcc/testsuite/g++.dg/cpp1z/constexpr-array2.C b/gcc/testsuite/g++.dg/cpp1z/constexpr-array2.C
+new file mode 100644
+index 00000000000..c30e3f2361d
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp1z/constexpr-array2.C
+@@ -0,0 +1,12 @@
++// PR c++/102307
++// { dg-do compile { target c++11 } }
++
++#include <array>
++template <unsigned N, unsigned M> struct Matrix {
++  constexpr Matrix(double const (&arr)[N][M]); // { dg-warning "never defined" }
++  constexpr Matrix(std::array<std::array<double, M>, N> const &arr);
++};
++int main() {
++  constexpr Matrix<2, 3>
++    mat {{ {1.0, 2.0, 3.0}, {4.0, 5.0, 6.0} }}; // { dg-error "before its definition" }
++}
 diff --git a/gcc/testsuite/g++.dg/cpp23/lambda-attr1.C b/gcc/testsuite/g++.dg/cpp23/lambda-attr1.C
 new file mode 100644
 index 00000000000..1528f734461
