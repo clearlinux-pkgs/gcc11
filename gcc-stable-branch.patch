@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (40):
+GCC Administrator (41):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -5607,10 +5608,16 @@ index 7c8a1f18c39..e4fe2f065c9 100644
    /* Force target-independent code to convert constant permutations on other
       modes down to V8QI.  Rely on this to avoid the complexity of the byte
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..5a7d8d07538 100644
+index 85c8fdd38cd..d5d858f0e96 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,162 @@
+@@ -1,3 +1,168 @@
++2022-05-31  Jason Merrill  <jason@redhat.com>
++
++	PR c++/102307
++	* decl.c (check_initializer): Use build_cplus_new in case of
++	constexpr failure.
++
 +2022-05-13  Jason Merrill  <jason@redhat.com>
 +
 +	PR c++/101442
@@ -6519,10 +6526,15 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..f15ef013aa4 100644
+index 5fc23605244..d11b830d13d 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,451 @@
+@@ -1,3 +1,456 @@
++2022-05-31  Jason Merrill  <jason@redhat.com>
++
++	PR c++/102307
++	* g++.dg/cpp1z/constexpr-array2.C: New test.
++
 +2022-05-27  Kewen Lin  <linkw@linux.ibm.com>
 +
 +	Backported from master:
