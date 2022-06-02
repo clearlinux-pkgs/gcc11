@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (41):
+GCC Administrator (42):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -180,7 +181,7 @@ Pavel I. Kryukov (1):
 Qing Zhao (1):
       i386: Adjust -fzero-call-used-regs to always use XOR [PR101891]
 
-Richard Biener (12):
+Richard Biener (13):
       Update BASE-VER to 11.3.1
       ipa/105598 - testcase for PR105598
       middle-end/105140 - fix bogus recursion in fold_convertible_p
@@ -193,6 +194,7 @@ Richard Biener (12):
       tree-optimization/105368 - avoid overflow in powi_cost
       tree-optimization/105431 - another overflow in powi handling
       rtl-optimization/105559 - avoid quadratic behavior in delete_insn_and_edges
+      tree-optimization/105437 - BB vect with extern defs of throwing stmts
 
 Sebastian Pop (1):
       [AArch64] add barriers to ool __sync builtins
@@ -7682,6 +7684,36 @@ index 00000000000..5f51e8a27de
 +
 +template<template<class X, X...> class XList, class T, T Arg, T... Vs>
 +struct push_front_vlist<XList<T, Vs...>, Arg> { }; // { dg-error "not more specialized" }
+diff --git a/gcc/testsuite/g++.dg/vect/pr105437.cc b/gcc/testsuite/g++.dg/vect/pr105437.cc
+new file mode 100644
+index 00000000000..b3b440debef
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/vect/pr105437.cc
+@@ -0,0 +1,24 @@
++// { dg-do compile }
++
++struct ControlClass
++{
++    virtual ~ControlClass();
++
++    int Width;
++    int Height;
++    unsigned IsToRepaint : 1;
++};
++
++struct SelectClass : ControlClass
++{
++    SelectClass(void);
++};
++
++int Non_Folded_Value();
++
++SelectClass::SelectClass(void)
++{
++    int factor = Non_Folded_Value();
++    Width = 32 << factor;
++    Height = 24 << factor;
++}
 diff --git a/gcc/testsuite/g++.target/i386/mv31.C b/gcc/testsuite/g++.target/i386/mv31.C
 new file mode 100644
 index 00000000000..5d8fd1ddf75
@@ -9454,6 +9486,24 @@ index 32e1632705b..c8cb7328a63 100644
  	      update_stmt (gsi_stmt (gsi));
  	    }
  	}
+diff --git a/gcc/tree-vect-slp.c b/gcc/tree-vect-slp.c
+index 7289656db0f..a034abf9628 100644
+--- a/gcc/tree-vect-slp.c
++++ b/gcc/tree-vect-slp.c
+@@ -6319,6 +6319,13 @@ vect_schedule_slp_node (vec_info *vinfo,
+ 	  gcc_assert (seen_vector_def);
+ 	  si = gsi_after_labels (as_a <bb_vec_info> (vinfo)->bbs[0]);
+ 	}
++      else if (is_ctrl_altering_stmt (last_stmt))
++	{
++	  /* We split regions to vectorize at control altering stmts
++	     with a definition so this must be an external which
++	     we can insert at the start of the region.  */
++	  si = gsi_after_labels (as_a <bb_vec_info> (vinfo)->bbs[0]);
++	}
+       else if (is_a <bb_vec_info> (vinfo)
+ 	       && gimple_bb (last_stmt) != gimple_bb (stmt_info->stmt)
+ 	       && gimple_could_trap_p (stmt_info->stmt))
 diff --git a/gcc/value-prof.c b/gcc/value-prof.c
 index 42748771192..688089b04d2 100644
 --- a/gcc/value-prof.c
