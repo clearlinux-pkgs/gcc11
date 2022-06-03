@@ -87,7 +87,7 @@ Jakub Jelinek (7):
 Jan Hubicka (1):
       Fix modref_tree::remap_params
 
-Jason Merrill (13):
+Jason Merrill (14):
       c++: rodata and defaulted ctor [PR104142]
       c++: low -faligned-new [PR102071]
       c++: local function versioning [PR104669]
@@ -101,6 +101,7 @@ Jason Merrill (13):
       c++: template conversion op [PR101698]
       c++: NRV and ref-extended temps [PR101442]
       c++: constexpr ref to array of array [PR102307]
+      c++: constexpr empty aggr [PR105795]
 
 Jeff Law (1):
       [committed] Fix more problems with new linker warnings
@@ -5834,7 +5835,7 @@ index 55bb9c45f8c..46c2a066499 100644
      return error_mark_node;
  
 diff --git a/gcc/cp/constexpr.c b/gcc/cp/constexpr.c
-index c13c920ade3..5a1db17a14d 100644
+index c13c920ade3..7be5f25b10f 100644
 --- a/gcc/cp/constexpr.c
 +++ b/gcc/cp/constexpr.c
 @@ -890,7 +890,7 @@ maybe_save_constexpr_fundef (tree fun)
@@ -5870,7 +5871,22 @@ index c13c920ade3..5a1db17a14d 100644
  				    overflow_p);
    VERIFY_CONSTANT (r);
    return r;
-@@ -5579,6 +5578,12 @@ cxx_eval_store_expression (const constexpr_ctx *ctx, tree t,
+@@ -4468,12 +4467,9 @@ cxx_eval_bare_aggregate (const constexpr_ctx *ctx, tree t,
+       tree orig_value = value;
+       /* Like in cxx_eval_store_expression, omit entries for empty fields.  */
+       bool no_slot = TREE_CODE (type) == RECORD_TYPE && is_empty_field (index);
+-      if (no_slot)
+-	new_ctx = *ctx;
+-      else
+-	init_subob_ctx (ctx, new_ctx, index, value);
++      init_subob_ctx (ctx, new_ctx, index, value);
+       int pos_hint = -1;
+-      if (new_ctx.ctor != ctx->ctor)
++      if (new_ctx.ctor != ctx->ctor && !no_slot)
+ 	{
+ 	  /* If we built a new CONSTRUCTOR, attach it now so that other
+ 	     initializers can refer to it.  */
+@@ -5579,6 +5575,12 @@ cxx_eval_store_expression (const constexpr_ctx *ctx, tree t,
      {
        /* See above on initialization of empty bases.  */
        gcc_assert (is_empty_class (TREE_TYPE (init)) && !lval);
@@ -7387,6 +7403,39 @@ index 00000000000..6daa4b7c55c
 +using ty3 = const_tuple<B<int>>;
 +using ty3 = decltype(const_tuple(B<int>{}));
 +#endif
+diff --git a/gcc/testsuite/g++.dg/cpp1z/constexpr-aggr-base1.C b/gcc/testsuite/g++.dg/cpp1z/constexpr-aggr-base1.C
+new file mode 100644
+index 00000000000..06acb4a9f78
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp1z/constexpr-aggr-base1.C
+@@ -0,0 +1,27 @@
++// PR c++/105795
++// { dg-do compile { target c++17 } }
++
++struct empty
++{};
++
++template <typename T>
++struct tuple_holder
++{
++    [[no_unique_address]] T value;
++};
++
++struct tuple : tuple_holder<int>, tuple_holder<empty>
++{};
++
++constexpr auto make_tuple(int&& i, empty&& e)
++{
++    return tuple{i, e};
++}
++
++constexpr int foo()
++{
++    auto tuple = make_tuple(1, empty{});
++    return static_cast<const tuple_holder<int>&>(tuple).value;
++}
++
++static_assert (foo() == 1);
 diff --git a/gcc/testsuite/g++.dg/cpp1z/constexpr-array2.C b/gcc/testsuite/g++.dg/cpp1z/constexpr-array2.C
 new file mode 100644
 index 00000000000..c30e3f2361d
