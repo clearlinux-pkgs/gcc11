@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (42):
+GCC Administrator (43):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -87,7 +88,7 @@ Jakub Jelinek (7):
 Jan Hubicka (1):
       Fix modref_tree::remap_params
 
-Jason Merrill (14):
+Jason Merrill (15):
       c++: rodata and defaulted ctor [PR104142]
       c++: low -faligned-new [PR102071]
       c++: local function versioning [PR104669]
@@ -102,6 +103,7 @@ Jason Merrill (14):
       c++: NRV and ref-extended temps [PR101442]
       c++: constexpr ref to array of array [PR102307]
       c++: constexpr empty aggr [PR105795]
+      c++: redeclared hidden friend [PR105761]
 
 Jeff Law (1):
       [committed] Fix more problems with new linker warnings
@@ -223,10 +225,19 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..006822c0082 100644
+index a0587d18824..473863a79d6 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,265 @@
+@@ -1,3 +1,274 @@
++2022-06-02  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2022-05-02  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/105437
++	* tree-vect-slp.c (vect_schedule_slp_node): Handle the
++	case where last_stmt alters control flow.
++
 +2022-05-26  Simon Cook  <simon.cook@embecosm.com>
 +
 +	Backported from master:
@@ -5611,10 +5622,22 @@ index 7c8a1f18c39..e4fe2f065c9 100644
    /* Force target-independent code to convert constant permutations on other
       modes down to V8QI.  Rely on this to avoid the complexity of the byte
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..d5d858f0e96 100644
+index 85c8fdd38cd..f2927551df6 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,168 @@
+@@ -1,3 +1,180 @@
++2022-06-03  Jason Merrill  <jason@redhat.com>
++
++	PR c++/105761
++	* decl.c (duplicate_decls): Don't copy DECL_TEMPLATE_INFO
++	from a hidden friend.
++
++2022-06-03  Jason Merrill  <jason@redhat.com>
++
++	PR c++/105795
++	* constexpr.c (cxx_eval_bare_aggregate): Always call
++	init_subob_ctx.
++
 +2022-05-31  Jason Merrill  <jason@redhat.com>
 +
 +	PR c++/102307
@@ -5900,7 +5923,7 @@ index c13c920ade3..7be5f25b10f 100644
      }
    else
 diff --git a/gcc/cp/decl.c b/gcc/cp/decl.c
-index bffbd004167..8a7fbb875a9 100644
+index bffbd004167..df5361d1184 100644
 --- a/gcc/cp/decl.c
 +++ b/gcc/cp/decl.c
 @@ -1059,11 +1059,14 @@ decls_match (tree newdecl, tree olddecl, bool record_versions /* = true */)
@@ -5937,7 +5960,34 @@ index bffbd004167..8a7fbb875a9 100644
  	}
      }
  
-@@ -7167,12 +7175,19 @@ check_initializer (tree decl, tree init, int flags, vec<tree, va_gc> **cleanups)
+@@ -2572,7 +2580,13 @@ duplicate_decls (tree newdecl, tree olddecl, bool hiding, bool was_hidden)
+       if (LANG_DECL_HAS_MIN (newdecl))
+ 	{
+ 	  DECL_ACCESS (newdecl) = DECL_ACCESS (olddecl);
+-	  if (DECL_TEMPLATE_INFO (newdecl))
++	  if (new_defines_function
++	      && DECL_TEMPLATE_INFO (olddecl)
++	      && DECL_UNIQUE_FRIEND_P (DECL_TEMPLATE_RESULT
++				       (DECL_TI_TEMPLATE (olddecl))))
++	    /* Don't copy template info from a non-template friend declaration
++	       in a class template (PR105761).  */;
++	  else if (DECL_TEMPLATE_INFO (newdecl))
+ 	    {
+ 	      new_template_info = DECL_TEMPLATE_INFO (newdecl);
+ 	      if (DECL_TEMPLATE_INSTANTIATION (olddecl)
+@@ -2580,8 +2594,10 @@ duplicate_decls (tree newdecl, tree olddecl, bool hiding, bool was_hidden)
+ 		/* Remember the presence of explicit specialization args.  */
+ 		TINFO_USED_TEMPLATE_ID (DECL_TEMPLATE_INFO (olddecl))
+ 		  = TINFO_USED_TEMPLATE_ID (new_template_info);
++	      DECL_TEMPLATE_INFO (newdecl) = DECL_TEMPLATE_INFO (olddecl);
+ 	    }
+-	  DECL_TEMPLATE_INFO (newdecl) = DECL_TEMPLATE_INFO (olddecl);
++	  else
++	    DECL_TEMPLATE_INFO (newdecl) = DECL_TEMPLATE_INFO (olddecl);
+ 	}
+ 
+       if (DECL_DECLARES_FUNCTION_P (newdecl))
+@@ -7167,12 +7183,19 @@ check_initializer (tree decl, tree init, int flags, vec<tree, va_gc> **cleanups)
  	      /* Declared constexpr or constinit, but no suitable initializer;
  		 massage init appropriately so we can pass it into
  		 store_init_value for the error.  */
@@ -5962,7 +6012,7 @@ index bffbd004167..8a7fbb875a9 100644
  		    TARGET_EXPR_DIRECT_INIT_P (init) = true;
  		}
  	      init_code = NULL_TREE;
-@@ -7227,6 +7242,10 @@ check_initializer (tree decl, tree init, int flags, vec<tree, va_gc> **cleanups)
+@@ -7227,6 +7250,10 @@ check_initializer (tree decl, tree init, int flags, vec<tree, va_gc> **cleanups)
    if (init && init != error_mark_node)
      init_code = build2 (INIT_EXPR, type, decl, init);
  
@@ -5973,7 +6023,7 @@ index bffbd004167..8a7fbb875a9 100644
    if (init_code)
      {
        /* We might have set these in cp_finish_decl.  */
-@@ -8300,7 +8319,7 @@ cp_finish_decl (tree decl, tree init, bool init_const_expr_p,
+@@ -8300,7 +8327,7 @@ cp_finish_decl (tree decl, tree init, bool init_const_expr_p,
      {
        unsigned i; tree t;
        FOR_EACH_VEC_ELT (*cleanups, i, t)
@@ -6544,10 +6594,28 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..d11b830d13d 100644
+index 5fc23605244..324d34dbef0 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,456 @@
+@@ -1,3 +1,474 @@
++2022-06-03  Jason Merrill  <jason@redhat.com>
++
++	PR c++/105761
++	* g++.dg/cpp1y/auto-fn64.C: New test.
++
++2022-06-03  Jason Merrill  <jason@redhat.com>
++
++	PR c++/105795
++	* g++.dg/cpp1z/constexpr-aggr-base1.C: New test.
++
++2022-06-02  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2022-05-02  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/105437
++	* g++.dg/vect/pr105437.cc: New testcase.
++
 +2022-05-31  Jason Merrill  <jason@redhat.com>
 +
 +	PR c++/102307
@@ -7281,6 +7349,24 @@ index 00000000000..eee78fd5e74
 +{
 +  f(x); // { dg-error "call of overloaded" }
 +}
+diff --git a/gcc/testsuite/g++.dg/cpp1y/auto-fn64.C b/gcc/testsuite/g++.dg/cpp1y/auto-fn64.C
+new file mode 100644
+index 00000000000..13f3175da45
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp1y/auto-fn64.C
+@@ -0,0 +1,12 @@
++// PR c++/105761
++// { dg-do compile { target c++14 } }
++// { dg-additional-options -Wno-non-template-friend }
++
++template <class T>
++class X {
++  friend auto f(X);
++};
++
++struct Y : X<long> {
++  friend auto f(X) { return 0L; }
++};
 diff --git a/gcc/testsuite/g++.dg/cpp1y/constexpr-empty2.C b/gcc/testsuite/g++.dg/cpp1y/constexpr-empty2.C
 index 2acfa98364b..9768b89904e 100644
 --- a/gcc/testsuite/g++.dg/cpp1y/constexpr-empty2.C
