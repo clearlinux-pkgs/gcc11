@@ -16,7 +16,11 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (43):
+GCC Administrator (47):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -216,6 +220,9 @@ Tamar Christina (1):
 
 Thomas W Rodgers (1):
       libstdc++: Make atomic notify_one and notify_all non-const
+
+liuhongt (1):
+      Fix insn does not satisfy its constraints: sse2_lshrv1ti3
 
 diff --git a/gcc/BASE-VER b/gcc/BASE-VER
 index f628d2eafc5..0a47c95bb14 100644
@@ -992,6 +999,23 @@ index 48300af9a09..a90f64e9d39 100644
  
  	  /* addr = &temp; */
  	  t = build1 (ADDR_EXPR, build_pointer_type (type), temp);
+diff --git a/gcc/config/i386/sse.md b/gcc/config/i386/sse.md
+index fcfcba0134d..79dcb6b26d5 100644
+--- a/gcc/config/i386/sse.md
++++ b/gcc/config/i386/sse.md
+@@ -17256,9 +17256,9 @@
+    (set_attr "mode" "<sseinsnmode>")])
+ 
+ (define_insn_and_split "ssse3_palignrdi"
+-  [(set (match_operand:DI 0 "register_operand" "=y,x,Yv")
+-	(unspec:DI [(match_operand:DI 1 "register_operand" "0,0,Yv")
+-		    (match_operand:DI 2 "register_mmxmem_operand" "ym,x,Yv")
++  [(set (match_operand:DI 0 "register_operand" "=y,x,Yw")
++	(unspec:DI [(match_operand:DI 1 "register_operand" "0,0,Yw")
++		    (match_operand:DI 2 "register_mmxmem_operand" "ym,x,Yw")
+ 		    (match_operand:SI 3 "const_0_to_255_mul_8_operand" "n,n,n")]
+ 		   UNSPEC_PALIGNR))]
+   "(TARGET_MMX || TARGET_MMX_WITH_SSE) && TARGET_SSSE3"
 diff --git a/gcc/config/riscv/arch-canonicalize b/gcc/config/riscv/arch-canonicalize
 index 3a91cfe687f..0bdf6aafe35 100755
 --- a/gcc/config/riscv/arch-canonicalize
