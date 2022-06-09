@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (47):
+GCC Administrator (48):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -92,7 +93,7 @@ Jakub Jelinek (7):
 Jan Hubicka (1):
       Fix modref_tree::remap_params
 
-Jason Merrill (15):
+Jason Merrill (16):
       c++: rodata and defaulted ctor [PR104142]
       c++: low -faligned-new [PR102071]
       c++: local function versioning [PR104669]
@@ -108,6 +109,7 @@ Jason Merrill (15):
       c++: constexpr ref to array of array [PR102307]
       c++: constexpr empty aggr [PR105795]
       c++: redeclared hidden friend [PR105761]
+      c++: redeclared hidden friend take 2 [PR105852]
 
 Jeff Law (1):
       [committed] Fix more problems with new linker warnings
@@ -168,6 +170,9 @@ Martin Jambor (1):
 
 Matthias Kretz (1):
       c++: don't ICE on NAMESPACE_DECL inside FUNCTION_DECL
+
+Max Filippov (1):
+      gcc: xtensa: fix PR target/105879
 
 Michael Meissner (1):
       rs6000: Ignore fusion option flags for inlining test [PR102059]
@@ -232,10 +237,27 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..473863a79d6 100644
+index a0587d18824..89370411d1a 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,274 @@
+@@ -1,3 +1,291 @@
++2022-06-08  Max Filippov  <jcmvbkbc@gmail.com>
++
++	Backported from master:
++	2022-06-08  Max Filippov  <jcmvbkbc@gmail.com>
++
++	PR target/105879
++	* config/xtensa/xtensa.md (movdi): Rename 'first' and 'second'
++	to 'lowpart' and 'highpart' so that they match 'gen_lowpart' and
++	'gen_highpart' bitwise semantics and fix order of highpart and
++	lowpart depending on target endianness.
++
++2022-06-08  liuhongt  <hongtao.liu@intel.com>
++
++	PR target/105854
++	* config/i386/sse.md (ssse3_palignrdi): Change alternative 2
++	from Yv to Yw.
++
 +2022-06-02  Richard Biener  <rguenther@suse.de>
 +
 +	Backported from master:
@@ -5645,11 +5667,45 @@ index 7c8a1f18c39..e4fe2f065c9 100644
  
    /* Force target-independent code to convert constant permutations on other
       modes down to V8QI.  Rely on this to avoid the complexity of the byte
+diff --git a/gcc/config/xtensa/xtensa.md b/gcc/config/xtensa/xtensa.md
+index cdf22f14b94..fabc313197a 100644
+--- a/gcc/config/xtensa/xtensa.md
++++ b/gcc/config/xtensa/xtensa.md
+@@ -754,11 +754,14 @@
+ 	 because of offering further optimization opportunities.  */
+       if (register_operand (operands[0], DImode))
+ 	{
+-	  rtx first, second;
+-
+-	  split_double (operands[1], &first, &second);
+-	  emit_insn (gen_movsi (gen_lowpart (SImode, operands[0]), first));
+-	  emit_insn (gen_movsi (gen_highpart (SImode, operands[0]), second));
++	  rtx lowpart, highpart;
++
++	  if (TARGET_BIG_ENDIAN)
++	    split_double (operands[1], &highpart, &lowpart);
++	  else
++	    split_double (operands[1], &lowpart, &highpart);
++	  emit_insn (gen_movsi (gen_lowpart (SImode, operands[0]), lowpart));
++	  emit_insn (gen_movsi (gen_highpart (SImode, operands[0]), highpart));
+ 	  DONE;
+ 	}
+ 
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..f2927551df6 100644
+index 85c8fdd38cd..6eb46f22f68 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,180 @@
+@@ -1,3 +1,190 @@
++2022-06-08  Jason Merrill  <jason@redhat.com>
++
++	PR c++/105852
++	PR c++/105761
++	* decl.c (duplicate_decls): Avoid copying template info
++	from non-templated friend even if newdecl isn't a definition.
++	Correct handling of DECL_UNIQUE_FRIEND_P on templates.
++	* pt.c (non_templated_friend_p): New.
++	* cp-tree.h (non_templated_friend_p): Declare it.
++
 +2022-06-03  Jason Merrill  <jason@redhat.com>
 +
 +	PR c++/105761
@@ -5946,8 +6002,20 @@ index c13c920ade3..7be5f25b10f 100644
        return init;
      }
    else
+diff --git a/gcc/cp/cp-tree.h b/gcc/cp/cp-tree.h
+index a2d8c1c77b3..fded2527e5e 100644
+--- a/gcc/cp/cp-tree.h
++++ b/gcc/cp/cp-tree.h
+@@ -7242,6 +7242,7 @@ extern bool push_tinst_level_loc                (tree, location_t);
+ extern bool push_tinst_level_loc                (tree, tree, location_t);
+ extern void pop_tinst_level                     (void);
+ extern struct tinst_level *outermost_tinst_level(void);
++extern bool non_templated_friend_p		(tree);
+ extern void init_template_processing		(void);
+ extern void print_template_statistics		(void);
+ bool template_template_parameter_p		(const_tree);
 diff --git a/gcc/cp/decl.c b/gcc/cp/decl.c
-index bffbd004167..df5361d1184 100644
+index bffbd004167..679ea9c8be7 100644
 --- a/gcc/cp/decl.c
 +++ b/gcc/cp/decl.c
 @@ -1059,11 +1059,14 @@ decls_match (tree newdecl, tree olddecl, bool record_versions /* = true */)
@@ -5970,6 +6038,17 @@ index bffbd004167..df5361d1184 100644
      }
    else if (TREE_CODE (newdecl) == TEMPLATE_DECL)
      {
+@@ -2221,8 +2224,8 @@ duplicate_decls (tree newdecl, tree olddecl, bool hiding, bool was_hidden)
+ 	      check_no_redeclaration_friend_default_args
+ 		(old_result, new_result);
+ 	    }
+-	  if (!DECL_UNIQUE_FRIEND_P (old_result))
+-	    DECL_UNIQUE_FRIEND_P (new_result) = false;
++	  if (!DECL_UNIQUE_FRIEND_P (new_result))
++	    DECL_UNIQUE_FRIEND_P (old_result) = false;
+ 
+ 	  check_default_args (newdecl);
+ 
 @@ -2523,7 +2526,12 @@ duplicate_decls (tree newdecl, tree olddecl, bool hiding, bool was_hidden)
        else
  	{
@@ -5984,34 +6063,20 @@ index bffbd004167..df5361d1184 100644
  	}
      }
  
-@@ -2572,7 +2580,13 @@ duplicate_decls (tree newdecl, tree olddecl, bool hiding, bool was_hidden)
-       if (LANG_DECL_HAS_MIN (newdecl))
- 	{
- 	  DECL_ACCESS (newdecl) = DECL_ACCESS (olddecl);
--	  if (DECL_TEMPLATE_INFO (newdecl))
-+	  if (new_defines_function
-+	      && DECL_TEMPLATE_INFO (olddecl)
-+	      && DECL_UNIQUE_FRIEND_P (DECL_TEMPLATE_RESULT
-+				       (DECL_TI_TEMPLATE (olddecl))))
-+	    /* Don't copy template info from a non-template friend declaration
-+	       in a class template (PR105761).  */;
-+	  else if (DECL_TEMPLATE_INFO (newdecl))
- 	    {
- 	      new_template_info = DECL_TEMPLATE_INFO (newdecl);
- 	      if (DECL_TEMPLATE_INSTANTIATION (olddecl)
-@@ -2580,8 +2594,10 @@ duplicate_decls (tree newdecl, tree olddecl, bool hiding, bool was_hidden)
- 		/* Remember the presence of explicit specialization args.  */
+@@ -2581,7 +2589,11 @@ duplicate_decls (tree newdecl, tree olddecl, bool hiding, bool was_hidden)
  		TINFO_USED_TEMPLATE_ID (DECL_TEMPLATE_INFO (olddecl))
  		  = TINFO_USED_TEMPLATE_ID (new_template_info);
-+	      DECL_TEMPLATE_INFO (newdecl) = DECL_TEMPLATE_INFO (olddecl);
  	    }
 -	  DECL_TEMPLATE_INFO (newdecl) = DECL_TEMPLATE_INFO (olddecl);
++
++	  if (non_templated_friend_p (olddecl))
++	    /* Don't copy tinfo from a non-templated friend (PR105761).  */;
 +	  else
 +	    DECL_TEMPLATE_INFO (newdecl) = DECL_TEMPLATE_INFO (olddecl);
  	}
  
        if (DECL_DECLARES_FUNCTION_P (newdecl))
-@@ -7167,12 +7183,19 @@ check_initializer (tree decl, tree init, int flags, vec<tree, va_gc> **cleanups)
+@@ -7167,12 +7179,19 @@ check_initializer (tree decl, tree init, int flags, vec<tree, va_gc> **cleanups)
  	      /* Declared constexpr or constinit, but no suitable initializer;
  		 massage init appropriately so we can pass it into
  		 store_init_value for the error.  */
@@ -6036,7 +6101,7 @@ index bffbd004167..df5361d1184 100644
  		    TARGET_EXPR_DIRECT_INIT_P (init) = true;
  		}
  	      init_code = NULL_TREE;
-@@ -7227,6 +7250,10 @@ check_initializer (tree decl, tree init, int flags, vec<tree, va_gc> **cleanups)
+@@ -7227,6 +7246,10 @@ check_initializer (tree decl, tree init, int flags, vec<tree, va_gc> **cleanups)
    if (init && init != error_mark_node)
      init_code = build2 (INIT_EXPR, type, decl, init);
  
@@ -6047,7 +6112,7 @@ index bffbd004167..df5361d1184 100644
    if (init_code)
      {
        /* We might have set these in cp_finish_decl.  */
-@@ -8300,7 +8327,7 @@ cp_finish_decl (tree decl, tree init, bool init_const_expr_p,
+@@ -8300,7 +8323,7 @@ cp_finish_decl (tree decl, tree init, bool init_const_expr_p,
      {
        unsigned i; tree t;
        FOR_EACH_VEC_ELT (*cleanups, i, t)
@@ -6310,7 +6375,7 @@ index 90d119eaa28..b53cc6d360e 100644
          break;
  
 diff --git a/gcc/cp/pt.c b/gcc/cp/pt.c
-index 318d42d800d..ec8bf229740 100644
+index 318d42d800d..588c46504b4 100644
 --- a/gcc/cp/pt.c
 +++ b/gcc/cp/pt.c
 @@ -5200,8 +5200,9 @@ process_partial_specialization (tree decl)
@@ -6334,7 +6399,41 @@ index 318d42d800d..ec8bf229740 100644
      dependent_p = false;
    else
      dependent_p = instantiation_dependent_expression_p (t);
-@@ -12641,7 +12642,13 @@ gen_elem_of_pack_expansion_instantiation (tree pattern,
+@@ -11136,6 +11137,33 @@ outermost_tinst_level (void)
+   return level;
+ }
+ 
++/* True iff T is a friend function declaration that is not itself a template
++   and is not defined in a class template.  */
++
++bool
++non_templated_friend_p (tree t)
++{
++  if (t && TREE_CODE (t) == FUNCTION_DECL
++      && DECL_UNIQUE_FRIEND_P (t))
++    {
++      tree ti = DECL_TEMPLATE_INFO (t);
++      if (!ti)
++	return true;
++      /* DECL_FRIEND_CONTEXT is set for a friend defined in class.  */
++      if (DECL_FRIEND_CONTEXT (t))
++	return false;
++      /* Non-templated friends in a class template are still represented with a
++	 TEMPLATE_DECL; check that its primary template is the befriending
++	 class.  Note that DECL_PRIMARY_TEMPLATE is null for
++	 template <class T> friend A<T>::f(); */
++      tree tmpl = TI_TEMPLATE (ti);
++      tree primary = DECL_PRIMARY_TEMPLATE (tmpl);
++      return (primary && primary != tmpl);
++    }
++  else
++    return false;
++}
++
+ /* DECL is a friend FUNCTION_DECL or TEMPLATE_DECL.  ARGS is the
+    vector of template arguments, as for tsubst.
+ 
+@@ -12641,7 +12669,13 @@ gen_elem_of_pack_expansion_instantiation (tree pattern,
      t = tsubst_expr (pattern, args, complain, in_decl,
  		     /*integral_constant_expression_p=*/false);
    else
@@ -6349,7 +6448,16 @@ index 318d42d800d..ec8bf229740 100644
  
    /*  If the Ith argument pack element is a pack expansion, then
        the Ith element resulting from the substituting is going to
-@@ -15110,6 +15117,12 @@ tsubst_decl (tree t, tree args, tsubst_flags_t complain)
+@@ -14072,7 +14106,7 @@ tsubst_function_decl (tree t, tree args, tsubst_flags_t complain,
+       /* This special case arises when we have something like this:
+ 
+ 	 template <class T> struct S {
+-	 friend void f<int>(int, double);
++	   friend void f<int>(int, double);
+ 	 };
+ 
+ 	 Here, the DECL_TI_TEMPLATE for the friend declaration
+@@ -15110,6 +15144,12 @@ tsubst_decl (tree t, tree args, tsubst_flags_t complain)
  	  {
  	    DECL_ORIGINAL_TYPE (r) = NULL_TREE;
  	    set_underlying_type (r);
@@ -6362,7 +6470,7 @@ index 318d42d800d..ec8bf229740 100644
  	  }
  
  	layout_decl (r, 0);
-@@ -16404,7 +16417,8 @@ tsubst_baselink (tree baselink, tree object_type,
+@@ -16404,7 +16444,8 @@ tsubst_baselink (tree baselink, tree object_type,
  
    tree binfo_type = BINFO_TYPE (BASELINK_BINFO (baselink));
    binfo_type = tsubst (binfo_type, args, complain, in_decl);
@@ -6372,7 +6480,7 @@ index 318d42d800d..ec8bf229740 100644
  
    if (dependent_p)
      {
-@@ -23928,7 +23942,7 @@ unify (tree tparms, tree targs, tree parm, tree arg, int strict,
+@@ -23928,7 +23969,7 @@ unify (tree tparms, tree targs, tree parm, tree arg, int strict,
  	      /* Now check whether the type of this parameter is still
  		 dependent, and give up if so.  */
  	      ++processing_template_decl;
@@ -6381,7 +6489,7 @@ index 318d42d800d..ec8bf229740 100644
  	      --processing_template_decl;
  	      if (uses_template_parms (tparm))
  		return unify_success (explain_p);
-@@ -28726,7 +28740,7 @@ rewrite_template_parm (tree olddecl, unsigned index, unsigned level,
+@@ -28726,7 +28767,7 @@ rewrite_template_parm (tree olddecl, unsigned index, unsigned level,
  	  const int depth = TMPL_ARGS_DEPTH (tsubst_args);
  	  tree ttargs = make_tree_vec (depth + 1);
  	  for (int i = 0; i < depth; ++i)
@@ -6390,7 +6498,7 @@ index 318d42d800d..ec8bf229740 100644
  	  TREE_VEC_ELT (ttargs, depth)
  	    = template_parms_level_to_args (ttparms);
  	  // Substitute ttargs into ttparms to fix references to
-@@ -28739,8 +28753,17 @@ rewrite_template_parm (tree olddecl, unsigned index, unsigned level,
+@@ -28739,8 +28780,17 @@ rewrite_template_parm (tree olddecl, unsigned index, unsigned level,
  	  ttparms = tsubst_template_parms_level (ttparms, ttargs,
  						 complain);
  	  // Finally, tack the adjusted parms onto tparms.
@@ -6410,7 +6518,7 @@ index 318d42d800d..ec8bf229740 100644
  	  DECL_TEMPLATE_PARMS (newdecl) = ttparms;
  	}
      }
-@@ -29238,6 +29261,11 @@ alias_ctad_tweaks (tree tmpl, tree uguides)
+@@ -29238,6 +29288,11 @@ alias_ctad_tweaks (tree tmpl, tree uguides)
  	      ++ndlen;
  	  tree gtparms = make_tree_vec (natparms + ndlen);
  
@@ -6618,10 +6726,17 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..324d34dbef0 100644
+index 5fc23605244..291c52e847a 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,474 @@
+@@ -1,3 +1,481 @@
++2022-06-08  Jason Merrill  <jason@redhat.com>
++
++	PR c++/105852
++	PR c++/105761
++	* g++.dg/modules/tpl-friend-2_a.C: Adjust expected dump.
++	* g++.dg/template/friend74.C: New test.
++
 +2022-06-03  Jason Merrill  <jason@redhat.com>
 +
 +	PR c++/105761
@@ -7709,6 +7824,17 @@ index 00000000000..96d71e7cf35
 +  DownloadSelectedContent();
 +}
 +ClientNetworkContentSocketHandler::ClientNetworkContentSocketHandler() {}
+diff --git a/gcc/testsuite/g++.dg/modules/tpl-friend-2_a.C b/gcc/testsuite/g++.dg/modules/tpl-friend-2_a.C
+index 3acacf8ee34..c12857fbf69 100644
+--- a/gcc/testsuite/g++.dg/modules/tpl-friend-2_a.C
++++ b/gcc/testsuite/g++.dg/modules/tpl-friend-2_a.C
+@@ -16,5 +16,5 @@ template class TPL<int>;  // instantiate
+ void foo (int, void *);
+ 
+ // { dg-final { scan-lang-dump {Cluster members:\n  \[0\]=decl definition '::template TPL'\n(  \[.\]=[^\n]*'\n)*  \[.\]=decl declaration '::template foo'\n(  \[.\]=[^\n]*'\n)*  \[.\]=binding '::TPL'} module } }
+-// { dg-final { scan-lang-dump {Cluster members:\n  \[0\]=decl declaration '::foo<int>'\n  \[.\]=binding '::foo'} module } }
++// { dg-final { scan-lang-dump {Cluster members:\n  \[0\]=decl declaration '::foo'\n  \[.\]=binding '::foo'} module } }
+ // { dg-final { scan-lang-dump {Cluster members:\n  \[0\]=specialization definition '::TPL<int>'} module } }
 diff --git a/gcc/testsuite/g++.dg/opt/const7.C b/gcc/testsuite/g++.dg/opt/const7.C
 new file mode 100644
 index 00000000000..5bcf94897a8
@@ -7790,6 +7916,20 @@ index 00000000000..7a3da939c1f
 +  const int& b = a;
 +  (void)b;
 +}
+diff --git a/gcc/testsuite/g++.dg/template/friend74.C b/gcc/testsuite/g++.dg/template/friend74.C
+new file mode 100644
+index 00000000000..51708334d81
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/template/friend74.C
+@@ -0,0 +1,8 @@
++// PR c++/105852
++// { dg-additional-options -w }
++
++template <class> struct Local { friend Local False(int *); };
++Local<int> loc;
++Local<int> False(int *);
++void New() { False; }
++Local<int> False(int *) { return Local<int>(); }
 diff --git a/gcc/testsuite/g++.dg/template/nested7.C b/gcc/testsuite/g++.dg/template/nested7.C
 new file mode 100644
 index 00000000000..3a5930c0f31
