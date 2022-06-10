@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (48):
+GCC Administrator (49):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -114,7 +115,7 @@ Jason Merrill (16):
 Jeff Law (1):
       [committed] Fix more problems with new linker warnings
 
-Jonathan Wakely (37):
+Jonathan Wakely (38):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -152,6 +153,7 @@ Jonathan Wakely (37):
       libstdc++: Add C++23 status docs
       libstdc++: Fix hyperlink in docs
       libstdc++: Document support for constexpr optional (P2231R1)
+      libstdc++: Partially revert r11-9772-g6f8133689f4397 [PR105915]
 
 Kewen Lin (1):
       testsuite: Skip pr105250.c for powerpc and s390 [PR105266]
@@ -11669,6 +11671,21 @@ index beeb4ef4c8a..4247bb116c3 100644
    template<typename _Iterator>
      inline _GLIBCXX17_CONSTEXPR bool
      operator!=(const move_iterator<_Iterator>& __x,
+diff --git a/libstdc++-v3/include/experimental/bits/fs_path.h b/libstdc++-v3/include/experimental/bits/fs_path.h
+index 1cc1b3bf686..a2bc931c696 100644
+--- a/libstdc++-v3/include/experimental/bits/fs_path.h
++++ b/libstdc++-v3/include/experimental/bits/fs_path.h
+@@ -425,8 +425,8 @@ namespace __detail
+     class iterator;
+     typedef iterator const_iterator;
+ 
+-    iterator begin() const noexcept;
+-    iterator end() const noexcept;
++    iterator begin() const;
++    iterator end() const;
+ 
+     /// @cond undocumented
+     // Create a basic_string by reading until a null character.
 diff --git a/libstdc++-v3/include/experimental/bits/simd.h b/libstdc++-v3/include/experimental/bits/simd.h
 index 421c923e7b0..0e58ae01b17 100644
 --- a/libstdc++-v3/include/experimental/bits/simd.h
