@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (52):
+GCC Administrator (53):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -70,9 +71,10 @@ GCC Administrator (52):
       Daily bump.
       Daily bump.
 
-H.J. Lu (2):
+H.J. Lu (3):
       x86: Add missing .note.GNU-stack to assembly source
       x86: Add .note.GNU-stack section only for Linux
+      x86: Require AVX for F16C and VAES
 
 Harald Anlauf (2):
       Fortran: improve error recovery on invalid array section
@@ -85,7 +87,7 @@ Iain Buclaw (2):
       libphobos: Don't call free on the TLS array in the emutls destroy function.
       libphobos: Give _Unwind_Exception an alignment that best resembles __attribute__((aligned))
 
-Jakub Jelinek (7):
+Jakub Jelinek (8):
       emit-rtl: Fix -fcompare-debug bug with label references in debug insns [PR105203]
       sparc: Preserve ORIGINAL_REGNO in epilogue_renumber [PR105257]
       rtlanal: Fix up replace_rtx [PR105333]
@@ -93,6 +95,7 @@ Jakub Jelinek (7):
       i386: Fix up ix86_gimplify_va_arg [PR105331]
       c++: Don't emit deprecated warnings on lambda declarations
       isel: Fix up gimple_expand_vec_set_expr [PR105528]
+      testsuite: Fix up pr104637 testcase [PR104637]
 
 Jan Hubicka (1):
       Fix modref_tree::remap_params
@@ -230,6 +233,9 @@ Tamar Christina (1):
 
 Thomas W Rodgers (1):
       libstdc++: Make atomic notify_one and notify_all non-const
+
+Vladimir N. Makarov (1):
+      [PR104637] LRA: Split hard regs as many as possible on one subpass
 
 liuhongt (1):
       Fix insn does not satisfy its constraints: sse2_lshrv1ti3
@@ -738,6 +744,46 @@ index d7c78d518bc..4e3e348513b 100644
    if (next_sibling_clone)
      next_sibling_clone->prev_sibling_clone = prev_sibling_clone;
    if (clones)
+diff --git a/gcc/common/config/i386/cpuinfo.h b/gcc/common/config/i386/cpuinfo.h
+index 58294b7d7ac..18ff71ac5ad 100644
+--- a/gcc/common/config/i386/cpuinfo.h
++++ b/gcc/common/config/i386/cpuinfo.h
+@@ -606,8 +606,6 @@ get_available_features (struct __processor_model *cpu_model,
+     set_feature (FEATURE_MOVBE);
+   if (ecx & bit_AES)
+     set_feature (FEATURE_AES);
+-  if (ecx & bit_F16C)
+-    set_feature (FEATURE_F16C);
+   if (ecx & bit_RDRND)
+     set_feature (FEATURE_RDRND);
+   if (ecx & bit_XSAVE)
+@@ -618,6 +616,8 @@ get_available_features (struct __processor_model *cpu_model,
+ 	set_feature (FEATURE_AVX);
+       if (ecx & bit_FMA)
+ 	set_feature (FEATURE_FMA);
++      if (ecx & bit_F16C)
++	set_feature (FEATURE_F16C);
+     }
+ 
+   /* Get Advanced Features at level 7 (eax = 7, ecx = 0/1). */
+@@ -638,6 +638,8 @@ get_available_features (struct __processor_model *cpu_model,
+ 	    set_feature (FEATURE_AVX2);
+ 	  if (ecx & bit_VPCLMULQDQ)
+ 	    set_feature (FEATURE_VPCLMULQDQ);
++	  if (ecx & bit_VAES)
++	    set_feature (FEATURE_VAES);
+ 	}
+       if (ebx & bit_BMI2)
+ 	set_feature (FEATURE_BMI2);
+@@ -660,8 +662,6 @@ get_available_features (struct __processor_model *cpu_model,
+ 	set_feature (FEATURE_PKU);
+       if (ecx & bit_RDPID)
+ 	set_feature (FEATURE_RDPID);
+-      if (ecx & bit_VAES)
+-	set_feature (FEATURE_VAES);
+       if (ecx & bit_GFNI)
+ 	set_feature (FEATURE_GFNI);
+       if (ecx & bit_MOVDIRI)
 diff --git a/gcc/config/aarch64/aarch64-protos.h b/gcc/config/aarch64/aarch64-protos.h
 index b91eeeba101..ad62da81d31 100644
 --- a/gcc/config/aarch64/aarch64-protos.h
@@ -6708,6 +6754,76 @@ index d36c28c0470..9927fc0982b 100644
  		{
  		  if (access_node->parm_index < (int)map->length ())
  		    access_node->parm_index = (*map)[access_node->parm_index];
+diff --git a/gcc/lra-assigns.c b/gcc/lra-assigns.c
+index b406096a39c..0ec0a79080a 100644
+--- a/gcc/lra-assigns.c
++++ b/gcc/lra-assigns.c
+@@ -1775,8 +1775,8 @@ lra_split_hard_reg_for (void)
+      iterations.  Either it's an asm and something is wrong with the
+      constraints, or we have run out of spill registers; error out in
+      either case.  */
+-  bool asm_p = false;
+-  bitmap_head failed_reload_insns, failed_reload_pseudos;
++  bool asm_p = false, spill_p = false;
++  bitmap_head failed_reload_insns, failed_reload_pseudos, over_split_insns;
+   
+   if (lra_dump_file != NULL)
+     fprintf (lra_dump_file,
+@@ -1787,6 +1787,7 @@ lra_split_hard_reg_for (void)
+   bitmap_ior (&non_reload_pseudos, &lra_inheritance_pseudos, &lra_split_regs);
+   bitmap_ior_into (&non_reload_pseudos, &lra_subreg_reload_pseudos);
+   bitmap_ior_into (&non_reload_pseudos, &lra_optional_reload_pseudos);
++  bitmap_initialize (&over_split_insns, &reg_obstack);
+   for (i = lra_constraint_new_regno_start; i < max_regno; i++)
+     if (reg_renumber[i] < 0 && lra_reg_info[i].nrefs != 0
+ 	&& (rclass = lra_get_allocno_class (i)) != NO_REGS
+@@ -1794,14 +1795,41 @@ lra_split_hard_reg_for (void)
+       {
+ 	if (! find_reload_regno_insns (i, first, last))
+ 	  continue;
+-	if (BLOCK_FOR_INSN (first) == BLOCK_FOR_INSN (last)
+-	    && spill_hard_reg_in_range (i, rclass, first, last))
++	if (BLOCK_FOR_INSN (first) == BLOCK_FOR_INSN (last))
+ 	  {
+-	    bitmap_clear (&failed_reload_pseudos);
+-	    return true;
++	    /* Check that we are not trying to split over the same insn
++	       requiring reloads to avoid splitting the same hard reg twice or
++	       more.  If we need several hard regs splitting over the same insn
++	       it can be finished on the next iterations.
++
++	       The following loop iteration number is small as we split hard
++	       reg in a very small range.  */
++	    for (insn = first;
++		 insn != NEXT_INSN (last);
++		 insn = NEXT_INSN (insn))
++	      if (bitmap_bit_p (&over_split_insns, INSN_UID (insn)))
++		break;
++	    if (insn != NEXT_INSN (last)
++		|| !spill_hard_reg_in_range (i, rclass, first, last))
++	      {
++		bitmap_set_bit (&failed_reload_pseudos, i);
++	      }
++	    else
++	      {
++		for (insn = first;
++		     insn != NEXT_INSN (last);
++		     insn = NEXT_INSN (insn))
++		  bitmap_set_bit (&over_split_insns, INSN_UID (insn));
++		spill_p = true;
++	      }
+ 	  }
+-	bitmap_set_bit (&failed_reload_pseudos, i);
+       }
++  bitmap_clear (&over_split_insns);
++  if (spill_p)
++    {
++      bitmap_clear (&failed_reload_pseudos);
++      return true;
++    }
+   bitmap_clear (&non_reload_pseudos);
+   bitmap_initialize (&failed_reload_insns, &reg_obstack);
+   EXECUTE_IF_SET_IN_BITMAP (&failed_reload_pseudos, 0, u, bi)
 diff --git a/gcc/rtlanal.c b/gcc/rtlanal.c
 index 67a49e65fd8..88b37584f74 100644
 --- a/gcc/rtlanal.c
@@ -8763,6 +8879,34 @@ index b4a4a140e54..9d6be88e7d5 100644
 +#ifdef __linux__
 +	.section	.note.GNU-stack,"",@progbits
 +#endif
+diff --git a/gcc/testsuite/gcc.target/i386/pr104637.c b/gcc/testsuite/gcc.target/i386/pr104637.c
+new file mode 100644
+index 00000000000..36e8b6ed97d
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/i386/pr104637.c
+@@ -0,0 +1,22 @@
++/* { dg-do compile { target { ! ia32 } } } */
++/* { dg-options "-Og -fno-forward-propagate -mavx -Wno-div-by-zero" } */
++
++typedef short __attribute__((__vector_size__ (64))) U;
++typedef unsigned long long __attribute__((__vector_size__ (32))) V;
++typedef long double __attribute__((__vector_size__ (64))) F;
++
++int i;
++U u;
++F f;
++
++void
++foo (char a, char b, _Complex char c, V v)
++{
++  u = (U) { u[0] / 0, u[1] / 0, u[2] / 0, u[3] / 0, u[4] / 0, u[5] / 0, u[6] / 0, u[7] / 0,
++	    u[8] / 0, u[9] / 0, u[10] / 0, u[11] / 0, u[12] / 0, u[13] / 0, u[14] / 0, u[15] / 0,
++	    u[16] / 0, u[17] / 0, u[18] / 0, u[19] / 0, u[20] / 0, u[21] / 0, u[22] / 0, u[23] / 0,
++	    u[24] / 0, u[25] / 0, u[26] / 0, u[27] / 0, u[28] / 0, u[29] / 0, u[30] / 0, u[31] / 0 };
++  c += i;
++  f = (F) { v[0], v[1], v[2], v[3] };
++  i = (char) (__imag__ c + i);
++}
 diff --git a/gcc/testsuite/gcc.target/i386/sse-14.c b/gcc/testsuite/gcc.target/i386/sse-14.c
 index 4ce0ffffaf3..4c728f230f7 100644
 --- a/gcc/testsuite/gcc.target/i386/sse-14.c
