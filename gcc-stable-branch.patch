@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (53):
+GCC Administrator (54):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -83,11 +84,13 @@ Harald Anlauf (2):
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
 
-Iain Buclaw (2):
+Iain Buclaw (4):
       libphobos: Don't call free on the TLS array in the emutls destroy function.
       libphobos: Give _Unwind_Exception an alignment that best resembles __attribute__((aligned))
+      darwin, d: Support outfile substitution for libphobos
+      d: Set TYPE_ARTIFICIAL on internal TypeInfo types
 
-Jakub Jelinek (8):
+Jakub Jelinek (9):
       emit-rtl: Fix -fcompare-debug bug with label references in debug insns [PR105203]
       sparc: Preserve ORIGINAL_REGNO in epilogue_renumber [PR105257]
       rtlanal: Fix up replace_rtx [PR105333]
@@ -96,6 +99,7 @@ Jakub Jelinek (8):
       c++: Don't emit deprecated warnings on lambda declarations
       isel: Fix up gimple_expand_vec_set_expr [PR105528]
       testsuite: Fix up pr104637 testcase [PR104637]
+      libcpp: Ignore CPP_PADDING tokens in _cpp_parse_expr [PR105732]
 
 Jan Hubicka (1):
       Fix modref_tree::remap_params
@@ -121,7 +125,7 @@ Jason Merrill (16):
 Jeff Law (1):
       [committed] Fix more problems with new linker warnings
 
-Jonathan Wakely (38):
+Jonathan Wakely (39):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -160,6 +164,7 @@ Jonathan Wakely (38):
       libstdc++: Fix hyperlink in docs
       libstdc++: Document support for constexpr optional (P2231R1)
       libstdc++: Partially revert r11-9772-g6f8133689f4397 [PR105915]
+      libstdc++: Use type_identity_t for non-deducible std::atomic_xxx args
 
 Kewen Lin (1):
       testsuite: Skip pr105250.c for powerpc and s390 [PR105266]
@@ -172,6 +177,9 @@ Marek Polacek (4):
       c++: wrong error with constexpr COMPOUND_EXPR [PR105321]
       c++: enum in generic lambda at global scope [PR105398]
       c++: global-namespace-qualified var after class def [PR90107]
+
+Mark Mentovai (1):
+      libstdc++: Rename __null_terminated to avoid collision with Apple SDK
 
 Martin Jambor (1):
       ipa: Release body of clone_of when removing its last clone (PR 100413)
@@ -201,7 +209,7 @@ Pavel I. Kryukov (1):
 Qing Zhao (1):
       i386: Adjust -fzero-call-used-regs to always use XOR [PR101891]
 
-Richard Biener (13):
+Richard Biener (14):
       Update BASE-VER to 11.3.1
       ipa/105598 - testcase for PR105598
       middle-end/105140 - fix bogus recursion in fold_convertible_p
@@ -215,6 +223,7 @@ Richard Biener (13):
       tree-optimization/105431 - another overflow in powi handling
       rtl-optimization/105559 - avoid quadratic behavior in delete_insn_and_edges
       tree-optimization/105437 - BB vect with extern defs of throwing stmts
+      tree-optimization/105726 - adjust array bound heuristic
 
 Sebastian Pop (1):
       [AArch64] add barriers to ool __sync builtins
@@ -248,10 +257,24 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..89370411d1a 100644
+index a0587d18824..5d99a30b7e6 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,291 @@
+@@ -1,3 +1,305 @@
++2022-06-14  Vladimir N. Makarov  <vmakarov@redhat.com>
++
++	PR rtl-optimization/104637
++	* lra-assigns.c (lra_split_hard_reg_for): Split hard regs as many
++	as possible on one subpass.
++
++2022-06-14  H.J. Lu  <hjl.tools@gmail.com>
++
++	Backported from master:
++	2022-06-13  H.J. Lu  <hjl.tools@gmail.com>
++
++	* common/config/i386/cpuinfo.h (get_available_features): Require
++	AVX for F16C and VAES.
++
 +2022-06-08  Max Filippov  <jcmvbkbc@gmail.com>
 +
 +	Backported from master:
@@ -744,6 +767,21 @@ index d7c78d518bc..4e3e348513b 100644
    if (next_sibling_clone)
      next_sibling_clone->prev_sibling_clone = prev_sibling_clone;
    if (clones)
+diff --git a/gcc/common.opt b/gcc/common.opt
+index a75b44ee47e..4a3f09d9e1f 100644
+--- a/gcc/common.opt
++++ b/gcc/common.opt
+@@ -3446,6 +3446,10 @@ static-libgfortran
+ Driver
+ ; Documented for Fortran, but always accepted by driver.
+ 
++static-libphobos
++Driver
++; Documented for D, but always accepted by driver.
++
+ static-libstdc++
+ Driver
+ 
 diff --git a/gcc/common/config/i386/cpuinfo.h b/gcc/common/config/i386/cpuinfo.h
 index 58294b7d7ac..18ff71ac5ad 100644
 --- a/gcc/common/config/i386/cpuinfo.h
@@ -840,6 +878,18 @@ index c155f4883cf..7e6f9d08ea3 100644
  
  #define DEF4(B)  DEF0(B, 1), DEF0(B, 2), DEF0(B, 4), DEF0(B, 8), \
  		 { NULL, NULL, NULL, NULL }
+diff --git a/gcc/config/darwin.h b/gcc/config/darwin.h
+index 3206b70c7c2..d390635409d 100644
+--- a/gcc/config/darwin.h
++++ b/gcc/config/darwin.h
+@@ -445,6 +445,7 @@ extern GTY(()) int darwin_ms_struct;
+                      %:replace-outfile(-lobjc libobjc-gnu.a%s); \
+                     :%:replace-outfile(-lobjc -lobjc-gnu )}}\
+    %{static|static-libgcc|static-libgfortran:%:replace-outfile(-lgfortran libgfortran.a%s)}\
++   %{static|static-libgcc|static-libphobos:%:replace-outfile(-lgphobos libgphobos.a%s)}\
+    %{static|static-libgcc|static-libstdc++|static-libgfortran:%:replace-outfile(-lgomp libgomp.a%s)}\
+    %{static|static-libgcc|static-libstdc++:%:replace-outfile(-lstdc++ libstdc++.a%s)}\
+    %{force_cpusubtype_ALL:-arch %(darwin_arch)} \
 diff --git a/gcc/config/i386/avx512fintrin.h b/gcc/config/i386/avx512fintrin.h
 index 515ee0c1728..1ce6bade1b4 100644
 --- a/gcc/config/i386/avx512fintrin.h
@@ -6604,6 +6654,68 @@ index d447ce80174..baae5a0f1e4 100644
        if (expr == error_mark_node)
  	return error_mark_node;
      }
+diff --git a/gcc/d/d-spec.cc b/gcc/d/d-spec.cc
+index b12d28f1047..1304126a675 100644
+--- a/gcc/d/d-spec.cc
++++ b/gcc/d/d-spec.cc
+@@ -253,13 +253,23 @@ lang_specific_driver (cl_decoded_option **in_decoded_options,
+ 
+ 	case OPT_static_libstdc__:
+ 	  saw_static_libcxx = true;
++#ifdef HAVE_LD_STATIC_DYNAMIC
++	  /* Remove -static-libstdc++ from the command only if target supports
++	     LD_STATIC_DYNAMIC.  When not supported, it is left in so that a
++	     back-end target can use outfile substitution.  */
+ 	  args[i] |= SKIPOPT;
++#endif
+ 	  break;
+ 
+ 	case OPT_static_libphobos:
+ 	  if (phobos_library != PHOBOS_NOLINK)
+ 	    phobos_library = PHOBOS_STATIC;
++#ifdef HAVE_LD_STATIC_DYNAMIC
++	  /* Remove -static-libphobos from the command only if target supports
++	     LD_STATIC_DYNAMIC.  When not supported, it is left in so that a
++	     back-end target can use outfile substitution.  */
+ 	  args[i] |= SKIPOPT;
++#endif
+ 	  break;
+ 
+ 	case OPT_shared_libphobos:
+@@ -460,7 +470,7 @@ lang_specific_driver (cl_decoded_option **in_decoded_options,
+ #endif
+     }
+ 
+-  if (saw_libcxx || need_stdcxx)
++  if (saw_libcxx || saw_static_libcxx || need_stdcxx)
+     {
+ #ifdef HAVE_LD_STATIC_DYNAMIC
+       if (saw_static_libcxx && !static_link)
+@@ -468,12 +478,6 @@ lang_specific_driver (cl_decoded_option **in_decoded_options,
+ 	  generate_option (OPT_Wl_, LD_STATIC_OPTION, 1, CL_DRIVER,
+ 			   &new_decoded_options[j++]);
+ 	}
+-#else
+-      /* Push the -static-libstdc++ option back onto the command so that
+-	 a target without LD_STATIC_DYNAMIC can use outfile substitution.  */
+-      if (saw_static_libcxx && !static_link)
+-	generate_option (OPT_static_libstdc__, NULL, 1, CL_DRIVER,
+-			 &new_decoded_options[j++]);
+ #endif
+       if (saw_libcxx)
+ 	new_decoded_options[j++] = *saw_libcxx;
+diff --git a/gcc/d/typeinfo.cc b/gcc/d/typeinfo.cc
+index 9d6464deb07..a10d21e355e 100644
+--- a/gcc/d/typeinfo.cc
++++ b/gcc/d/typeinfo.cc
+@@ -179,6 +179,7 @@ make_internal_typeinfo (tinfo_kind tk, Identifier *ident, ...)
+ 
+   /* Create the TypeInfo type.  */
+   tree type = make_node (RECORD_TYPE);
++  TYPE_ARTIFICIAL (type) = 1;
+   finish_builtin_struct (type, ident->toChars (), fields, NULL_TREE);
+ 
+   tinfo_types[tk] = type;
 diff --git a/gcc/emit-rtl.c b/gcc/emit-rtl.c
 index 07e908624a0..0dc51220682 100644
 --- a/gcc/emit-rtl.c
@@ -6705,6 +6817,25 @@ index a5c391d077e..9b65b9cf474 100644
                              gfc_component *un, gfc_expr *init)
  {
    gfc_constructor *ctor;
+diff --git a/gcc/gcc.c b/gcc/gcc.c
+index 0af888c7d78..6b208f4680f 100644
+--- a/gcc/gcc.c
++++ b/gcc/gcc.c
+@@ -4487,10 +4487,12 @@ driver_handle_option (struct gcc_options *opts,
+     case OPT_static_libgcc:
+     case OPT_shared_libgcc:
+     case OPT_static_libgfortran:
++    case OPT_static_libphobos:
+     case OPT_static_libstdc__:
+       /* These are always valid, since gcc.c itself understands the
+-	 first two, gfortranspec.c understands -static-libgfortran and
+-	 g++spec.c understands -static-libstdc++ */
++	 first two, gfortranspec.c understands -static-libgfortran,
++	 d-spec.cc understands -static-libphobos, and g++spec.c
++	 understands -static-libstdc++ */
+       validated = true;
+       break;
+ 
 diff --git a/gcc/gimple-isel.cc b/gcc/gimple-isel.cc
 index 2c78a08d3f1..3690782eca4 100644
 --- a/gcc/gimple-isel.cc
@@ -6741,6 +6872,46 @@ index 2c78a08d3f1..3690782eca4 100644
    if (icode == CODE_FOR_nothing)
      {
        if (tcode == LT_EXPR
+diff --git a/gcc/gimple-ssa-warn-restrict.c b/gcc/gimple-ssa-warn-restrict.c
+index ad37f20afaa..cfaa2179bb6 100644
+--- a/gcc/gimple-ssa-warn-restrict.c
++++ b/gcc/gimple-ssa-warn-restrict.c
+@@ -514,7 +514,6 @@ builtin_memref::set_base_and_offset (tree expr)
+     {
+       tree memrefoff = fold_convert (ptrdiff_type_node, TREE_OPERAND (base, 1));
+       extend_offset_range (memrefoff);
+-      base = TREE_OPERAND (base, 0);
+ 
+       if (refoff != HOST_WIDE_INT_MIN
+       	  && TREE_CODE (expr) == COMPONENT_REF)
+@@ -527,14 +526,19 @@ builtin_memref::set_base_and_offset (tree expr)
+ 	     REFOFF is set to s[1].b - (char*)s.  */
+ 	  offset_int off = tree_to_shwi (memrefoff);
+ 	  refoff += off;
+-      	}
+-
+-      if (!integer_zerop (memrefoff))
+-	/* A non-zero offset into an array of struct with flexible array
+-	   members implies that the array is empty because there is no
+-	   way to initialize such a member when it belongs to an array.
+-	   This must be some sort of a bug.  */
+-	refsize = 0;
++
++	  if (!integer_zerop (memrefoff)
++	      && !COMPLETE_TYPE_P (TREE_TYPE (expr))
++	      && multiple_of_p (sizetype, memrefoff,
++				TYPE_SIZE_UNIT (TREE_TYPE (base))))
++	    /* A non-zero offset into an array of struct with flexible array
++	       members implies that the array is empty because there is no
++	       way to initialize such a member when it belongs to an array.
++	       This must be some sort of a bug.  */
++	    refsize = 0;
++	}
++
++      base = TREE_OPERAND (base, 0);
+     }
+ 
+   if (TREE_CODE (ref) == COMPONENT_REF)
 diff --git a/gcc/ipa-modref-tree.h b/gcc/ipa-modref-tree.h
 index d36c28c0470..9927fc0982b 100644
 --- a/gcc/ipa-modref-tree.h
@@ -6847,10 +7018,22 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..291c52e847a 100644
+index 5fc23605244..49f0e78d87d 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,481 @@
+@@ -1,3 +1,493 @@
++2022-06-14  Jakub Jelinek  <jakub@redhat.com>
++
++	PR rtl-optimization/104637
++	* gcc.target/i386/pr104637.c: Don't run on ia32.  Add -Wno-div-by-zero
++	to dg-options.
++	(foo): Remove extraneous initializer.
++
++2022-06-14  Vladimir N. Makarov  <vmakarov@redhat.com>
++
++	PR rtl-optimization/104637
++	* gcc.target/i386/pr104637.c: New.
++
 +2022-06-08  Jason Merrill  <jason@redhat.com>
 +
 +	PR c++/105852
@@ -7332,6 +7515,30 @@ index 5fc23605244..291c52e847a 100644
  2022-04-21  Release Manager
  
  	* GCC 11.3.0 released.
+diff --git a/gcc/testsuite/c-c++-common/cpp/va-opt-10.c b/gcc/testsuite/c-c++-common/cpp/va-opt-10.c
+new file mode 100644
+index 00000000000..f810b429dd6
+--- /dev/null
++++ b/gcc/testsuite/c-c++-common/cpp/va-opt-10.c
+@@ -0,0 +1,18 @@
++/* PR preprocessor/105732 */
++/* { dg-do compile } */
++/* { dg-options "-std=gnu99" { target c } } */
++/* { dg-options "-std=c++20" { target c++ } } */
++
++#define m1(p1, p2, p3) p3
++#define m2(p1, ...) 1##__VA_OPT__(foo)
++#define m3(...) m1(1, 2, m2)
++#define m4(p1, ...) 1 __VA_OPT__()
++#define m5(...) m1(1, 2, m4)
++#if m3(,)(,)
++#else
++#error
++#endif
++#if m5(,)(,)
++#else
++#error
++#endif
 diff --git a/gcc/testsuite/g++.dg/cpp0x/constexpr-105321.C b/gcc/testsuite/g++.dg/cpp0x/constexpr-105321.C
 new file mode 100644
 index 00000000000..adb6830ff22
@@ -8133,6 +8340,28 @@ index 00000000000..b3b440debef
 +    int factor = Non_Folded_Value();
 +    Width = 32 << factor;
 +    Height = 24 << factor;
++}
+diff --git a/gcc/testsuite/g++.dg/warn/Warray-bounds-27.C b/gcc/testsuite/g++.dg/warn/Warray-bounds-27.C
+new file mode 100644
+index 00000000000..06ce089c4b0
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/warn/Warray-bounds-27.C
+@@ -0,0 +1,16 @@
++// PR105726
++// { dg-do compile }
++// { dg-require-effective-target c++11 }
++// { dg-options "-O2 -Warray-bounds" }
++
++#include <array>
++#include <cstring>
++
++struct X {
++    char pad[4];
++    std::array<char, 1> mField;
++};
++
++void encode(char* aBuffer, const X& aMessage) {
++    strncpy(aBuffer, aMessage.mField.data(), 1); // { dg-bogus "bounds" }
 +}
 diff --git a/gcc/testsuite/g++.target/i386/mv31.C b/gcc/testsuite/g++.target/i386/mv31.C
 new file mode 100644
@@ -9558,6 +9787,16 @@ index 1d6cd9503e2..ed6f32ea041 100644
  #else
  # define FN_TYPE(fn)
  # define FN_SIZE(fn)
+diff --git a/gcc/testsuite/gdc.dg/Wpadded.d b/gcc/testsuite/gdc.dg/Wpadded.d
+new file mode 100644
+index 00000000000..8a9cca7e225
+--- /dev/null
++++ b/gcc/testsuite/gdc.dg/Wpadded.d
+@@ -0,0 +1,4 @@
++// { dg-do compile }
++// { dg-options "-Wpadded" }
++
++class EmptyClass { }
 diff --git a/gcc/testsuite/gfortran.dg/dec_union_12.f90 b/gcc/testsuite/gfortran.dg/dec_union_12.f90
 new file mode 100755
 index 00000000000..26671230b05
@@ -9967,6 +10206,21 @@ index 42748771192..688089b04d2 100644
        else
  	gcc_assert (value >= 0);
  
+diff --git a/libcpp/expr.c b/libcpp/expr.c
+index dd5611dce0e..57db654ed31 100644
+--- a/libcpp/expr.c
++++ b/libcpp/expr.c
+@@ -1370,6 +1370,10 @@ _cpp_parse_expr (cpp_reader *pfile, bool is_if)
+ 	    op.op = CPP_UMINUS;
+ 	  break;
+ 
++	case CPP_PADDING:
++	  lex_count--;
++	  continue;
++
+ 	default:
+ 	  if ((int) op.op <= (int) CPP_EQ || (int) op.op >= (int) CPP_PLUS_EQ)
+ 	    SYNTAX_ERROR2_AT (op.loc,
 diff --git a/libgcc/ChangeLog b/libgcc/ChangeLog
 index ceaa3e21b19..a1c6e184a50 100644
 --- a/libgcc/ChangeLog
@@ -10194,6 +10448,18 @@ index 592b3afcb71..68ddd1d5410 100644
  {
      _Unwind_Exception_Class exception_class;
      _Unwind_Exception_Cleanup_Fn exception_cleanup;
+diff --git a/libphobos/testsuite/testsuite_flags.in b/libphobos/testsuite/testsuite_flags.in
+index bafd5ad4502..8e2f1eefd5b 100755
+--- a/libphobos/testsuite/testsuite_flags.in
++++ b/libphobos/testsuite/testsuite_flags.in
+@@ -46,6 +46,7 @@ case ${query} in
+     --gdcldflags)
+       GDCLDFLAGS="-B${BUILD_DIR}/src
+                   -B${BUILD_DIR}/libdruntime/gcc
++                  -B${BUILD_DIR}/src/.libs
+                   -L${BUILD_DIR}/src/.libs"
+       echo ${GDCLDFLAGS}
+       ;;
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
 index 85e04c45288..7ecd86e8e6f 100644
 --- a/libstdc++-v3/ChangeLog
@@ -11825,9 +12091,22 @@ index beeb4ef4c8a..4247bb116c3 100644
      inline _GLIBCXX17_CONSTEXPR bool
      operator!=(const move_iterator<_Iterator>& __x,
 diff --git a/libstdc++-v3/include/experimental/bits/fs_path.h b/libstdc++-v3/include/experimental/bits/fs_path.h
-index 1cc1b3bf686..a2bc931c696 100644
+index 1cc1b3bf686..830b51e45a0 100644
 --- a/libstdc++-v3/include/experimental/bits/fs_path.h
 +++ b/libstdc++-v3/include/experimental/bits/fs_path.h
+@@ -140,10 +140,10 @@ namespace __detail
+     inline _Source
+     _S_range_begin(_Source __begin) { return __begin; }
+ 
+-  struct __null_terminated { };
++  struct __nul_terminated { };
+ 
+   template<typename _Source>
+-    inline __null_terminated
++    inline __nul_terminated
+     _S_range_end(_Source) { return {}; }
+ 
+   template<typename _CharT, typename _Traits, typename _Alloc>
 @@ -425,8 +425,8 @@ namespace __detail
      class iterator;
      typedef iterator const_iterator;
@@ -11839,6 +12118,38 @@ index 1cc1b3bf686..a2bc931c696 100644
  
      /// @cond undocumented
      // Create a basic_string by reading until a null character.
+@@ -473,11 +473,11 @@ namespace __detail
+       struct _Cvt;
+ 
+     static string_type
+-    _S_convert(value_type* __src, __detail::__null_terminated)
++    _S_convert(value_type* __src, __detail::__nul_terminated)
+     { return string_type(__src); }
+ 
+     static string_type
+-    _S_convert(const value_type* __src, __detail::__null_terminated)
++    _S_convert(const value_type* __src, __detail::__nul_terminated)
+     { return string_type(__src); }
+ 
+     template<typename _Iter>
+@@ -491,7 +491,7 @@ namespace __detail
+ 
+     template<typename _InputIterator>
+       static string_type
+-      _S_convert(_InputIterator __src, __detail::__null_terminated)
++      _S_convert(_InputIterator __src, __detail::__nul_terminated)
+       {
+ 	auto __s = _S_string_from_iter(__src);
+ 	return _S_convert(__s.c_str(), __s.c_str() + __s.size());
+@@ -518,7 +518,7 @@ namespace __detail
+ 
+     template<typename _InputIterator>
+       static string_type
+-      _S_convert_loc(_InputIterator __src, __detail::__null_terminated,
++      _S_convert_loc(_InputIterator __src, __detail::__nul_terminated,
+ 		     const std::locale& __loc)
+       {
+ 	const std::string __s = _S_string_from_iter(__src);
 diff --git a/libstdc++-v3/include/experimental/bits/simd.h b/libstdc++-v3/include/experimental/bits/simd.h
 index 421c923e7b0..0e58ae01b17 100644
 --- a/libstdc++-v3/include/experimental/bits/simd.h
@@ -11923,7 +12234,7 @@ index 6ce070ae775..07eb137fb80 100644
        return *this;
      }
 diff --git a/libstdc++-v3/include/std/atomic b/libstdc++-v3/include/std/atomic
-index fdffacc35df..0d4e3a7396e 100644
+index fdffacc35df..22faf82edde 100644
 --- a/libstdc++-v3/include/std/atomic
 +++ b/libstdc++-v3/include/std/atomic
 @@ -172,11 +172,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
@@ -12004,7 +12315,20 @@ index fdffacc35df..0d4e3a7396e 100644
      { _M_b.notify_all(); }
  #endif // __cpp_lib_atomic_wait
        __pointer_type
-@@ -1421,12 +1429,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+@@ -1228,9 +1236,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+   atomic_flag_clear(volatile atomic_flag* __a) noexcept
+   { atomic_flag_clear_explicit(__a, memory_order_seq_cst); }
+ 
+-
++  // _GLIBCXX_RESOLVE_LIB_DEFECTS
++  // 3220. P0558 broke conforming C++14 uses of atomic shared_ptr
+   template<typename _Tp>
+-    using __atomic_val_t = typename atomic<_Tp>::value_type;
++    using __atomic_val_t = __type_identity_t<_Tp>;
+   template<typename _Tp>
+     using __atomic_diff_t = typename atomic<_Tp>::difference_type;
+ 
+@@ -1421,12 +1430,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
  
    template<typename _Tp>
      inline void
@@ -13690,6 +14014,25 @@ index 7eab17b12e0..dffdaef7afd 100644
  // { dg-do link { target c++11 } }
  
  // Copyright (C) 2009-2021 Free Software Foundation, Inc.
+diff --git a/libstdc++-v3/testsuite/29_atomics/atomic/lwg3220.cc b/libstdc++-v3/testsuite/29_atomics/atomic/lwg3220.cc
+new file mode 100644
+index 00000000000..d2ff6cf9fe3
+--- /dev/null
++++ b/libstdc++-v3/testsuite/29_atomics/atomic/lwg3220.cc
+@@ -0,0 +1,13 @@
++// { dg-do compile { target c++11 } }
++// DR 3220. P0558 broke conforming C++14 uses of atomic shared_ptr
++
++#include <atomic>
++#include <memory>
++
++struct Abstract { virtual void test() = 0; };
++struct Concrete : Abstract { virtual void test() override {} };
++
++int main() {
++  std::shared_ptr<Abstract> ptr;
++  std::atomic_store<Abstract>(&ptr, std::make_shared<Concrete>());
++}
 diff --git a/libstdc++-v3/testsuite/29_atomics/atomic/wait_notify/102994.cc b/libstdc++-v3/testsuite/29_atomics/atomic/wait_notify/102994.cc
 index 9d92ff954f1..f572ce7ef11 100644
 --- a/libstdc++-v3/testsuite/29_atomics/atomic/wait_notify/102994.cc
