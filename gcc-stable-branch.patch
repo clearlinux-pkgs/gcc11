@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (54):
+GCC Administrator (55):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -225,6 +226,9 @@ Richard Biener (14):
       tree-optimization/105437 - BB vect with extern defs of throwing stmts
       tree-optimization/105726 - adjust array bound heuristic
 
+Richard Earnshaw (1):
+      arm: big-endian issue in gen_cpymem_ldrd_strd [PR105981]
+
 Sebastian Pop (1):
       [AArch64] add barriers to ool __sync builtins
 
@@ -257,10 +261,29 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..5d99a30b7e6 100644
+index a0587d18824..2cb14677f5d 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,305 @@
+@@ -1,3 +1,324 @@
++2022-06-15  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2021-12-01  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	* common.opt (static-libphobos): Add option.
++	* config/darwin.h (LINK_SPEC): Substitute -lgphobos with libgphobos.a
++	when linking statically.
++	* gcc.c (driver_handle_option): Set -static-libphobos as always valid.
++
++2022-06-15  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2022-05-27  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/105726
++	* gimple-ssa-warn-restrict.c (builtin_memref::set_base_and_offset):
++	Constrain array-of-flexarray case more.
++
 +2022-06-14  Vladimir N. Makarov  <vmakarov@redhat.com>
 +
 +	PR rtl-optimization/104637
@@ -878,6 +901,60 @@ index c155f4883cf..7e6f9d08ea3 100644
  
  #define DEF4(B)  DEF0(B, 1), DEF0(B, 2), DEF0(B, 4), DEF0(B, 8), \
  		 { NULL, NULL, NULL, NULL }
+diff --git a/gcc/config/arm/arm.c b/gcc/config/arm/arm.c
+index 9e549285d0c..730b1fe0071 100644
+--- a/gcc/config/arm/arm.c
++++ b/gcc/config/arm/arm.c
+@@ -15546,13 +15546,21 @@ gen_cpymem_ldrd_strd (rtx *operands)
+     {
+       len -= 8;
+       reg0 = gen_reg_rtx (DImode);
+-      rtx low_reg = NULL_RTX;
+-      rtx hi_reg = NULL_RTX;
++      rtx first_reg = NULL_RTX;
++      rtx second_reg = NULL_RTX;
+ 
+       if (!src_aligned || !dst_aligned)
+ 	{
+-	  low_reg = gen_lowpart (SImode, reg0);
+-	  hi_reg = gen_highpart_mode (SImode, DImode, reg0);
++	  if (BYTES_BIG_ENDIAN)
++	    {
++	      second_reg = gen_lowpart (SImode, reg0);
++	      first_reg = gen_highpart_mode (SImode, DImode, reg0);
++	    }
++	  else
++	    {
++	      first_reg = gen_lowpart (SImode, reg0);
++	      second_reg = gen_highpart_mode (SImode, DImode, reg0);
++	    }
+ 	}
+       if (MEM_ALIGN (src) >= 2 * BITS_PER_WORD)
+ 	emit_move_insn (reg0, src);
+@@ -15560,9 +15568,9 @@ gen_cpymem_ldrd_strd (rtx *operands)
+ 	emit_insn (gen_unaligned_loaddi (reg0, src));
+       else
+ 	{
+-	  emit_insn (gen_unaligned_loadsi (low_reg, src));
++	  emit_insn (gen_unaligned_loadsi (first_reg, src));
+ 	  src = next_consecutive_mem (src);
+-	  emit_insn (gen_unaligned_loadsi (hi_reg, src));
++	  emit_insn (gen_unaligned_loadsi (second_reg, src));
+ 	}
+ 
+       if (MEM_ALIGN (dst) >= 2 * BITS_PER_WORD)
+@@ -15571,9 +15579,9 @@ gen_cpymem_ldrd_strd (rtx *operands)
+ 	emit_insn (gen_unaligned_storedi (dst, reg0));
+       else
+ 	{
+-	  emit_insn (gen_unaligned_storesi (dst, low_reg));
++	  emit_insn (gen_unaligned_storesi (dst, first_reg));
+ 	  dst = next_consecutive_mem (dst);
+-	  emit_insn (gen_unaligned_storesi (dst, hi_reg));
++	  emit_insn (gen_unaligned_storesi (dst, second_reg));
+ 	}
+ 
+       src = next_consecutive_mem (src);
 diff --git a/gcc/config/darwin.h b/gcc/config/darwin.h
 index 3206b70c7c2..d390635409d 100644
 --- a/gcc/config/darwin.h
@@ -6654,6 +6731,30 @@ index d447ce80174..baae5a0f1e4 100644
        if (expr == error_mark_node)
  	return error_mark_node;
      }
+diff --git a/gcc/d/ChangeLog b/gcc/d/ChangeLog
+index 6021ffdbf78..f62b939f6b9 100644
+--- a/gcc/d/ChangeLog
++++ b/gcc/d/ChangeLog
+@@ -1,3 +1,19 @@
++2022-06-15  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2022-06-15  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	* typeinfo.cc (make_internal_typeinfo): Set TYPE_ARTIFICIAL.
++
++2022-06-15  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2021-12-01  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	* d-spec.cc (lang_specific_driver): Set SKIPOPT on -static-libstdc++
++	and -static-libphobos only when target supports LD_STATIC_DYNAMIC.
++	Remove generate_option to re-add -static-libstdc++.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/gcc/d/d-spec.cc b/gcc/d/d-spec.cc
 index b12d28f1047..1304126a675 100644
 --- a/gcc/d/d-spec.cc
@@ -7018,10 +7119,33 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..49f0e78d87d 100644
+index 5fc23605244..be6705cb4d7 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,493 @@
+@@ -1,3 +1,516 @@
++2022-06-15  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-05-29  Jakub Jelinek  <jakub@redhat.com>
++
++	PR preprocessor/105732
++	* c-c++-common/cpp/va-opt-10.c: New test.
++
++2022-06-15  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2022-06-15  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	* gdc.dg/Wpadded.d: New test.
++
++2022-06-15  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2022-05-27  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/105726
++	* g++.dg/warn/Warray-bounds-27.C: New testcase.
++
 +2022-06-14  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR rtl-optimization/104637
@@ -10206,6 +10330,23 @@ index 42748771192..688089b04d2 100644
        else
  	gcc_assert (value >= 0);
  
+diff --git a/libcpp/ChangeLog b/libcpp/ChangeLog
+index 3f63896333e..c89d9c8bdcd 100644
+--- a/libcpp/ChangeLog
++++ b/libcpp/ChangeLog
+@@ -1,3 +1,12 @@
++2022-06-15  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-05-29  Jakub Jelinek  <jakub@redhat.com>
++
++	PR preprocessor/105732
++	* expr.c (_cpp_parse_expr): Handle CPP_PADDING by just another
++	token.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/libcpp/expr.c b/libcpp/expr.c
 index dd5611dce0e..57db654ed31 100644
 --- a/libcpp/expr.c
@@ -10366,10 +10507,18 @@ index 88d2d84d100..6ec6df79392 100644
  LSE_OBJS := $(O0) $(O1)
  
 diff --git a/libphobos/ChangeLog b/libphobos/ChangeLog
-index acd0b312ef2..35950df774d 100644
+index acd0b312ef2..f3d44133243 100644
 --- a/libphobos/ChangeLog
 +++ b/libphobos/ChangeLog
-@@ -1,3 +1,19 @@
+@@ -1,3 +1,27 @@
++2022-06-15  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2021-12-01  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	* testsuite/testsuite_flags.in: Add libphobos library directory as
++	search path to --gdcldflags.
++
 +2022-04-26  Iain Buclaw  <ibuclaw@gdcproject.org>
 +
 +	Backported from master:
@@ -10461,10 +10610,28 @@ index bafd5ad4502..8e2f1eefd5b 100755
        echo ${GDCLDFLAGS}
        ;;
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..7ecd86e8e6f 100644
+index 85e04c45288..80e9bc2e885 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,446 @@
+@@ -1,3 +1,464 @@
++2022-06-15  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-06-13  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/std/atomic (__atomic_val_t): Use __type_identity_t
++	instead of atomic<T>::value_type, as per LWG 3220.
++	* testsuite/29_atomics/atomic/lwg3220.cc: New test.
++
++2022-06-15  Mark Mentovai  <mark@mentovai.com>
++
++	Backported from master:
++	2022-06-13  Mark Mentovai  <mark@mentovai.com>
++
++	* include/experimental/bits/fs_path.h (__detail::__null_terminated):
++	Rename to __nul_terminated to avoid colliding with a macro in
++	Apple's SDK.
++
 +2022-06-10  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	PR libstdc++/105915
