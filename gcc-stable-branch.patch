@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (59):
+GCC Administrator (60):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -239,8 +240,10 @@ Richard Earnshaw (1):
 Sebastian Pop (1):
       [AArch64] add barriers to ool __sync builtins
 
-Segher Boessenkool (1):
+Segher Boessenkool (3):
       rs6000/testsuite: Skip pr105140.c
+      rs6000: Improve .machine
+      rs6000: Do not use rs6000_cpu for .machine ppc and ppc64 (PR104829)
 
 Sergei Trofimovich (1):
       gcov-profile: Allow negative counts of indirect calls [PR105282]
@@ -253,6 +256,10 @@ Tamar Christina (1):
 
 Thomas W Rodgers (1):
       libstdc++: Make atomic notify_one and notify_all non-const
+
+Uros Bizjak (2):
+      i386: Fix assert in ix86_function_arg [PR105970]
+      alpha: Introduce target specific store_data_bypass_p function [PR105209]
 
 Vladimir N. Makarov (1):
       [PR104637] LRA: Split hard regs as many as possible on one subpass
@@ -268,10 +275,76 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..2a8dbe04c3c 100644
+index a0587d18824..e8bd7e1a39f 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,334 @@
+@@ -1,3 +1,400 @@
++2022-06-20  Uros Bizjak  <ubizjak@gmail.com>
++
++	Backported from master:
++	2022-06-17  Uroš Bizjak  <ubizjak@gmail.com>
++
++	PR target/105209
++	* config/alpha/alpha-protos.h (alpha_store_data_bypass_p): New.
++	* config/alpha/alpha.c (alpha_store_data_bypass_p): New function.
++	(alpha_store_data_bypass_p_1): Ditto.
++	* config/alpha/ev4.md: Use alpha_store_data_bypass_p instead
++	of generic store_data_bypass_p.
++	(ev4_ist_c): Remove insn reservation.
++
++2022-06-20  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	Backported from master:
++	2022-03-12  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	PR target/104829
++	* config/rs6000/rs6000.c (rs6000_machine_from_flags): Don't output
++	"ppc" and "ppc64" based on rs6000_cpu.
++
++2022-06-20  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	Backported from master:
++	2022-03-04  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	* config/rs6000/rs6000.c (rs6000_machine_from_flags): Restructure a
++	bit.  Handle most older CPUs.
++
++2022-06-20  Uros Bizjak  <ubizjak@gmail.com>
++
++	Backported from master:
++	2022-06-17  Uroš Bizjak  <ubizjak@gmail.com>
++
++	PR target/105970
++	* config/i386/i386.c (ix86_function_arg): Assert that
++	the mode of pointer argumet is equal to ptr_mode, not Pmode.
++
++2022-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-06-18  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/105998
++	* varasm.c (narrowing_initializer_constant_valid_p): Check
++	SCALAR_INT_MODE_P instead of INTEGRAL_MODE_P, also break on
++	! INTEGRAL_TYPE_P and do the same check also on op{0,1}'s type.
++
++2022-06-20  Jan Hubicka  <jh@suse.cz>
++
++	Backported from master:
++	2022-06-14  Jan Hubicka  <hubicka@ucw.cz>
++
++	PR ipa/105739
++	* ipa-prop.c (ipa_load_from_parm_agg): Punt on volatile loads.
++
++2022-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-05-27  Jakub Jelinek  <jakub@redhat.com>
++
++	PR sanitizer/105729
++	* fold-const.c (fold_unary_loc): Don't optimize (X &) ((Y *) z + w)
++	to (X &) z + w if -fsanitize=null during GENERIC folding.
++
 +2022-06-16  Richard Earnshaw  <rearnsha@arm.com>
 +
 +	Backported from master:
@@ -918,6 +991,146 @@ index c155f4883cf..7e6f9d08ea3 100644
  
  #define DEF4(B)  DEF0(B, 1), DEF0(B, 2), DEF0(B, 4), DEF0(B, 8), \
  		 { NULL, NULL, NULL, NULL }
+diff --git a/gcc/config/alpha/alpha-protos.h b/gcc/config/alpha/alpha-protos.h
+index b2fa3d2fc11..13faf53fb05 100644
+--- a/gcc/config/alpha/alpha-protos.h
++++ b/gcc/config/alpha/alpha-protos.h
+@@ -73,6 +73,8 @@ extern void alpha_end_function (FILE *, const char *, tree);
+ 
+ extern bool alpha_find_lo_sum_using_gp (rtx);
+ 
++extern int alpha_store_data_bypass_p (rtx_insn *, rtx_insn *);
++
+ #ifdef REAL_VALUE_TYPE
+ extern int check_float_value (machine_mode, REAL_VALUE_TYPE *, int);
+ #endif
+diff --git a/gcc/config/alpha/alpha.c b/gcc/config/alpha/alpha.c
+index 335f1db5335..9c05ce5a804 100644
+--- a/gcc/config/alpha/alpha.c
++++ b/gcc/config/alpha/alpha.c
+@@ -7564,6 +7564,75 @@ alpha_does_function_need_gp (void)
+   return 0;
+ }
+ 
++/* Helper function for alpha_store_data_bypass_p, handle just a single SET
++   IN_SET.  */
++
++static bool
++alpha_store_data_bypass_p_1 (rtx_insn *out_insn, rtx in_set)
++{
++  if (!MEM_P (SET_DEST (in_set)))
++    return false;
++
++  rtx out_set = single_set (out_insn);
++  if (out_set)
++    return !reg_mentioned_p (SET_DEST (out_set), SET_DEST (in_set));
++
++  rtx out_pat = PATTERN (out_insn);
++  if (GET_CODE (out_pat) != PARALLEL)
++    return false;
++
++  for (int i = 0; i < XVECLEN (out_pat, 0); i++)
++    {
++      rtx out_exp = XVECEXP (out_pat, 0, i);
++
++      if (GET_CODE (out_exp) == CLOBBER || GET_CODE (out_exp) == USE
++	  || GET_CODE (out_exp) == TRAP_IF)
++	continue;
++
++      gcc_assert (GET_CODE (out_exp) == SET);
++
++      if (reg_mentioned_p (SET_DEST (out_exp), SET_DEST (in_set)))
++	return false;
++    }
++
++  return true;
++}
++
++/* True if the dependency between OUT_INSN and IN_INSN is on the store
++   data not the address operand(s) of the store.  IN_INSN and OUT_INSN
++   must be either a single_set or a PARALLEL with SETs inside.
++
++   This alpha-specific version of store_data_bypass_p ignores TRAP_IF
++   that would result in assertion failure (and internal compiler error)
++   in the generic store_data_bypass_p function.  */
++
++int
++alpha_store_data_bypass_p (rtx_insn *out_insn, rtx_insn *in_insn)
++{
++  rtx in_set = single_set (in_insn);
++  if (in_set)
++    return alpha_store_data_bypass_p_1 (out_insn, in_set);
++
++  rtx in_pat = PATTERN (in_insn);
++  if (GET_CODE (in_pat) != PARALLEL)
++    return false;
++
++  for (int i = 0; i < XVECLEN (in_pat, 0); i++)
++    {
++      rtx in_exp = XVECEXP (in_pat, 0, i);
++
++      if (GET_CODE (in_exp) == CLOBBER || GET_CODE (in_exp) == USE
++	  || GET_CODE (in_exp) == TRAP_IF)
++	continue;
++
++      gcc_assert (GET_CODE (in_exp) == SET);
++
++      if (!alpha_store_data_bypass_p_1 (out_insn, in_exp))
++	return false;
++    }
++
++  return true;
++}
+ 
+ /* Helper function to set RTX_FRAME_RELATED_P on instructions, including
+    sequences.  */
+diff --git a/gcc/config/alpha/ev4.md b/gcc/config/alpha/ev4.md
+index c22d0ba2903..2f70f1a6ffc 100644
+--- a/gcc/config/alpha/ev4.md
++++ b/gcc/config/alpha/ev4.md
+@@ -44,14 +44,7 @@
+ ; Stores can issue before the data (but not address) is ready.
+ (define_insn_reservation "ev4_ist" 1
+   (and (eq_attr "tune" "ev4")
+-       (eq_attr "type" "ist"))
+-  "ev4_ib1+ev4_abox")
+-
+-; ??? Separate from ev4_ist because store_data_bypass_p can't handle
+-; the patterns with multiple sets, like store-conditional.
+-(define_insn_reservation "ev4_ist_c" 1
+-  (and (eq_attr "tune" "ev4")
+-       (eq_attr "type" "st_c"))
++       (eq_attr "type" "ist,st_c"))
+   "ev4_ib1+ev4_abox")
+ 
+ (define_insn_reservation "ev4_fst" 1
+@@ -110,7 +103,7 @@
+ (define_bypass 0
+   "ev4_iaddlog,ev4_shiftcm,ev4_icmp"
+   "ev4_ist"
+-  "store_data_bypass_p")
++  "alpha_store_data_bypass_p")
+ 
+ ; Multiplies use a non-pipelined imul unit.  Also, "no [ebox] insn can
+ ; be issued exactly three cycles before an integer multiply completes".
+@@ -121,7 +114,7 @@
+ 	    (eq_attr "opsize" "si")))
+   "ev4_ib0+ev4_imul,ev4_imul*18,ev4_ebox")
+ 
+-(define_bypass 20 "ev4_imulsi" "ev4_ist" "store_data_bypass_p")
++(define_bypass 20 "ev4_imulsi" "ev4_ist" "alpha_store_data_bypass_p")
+ 
+ (define_insn_reservation "ev4_imuldi" 23
+   (and (eq_attr "tune" "ev4")
+@@ -129,7 +122,7 @@
+ 	    (eq_attr "opsize" "!si")))
+   "ev4_ib0+ev4_imul,ev4_imul*20,ev4_ebox")
+ 
+-(define_bypass 22 "ev4_imuldi" "ev4_ist" "store_data_bypass_p")
++(define_bypass 22 "ev4_imuldi" "ev4_ist" "alpha_store_data_bypass_p")
+ 
+ ; Most FP insns have a 6 cycle latency, but with a 4 cycle bypass back in.
+ (define_insn_reservation "ev4_fpop" 6
 diff --git a/gcc/config/arm/arm.c b/gcc/config/arm/arm.c
 index 9e549285d0c..730b1fe0071 100644
 --- a/gcc/config/arm/arm.c
@@ -1077,9 +1290,18 @@ index 515ee0c1728..1ce6bade1b4 100644
  
  #define _mm_mask_scalef_sd(W, U, A, B) \
 diff --git a/gcc/config/i386/i386.c b/gcc/config/i386/i386.c
-index 48300af9a09..a90f64e9d39 100644
+index 48300af9a09..1623bbcbd2d 100644
 --- a/gcc/config/i386/i386.c
 +++ b/gcc/config/i386/i386.c
+@@ -3249,7 +3249,7 @@ ix86_function_arg (cumulative_args_t cum_v, const function_arg_info &arg)
+       if (POINTER_TYPE_P (arg.type))
+ 	{
+ 	  /* This is the pointer argument.  */
+-	  gcc_assert (TYPE_MODE (arg.type) == Pmode);
++	  gcc_assert (TYPE_MODE (arg.type) == ptr_mode);
+ 	  /* It is at -WORD(AP) in the current frame in interrupt and
+ 	     exception handlers.  */
+ 	  reg = plus_constant (Pmode, arg_pointer_rtx, -UNITS_PER_WORD);
 @@ -3607,7 +3607,7 @@ zero_call_used_regno_mode (const unsigned int regno)
    else if (MASK_REGNO_P (regno))
      return HImode;
@@ -4217,10 +4439,103 @@ index eab712fdfa6..4d7e14f312a 100644
  
  extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
 diff --git a/gcc/config/rs6000/rs6000.c b/gcc/config/rs6000/rs6000.c
-index 0421dc7adb3..83748d47657 100644
+index 0421dc7adb3..8c89b45922f 100644
 --- a/gcc/config/rs6000/rs6000.c
 +++ b/gcc/config/rs6000/rs6000.c
-@@ -25074,6 +25074,11 @@ rs6000_can_inline_p (tree caller, tree callee)
+@@ -5742,33 +5742,68 @@ const char *rs6000_machine;
+ const char *
+ rs6000_machine_from_flags (void)
+ {
+-  /* For some CPUs, the machine cannot be determined by ISA flags.  We have to
+-     check them first.  */
+-  switch (rs6000_cpu)
+-    {
+-    case PROCESSOR_PPC8540:
+-    case PROCESSOR_PPC8548:
+-      return "e500";
+-
+-    case PROCESSOR_PPCE300C2:
+-    case PROCESSOR_PPCE300C3:
+-      return "e300";
++  /* e300 and e500 */
++  if (rs6000_cpu == PROCESSOR_PPCE300C2 || rs6000_cpu == PROCESSOR_PPCE300C3)
++    return "e300";
++  if (rs6000_cpu == PROCESSOR_PPC8540 || rs6000_cpu == PROCESSOR_PPC8548)
++    return "e500";
++  if (rs6000_cpu == PROCESSOR_PPCE500MC)
++    return "e500mc";
++  if (rs6000_cpu == PROCESSOR_PPCE500MC64)
++    return "e500mc64";
++  if (rs6000_cpu == PROCESSOR_PPCE5500)
++    return "e5500";
++  if (rs6000_cpu == PROCESSOR_PPCE6500)
++    return "e6500";
++
++  /* 400 series */
++  if (rs6000_cpu == PROCESSOR_PPC403)
++    return "\"403\"";
++  if (rs6000_cpu == PROCESSOR_PPC405)
++    return "\"405\"";
++  if (rs6000_cpu == PROCESSOR_PPC440)
++    return "\"440\"";
++  if (rs6000_cpu == PROCESSOR_PPC476)
++    return "\"476\"";
++
++  /* A2 */
++  if (rs6000_cpu == PROCESSOR_PPCA2)
++    return "a2";
++
++  /* Cell BE */
++  if (rs6000_cpu == PROCESSOR_CELL)
++    return "cell";
++
++  /* Titan */
++  if (rs6000_cpu == PROCESSOR_TITAN)
++    return "titan";
++
++  /* 500 series and 800 series */
++  if (rs6000_cpu == PROCESSOR_MPCCORE)
++    return "\"821\"";
+ 
+-    case PROCESSOR_PPCE500MC:
+-      return "e500mc";
+-
+-    case PROCESSOR_PPCE500MC64:
+-      return "e500mc64";
+-
+-    case PROCESSOR_PPCE5500:
+-      return "e5500";
++#if 0
++  /* This (and ppc64 below) are disabled here (for now at least) because
++     PROCESSOR_POWERPC, PROCESSOR_POWERPC64, and PROCESSOR_COMMON
++     are #define'd as some of these.  Untangling that is a job for later.  */
++
++  /* 600 series and 700 series, "classic" */
++  if (rs6000_cpu == PROCESSOR_PPC601 || rs6000_cpu == PROCESSOR_PPC603
++      || rs6000_cpu == PROCESSOR_PPC604 || rs6000_cpu == PROCESSOR_PPC604e
++      || rs6000_cpu == PROCESSOR_PPC750)
++    return "ppc";
++#endif
+ 
+-    case PROCESSOR_PPCE6500:
+-      return "e6500";
++  /* Classic with AltiVec, "G4" */
++  if (rs6000_cpu == PROCESSOR_PPC7400 || rs6000_cpu == PROCESSOR_PPC7450)
++    return "\"7450\"";
+ 
+-    default:
+-      break;
+-    }
++#if 0
++  /* The older 64-bit CPUs */
++  if (rs6000_cpu == PROCESSOR_PPC620 || rs6000_cpu == PROCESSOR_PPC630
++      || rs6000_cpu == PROCESSOR_RS64A)
++    return "ppc64";
++#endif
+ 
+   HOST_WIDE_INT flags = rs6000_isa_flags;
+ 
+@@ -25074,6 +25109,11 @@ rs6000_can_inline_p (tree caller, tree callee)
        else
  	caller_isa = rs6000_isa_flags;
  
@@ -7168,10 +7483,49 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..be6705cb4d7 100644
+index 5fc23605244..e530fe0bbf6 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,516 @@
+@@ -1,3 +1,555 @@
++2022-06-20  Uros Bizjak  <ubizjak@gmail.com>
++
++	Backported from master:
++	2022-06-17  Uroš Bizjak  <ubizjak@gmail.com>
++
++	PR target/105209
++	* gcc.target/alpha/pr105209.c: New test.
++
++2022-06-20  Uros Bizjak  <ubizjak@gmail.com>
++
++	Backported from master:
++	2022-06-17  Uroš Bizjak  <ubizjak@gmail.com>
++
++	PR target/105970
++	* gcc.target/i386/pr105970.c: New test.
++
++2022-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-06-18  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/105998
++	* c-c++-common/pr105998.c: New test.
++
++2022-06-20  Jan Hubicka  <jh@suse.cz>
++
++	Backported from master:
++	2022-06-14  Jan Hubicka  <hubicka@ucw.cz>
++
++	* gcc.dg/ipa/pr105739.c: New test.
++
++2022-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-05-27  Jakub Jelinek  <jakub@redhat.com>
++
++	PR sanitizer/105729
++	* g++.dg/ubsan/pr105729.C: New test.
++
 +2022-06-15  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -9330,6 +9684,38 @@ index acace4c8f2a..b8e56223b02 100644
  
 -/* { dg-final { scan-assembler-times "bl.*__aarch64_cas2_acq_rel" 1 } } */
 +/* { dg-final { scan-assembler-times "bl.*__aarch64_cas2_sync" 1 } } */
+diff --git a/gcc/testsuite/gcc.target/alpha/pr105209.c b/gcc/testsuite/gcc.target/alpha/pr105209.c
+new file mode 100644
+index 00000000000..b89be96dc1d
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/alpha/pr105209.c
+@@ -0,0 +1,26 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -ftrapv -mcpu=ev4" } */
++
++typedef struct tnode_t {
++        struct tnode_t *tn_left, *tn_right;
++        int v_quad;
++} tnode_t;
++
++int constant_addr(const tnode_t *, long *);
++int constant_addr(const tnode_t *tn, long *offsp)
++{
++        long offs1 = 0, offs2 = 0;
++
++        if (tn->v_quad > 0) {
++                offs1 = tn->v_quad;
++                return 0;
++        } else if (tn->v_quad > -1) {
++                offs2 = tn->tn_right->v_quad;
++                if (!constant_addr(tn->tn_left, &offs1))
++                        return 0;
++        } else {
++                return 0;
++        }
++        *offsp = offs1 + offs2;
++        return 1;
++}
 diff --git a/gcc/testsuite/gcc.target/arm/pr105312.c b/gcc/testsuite/gcc.target/arm/pr105312.c
 new file mode 100644
 index 00000000000..a02831bcbcf
@@ -9398,6 +9784,18 @@ index 00000000000..36e8b6ed97d
 +  f = (F) { v[0], v[1], v[2], v[3] };
 +  i = (char) (__imag__ c + i);
 +}
+diff --git a/gcc/testsuite/gcc.target/i386/pr105970.c b/gcc/testsuite/gcc.target/i386/pr105970.c
+new file mode 100644
+index 00000000000..326486faebf
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/i386/pr105970.c
+@@ -0,0 +1,6 @@
++/* PR target/105970 */
++/* { dg-do compile { target { ! ia32 } } } */
++/* { dg-require-effective-target maybe_x32 } */
++/* { dg-options "-mx32 -mgeneral-regs-only -maddress-mode=long" } */
++
++#include "../../gcc.dg/torture/pr68037-1.c"
 diff --git a/gcc/testsuite/gcc.target/i386/sse-14.c b/gcc/testsuite/gcc.target/i386/sse-14.c
 index 4ce0ffffaf3..4c728f230f7 100644
 --- a/gcc/testsuite/gcc.target/i386/sse-14.c
