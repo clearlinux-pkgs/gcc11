@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (62):
+GCC Administrator (63):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -115,7 +116,7 @@ Jan Hubicka (2):
       Fix modref_tree::remap_params
       Fix ipa-cp wrt volatile loads
 
-Jason Merrill (16):
+Jason Merrill (17):
       c++: rodata and defaulted ctor [PR104142]
       c++: low -faligned-new [PR102071]
       c++: local function versioning [PR104669]
@@ -132,6 +133,7 @@ Jason Merrill (16):
       c++: constexpr empty aggr [PR105795]
       c++: redeclared hidden friend [PR105761]
       c++: redeclared hidden friend take 2 [PR105852]
+      c++: anon union designated init [PR105925]
 
 Jeff Law (1):
       [committed] Fix more problems with new linker warnings
@@ -280,10 +282,19 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..e8bd7e1a39f 100644
+index a0587d18824..4a8cef24eec 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,400 @@
+@@ -1,3 +1,409 @@
++2022-06-23  Martin Liska  <mliska@suse.cz>
++
++	Backported from master:
++	2022-06-23  Martin Liska  <mliska@suse.cz>
++
++	PR ipa/105600
++	* ipa-icf.c (sem_item_optimizer::filter_removed_items):
++	Skip variables with body_removed.
++
 +2022-06-20  Uros Bizjak  <ubizjak@gmail.com>
 +
 +	Backported from master:
@@ -6530,7 +6541,7 @@ index a2d8c1c77b3..fded2527e5e 100644
  extern void print_template_statistics		(void);
  bool template_template_parameter_p		(const_tree);
 diff --git a/gcc/cp/decl.c b/gcc/cp/decl.c
-index bffbd004167..679ea9c8be7 100644
+index bffbd004167..052378a2e75 100644
 --- a/gcc/cp/decl.c
 +++ b/gcc/cp/decl.c
 @@ -1059,11 +1059,14 @@ decls_match (tree newdecl, tree olddecl, bool record_versions /* = true */)
@@ -6591,7 +6602,24 @@ index bffbd004167..679ea9c8be7 100644
  	}
  
        if (DECL_DECLARES_FUNCTION_P (newdecl))
-@@ -7167,12 +7179,19 @@ check_initializer (tree decl, tree init, int flags, vec<tree, va_gc> **cleanups)
+@@ -6283,6 +6295,8 @@ reshape_init_array_1 (tree elt_type, tree max_index, reshape_iter *d,
+       tree elt_init;
+       constructor_elt *old_cur = d->cur;
+ 
++      if (d->cur->index)
++	CONSTRUCTOR_IS_DESIGNATED_INIT (new_init) = true;
+       check_array_designated_initializer (d->cur, index);
+       elt_init = reshape_init_r (elt_type, d,
+ 				 /*first_initializer_p=*/NULL_TREE,
+@@ -6435,6 +6449,7 @@ reshape_init_class (tree type, reshape_iter *d, bool first_initializer_p,
+ 	    }
+ 	  else if (TREE_CODE (d->cur->index) == IDENTIFIER_NODE)
+ 	    {
++	      CONSTRUCTOR_IS_DESIGNATED_INIT (new_init) = true;
+ 	      field = get_class_binding (type, d->cur->index);
+ 	      direct_desig = true;
+ 	    }
+@@ -7167,12 +7182,19 @@ check_initializer (tree decl, tree init, int flags, vec<tree, va_gc> **cleanups)
  	      /* Declared constexpr or constinit, but no suitable initializer;
  		 massage init appropriately so we can pass it into
  		 store_init_value for the error.  */
@@ -6616,7 +6644,7 @@ index bffbd004167..679ea9c8be7 100644
  		    TARGET_EXPR_DIRECT_INIT_P (init) = true;
  		}
  	      init_code = NULL_TREE;
-@@ -7227,6 +7246,10 @@ check_initializer (tree decl, tree init, int flags, vec<tree, va_gc> **cleanups)
+@@ -7227,6 +7249,10 @@ check_initializer (tree decl, tree init, int flags, vec<tree, va_gc> **cleanups)
    if (init && init != error_mark_node)
      init_code = build2 (INIT_EXPR, type, decl, init);
  
@@ -6627,7 +6655,7 @@ index bffbd004167..679ea9c8be7 100644
    if (init_code)
      {
        /* We might have set these in cp_finish_decl.  */
-@@ -8300,7 +8323,7 @@ cp_finish_decl (tree decl, tree init, bool init_const_expr_p,
+@@ -8300,7 +8326,7 @@ cp_finish_decl (tree decl, tree init, bool init_const_expr_p,
      {
        unsigned i; tree t;
        FOR_EACH_VEC_ELT (*cleanups, i, t)
@@ -8626,6 +8654,34 @@ index 00000000000..f500af3f616
 +int main() {
 +  if (requires { A(); })
 +    ;
++}
+diff --git a/gcc/testsuite/g++.dg/cpp2a/desig26.C b/gcc/testsuite/g++.dg/cpp2a/desig26.C
+new file mode 100644
+index 00000000000..443fa3d089d
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp2a/desig26.C
+@@ -0,0 +1,22 @@
++// PR c++/105925
++// { dg-do compile { target c++20 } }
++
++struct V
++{
++    int i;
++    double d;
++};
++
++struct X
++{
++    union
++    {
++        int x;
++        V y;
++    };
++};
++
++X foo()
++{
++    return {.y = {0, 0.0}};
 +}
 diff --git a/gcc/testsuite/g++.dg/cpp2a/lambda-pack-init7.C b/gcc/testsuite/g++.dg/cpp2a/lambda-pack-init7.C
 new file mode 100644
