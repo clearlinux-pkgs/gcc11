@@ -16,7 +16,10 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (63):
+GCC Administrator (66):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -93,11 +96,12 @@ Harald Anlauf (2):
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
 
-Iain Buclaw (4):
+Iain Buclaw (5):
       libphobos: Don't call free on the TLS array in the emutls destroy function.
       libphobos: Give _Unwind_Exception an alignment that best resembles __attribute__((aligned))
       darwin, d: Support outfile substitution for libphobos
       d: Set TYPE_ARTIFICIAL on internal TypeInfo types
+      tilegx: Fix infinite loop in gen-mul-tables generator
 
 Jakub Jelinek (11):
       emit-rtl: Fix -fcompare-debug bug with label references in debug insns [PR105203]
@@ -282,10 +286,18 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..4a8cef24eec 100644
+index a0587d18824..82f9dc27f39 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,409 @@
+@@ -1,3 +1,417 @@
++2022-06-24  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2022-06-24  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	* config/tilepro/gen-mul-tables.cc (tilegx_emit): Adjust loop
++	condition to avoid overflow.
++
 +2022-06-23  Martin Liska  <mliska@suse.cz>
 +
 +	Backported from master:
@@ -6193,6 +6205,24 @@ index 7c8a1f18c39..e4fe2f065c9 100644
  
    /* Force target-independent code to convert constant permutations on other
       modes down to V8QI.  Rely on this to avoid the complexity of the byte
+diff --git a/gcc/config/tilepro/gen-mul-tables.cc b/gcc/config/tilepro/gen-mul-tables.cc
+index 03c0cfd5a8b..227bf086e8c 100644
+--- a/gcc/config/tilepro/gen-mul-tables.cc
++++ b/gcc/config/tilepro/gen-mul-tables.cc
+@@ -1190,11 +1190,11 @@ tilegx_emit (long long multiplier, int num_ops)
+     long long next_pow10;
+ 
+     while (((j * 10) < abs_multiplier)
+-	   && (j < (INTMAX_MAX / 10)))
++	   && (j < (j * 10)))
+       j = j * 10;
+ 
+     prev_pow10 = j;
+-    next_pow10 = (j > (INTMAX_MAX / 10)) ? 0 : j * 10;
++    next_pow10 = j * 10;
+ 
+     if ((abs_multiplier - prev_pow10 <= 100)
+ 	|| (next_pow10
 diff --git a/gcc/config/xtensa/xtensa.md b/gcc/config/xtensa/xtensa.md
 index cdf22f14b94..fabc313197a 100644
 --- a/gcc/config/xtensa/xtensa.md
@@ -6218,10 +6248,17 @@ index cdf22f14b94..fabc313197a 100644
  	}
  
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..6eb46f22f68 100644
+index 85c8fdd38cd..1f8ed813c94 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,190 @@
+@@ -1,3 +1,197 @@
++2022-06-24  Jason Merrill  <jason@redhat.com>
++
++	PR c++/105925
++	* decl.c (reshape_init_array_1): Set
++	CONSTRUCTOR_IS_DESIGNATED_INIT here.
++	(reshape_init_class): And here.
++
 +2022-06-08  Jason Merrill  <jason@redhat.com>
 +
 +	PR c++/105852
@@ -7535,10 +7572,15 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..e530fe0bbf6 100644
+index 5fc23605244..390bf7047fc 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,555 @@
+@@ -1,3 +1,560 @@
++2022-06-24  Jason Merrill  <jason@redhat.com>
++
++	PR c++/105925
++	* g++.dg/cpp2a/desig26.C: New test.
++
 +2022-06-20  Uros Bizjak  <ubizjak@gmail.com>
 +
 +	Backported from master:
