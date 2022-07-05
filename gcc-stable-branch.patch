@@ -16,7 +16,15 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (66):
+GCC Administrator (74):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -89,19 +97,25 @@ H.J. Lu (3):
       x86: Add .note.GNU-stack section only for Linux
       x86: Require AVX for F16C and VAES
 
-Harald Anlauf (2):
+Harald Anlauf (7):
       Fortran: improve error recovery on invalid array section
       Fortran: fix error recovery on invalid array section
+      Fortran: fix checking of arguments to UNPACK when MASK is a variable [PR105813]
+      Fortran: fix simplification of INDEX(str1,str2) [PR105691]
+      Fortran: handle explicit-shape specs with constant bounds [PR105954]
+      Fortran: improve error recovery for EXTENDS_TYPE_OF() [PR106121]
+      Fortran: error recovery on invalid CLASS(), PARAMETER declarations [PR105243]
 
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
 
-Iain Buclaw (5):
+Iain Buclaw (6):
       libphobos: Don't call free on the TLS array in the emutls destroy function.
       libphobos: Give _Unwind_Exception an alignment that best resembles __attribute__((aligned))
       darwin, d: Support outfile substitution for libphobos
       d: Set TYPE_ARTIFICIAL on internal TypeInfo types
       tilegx: Fix infinite loop in gen-mul-tables generator
+      d: Fix error: aggregate value used where floating point was expected
 
 Jakub Jelinek (11):
       emit-rtl: Fix -fcompare-debug bug with label references in debug insns [PR105203]
@@ -120,7 +134,7 @@ Jan Hubicka (2):
       Fix modref_tree::remap_params
       Fix ipa-cp wrt volatile loads
 
-Jason Merrill (17):
+Jason Merrill (18):
       c++: rodata and defaulted ctor [PR104142]
       c++: low -faligned-new [PR102071]
       c++: local function versioning [PR104669]
@@ -138,6 +152,7 @@ Jason Merrill (17):
       c++: redeclared hidden friend [PR105761]
       c++: redeclared hidden friend take 2 [PR105852]
       c++: anon union designated init [PR105925]
+      c++: dependent generic lambda template-id [PR106024]
 
 Jeff Law (1):
       [committed] Fix more problems with new linker warnings
@@ -248,6 +263,9 @@ Richard Biener (14):
 Richard Earnshaw (1):
       arm: big-endian issue in gen_cpymem_ldrd_strd [PR105981]
 
+Richard Sandiford (1):
+      rtl-ssa: Fix prev/next_def confusion [PR104869]
+
 Sebastian Pop (1):
       [AArch64] add barriers to ool __sync builtins
 
@@ -286,10 +304,46 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..82f9dc27f39 100644
+index a0587d18824..68feff899db 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,417 @@
+@@ -1,3 +1,453 @@
++2022-07-04  Richard Sandiford  <richard.sandiford@arm.com>
++
++	Backported from master:
++	2022-03-21  Richard Sandiford  <richard.sandiford@arm.com>
++
++	PR middle-end/104869
++	* rtl-ssa/accesses.h (clobber_group::prev_clobber): Declare.
++	(clobber_group::next_clobber): Likewise.
++	(def_lookup::prev_def): Rename to...
++	(def_lookup::last_def_of_prev_group): ...this.
++	(def_lookup::next_def): Rename to...
++	(def_lookup::first_def_of_next_group): ...this.
++	(def_lookup::matching_or_prev_def): Rename to...
++	(def_lookup::matching_set_or_last_def_of_prev_group): ...this.
++	(def_lookup::matching_or_next_def): Rename to...
++	(def_lookup::matching_set_or_first_def_of_next_group): ...this.
++	(def_lookup::prev_def): New function, taking the lookup insn as
++	argument.
++	(def_lookup::next_def): Likewise.
++	* rtl-ssa/member-fns.inl (def_lookup::prev_def): Rename to...
++	(def_lookup::last_def_of_prev_group): ...this.
++	(def_lookup::next_def): Rename to...
++	(def_lookup::first_def_of_next_group): ...this.
++	(def_lookup::matching_or_prev_def): Rename to...
++	(def_lookup::matching_set_or_last_def_of_prev_group): ...this.
++	(def_lookup::matching_or_next_def): Rename to...
++	(def_lookup::matching_set_or_first_def_of_next_group): ...this.
++	* rtl-ssa/movement.h (restrict_movement_for_dead_range): Update after
++	above renaming.
++	* rtl-ssa/accesses.cc (clobber_group::prev_clobber): New function.
++	(clobber_group::next_clobber): Likewise.
++	(def_lookup::prev_def): Likewise.
++	(def_lookup::next_def): Likewise.
++	(function_info::make_use_available): Pass the lookup insn to
++	def_lookup::prev_def and def_lookup::next_def.
++
 +2022-06-24  Iain Buclaw  <ibuclaw@gdcproject.org>
 +
 +	Backported from master:
@@ -6248,10 +6302,15 @@ index cdf22f14b94..fabc313197a 100644
  	}
  
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..1f8ed813c94 100644
+index 85c8fdd38cd..fc3a70020ab 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,197 @@
+@@ -1,3 +1,202 @@
++2022-07-01  Jason Merrill  <jason@redhat.com>
++
++	PR c++/106024
++	* parser.c (cp_parser_lookup_name): Don't look in dependent lambda.
++
 +2022-06-24  Jason Merrill  <jason@redhat.com>
 +
 +	PR c++/105925
@@ -6856,7 +6915,7 @@ index b97b1bcb2f8..6cb926c044a 100644
  			       || !DECL_TEMPLATE_INFO (decl));
  
 diff --git a/gcc/cp/parser.c b/gcc/cp/parser.c
-index 90d119eaa28..b53cc6d360e 100644
+index 90d119eaa28..94b10922b90 100644
 --- a/gcc/cp/parser.c
 +++ b/gcc/cp/parser.c
 @@ -17728,7 +17728,7 @@ cp_parser_template_name (cp_parser* parser,
@@ -6954,6 +7013,20 @@ index 90d119eaa28..b53cc6d360e 100644
          want_semicolon = false;
          break;
  
+@@ -29419,9 +29434,12 @@ cp_parser_lookup_name (cp_parser *parser, tree name,
+     }
+   else if (object_type)
+     {
++      bool dep = dependent_scope_p (object_type);
++
+       /* Look up the name in the scope of the OBJECT_TYPE, unless the
+ 	 OBJECT_TYPE is not a class.  */
+-      if (CLASS_TYPE_P (object_type))
++      if (CLASS_TYPE_P (object_type)
++	  && !(dep && LAMBDA_TYPE_P (object_type)))
+ 	/* If the OBJECT_TYPE is a template specialization, it may
+ 	   be instantiated during name lookup.  In that case, errors
+ 	   may be issued.  Even if we rollback the current tentative
 diff --git a/gcc/cp/pt.c b/gcc/cp/pt.c
 index 318d42d800d..588c46504b4 100644
 --- a/gcc/cp/pt.c
@@ -7134,10 +7207,27 @@ index d447ce80174..baae5a0f1e4 100644
  	return error_mark_node;
      }
 diff --git a/gcc/d/ChangeLog b/gcc/d/ChangeLog
-index 6021ffdbf78..f62b939f6b9 100644
+index 6021ffdbf78..3877893c950 100644
 --- a/gcc/d/ChangeLog
 +++ b/gcc/d/ChangeLog
-@@ -1,3 +1,19 @@
+@@ -1,3 +1,36 @@
++2022-07-04  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2022-06-29  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	PR d/106139
++	* d-convert.cc (convert_expr): Handle casting from array to vector.
++	(convert_for_rvalue): Rewrite vector to array casts of the same
++	element type into a constructor.
++	(convert_for_assignment): Return calling convert_for_rvalue.
++	* dmd/expressionsem.c (ExpressionSemanticVisitor::visit): Run semantic
++	on vector expression after lowering.
++	* expr.cc (ExprVisitor::visit (VectorExp *)): Handle generating a
++	vector expression from a static array.
++	* toir.cc (IRVisitor::visit (ReturnStatement *)): Call
++	convert_for_rvalue on return value.
++
 +2022-06-15  Iain Buclaw  <ibuclaw@gdcproject.org>
 +
 +	Backported from master:
@@ -7157,6 +7247,75 @@ index 6021ffdbf78..f62b939f6b9 100644
  2022-04-21  Release Manager
  
  	* GCC 11.3.0 released.
+diff --git a/gcc/d/d-convert.cc b/gcc/d/d-convert.cc
+index d43485dca77..cd6551e64f3 100644
+--- a/gcc/d/d-convert.cc
++++ b/gcc/d/d-convert.cc
+@@ -502,6 +502,15 @@ convert_expr (tree exp, Type *etype, Type *totype)
+ 	  gcc_assert (totype->size () == etype->size ());
+ 	  result = build_vconvert (build_ctype (totype), exp);
+ 	}
++      else if (tbtype->ty == Tvector && tbtype->size () == ebtype->size ())
++	{
++	  /* Allow casting from array to vector as if its an unaligned load.  */
++	  tree type = build_ctype (totype);
++	  tree unaligned_type = build_variant_type_copy (type);
++	  SET_TYPE_ALIGN (unaligned_type, 1 * BITS_PER_UNIT);
++	  TYPE_USER_ALIGN (unaligned_type) = 1;
++	  result = convert (type, build_vconvert (unaligned_type, exp));
++	}
+       else
+ 	{
+ 	  error ("cannot cast expression of type %qs to type %qs",
+@@ -636,6 +645,39 @@ convert_for_rvalue (tree expr, Type *etype, Type *totype)
+       break;
+     }
+ 
++  if (tbtype->ty == Tsarray
++      && ebtype->ty == Tsarray
++      && tbtype->nextOf ()->ty == ebtype->nextOf ()->ty
++      && INDIRECT_REF_P (expr)
++      && CONVERT_EXPR_CODE_P (TREE_CODE (TREE_OPERAND (expr, 0)))
++      && TREE_CODE (TREE_OPERAND (TREE_OPERAND (expr, 0), 0)) == ADDR_EXPR)
++    {
++      /* If expression is a vector that was casted to an array either by
++	 explicit type cast or by taking the vector's `.array' value, strip the
++	 reinterpret cast and build a constructor instead.  */
++      tree ptr = TREE_OPERAND (TREE_OPERAND (expr, 0), 0);
++
++      if (VECTOR_TYPE_P (TREE_TYPE (TREE_TYPE (ptr))))
++	{
++	  /* Rewrite: `*(Array *)&vector'
++		into: `{ vector[0], vector[1], ... }'  */
++	  tree array = d_save_expr (TREE_OPERAND (ptr, 0));
++	  array = build1 (VIEW_CONVERT_EXPR, TREE_TYPE (expr), array);
++
++	  uinteger_t dim = tbtype->isTypeSArray ()->dim->toUInteger ();
++	  vec <constructor_elt, va_gc> *elms = NULL;
++	  for (uinteger_t i = 0; i < dim; i++)
++	    {
++	      tree index = size_int (i);
++	      tree value = build4 (ARRAY_REF, TREE_TYPE (TREE_TYPE (array)),
++				   array, index, NULL_TREE, NULL_TREE);
++	      CONSTRUCTOR_APPEND_ELT (elms, index, value);
++	    }
++
++	  return build_constructor (build_ctype (totype), elms);
++	}
++    }
++
+   return result ? result : convert_expr (expr, etype, totype);
+ }
+ 
+@@ -696,7 +738,7 @@ convert_for_assignment (tree expr, Type *etype, Type *totype)
+       return expr;
+     }
+ 
+-  return convert_expr (expr, etype, totype);
++  return convert_for_rvalue (expr, etype, totype);
+ }
+ 
+ /* Return a TREE representation of EXPR converted to represent
 diff --git a/gcc/d/d-spec.cc b/gcc/d/d-spec.cc
 index b12d28f1047..1304126a675 100644
 --- a/gcc/d/d-spec.cc
@@ -7207,6 +7366,67 @@ index b12d28f1047..1304126a675 100644
  #endif
        if (saw_libcxx)
  	new_decoded_options[j++] = *saw_libcxx;
+diff --git a/gcc/d/dmd/expressionsem.c b/gcc/d/dmd/expressionsem.c
+index 5ae5fe6a717..fe90039d6f0 100644
+--- a/gcc/d/dmd/expressionsem.c
++++ b/gcc/d/dmd/expressionsem.c
+@@ -6330,6 +6330,7 @@ public:
+         if (tob->ty == Tvector && t1b->ty != Tvector)
+         {
+             result = new VectorExp(exp->loc, exp->e1, exp->to);
++            result = expressionSemantic(result, sc);
+             return;
+         }
+ 
+diff --git a/gcc/d/expr.cc b/gcc/d/expr.cc
+index 85269c6b2be..eb5feffef6a 100644
+--- a/gcc/d/expr.cc
++++ b/gcc/d/expr.cc
+@@ -3034,14 +3034,13 @@ public:
+ 
+   void visit (VectorExp *e)
+   {
+-    tree type = build_ctype (e->type);
+-
+     /* First handle array literal expressions.  */
+     if (e->e1->op == TOKarrayliteral)
+       {
+ 	ArrayLiteralExp *ale = e->e1->isArrayLiteralExp ();
+ 	vec <constructor_elt, va_gc> *elms = NULL;
+ 	bool constant_p = true;
++	tree type = build_ctype (e->type);
+ 
+ 	vec_safe_reserve (elms, ale->elements->length);
+ 	for (size_t i = 0; i < ale->elements->length; i++)
+@@ -3061,9 +3060,16 @@ public:
+ 	else
+ 	  this->result_ = build_constructor (type, elms);
+       }
++    else if (e->e1->type->toBasetype ()->ty == Tsarray)
++      {
++	/* Build a vector representation from a static array.  */
++	this->result_ = convert_expr (build_expr (e->e1, this->constp_),
++				      e->e1->type, e->type);
++      }
+     else
+       {
+ 	/* Build constructor from single value.  */
++	tree type = build_ctype (e->type);
+ 	tree value = d_convert (TREE_TYPE (type),
+ 				build_expr (e->e1, this->constp_, true));
+ 	this->result_ = build_vector_from_val (type, value);
+diff --git a/gcc/d/toir.cc b/gcc/d/toir.cc
+index eaee6f7e803..460edc15143 100644
+--- a/gcc/d/toir.cc
++++ b/gcc/d/toir.cc
+@@ -1090,6 +1090,7 @@ public:
+ 	    /* Generate: (<retval> = expr, return <retval>);  */
+ 	    tree expr = build_expr_dtor (s->exp);
+ 	    tree init = stabilize_expr (&expr);
++	    expr = convert_for_rvalue (expr, s->exp->type, type);
+ 	    expr = build_assign (INIT_EXPR, this->func_->shidden, expr);
+ 	    add_stmt (compound_expr (init, expr));
+ 	  }
 diff --git a/gcc/d/typeinfo.cc b/gcc/d/typeinfo.cc
 index 9d6464deb07..a10d21e355e 100644
 --- a/gcc/d/typeinfo.cc
@@ -7273,10 +7493,64 @@ index 70c5b3886ef..8ce775753f3 100644
  	  return fold_build_pointer_plus_loc (loc, arg00, arg01);
  	}
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..93de92023d7 100644
+index ee1c7bb4b31..00ed00373bf 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,30 @@
+@@ -1,3 +1,84 @@
++2022-07-03  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-06-30  Harald Anlauf  <anlauf@gmx.de>
++		    Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/103137
++	PR fortran/103138
++	PR fortran/103693
++	PR fortran/105243
++	* decl.c (gfc_match_data_decl): Reject CLASS entity declaration
++	when it is given the PARAMETER attribute.
++
++2022-07-03  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-06-29  Harald Anlauf  <anlauf@gmx.de>
++		    Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/106121
++	* simplify.c (gfc_simplify_extends_type_of): Do not attempt to
++	simplify when one of the arguments is a CLASS variable that was
++	not properly declared.
++
++2022-07-01  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-06-26  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/105954
++	* decl.c (variable_decl): Adjust upper bounds for explicit-shape
++	specs with constant bound expressions to ensure non-negative
++	extents.
++
++2022-07-01  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-06-26  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/105691
++	* simplify.c (gfc_simplify_index): Replace old simplification
++	code by the equivalent of the runtime library implementation.  Use
++	HOST_WIDE_INT instead of int for string index, length variables.
++
++2022-07-01  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-06-24  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/105813
++	* check.c (gfc_check_unpack): Try to simplify MASK argument to
++	UNPACK so that checking of the VECTOR argument can work when MASK
++	is a variable.
++
 +2022-05-16  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -7307,6 +7581,57 @@ index ee1c7bb4b31..93de92023d7 100644
  2022-04-21  Release Manager
  
  	* GCC 11.3.0 released.
+diff --git a/gcc/fortran/check.c b/gcc/fortran/check.c
+index 1add9436dce..4e2736fef1e 100644
+--- a/gcc/fortran/check.c
++++ b/gcc/fortran/check.c
+@@ -6342,6 +6342,8 @@ gfc_check_unpack (gfc_expr *vector, gfc_expr *mask, gfc_expr *field)
+   if (!same_type_check (vector, 0, field, 2))
+     return false;
+ 
++  gfc_simplify_expr (mask, 0);
++
+   if (mask->expr_type == EXPR_ARRAY
+       && gfc_array_size (vector, &vector_size))
+     {
+diff --git a/gcc/fortran/decl.c b/gcc/fortran/decl.c
+index 602ad3e59bd..c25b53f9772 100644
+--- a/gcc/fortran/decl.c
++++ b/gcc/fortran/decl.c
+@@ -2696,6 +2696,18 @@ variable_decl (int elem)
+ 		  else
+ 		    gfc_free_expr (n);
+ 		}
++	      /* For an explicit-shape spec with constant bounds, ensure
++		 that the effective upper bound is not lower than the
++		 respective lower bound minus one.  Otherwise adjust it so
++		 that the extent is trivially derived to be zero.  */
++	      if (as->lower[i]->expr_type == EXPR_CONSTANT
++		  && as->upper[i]->expr_type == EXPR_CONSTANT
++		  && as->lower[i]->ts.type == BT_INTEGER
++		  && as->upper[i]->ts.type == BT_INTEGER
++		  && mpz_cmp (as->upper[i]->value.integer,
++			      as->lower[i]->value.integer) < 0)
++		mpz_sub_ui (as->upper[i]->value.integer,
++			    as->lower[i]->value.integer, 1);
+ 	    }
+ 	}
+     }
+@@ -6169,6 +6181,14 @@ gfc_match_data_decl (void)
+       goto cleanup;
+     }
+ 
++  /* F2018:C708.  */
++  if (current_ts.type == BT_CLASS && current_attr.flavor == FL_PARAMETER)
++    {
++      gfc_error ("CLASS entity at %C cannot have the PARAMETER attribute");
++      m = MATCH_ERROR;
++      goto cleanup;
++    }
++
+   if (current_ts.type == BT_CLASS
+ 	&& current_ts.u.derived->attr.unlimited_polymorphic)
+     goto ok;
 diff --git a/gcc/fortran/expr.c b/gcc/fortran/expr.c
 index edacd974a21..6f27b4bf440 100644
 --- a/gcc/fortran/expr.c
@@ -7322,6 +7647,180 @@ index edacd974a21..6f27b4bf440 100644
  	    {
  	      t = false;
  	      goto cleanup;
+diff --git a/gcc/fortran/simplify.c b/gcc/fortran/simplify.c
+index 3599e1b3194..85ea1311c7e 100644
+--- a/gcc/fortran/simplify.c
++++ b/gcc/fortran/simplify.c
+@@ -3092,6 +3092,10 @@ gfc_simplify_extends_type_of (gfc_expr *a, gfc_expr *mold)
+   if (UNLIMITED_POLY (a) || UNLIMITED_POLY (mold))
+     return NULL;
+ 
++  if ((a->ts.type == BT_CLASS && !gfc_expr_attr (a).class_ok)
++      || (mold->ts.type == BT_CLASS && !gfc_expr_attr (mold).class_ok))
++    return NULL;
++
+   /* Return .false. if the dynamic type can never be an extension.  */
+   if ((a->ts.type == BT_CLASS && mold->ts.type == BT_CLASS
+        && !gfc_type_is_extension_of
+@@ -3502,17 +3506,15 @@ gfc_expr *
+ gfc_simplify_index (gfc_expr *x, gfc_expr *y, gfc_expr *b, gfc_expr *kind)
+ {
+   gfc_expr *result;
+-  int back, len, lensub;
+-  int i, j, k, count, index = 0, start;
++  bool back;
++  HOST_WIDE_INT len, lensub, start, last, i, index = 0;
++  int k, delta;
+ 
+   if (x->expr_type != EXPR_CONSTANT || y->expr_type != EXPR_CONSTANT
+       || ( b != NULL && b->expr_type !=  EXPR_CONSTANT))
+     return NULL;
+ 
+-  if (b != NULL && b->value.logical != 0)
+-    back = 1;
+-  else
+-    back = 0;
++  back = (b != NULL && b->value.logical != 0);
+ 
+   k = get_kind (BT_INTEGER, kind, "INDEX", gfc_default_integer_kind);
+   if (k == -1)
+@@ -3529,111 +3531,40 @@ gfc_simplify_index (gfc_expr *x, gfc_expr *y, gfc_expr *b, gfc_expr *kind)
+       return result;
+     }
+ 
+-  if (back == 0)
++  if (lensub == 0)
+     {
+-      if (lensub == 0)
+-	{
+-	  mpz_set_si (result->value.integer, 1);
+-	  return result;
+-	}
+-      else if (lensub == 1)
+-	{
+-	  for (i = 0; i < len; i++)
+-	    {
+-	      for (j = 0; j < lensub; j++)
+-		{
+-		  if (y->value.character.string[j]
+-		      == x->value.character.string[i])
+-		    {
+-		      index = i + 1;
+-		      goto done;
+-		    }
+-		}
+-	    }
+-	}
++      if (back)
++	index = len + 1;
+       else
+-	{
+-	  for (i = 0; i < len; i++)
+-	    {
+-	      for (j = 0; j < lensub; j++)
+-		{
+-		  if (y->value.character.string[j]
+-		      == x->value.character.string[i])
+-		    {
+-		      start = i;
+-		      count = 0;
+-
+-		      for (k = 0; k < lensub; k++)
+-			{
+-			  if (y->value.character.string[k]
+-			      == x->value.character.string[k + start])
+-			    count++;
+-			}
+-
+-		      if (count == lensub)
+-			{
+-			  index = start + 1;
+-			  goto done;
+-			}
+-		    }
+-		}
+-	    }
+-	}
++	index = 1;
++      goto done;
++    }
+ 
++  if (!back)
++    {
++      last = len + 1 - lensub;
++      start = 0;
++      delta = 1;
+     }
+   else
+     {
+-      if (lensub == 0)
+-	{
+-	  mpz_set_si (result->value.integer, len + 1);
+-	  return result;
+-	}
+-      else if (lensub == 1)
++      last = -1;
++      start = len - lensub;
++      delta = -1;
++    }
++
++  for (; start != last; start += delta)
++    {
++      for (i = 0; i < lensub; i++)
+ 	{
+-	  for (i = 0; i < len; i++)
+-	    {
+-	      for (j = 0; j < lensub; j++)
+-		{
+-		  if (y->value.character.string[j]
+-		      == x->value.character.string[len - i])
+-		    {
+-		      index = len - i + 1;
+-		      goto done;
+-		    }
+-		}
+-	    }
++	  if (x->value.character.string[start + i]
++	      != y->value.character.string[i])
++	    break;
+ 	}
+-      else
++      if (i == lensub)
+ 	{
+-	  for (i = 0; i < len; i++)
+-	    {
+-	      for (j = 0; j < lensub; j++)
+-		{
+-		  if (y->value.character.string[j]
+-		      == x->value.character.string[len - i])
+-		    {
+-		      start = len - i;
+-		      if (start <= len - lensub)
+-			{
+-			  count = 0;
+-			  for (k = 0; k < lensub; k++)
+-			    if (y->value.character.string[k]
+-			        == x->value.character.string[k + start])
+-			      count++;
+-
+-			  if (count == lensub)
+-			    {
+-			      index = start + 1;
+-			      goto done;
+-			    }
+-			}
+-		      else
+-			{
+-			  continue;
+-			}
+-		    }
+-		}
+-	    }
++	  index = start + 1;
++	  goto done;
+ 	}
+     }
+ 
 diff --git a/gcc/fortran/trans-expr.c b/gcc/fortran/trans-expr.c
 index a5c391d077e..9b65b9cf474 100644
 --- a/gcc/fortran/trans-expr.c
@@ -7549,6 +8048,209 @@ index b406096a39c..0ec0a79080a 100644
    bitmap_clear (&non_reload_pseudos);
    bitmap_initialize (&failed_reload_insns, &reg_obstack);
    EXECUTE_IF_SET_IN_BITMAP (&failed_reload_pseudos, 0, u, bi)
+diff --git a/gcc/rtl-ssa/accesses.cc b/gcc/rtl-ssa/accesses.cc
+index de3a29edbeb..af7b568fa98 100644
+--- a/gcc/rtl-ssa/accesses.cc
++++ b/gcc/rtl-ssa/accesses.cc
+@@ -393,6 +393,28 @@ set_node::print (pretty_printer *pp) const
+   pp_access (pp, first_def ());
+ }
+ 
++// See the comment above the declaration.
++clobber_info *
++clobber_group::prev_clobber (insn_info *insn) const
++{
++  auto &tree = const_cast<clobber_tree &> (m_clobber_tree);
++  int comparison = lookup_clobber (tree, insn);
++  if (comparison <= 0)
++    return dyn_cast<clobber_info *> (tree.root ()->prev_def ());
++  return tree.root ();
++}
++
++// See the comment above the declaration.
++clobber_info *
++clobber_group::next_clobber (insn_info *insn) const
++{
++  auto &tree = const_cast<clobber_tree &> (m_clobber_tree);
++  int comparison = lookup_clobber (tree, insn);
++  if (comparison >= 0)
++    return dyn_cast<clobber_info *> (tree.root ()->next_def ());
++  return tree.root ();
++}
++
+ // See the comment above the declaration.
+ void
+ clobber_group::print (pretty_printer *pp) const
+@@ -415,6 +437,32 @@ clobber_group::print (pretty_printer *pp) const
+   pp_indentation (pp) -= 4;
+ }
+ 
++// See the comment above the declaration.
++def_info *
++def_lookup::prev_def (insn_info *insn) const
++{
++  if (mux && comparison == 0)
++    if (auto *node = mux.dyn_cast<def_node *> ())
++      if (auto *group = dyn_cast<clobber_group *> (node))
++	if (clobber_info *clobber = group->prev_clobber (insn))
++	  return clobber;
++
++  return last_def_of_prev_group ();
++}
++
++// See the comment above the declaration.
++def_info *
++def_lookup::next_def (insn_info *insn) const
++{
++  if (mux && comparison == 0)
++    if (auto *node = mux.dyn_cast<def_node *> ())
++      if (auto *group = dyn_cast<clobber_group *> (node))
++	if (clobber_info *clobber = group->next_clobber (insn))
++	  return clobber;
++
++  return first_def_of_next_group ();
++}
++
+ // Return a clobber_group for CLOBBER, creating one if CLOBBER doesn't
+ // already belong to a group.
+ clobber_group *
+@@ -1295,9 +1343,9 @@ function_info::make_use_available (use_info *use, bb_info *bb)
+ 	  input->m_is_temp = true;
+ 	  phi->m_is_temp = true;
+ 	  phi->make_degenerate (input);
+-	  if (def_info *prev = dl.prev_def ())
++	  if (def_info *prev = dl.prev_def (phi_insn))
+ 	    phi->set_prev_def (prev);
+-	  if (def_info *next = dl.next_def ())
++	  if (def_info *next = dl.next_def (phi_insn))
+ 	    phi->set_next_def (next);
+ 	}
+ 
+diff --git a/gcc/rtl-ssa/accesses.h b/gcc/rtl-ssa/accesses.h
+index 91e64f3321f..ed72a3f61f0 100644
+--- a/gcc/rtl-ssa/accesses.h
++++ b/gcc/rtl-ssa/accesses.h
+@@ -909,6 +909,12 @@ public:
+   clobber_info *first_clobber () const;
+   clobber_info *last_clobber () const { return m_last_clobber; }
+ 
++  // Return the last clobber before INSN in the group, or null if none.
++  clobber_info *prev_clobber (insn_info *insn) const;
++
++  // Return the next clobber after INSN in the group, or null if none.
++  clobber_info *next_clobber (insn_info *insn) const;
++
+   // Return true if this group has been replaced by new clobber_groups.
+   bool has_been_superceded () const { return !m_last_clobber; }
+ 
+@@ -993,25 +999,33 @@ public:
+   //
+   // Otherwise, return the last definition that occurs before P,
+   // or null if none.
+-  def_info *prev_def () const;
++  def_info *last_def_of_prev_group () const;
+ 
+   // If we found a clobber_group that spans P, return the definition
+   // that follows the end of the group, or null if none.
+   //
+   // Otherwise, return the first definition that occurs after P,
+   // or null if none.
+-  def_info *next_def () const;
++  def_info *first_def_of_next_group () const;
+ 
+   // If we found a set_info at P, return that set_info, otherwise return null.
+   set_info *matching_set () const;
+ 
+   // If we found a set_info at P, return that set_info, otherwise return
+   // prev_def ().
+-  def_info *matching_or_prev_def () const;
++  def_info *matching_set_or_last_def_of_prev_group () const;
+ 
+   // If we found a set_info at P, return that set_info, otherwise return
+   // next_def ().
+-  def_info *matching_or_next_def () const;
++  def_info *matching_set_or_first_def_of_next_group () const;
++
++  // P is the location of INSN.  Return the last definition (of any kind)
++  // that occurs before INSN, or null if none.
++  def_info *prev_def (insn_info *insn) const;
++
++  // P is the location of INSN.  Return the next definition (of any kind)
++  // that occurs after INSN, or null if none.
++  def_info *next_def (insn_info *insn) const;
+ 
+   def_mux mux;
+   int comparison;
+diff --git a/gcc/rtl-ssa/member-fns.inl b/gcc/rtl-ssa/member-fns.inl
+index 0b821ae1a77..2aae89e5a94 100644
+--- a/gcc/rtl-ssa/member-fns.inl
++++ b/gcc/rtl-ssa/member-fns.inl
+@@ -401,7 +401,7 @@ def_mux::set () const
+ }
+ 
+ inline def_info *
+-def_lookup::prev_def () const
++def_lookup::last_def_of_prev_group () const
+ {
+   if (!mux)
+     return nullptr;
+@@ -413,7 +413,7 @@ def_lookup::prev_def () const
+ }
+ 
+ inline def_info *
+-def_lookup::next_def () const
++def_lookup::first_def_of_next_group () const
+ {
+   if (!mux)
+     return nullptr;
+@@ -433,19 +433,19 @@ def_lookup::matching_set () const
+ }
+ 
+ inline def_info *
+-def_lookup::matching_or_prev_def () const
++def_lookup::matching_set_or_last_def_of_prev_group () const
+ {
+   if (set_info *set = matching_set ())
+     return set;
+-  return prev_def ();
++  return last_def_of_prev_group ();
+ }
+ 
+ inline def_info *
+-def_lookup::matching_or_next_def () const
++def_lookup::matching_set_or_first_def_of_next_group () const
+ {
+   if (set_info *set = matching_set ())
+     return set;
+-  return next_def ();
++  return first_def_of_next_group ();
+ }
+ 
+ inline insn_note::insn_note (insn_note_kind kind)
+diff --git a/gcc/rtl-ssa/movement.h b/gcc/rtl-ssa/movement.h
+index 5e749235840..03e10e52193 100644
+--- a/gcc/rtl-ssa/movement.h
++++ b/gcc/rtl-ssa/movement.h
+@@ -103,7 +103,7 @@ restrict_movement_for_dead_range (insn_range_info &move_range,
+   resource_info resource = full_register (regno);
+   def_lookup dl = crtl->ssa->find_def (resource, insn);
+ 
+-  def_info *prev = dl.prev_def ();
++  def_info *prev = dl.last_def_of_prev_group ();
+   ebb_info *ebb = insn->ebb ();
+   if (!prev || prev->ebb () != ebb)
+     {
+@@ -143,8 +143,8 @@ restrict_movement_for_dead_range (insn_range_info &move_range,
+     }
+ 
+   // Stop the instruction moving beyond the next relevant definition of REGNO.
+-  def_info *next = first_def_ignoring (dl.matching_or_next_def (),
+-				       ignore_clobbers::YES, ignore);
++  def_info *next = dl.matching_set_or_first_def_of_next_group ();
++  next = first_def_ignoring (next, ignore_clobbers::YES, ignore);
+   if (next)
+     move_range = move_earlier_than (move_range, next->insn ());
+ 
 diff --git a/gcc/rtlanal.c b/gcc/rtlanal.c
 index 67a49e65fd8..88b37584f74 100644
 --- a/gcc/rtlanal.c
@@ -7572,10 +8274,81 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..390bf7047fc 100644
+index 5fc23605244..a2a46377e34 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,560 @@
+@@ -1,3 +1,631 @@
++2022-07-04  Richard Sandiford  <richard.sandiford@arm.com>
++
++	Backported from master:
++	2022-03-21  Richard Sandiford  <richard.sandiford@arm.com>
++
++	PR middle-end/104869
++	* g++.dg/pr104869.C: New test.
++
++2022-07-04  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2022-06-29  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	PR d/106139
++	* gdc.dg/pr106139a.d: New test.
++	* gdc.dg/pr106139b.d: New test.
++	* gdc.dg/pr106139c.d: New test.
++	* gdc.dg/pr106139d.d: New test.
++	* gdc.test/fail_compilation/ice20264.d: New test.
++
++2022-07-03  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-06-30  Harald Anlauf  <anlauf@gmx.de>
++		    Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/103137
++	PR fortran/103138
++	PR fortran/103693
++	PR fortran/105243
++	* gfortran.dg/class_58.f90: Fix test.
++	* gfortran.dg/class_73.f90: New test.
++
++2022-07-03  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-06-29  Harald Anlauf  <anlauf@gmx.de>
++		    Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/106121
++	* gfortran.dg/extends_type_of_4.f90: New test.
++
++2022-07-01  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-06-26  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/105954
++	* gfortran.dg/pr105954.f90: New test.
++
++2022-07-01  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-06-26  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/105691
++	* gfortran.dg/index_6.f90: New test.
++
++2022-07-01  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-06-24  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/105813
++	* gfortran.dg/unpack_vector_1.f90: New test.
++
++2022-07-01  Jason Merrill  <jason@redhat.com>
++
++	PR c++/106024
++	* g++.dg/cpp2a/lambda-generic10.C: New test.
++
 +2022-06-24  Jason Merrill  <jason@redhat.com>
 +
 +	PR c++/105925
@@ -8725,6 +9498,26 @@ index 00000000000..443fa3d089d
 +{
 +    return {.y = {0, 0.0}};
 +}
+diff --git a/gcc/testsuite/g++.dg/cpp2a/lambda-generic10.C b/gcc/testsuite/g++.dg/cpp2a/lambda-generic10.C
+new file mode 100644
+index 00000000000..773fb948cee
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp2a/lambda-generic10.C
+@@ -0,0 +1,14 @@
++// PR c++/106024
++// { dg-do compile { target c++20 } }
++
++void sink(...);
++template <int... args> void f()
++{
++  sink ([] <int T> (int...) { return 1; }
++        .operator()<args>(args...)...); // { dg-error "" }
++} // { dg-prune-output {expected '\)'} }
++
++int main()
++{
++  f<1,2,3>();
++}
 diff --git a/gcc/testsuite/g++.dg/cpp2a/lambda-pack-init7.C b/gcc/testsuite/g++.dg/cpp2a/lambda-pack-init7.C
 new file mode 100644
 index 00000000000..f3c3899e97a
@@ -8871,6 +9664,90 @@ index 00000000000..68b51f771ec
 +struct A1;
 +struct B { static A1 a1; };
 +struct A1 {} ::B::a1;
+diff --git a/gcc/testsuite/g++.dg/pr104869.C b/gcc/testsuite/g++.dg/pr104869.C
+new file mode 100644
+index 00000000000..9a6ef88adbd
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/pr104869.C
+@@ -0,0 +1,78 @@
++// PR rtl-optimization/104869
++// { dg-do run }
++// { dg-options "-O2 -fvisibility=hidden -std=c++11" }
++// { dg-require-visibility "" }
++
++struct QBasicAtomicInteger {
++  [[gnu::noipa]] int loadRelaxed() { return 1; }
++};
++struct RefCount {
++  bool deref() {
++    int count = atomic.loadRelaxed();
++    if (count)
++      return false;
++    return deref();
++  }
++  QBasicAtomicInteger atomic;
++};
++struct QArrayData {
++  RefCount ref;
++};
++struct QString {
++  ~QString();
++  QArrayData d;
++};
++int ok;
++QString::~QString() { d.ref.deref(); }
++struct Label {
++  bool isValid() { return generator; }
++  int *generator;
++  int index;
++};
++struct ControlFlow;
++struct Codegen {
++  [[gnu::noipa]] bool visit();
++  ControlFlow *controlFlow;
++};
++struct ControlFlow {
++  enum UnwindType { EE };
++  struct UnwindTarget {
++    Label linkLabel;
++  };
++  ControlFlow *parent;
++  UnwindType unwindTarget_type;
++  UnwindTarget unwindTarget() {
++    QString label;
++    ControlFlow *flow = this;
++    while (flow) {
++      Label l = getUnwindTarget(unwindTarget_type, label);
++      if (l.isValid())
++        return {l};
++      flow = flow->parent;
++    }
++    return UnwindTarget();
++  }
++  [[gnu::noipa]] Label getUnwindTarget(UnwindType, QString &) {
++    Label l = { &ok, 0 };
++    return l;
++  }
++};
++[[gnu::noipa]] void foo(int) {
++  ok = 1;
++}
++[[gnu::noipa]] bool Codegen::visit() {
++  if (!controlFlow)
++    return false;
++  ControlFlow::UnwindTarget target = controlFlow->unwindTarget();
++  if (target.linkLabel.isValid())
++    foo(2);
++  return false;
++}
++int
++main() {
++  ControlFlow cf = { nullptr, ControlFlow::UnwindType::EE };
++  Codegen c = { &cf };
++  c.visit();
++  if (!ok)
++    __builtin_abort ();
++}
 diff --git a/gcc/testsuite/g++.dg/template/conv19.C b/gcc/testsuite/g++.dg/template/conv19.C
 new file mode 100644
 index 00000000000..7a3da939c1f
@@ -10579,6 +11456,209 @@ index 00000000000..8a9cca7e225
 +// { dg-options "-Wpadded" }
 +
 +class EmptyClass { }
+diff --git a/gcc/testsuite/gdc.dg/pr106139a.d b/gcc/testsuite/gdc.dg/pr106139a.d
+new file mode 100644
+index 00000000000..f635eabc745
+--- /dev/null
++++ b/gcc/testsuite/gdc.dg/pr106139a.d
+@@ -0,0 +1,36 @@
++// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=106139
++// { dg-do compile }
++
++alias A = int[4];
++
++static if (__traits(compiles, __vector(A))):
++
++A vector2array(__vector(A) v)
++{
++    return cast(A)v;
++}
++
++void vector2array(ref A a, __vector(A) v)
++{
++    a = cast(A)v;
++}
++
++__vector(A) array2vector(A a)
++{
++    return cast(__vector(A)) a;
++}
++
++void array2vector(ref __vector(A) v, A a)
++{
++    v = cast(__vector(A))a;
++}
++
++A vector2array_array(__vector(A) v)
++{
++    return v.array;
++}
++
++void vector2array_array(ref A a, __vector(A) v)
++{
++    a = v.array;
++}
+diff --git a/gcc/testsuite/gdc.dg/pr106139b.d b/gcc/testsuite/gdc.dg/pr106139b.d
+new file mode 100644
+index 00000000000..f9caf026f86
+--- /dev/null
++++ b/gcc/testsuite/gdc.dg/pr106139b.d
+@@ -0,0 +1,36 @@
++// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=106139
++// { dg-do compile }
++
++alias A = float[4];
++
++static if (__traits(compiles, __vector(A))):
++
++A vector2array(__vector(A) v)
++{
++    return cast(A)v;
++}
++
++void vector2array(ref A a, __vector(A) v)
++{
++    a = cast(A)v;
++}
++
++__vector(A) array2vector(A a)
++{
++    return cast(__vector(A)) a;
++}
++
++void array2vector(ref __vector(A) v, A a)
++{
++    v = cast(__vector(A))a;
++}
++
++A vector2array_array(__vector(A) v)
++{
++    return v.array;
++}
++
++void vector2array_array(ref A a, __vector(A) v)
++{
++    a = v.array;
++}
+diff --git a/gcc/testsuite/gdc.dg/pr106139c.d b/gcc/testsuite/gdc.dg/pr106139c.d
+new file mode 100644
+index 00000000000..3b6b7a83341
+--- /dev/null
++++ b/gcc/testsuite/gdc.dg/pr106139c.d
+@@ -0,0 +1,27 @@
++// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=106139
++// { dg-do compile }
++
++alias V = int[4];
++alias A = float[4];
++
++static if (__traits(compiles, __vector(V))):
++
++A vector2array(__vector(V) v)
++{
++    return cast(A)v;
++}
++
++void vector2array(ref A a, __vector(V) v)
++{
++    a = cast(A)v;
++}
++
++__vector(V) array2vector(A a)
++{
++    return cast(__vector(V)) a;
++}
++
++void array2vector(ref __vector(V) v, A a)
++{
++    v = cast(__vector(V))a;
++}
+diff --git a/gcc/testsuite/gdc.dg/pr106139d.d b/gcc/testsuite/gdc.dg/pr106139d.d
+new file mode 100644
+index 00000000000..4c6f0ef3a3a
+--- /dev/null
++++ b/gcc/testsuite/gdc.dg/pr106139d.d
+@@ -0,0 +1,27 @@
++// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=106139
++// { dg-do compile }
++
++alias V = float[4];
++alias A = int[4];
++
++static if (__traits(compiles, __vector(V))):
++
++A vector2array(__vector(V) v)
++{
++    return cast(A)v;
++}
++
++void vector2array(ref A a, __vector(V) v)
++{
++    a = cast(A)v;
++}
++
++__vector(V) array2vector(A a)
++{
++    return cast(__vector(V)) a;
++}
++
++void array2vector(ref __vector(V) v, A a)
++{
++    v = cast(__vector(V))a;
++}
+diff --git a/gcc/testsuite/gdc.test/fail_compilation/ice20264.d b/gcc/testsuite/gdc.test/fail_compilation/ice20264.d
+new file mode 100644
+index 00000000000..0d697e22c9f
+--- /dev/null
++++ b/gcc/testsuite/gdc.test/fail_compilation/ice20264.d
+@@ -0,0 +1,13 @@
++/*
++DISABLED: freebsd32 linux32 osx32 win32
++TEST_OUTPUT:
++---
++fail_compilation/ice20264.d(12): Error: `cast(__vector(float[4]))a` is not an lvalue and cannot be modified
++---
++*/
++
++void foo(float *a)
++{
++    alias float4 = __vector(float[4]);
++    cast(float4)(a) = 1.0f;
++}
+diff --git a/gcc/testsuite/gfortran.dg/class_58.f90 b/gcc/testsuite/gfortran.dg/class_58.f90
+index 20b601a2f51..fceb575432d 100644
+--- a/gcc/testsuite/gfortran.dg/class_58.f90
++++ b/gcc/testsuite/gfortran.dg/class_58.f90
+@@ -9,5 +9,5 @@ subroutine s
+   end type
+   class(t), parameter :: x = t()  ! { dg-error "cannot have the PARAMETER attribute" }
+   class(t), parameter :: y = x    ! { dg-error "cannot have the PARAMETER attribute" }
+-  class(t) :: z = x               ! { dg-error "must be dummy, allocatable or pointer" }
++  class(t) :: z = t()             ! { dg-error "must be dummy, allocatable or pointer" }
+ end
+diff --git a/gcc/testsuite/gfortran.dg/class_73.f90 b/gcc/testsuite/gfortran.dg/class_73.f90
+new file mode 100644
+index 00000000000..c11ee38c086
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/class_73.f90
+@@ -0,0 +1,17 @@
++! { dg-do compile }
++! Error recovery on invalid CLASS(), PARAMETER declarations
++! PR fortran/103137
++! PR fortran/103138
++! PR fortran/103693
++! PR fortran/105243
++! Contributed by G.Steinmetz
++
++program p
++  type t
++     character(3) :: c = '(a)'
++  end type
++  class(t), parameter :: x = 1.  ! { dg-error "PARAMETER attribute" }
++  class(*), parameter :: y = t() ! { dg-error "PARAMETER attribute" }
++  class(*), parameter :: z = 1   ! { dg-error "PARAMETER attribute" }
++  print x%c                      ! { dg-error "Syntax error" }
++end
 diff --git a/gcc/testsuite/gfortran.dg/dec_union_12.f90 b/gcc/testsuite/gfortran.dg/dec_union_12.f90
 new file mode 100755
 index 00000000000..26671230b05
@@ -10628,6 +11708,32 @@ index 00000000000..26671230b05
 +  bar16u.a = 1
 +  bar32u.a = 1
 +end
+diff --git a/gcc/testsuite/gfortran.dg/extends_type_of_4.f90 b/gcc/testsuite/gfortran.dg/extends_type_of_4.f90
+new file mode 100644
+index 00000000000..64373322387
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/extends_type_of_4.f90
+@@ -0,0 +1,20 @@
++! { dg-do compile }
++! PR fortran/106121 - ICE in gfc_simplify_extends_type_of
++! Contributed by G.Steinmetz
++
++program p
++   type t
++   end type
++   type(t)  :: x
++   class(t) :: y               ! { dg-error "dummy, allocatable or pointer" }
++   print *, extends_type_of (x, y)
++end
++
++subroutine s
++   type t
++      integer :: i
++   end type
++   type(t)  :: x
++   class(t) :: y               ! { dg-error "dummy, allocatable or pointer" }
++   stop extends_type_of (x, y) ! { dg-error "STOP code" }
++end
 diff --git a/gcc/testsuite/gfortran.dg/g77/pr105203.f b/gcc/testsuite/gfortran.dg/g77/pr105203.f
 new file mode 100644
 index 00000000000..3b47210fb40
@@ -10654,6 +11760,43 @@ index 00000000000..3b47210fb40
 +  30  ASSIGN 10 TO M
 +  40  GOTO M,(10,20,30)
 +      END
+diff --git a/gcc/testsuite/gfortran.dg/index_6.f90 b/gcc/testsuite/gfortran.dg/index_6.f90
+new file mode 100644
+index 00000000000..61d492985ad
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/index_6.f90
+@@ -0,0 +1,31 @@
++! { dg-do compile }
++! { dg-options "-fdump-tree-original" }
++! PR fortran/105691 - Incorrect calculation of INDEX(str1,str2) at compile time
++
++program main
++  implicit none
++  integer :: i
++  character(*), parameter :: s1 = "fortran.f90"
++  character(*), parameter :: s2 = "fortran"
++  character(*), parameter :: s3 = s2 // "*"
++  integer, parameter :: i0    = index(s1, s2)
++  integer, parameter :: i1    = index(s1, s2, back= .true.)
++  integer, parameter :: i2(*) = index(s1, s2, back=[.true.,.false.])
++  integer, parameter :: i3(*) = index(s1, s2, back=[(i==1, i=1,2)] )
++  integer, parameter :: i4    = index(s1, s3)
++  integer, parameter :: i5    = index(s1, s3, back= .true.)
++  integer, parameter :: i6(*) = index(s1, s3, back=[.true.,.false.])
++  integer, parameter :: i7(*) = index(s1, s3, back=[(i==1, i=1,2)] )
++  integer, parameter :: i8    = index(s1, "f", back= .true.)
++  if (     i0 /= 1 ) stop 1
++  if (     i1 /= 1 ) stop 2
++  if (any (i2 /= 1)) stop 3
++  if (any (i3 /= 1)) stop 4
++  if (     i4 /= 0 ) stop 5
++  if (     i5 /= 0 ) stop 6
++  if (any (i6 /= 0)) stop 7
++  if (any (i7 /= 0)) stop 8
++  if (i8 /= len(s1)-2) stop 9
++end program
++
++! { dg-final { scan-tree-dump-not "_gfortran_stop_numeric" "original" } }
 diff --git a/gcc/testsuite/gfortran.dg/pr104849.f90 b/gcc/testsuite/gfortran.dg/pr104849.f90
 new file mode 100644
 index 00000000000..ae221b5ba10
@@ -10682,6 +11825,56 @@ index 00000000000..6c6b42ef9bf
 +program p
 +  integer, parameter :: a(:) = [1, 2] ! { dg-error "deferred shape" }
 +  print *, reshape([3, 4], a(1:2))
++end
+diff --git a/gcc/testsuite/gfortran.dg/pr105954.f90 b/gcc/testsuite/gfortran.dg/pr105954.f90
+new file mode 100644
+index 00000000000..89004bf9aa7
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/pr105954.f90
+@@ -0,0 +1,26 @@
++! { dg-do compile }
++! { dg-options "-fdump-tree-original" }
++! PR fortran/105954 - ICE in gfc_element_size, at fortran/target-memory.cc:132
++! Contributed by G.Steinmetz
++
++program p
++  use iso_c_binding, only: c_float, c_sizeof
++  implicit none
++  integer, parameter :: n = -99
++  type t
++     real :: b(3,7:n)
++  end type
++  type, bind(c) :: u
++     real(c_float) :: b(3,7:n)
++  end type
++  type(t) :: d
++  type(u) :: e
++  integer, parameter :: k = storage_size(d)
++  integer, parameter :: m = sizeof(d)
++  integer, parameter :: l = c_sizeof(e)
++  if (k /= 0) stop 1
++  if (m /= 0) stop 2
++  if (l /= 0) stop 3
++end
++
++! { dg-final { scan-tree-dump-not "_gfortran_stop_numeric" "original" } }
+diff --git a/gcc/testsuite/gfortran.dg/unpack_vector_1.f90 b/gcc/testsuite/gfortran.dg/unpack_vector_1.f90
+new file mode 100644
+index 00000000000..5347c111e8f
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/unpack_vector_1.f90
+@@ -0,0 +1,12 @@
++! { dg-do compile }
++! PR fortran/105813
++! Fix checking of VECTOR argument to UNPACK when MASK is a variable.
++! Contributed by G.Steinmetz
++
++program p
++  logical, parameter :: mask(2,2) = reshape ([.true.,  .true.,  &
++                                              .false., .true.], &
++                                              shape (mask))
++  print *, unpack ([1,2,3], mask, 0) ! OK
++  print *, unpack ([1,2],   mask, 0) ! { dg-error "must provide at least" }
 +end
 diff --git a/gcc/testsuite/lib/prune.exp b/gcc/testsuite/lib/prune.exp
 index 2809f88b16f..25fb98c6bed 100644
