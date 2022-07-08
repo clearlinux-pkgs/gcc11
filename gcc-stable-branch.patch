@@ -16,7 +16,10 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (74):
+GCC Administrator (77):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -117,7 +120,7 @@ Iain Buclaw (6):
       tilegx: Fix infinite loop in gen-mul-tables generator
       d: Fix error: aggregate value used where floating point was expected
 
-Jakub Jelinek (11):
+Jakub Jelinek (12):
       emit-rtl: Fix -fcompare-debug bug with label references in debug insns [PR105203]
       sparc: Preserve ORIGINAL_REGNO in epilogue_renumber [PR105257]
       rtlanal: Fix up replace_rtx [PR105333]
@@ -129,6 +132,7 @@ Jakub Jelinek (11):
       libcpp: Ignore CPP_PADDING tokens in _cpp_parse_expr [PR105732]
       fold-const: Fix up -fsanitize=null in C++ [PR105729]
       varasm: Fix up ICE in narrowing_initializer_constant_valid_p [PR105998]
+      libstdc++: Tweak source_location for clang trunk [PR105128]
 
 Jan Hubicka (2):
       Fix modref_tree::remap_params
@@ -157,7 +161,7 @@ Jason Merrill (18):
 Jeff Law (1):
       [committed] Fix more problems with new linker warnings
 
-Jonathan Wakely (39):
+Jonathan Wakely (62):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -197,6 +201,29 @@ Jonathan Wakely (39):
       libstdc++: Document support for constexpr optional (P2231R1)
       libstdc++: Partially revert r11-9772-g6f8133689f4397 [PR105915]
       libstdc++: Use type_identity_t for non-deducible std::atomic_xxx args
+      libstdc++: Define std::hash<std::filesystem::path> (LWG 3657)
+      libstdc++: Fix cast in source_location::current() [PR104602]
+      libstdc++: Remove unused functions in std::variant implementation
+      libstdc++: std::basic_regex should treat '\0' as an ordinary char [PR84110]
+      libstdc++: Implement std::regex_constants::multiline (LWG 2503)
+      libstdc++: Fix preprocessor check for C++17
+      libstdc++: Define basic_regex::multiline for non-strict modes
+      libstdc++: Replace try-catch in std::list::merge to avoid O(N) size
+      libstdc++: Remove try/catch overhead in std::variant::emplace
+      libstdc++: Fix std::regex_replace for strings with embedded null [PR103664]
+      libstdc++: Simplify std::basic_regex construction and assignment
+      libstdc++: Add dg-timeout-factor to some more regex tests
+      libstdc++: Tweaks to <regex> to avoid warnings
+      libstdc++: Check for invalid syntax_option_type values in <regex>
+      libstdc++: Fix handling of invalid ranges in std::regex [PR102447]
+      libstdc++: Add noexcept to functions in <regex>
+      libstdc++: Remove obfuscating typedefs in <regex>
+      libstdc++: Make ranges::size and ranges::empty check for unbounded arrays
+      libstdc++: Add noexcept to std::launch operators
+      libstdc++: Mark non-exported function always_inline [PR105671]
+      libstdc++: Add constexpr to std::counted_iterator post-increment (LWG 3643)
+      libstdc++: Properly remove temporary directories in filesystem tests
+      libstdc++: Add missing prerequisite to generated header [PR106162]
 
 Kewen Lin (1):
       testsuite: Skip pr105250.c for powerpc and s390 [PR105266]
@@ -243,6 +270,9 @@ Pavel I. Kryukov (1):
 
 Qing Zhao (1):
       i386: Adjust -fzero-call-used-regs to always use XOR [PR101891]
+
+Rainer Orth (1):
+      libstdc++: Fix 28_regex/basic_regex/84110.cc on Solaris
 
 Richard Biener (14):
       Update BASE-VER to 11.3.1
@@ -12489,10 +12519,304 @@ index bafd5ad4502..8e2f1eefd5b 100755
        echo ${GDCLDFLAGS}
        ;;
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..80e9bc2e885 100644
+index 85e04c45288..8460d240ad8 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,464 @@
+@@ -1,3 +1,758 @@
++2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-07-01  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/106162
++	* include/Makefile.am (largefile-config.h): Add
++	stamp-${host_alias} prerequisite.
++	* include/Makefile.in: Regenerate.
++
++2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-06-23  Jonathan Wakely  <jwakely@redhat.com>
++
++	* testsuite/27_io/filesystem/iterators/error_reporting.cc: Use
++	rmdir to remove directories.
++	* testsuite/experimental/filesystem/iterators/error_reporting.cc:
++	Likewise.
++
++2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-05-26  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/bits/stl_iterator.h (counted_iterator::operator++(int)):
++	Add 'constexpr' as per LWG 3643.
++	* testsuite/24_iterators/counted_iterator/lwg3643.cc: New test.
++
++2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-05-27  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/105671
++	* include/std/sstream (basic_stringbuf::_M_high_mark): Add
++	always_inline attribute.
++
++2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-05-13  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/std/future (launch): Make operators noexcept.
++
++2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-12-13  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/bits/ranges_base.h (ranges::size, ranges::empty): Add
++	explicit check for unbounded arrays before using ranges::begin.
++	* testsuite/std/ranges/access/empty.cc: Check handling of unbounded
++	arrays.
++	* testsuite/std/ranges/access/size.cc: Likewise.
++
++2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-09-28  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/bits/regex_automaton.h (_NFA_base::_SizeT): Remove.
++	* include/bits/regex_compiler.h (_Compiler::_IterT): Remove.
++	* include/bits/regex_compiler.tcc: Likewise.
++	* include/bits/regex_scanner.h (_Scanner::_IterT): Remove.
++	* include/bits/regex_scanner.tcc: Likewise.
++
++2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-09-28  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/bits/regex.h (basic_regex, swap): Add noexcept to
++	non-throwing functions.
++	* include/bits/regex_automaton.h (_State_base, _State)
++	(_NFA_base): Likewise.
++	* include/bits/regex_compiler.h (_Compiler): Likewise.
++	* include/bits/regex_error.h (regex_error::code()): Likewise.
++	* include/bits/regex_scanner.h (_Scanner): Likewise.
++
++2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-12-14  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/102447
++	* include/bits/regex_compiler.h (_Compiler::_BracketState): New
++	class.
++	(_Compiler::_BrackeyMatcher): New alias template.
++	(_Compiler::_M_expression_term): Change pair<bool, CharT>
++	parameter to _BracketState. Process first character for
++	ECMAScript syntax as well as POSIX.
++	* include/bits/regex_compiler.tcc
++	(_Compiler::_M_insert_bracket_matcher): Pass _BracketState.
++	(_Compiler::_M_expression_term): Use _BracketState to store
++	state between calls. Improve handling of dashes in ranges.
++	* testsuite/28_regex/algorithms/regex_match/cstring_bracket_01.cc:
++	Add more tests for ranges containing dashes. Check invalid
++	ranges with character class at the beginning.
++
++2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-09-29  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/bits/regex_compiler.h (_Compiler::_S_validate): New
++	function.
++	* include/bits/regex_compiler.tcc (_Compiler::_Compiler): Use
++	_S_validate to check flags.
++	* include/bits/regex_error.h (_S_grammar): New error code for
++	internal use.
++	* testsuite/28_regex/basic_regex/ctors/grammar.cc: New test.
++
++2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-09-28  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/bits/regex_compiler.tcc: Add line break in empty while
++	statement.
++	* include/bits/regex_executor.tcc: Avoid unused parameter
++	warning.
++
++2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-01-10  Jonathan Wakely  <jwakely@redhat.com>
++
++	* testsuite/28_regex/algorithms/regex_replace/char/103664.cc:
++	Add dg-timeout-factor directive.
++	* testsuite/28_regex/basic_regex/84110.cc: Likewise.
++	* testsuite/28_regex/basic_regex/ctors/char/other.cc: Likewise.
++	* testsuite/28_regex/match_results/102667.cc: Likewise.
++
++2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-09-29  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/bits/regex.h (__detail::__is_contiguous_iter): Move
++	here from <bits/regex_compiler.h>.
++	(basic_regex::_M_compile): New function to compile an NFA from
++	a regular expression string.
++	(basic_regex::basic_regex): Use _M_compile instead of delegating
++	to other constructors.
++	(basic_regex::operator=(const basic_regex&)): Define as
++	defaulted.
++	(basic_regex::operator=(initializer_list<C>)): Use _M_compile.
++	(basic_regex::assign(const basic_regex&)): Use copy assignment.
++	(basic_regex::assign(basic_regex&&)): Use move assignment.
++	(basic_regex::assign(const C*, flag_type)): Use _M_compile
++	instead of constructing a temporary string.
++	(basic_regex::assign(const C*, size_t, flag_type)): Likewise.
++	(basic_regex::assign(const basic_string<C,T,A>&, flag_type)):
++	Use _M_compile instead of constructing a temporary basic_regex.
++	(basic_regex::assign(InputIter, InputIter, flag_type)): Avoid
++	constructing a temporary string for contiguous iterators of the
++	right value type.
++	* include/bits/regex_compiler.h (__is_contiguous_iter): Move to
++	<bits/regex.h>.
++	(__enable_if_contiguous_iter, __disable_if_contiguous_iter)
++	(__compile_nfa): Remove.
++	* testsuite/28_regex/basic_regex/assign/exception_safety.cc: New
++	test.
++	* testsuite/28_regex/basic_regex/ctors/char/other.cc: New test.
++
++2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-12-13  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/103664
++	* include/bits/regex.h (__regex_replace): Declare.
++	(regex_replace): Use it.
++	* include/bits/regex.tcc (__regex_replace): Replace regex_replace
++	definition with __regex_replace.
++	* testsuite/28_regex/algorithms/regex_replace/char/103664.cc: New test.
++
++2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-10-15  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/std/variant (__detail::__variant::__get_storage):
++	Remove unused function.
++	(__variant_construct_by_index): Set index after construction is
++	complete. Rename to ...
++	(__detail::__variant::__construct_by_index): ... this.
++	(variant): Use new name for __variant_construct_by_index friend
++	declaration. Remove __get_storage friend declaration.
++	(variant::emplace): Use new name and remove try-blocks.
++
++2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-10-01  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/bits/list.tcc (list::merge): Remove call to size() and
++	try-catch block. Use _Finalize_merge instead.
++	* include/bits/stl_list.h (list::_Finalize_merge): New
++	scope guard type to update _M_size members after a merge.
++
++2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-10-01  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/bits/regex.h (basic_regex::multiline): Define for
++	non-strict C++11 and C++14 modes.
++	* include/bits/regex_constants.h (regex_constants::multiline):
++	Add _GLIBCXX_RESOLVE_LIB_DEFECTS comment.
++
++2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-09-30  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/bits/regex.h (basic_regex::multiline): Fix #if
++	condition.
++
++2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-09-29  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/bits/regex.h (basic_regex::multiline): Define constant
++	for C++17.
++	* include/bits/regex_constants.h (regex_constants::multiline):
++	Define constant for C++17.
++	(regex_constants::__multiline): Define duplicate constant for
++	internal use in C++11 and C++14.
++	* include/bits/regex_executor.h (_Executor::_M_match_multiline()):
++	New member function.
++	(_Executor::_M_is_line_terminator(_CharT)): New member function.
++	(_Executor::_M_at_begin(), _Executor::_M_at_end()): Use new
++	member functions to support multiline matches.
++	* testsuite/28_regex/algorithms/regex_match/multiline.cc: New test.
++
++2022-07-07  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
++
++	Backported from master:
++	2021-10-26  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
++
++	* testsuite/28_regex/basic_regex/84110.cc (test01)
++	[__cpp_exceptions]: Disambiguate extended.
++
++2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-09-29  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/84110
++	* include/bits/regex_error.h (regex_constants::_S_null): New
++	error code for internal use.
++	* include/bits/regex_scanner.tcc (_Scanner::_M_scan_normal()):
++	Check for null character.
++	* testsuite/28_regex/basic_regex/84110.cc: New test.
++
++2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-10-15  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/std/variant (_Variant_storage::_M_storage()): Remove.
++	(__detail::__variant::__get_storage): Remove.
++	(variant): Remove friend declaration of __get_storage.
++
++2022-07-07  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-04-02  Jakub Jelinek  <jakub@redhat.com>
++
++	PR libstdc++/105128
++	* include/std/source_location (std::source_location::__impl): Move
++	definition before using __builtin_ret_type.
++
++2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-02-24  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/104602
++	* include/std/source_location (source_location::current): Use
++	deduced type of __builtin_source_location().
++
++2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-04-26  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/bits/fs_path.h (hash<filesystem::path>): Define.
++	* testsuite/27_io/filesystem/path/nonmember/hash_value.cc:
++	Check std::hash specialization.
++
 +2022-06-15  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backported from master:
@@ -13718,6 +14042,32 @@ index 00000000000..75f31f55aa9
 +</table>
 +
 +</section>
+diff --git a/libstdc++-v3/include/Makefile.am b/libstdc++-v3/include/Makefile.am
+index 174fafeee5e..16ea5ffef52 100644
+--- a/libstdc++-v3/include/Makefile.am
++++ b/libstdc++-v3/include/Makefile.am
+@@ -1275,7 +1275,7 @@ stamp-float128:
+ endif
+ 
+ # This header is not installed, it's only used to build libstdc++ itself.
+-${host_builddir}/largefile-config.h: ${CONFIG_HEADER}
++${host_builddir}/largefile-config.h: ${CONFIG_HEADER} stamp-${host_alias}
+ 	@rm -f $@.tmp
+ 	@-grep 'define _DARWIN_USE_64_BIT_INODE' ${CONFIG_HEADER} >> $@.tmp
+ 	@-grep 'define _FILE_OFFSET_BITS' ${CONFIG_HEADER} >> $@.tmp
+diff --git a/libstdc++-v3/include/Makefile.in b/libstdc++-v3/include/Makefile.in
+index 814b0a43b3d..877133d8165 100644
+--- a/libstdc++-v3/include/Makefile.in
++++ b/libstdc++-v3/include/Makefile.in
+@@ -1761,7 +1761,7 @@ stamp-host: ${host_headers} ${bits_host_headers} ${ext_host_headers} ${host_head
+ @ENABLE_FLOAT128_FALSE@	echo 'undef _GLIBCXX_USE_FLOAT128' > stamp-float128
+ 
+ # This header is not installed, it's only used to build libstdc++ itself.
+-${host_builddir}/largefile-config.h: ${CONFIG_HEADER}
++${host_builddir}/largefile-config.h: ${CONFIG_HEADER} stamp-${host_alias}
+ 	@rm -f $@.tmp
+ 	@-grep 'define _DARWIN_USE_64_BIT_INODE' ${CONFIG_HEADER} >> $@.tmp
+ 	@-grep 'define _FILE_OFFSET_BITS' ${CONFIG_HEADER} >> $@.tmp
 diff --git a/libstdc++-v3/include/bits/atomic_base.h b/libstdc++-v3/include/bits/atomic_base.h
 index 60b976bf8d1..2abdc400260 100644
 --- a/libstdc++-v3/include/bits/atomic_base.h
@@ -13894,6 +14244,121 @@ index bd7a859091f..1145230b910 100644
  	_Node_base* __node = &this->_M_impl._M_head;
  	while (__node->_M_next && __list._M_impl._M_head._M_next)
  	  {
+diff --git a/libstdc++-v3/include/bits/fs_path.h b/libstdc++-v3/include/bits/fs_path.h
+index a1f780a9c9b..79085c0c1bd 100644
+--- a/libstdc++-v3/include/bits/fs_path.h
++++ b/libstdc++-v3/include/bits/fs_path.h
+@@ -1361,6 +1361,16 @@ extern template class __shared_ptr<const filesystem::filesystem_error::_Impl>;
+ 
+ /// @endcond
+ 
++// _GLIBCXX_RESOLVE_LIB_DEFECTS
++// 3657. std::hash<std::filesystem::path> is not enabled
++template<>
++  struct hash<filesystem::path>
++  {
++    size_t
++    operator()(const filesystem::path& __p) const noexcept
++    { return filesystem::hash_value(__p); }
++  };
++
+ _GLIBCXX_END_NAMESPACE_VERSION
+ } // namespace std
+ 
+diff --git a/libstdc++-v3/include/bits/list.tcc b/libstdc++-v3/include/bits/list.tcc
+index 0ce4c47a90e..62b0ba1063a 100644
+--- a/libstdc++-v3/include/bits/list.tcc
++++ b/libstdc++-v3/include/bits/list.tcc
+@@ -416,29 +416,22 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
+ 	  iterator __last1 = end();
+ 	  iterator __first2 = __x.begin();
+ 	  iterator __last2 = __x.end();
+-	  const size_t __orig_size = __x.size();
+-	  __try {
+-	    while (__first1 != __last1 && __first2 != __last2)
+-	      if (*__first2 < *__first1)
+-		{
+-		  iterator __next = __first2;
+-		  _M_transfer(__first1, __first2, ++__next);
+-		  __first2 = __next;
+-		}
+-	      else
+-		++__first1;
+-	    if (__first2 != __last2)
+-	      _M_transfer(__last1, __first2, __last2);
+ 
+-	    this->_M_inc_size(__x._M_get_size());
+-	    __x._M_set_size(0);
+-	  }
+-	  __catch(...)
++	  const _Finalize_merge __fin(*this, __x, __first2);
++
++	  while (__first1 != __last1 && __first2 != __last2)
++	    if (*__first2 < *__first1)
++	      {
++		iterator __next = __first2;
++		_M_transfer(__first1, __first2, ++__next);
++		__first2 = __next;
++	      }
++	    else
++	      ++__first1;
++	  if (__first2 != __last2)
+ 	    {
+-	      const size_t __dist = std::distance(__first2, __last2);
+-	      this->_M_inc_size(__orig_size - __dist);
+-	      __x._M_set_size(__dist);
+-	      __throw_exception_again;
++	      _M_transfer(__last1, __first2, __last2);
++	      __first2 = __last2;
+ 	    }
+ 	}
+     }
+@@ -463,30 +456,22 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
+ 	    iterator __last1 = end();
+ 	    iterator __first2 = __x.begin();
+ 	    iterator __last2 = __x.end();
+-	    const size_t __orig_size = __x.size();
+-	    __try
+-	      {
+-		while (__first1 != __last1 && __first2 != __last2)
+-		  if (__comp(*__first2, *__first1))
+-		    {
+-		      iterator __next = __first2;
+-		      _M_transfer(__first1, __first2, ++__next);
+-		      __first2 = __next;
+-		    }
+-		  else
+-		    ++__first1;
+-		if (__first2 != __last2)
+-		  _M_transfer(__last1, __first2, __last2);
+-
+-		this->_M_inc_size(__x._M_get_size());
+-		__x._M_set_size(0);
+-	      }
+-	    __catch(...)
++
++	    const _Finalize_merge __fin(*this, __x, __first2);
++
++	    while (__first1 != __last1 && __first2 != __last2)
++	      if (__comp(*__first2, *__first1))
++		{
++		  iterator __next = __first2;
++		  _M_transfer(__first1, __first2, ++__next);
++		  __first2 = __next;
++		}
++	      else
++		++__first1;
++	    if (__first2 != __last2)
+ 	      {
+-		const size_t __dist = std::distance(__first2, __last2);
+-		this->_M_inc_size(__orig_size - __dist);
+-		__x._M_set_size(__dist);
+-		__throw_exception_again;
++		_M_transfer(__last1, __first2, __last2);
++		__first2 = __last2;
+ 	      }
+ 	  }
+       }
 diff --git a/libstdc++-v3/include/bits/locale_facets_nonio.tcc b/libstdc++-v3/include/bits/locale_facets_nonio.tcc
 index 51c23d8003a..4aef5502032 100644
 --- a/libstdc++-v3/include/bits/locale_facets_nonio.tcc
@@ -13959,10 +14424,28 @@ index 22ae1f38ebb..2898f7f17e6 100644
  	      __x._M_saved_available = __saved_avail;
  	      __x.param(param_type(__mean, __stddev));
 diff --git a/libstdc++-v3/include/bits/ranges_base.h b/libstdc++-v3/include/bits/ranges_base.h
-index 87283b84028..6d2d5bf939d 100644
+index 87283b84028..2a525e421b9 100644
 --- a/libstdc++-v3/include/bits/ranges_base.h
 +++ b/libstdc++-v3/include/bits/ranges_base.h
-@@ -728,20 +728,23 @@ namespace ranges
+@@ -379,6 +379,8 @@ namespace ranges
+     template<typename _Tp>
+       concept __sentinel_size = requires(_Tp& __t)
+ 	{
++	  requires (!is_unbounded_array_v<remove_reference_t<_Tp>>);
++
+ 	  { _Begin{}(__t) } -> forward_iterator;
+ 
+ 	  { _End{}(__t) } -> sized_sentinel_for<decltype(_Begin{}(__t))>;
+@@ -462,6 +464,8 @@ namespace ranges
+     template<typename _Tp>
+       concept __eq_iter_empty = requires(_Tp& __t)
+ 	{
++	  requires (!is_unbounded_array_v<remove_reference_t<_Tp>>);
++
+ 	  { _Begin{}(__t) } -> forward_iterator;
+ 
+ 	  bool(_Begin{}(__t) == _End{}(__t));
+@@ -728,20 +732,23 @@ namespace ranges
  	  {
  	    const auto __diff = __bound - __it;
  
@@ -13992,11 +14475,833 @@ index 87283b84028..6d2d5bf939d 100644
  	  }
  	else if (__it == __bound || __n == 0)
  	  return __n;
+diff --git a/libstdc++-v3/include/bits/regex.h b/libstdc++-v3/include/bits/regex.h
+index a9a035e04d1..314849a6bff 100644
+--- a/libstdc++-v3/include/bits/regex.h
++++ b/libstdc++-v3/include/bits/regex.h
+@@ -57,6 +57,16 @@ namespace __detail
+ 
+   template<typename, typename, typename, bool>
+     class _Executor;
++
++  template<typename _Tp>
++    struct __is_contiguous_iter : false_type { };
++
++  template<typename _Tp>
++    struct __is_contiguous_iter<_Tp*> : true_type { };
++
++  template<typename _Tp, typename _Cont>
++    struct __is_contiguous_iter<__gnu_cxx::__normal_iterator<_Tp*, _Cont>>
++    : true_type { };
+ }
+ 
+ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+@@ -414,6 +424,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+       static constexpr flag_type awk = regex_constants::awk;
+       static constexpr flag_type grep = regex_constants::grep;
+       static constexpr flag_type egrep = regex_constants::egrep;
++#if __cplusplus >= 201703L || !defined __STRICT_ANSI__
++      static constexpr flag_type multiline = regex_constants::multiline;
++#endif
+       ///@}
+ 
+       // [7.8.2] construct/copy/destroy
+@@ -421,7 +434,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+        * Constructs a basic regular expression that does not match any
+        * character sequence.
+        */
+-      basic_regex()
++      basic_regex() noexcept
+       : _M_flags(ECMAScript), _M_loc(), _M_automaton(nullptr)
+       { }
+ 
+@@ -438,8 +451,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+        */
+       explicit
+       basic_regex(const _Ch_type* __p, flag_type __f = ECMAScript)
+-      : basic_regex(__p, __p + char_traits<_Ch_type>::length(__p), __f)
+-      { }
++      { _M_compile(__p, __p + _Rx_traits::length(__p), __f); }
+ 
+       /**
+        * @brief Constructs a basic regular expression from the sequence
+@@ -455,8 +467,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+        */
+       basic_regex(const _Ch_type* __p, std::size_t __len,
+ 		  flag_type __f = ECMAScript)
+-      : basic_regex(__p, __p + __len, __f)
+-      { }
++      { _M_compile(__p, __p + __len, __f); }
+ 
+       /**
+        * @brief Copy-constructs a basic regular expression.
+@@ -486,8 +497,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+ 	basic_regex(const std::basic_string<_Ch_type, _Ch_traits,
+ 					    _Ch_alloc>& __s,
+ 		    flag_type __f = ECMAScript)
+-	: basic_regex(__s.data(), __s.data() + __s.size(), __f)
+-	{ }
++	{ _M_compile(__s.data(), __s.data() + __s.size(), __f); }
+ 
+       /**
+        * @brief Constructs a basic regular expression from the range
+@@ -505,8 +515,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+       template<typename _FwdIter>
+ 	basic_regex(_FwdIter __first, _FwdIter __last,
+ 		    flag_type __f = ECMAScript)
+-	: basic_regex(std::move(__first), std::move(__last), locale_type(), __f)
+-	{ }
++	{ this->assign(__first, __last, __f); }
+ 
+       /**
+        * @brief Constructs a basic regular expression from an initializer list.
+@@ -517,8 +526,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+        * @throws regex_error if @p __l is not a valid regular expression.
+        */
+       basic_regex(initializer_list<_Ch_type> __l, flag_type __f = ECMAScript)
+-      : basic_regex(__l.begin(), __l.end(), __f)
+-      { }
++      { _M_compile(__l.begin(), __l.end(), __f); }
+ 
+       /**
+        * @brief Destroys a basic regular expression.
+@@ -530,15 +538,13 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+        * @brief Assigns one regular expression to another.
+        */
+       basic_regex&
+-      operator=(const basic_regex& __rhs)
+-      { return this->assign(__rhs); }
++      operator=(const basic_regex&) = default;
+ 
+       /**
+        * @brief Move-assigns one regular expression to another.
+        */
+       basic_regex&
+-      operator=(basic_regex&& __rhs) noexcept
+-      { return this->assign(std::move(__rhs)); }
++      operator=(basic_regex&&) = default;
+ 
+       /**
+        * @brief Replaces a regular expression with a new one constructed from
+@@ -561,7 +567,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+        */
+       basic_regex&
+       operator=(initializer_list<_Ch_type> __l)
+-      { return this->assign(__l.begin(), __l.end()); }
++      { return this->assign(__l); }
+ 
+       /**
+        * @brief Replaces a regular expression with a new one constructed from
+@@ -576,30 +582,22 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+ 
+       // [7.8.3] assign
+       /**
+-       * @brief the real assignment operator.
++       * @brief Assigns one regular expression to another.
+        *
+        * @param __rhs Another regular expression object.
+        */
+       basic_regex&
+-      assign(const basic_regex& __rhs)
+-      {
+-	basic_regex __tmp(__rhs);
+-	this->swap(__tmp);
+-	return *this;
+-      }
++      assign(const basic_regex& __rhs) noexcept
++      { return *this = __rhs; }
+ 
+       /**
+-       * @brief The move-assignment operator.
++       * @brief Move-assigns one regular expression to another.
+        *
+        * @param __rhs Another regular expression object.
+        */
+       basic_regex&
+       assign(basic_regex&& __rhs) noexcept
+-      {
+-	basic_regex __tmp(std::move(__rhs));
+-	this->swap(__tmp);
+-	return *this;
+-      }
++      { return *this = std::move(__rhs); }
+ 
+       /**
+        * @brief Assigns a new regular expression to a regex object from a
+@@ -616,7 +614,10 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+        */
+       basic_regex&
+       assign(const _Ch_type* __p, flag_type __flags = ECMAScript)
+-      { return this->assign(string_type(__p), __flags); }
++      {
++	_M_compile(__p, __p + _Rx_traits::length(__p), __flags);
++	return *this;
++      }
+ 
+       /**
+        * @brief Assigns a new regular expression to a regex object from a
+@@ -635,7 +636,10 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+       // 3296. Inconsistent default argument for basic_regex<>::assign
+       basic_regex&
+       assign(const _Ch_type* __p, size_t __len, flag_type __flags = ECMAScript)
+-      { return this->assign(string_type(__p, __len), __flags); }
++      {
++	_M_compile(__p, __p + __len, __flags);
++	return *this;
++      }
+ 
+       /**
+        * @brief Assigns a new regular expression to a regex object from a
+@@ -653,8 +657,8 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+ 	assign(const basic_string<_Ch_type, _Ch_traits, _Alloc>& __s,
+ 	       flag_type __flags = ECMAScript)
+ 	{
+-	  return this->assign(basic_regex(__s.data(), __s.data() + __s.size(),
+-					  _M_loc, __flags));
++	  _M_compile(__s.data(), __s.data() + __s.size(), __flags);
++	  return *this;
+ 	}
+ 
+       /**
+@@ -674,7 +678,21 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+ 	basic_regex&
+ 	assign(_InputIterator __first, _InputIterator __last,
+ 	       flag_type __flags = ECMAScript)
+-	{ return this->assign(string_type(__first, __last), __flags); }
++	{
++#if __cplusplus >= 201703L
++	  using _ValT = typename iterator_traits<_InputIterator>::value_type;
++	  if constexpr (__detail::__is_contiguous_iter<_InputIterator>::value
++			&& is_same_v<_ValT, value_type>)
++	    {
++	      const auto __len = __last - __first;
++	      const _Ch_type* __p = std::__to_address(__first);
++	      _M_compile(__p, __p + __len, __flags);
++	    }
++	  else
++#endif
++	  this->assign(string_type(__first, __last), __flags);
++	  return *this;
++	}
+ 
+       /**
+        * @brief Assigns a new regular expression to a regex object.
+@@ -689,7 +707,10 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+        */
+       basic_regex&
+       assign(initializer_list<_Ch_type> __l, flag_type __flags = ECMAScript)
+-      { return this->assign(__l.begin(), __l.end(), __flags); }
++      {
++	_M_compile(__l.begin(), __l.end(), __flags);
++	return *this;
++      }
+ 
+       // [7.8.4] const operations
+       /**
+@@ -697,7 +718,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+        * expression.
+        */
+       unsigned int
+-      mark_count() const
++      mark_count() const noexcept
+       {
+ 	if (_M_automaton)
+ 	  return _M_automaton->_M_sub_count() - 1;
+@@ -709,7 +730,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+        * or in the last call to assign().
+        */
+       flag_type
+-      flags() const
++      flags() const noexcept
+       { return _M_flags; }
+ 
+       // [7.8.5] locale
+@@ -731,7 +752,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+        *        object.
+        */
+       locale_type
+-      getloc() const
++      getloc() const noexcept
+       { return _M_loc; }
+ 
+       // [7.8.6] swap
+@@ -741,7 +762,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+        * @param __rhs Another regular expression object.
+        */
+       void
+-      swap(basic_regex& __rhs)
++      swap(basic_regex& __rhs) noexcept
+       {
+ 	std::swap(_M_flags, __rhs._M_flags);
+ 	std::swap(_M_loc, __rhs._M_loc);
+@@ -757,13 +778,14 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+     private:
+       typedef std::shared_ptr<const __detail::_NFA<_Rx_traits>> _AutomatonPtr;
+ 
+-      template<typename _FwdIter>
+-	basic_regex(_FwdIter __first, _FwdIter __last, locale_type __loc,
+-		    flag_type __f)
+-	: _M_flags(__f), _M_loc(std::move(__loc)),
+-	_M_automaton(__detail::__compile_nfa<_Rx_traits>(
+-	  std::move(__first), std::move(__last), _M_loc, _M_flags))
+-	{ }
++      void
++      _M_compile(const _Ch_type* __first, const _Ch_type* __last,
++		 flag_type __f)
++      {
++	__detail::_Compiler<_Rx_traits> __c(__first, __last, _M_loc, __f);
++	_M_automaton = __c._M_get_nfa();
++	_M_flags = __f;
++      }
+ 
+       template<typename _Bp, typename _Ap, typename _Cp, typename _Rp,
+ 	__detail::_RegexExecutorPolicy, bool>
+@@ -848,7 +870,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+   template<typename _Ch_type, typename _Rx_traits>
+     inline void
+     swap(basic_regex<_Ch_type, _Rx_traits>& __lhs,
+-	 basic_regex<_Ch_type, _Rx_traits>& __rhs)
++	 basic_regex<_Ch_type, _Rx_traits>& __rhs) noexcept
+     { __lhs.swap(__rhs); }
+ 
+ 
+@@ -2459,6 +2481,15 @@ _GLIBCXX_END_NAMESPACE_CXX11
+ 		 = regex_constants::match_default) = delete;
+ 
+   // std [28.11.4] Function template regex_replace
++
++  template<typename _Out_iter, typename _Bi_iter,
++	   typename _Rx_traits, typename _Ch_type>
++    _Out_iter
++    __regex_replace(_Out_iter __out, _Bi_iter __first, _Bi_iter __last,
++		    const basic_regex<_Ch_type, _Rx_traits>& __e,
++		    const _Ch_type* __fmt, size_t __len,
++		    regex_constants::match_flag_type __flags);
++
+   /**
+    * @brief Search for a regular expression within a range for multiple times,
+    and replace the matched parts through filling a format string.
+@@ -2482,7 +2513,8 @@ _GLIBCXX_END_NAMESPACE_CXX11
+ 		  regex_constants::match_flag_type __flags
+ 		  = regex_constants::match_default)
+     {
+-      return regex_replace(__out, __first, __last, __e, __fmt.c_str(), __flags);
++      return std::__regex_replace(__out, __first, __last, __e, __fmt.c_str(),
++				  __fmt.length(), __flags);
+     }
+ 
+   /**
+@@ -2505,7 +2537,13 @@ _GLIBCXX_END_NAMESPACE_CXX11
+ 		  const basic_regex<_Ch_type, _Rx_traits>& __e,
+ 		  const _Ch_type* __fmt,
+ 		  regex_constants::match_flag_type __flags
+-		  = regex_constants::match_default);
++		  = regex_constants::match_default)
++    {
++      return std::__regex_replace(__out, __first, __last, __e, __fmt,
++				  char_traits<_Ch_type>::length(__fmt),
++				  __flags);
++    }
++
+ 
+   /**
+    * @brief Search for a regular expression within a string for multiple times,
+diff --git a/libstdc++-v3/include/bits/regex.tcc b/libstdc++-v3/include/bits/regex.tcc
+index 39ad3f0a4cc..ef152851e55 100644
+--- a/libstdc++-v3/include/bits/regex.tcc
++++ b/libstdc++-v3/include/bits/regex.tcc
+@@ -461,10 +461,10 @@ namespace __detail
+   template<typename _Out_iter, typename _Bi_iter,
+ 	   typename _Rx_traits, typename _Ch_type>
+     _Out_iter
+-    regex_replace(_Out_iter __out, _Bi_iter __first, _Bi_iter __last,
+-		  const basic_regex<_Ch_type, _Rx_traits>& __e,
+-		  const _Ch_type* __fmt,
+-		  regex_constants::match_flag_type __flags)
++    __regex_replace(_Out_iter __out, _Bi_iter __first, _Bi_iter __last,
++		    const basic_regex<_Ch_type, _Rx_traits>& __e,
++		    const _Ch_type* __fmt, size_t __len,
++		    regex_constants::match_flag_type __flags)
+     {
+       typedef regex_iterator<_Bi_iter, _Ch_type, _Rx_traits> _IterT;
+       _IterT __i(__first, __last, __e, __flags);
+@@ -477,7 +477,6 @@ namespace __detail
+       else
+ 	{
+ 	  sub_match<_Bi_iter> __last;
+-	  auto __len = char_traits<_Ch_type>::length(__fmt);
+ 	  for (; __i != __end; ++__i)
+ 	    {
+ 	      if (!(__flags & regex_constants::format_no_copy))
+diff --git a/libstdc++-v3/include/bits/regex_automaton.h b/libstdc++-v3/include/bits/regex_automaton.h
+index 872a17fe8cb..f108675f35e 100644
+--- a/libstdc++-v3/include/bits/regex_automaton.h
++++ b/libstdc++-v3/include/bits/regex_automaton.h
+@@ -95,13 +95,13 @@ namespace __detail
+     };
+ 
+   protected:
+-    explicit _State_base(_Opcode __opcode)
++    explicit _State_base(_Opcode __opcode) noexcept
+     : _M_opcode(__opcode), _M_next(_S_invalid_state_id)
+     { }
+ 
+   public:
+     bool
+-    _M_has_alt()
++    _M_has_alt() const noexcept
+     {
+       return _M_opcode == _S_opcode_alternative
+ 	|| _M_opcode == _S_opcode_repeat
+@@ -130,7 +130,7 @@ namespace __detail
+ 		    "std::function<bool(char)>");
+ 
+       explicit
+-      _State(_Opcode __opcode) : _State_base(__opcode)
++      _State(_Opcode __opcode) noexcept : _State_base(__opcode)
+       {
+ 	if (_M_opcode() == _S_opcode_match)
+ 	  new (this->_M_matcher_storage._M_addr()) _MatcherT();
+@@ -143,7 +143,7 @@ namespace __detail
+ 	    _MatcherT(__rhs._M_get_matcher());
+       }
+ 
+-      _State(_State&& __rhs) : _State_base(__rhs)
++      _State(_State&& __rhs) noexcept : _State_base(__rhs)
+       {
+ 	if (__rhs._M_opcode() == _S_opcode_match)
+ 	  new (this->_M_matcher_storage._M_addr())
+@@ -162,7 +162,7 @@ namespace __detail
+       // Since correct ctor and dtor rely on _M_opcode, it's better not to
+       // change it over time.
+       _Opcode
+-      _M_opcode() const
++      _M_opcode() const noexcept
+       { return _State_base::_M_opcode; }
+ 
+       bool
+@@ -170,11 +170,11 @@ namespace __detail
+       { return _M_get_matcher()(__char); }
+ 
+       _MatcherT&
+-      _M_get_matcher()
++      _M_get_matcher() noexcept
+       { return *static_cast<_MatcherT*>(this->_M_matcher_storage._M_addr()); }
+ 
+       const _MatcherT&
+-      _M_get_matcher() const
++      _M_get_matcher() const noexcept
+       {
+ 	return *static_cast<const _MatcherT*>(
+ 	    this->_M_matcher_storage._M_addr());
+@@ -183,11 +183,10 @@ namespace __detail
+ 
+   struct _NFA_base
+   {
+-    typedef size_t                              _SizeT;
+     typedef regex_constants::syntax_option_type _FlagT;
+ 
+     explicit
+-    _NFA_base(_FlagT __f)
++    _NFA_base(_FlagT __f) noexcept
+     : _M_flags(__f), _M_start_state(0), _M_subexpr_count(0),
+     _M_has_backref(false)
+     { }
+@@ -199,21 +198,21 @@ namespace __detail
+ 
+   public:
+     _FlagT
+-    _M_options() const
++    _M_options() const noexcept
+     { return _M_flags; }
+ 
+     _StateIdT
+-    _M_start() const
++    _M_start() const noexcept
+     { return _M_start_state; }
+ 
+-    _SizeT
+-    _M_sub_count() const
++    size_t
++    _M_sub_count() const noexcept
+     { return _M_subexpr_count; }
+ 
+     _GLIBCXX_STD_C::vector<size_t> _M_paren_stack;
+     _FlagT                    _M_flags;
+     _StateIdT                 _M_start_state;
+-    _SizeT                    _M_subexpr_count;
++    size_t                    _M_subexpr_count;
+     bool                      _M_has_backref;
+   };
+ 
+diff --git a/libstdc++-v3/include/bits/regex_compiler.h b/libstdc++-v3/include/bits/regex_compiler.h
+index bf7dcc54dba..bae2138e309 100644
+--- a/libstdc++-v3/include/bits/regex_compiler.h
++++ b/libstdc++-v3/include/bits/regex_compiler.h
+@@ -58,15 +58,14 @@ namespace __detail
+     {
+     public:
+       typedef typename _TraitsT::char_type        _CharT;
+-      typedef const _CharT*                       _IterT;
+       typedef _NFA<_TraitsT>              	  _RegexT;
+       typedef regex_constants::syntax_option_type _FlagT;
+ 
+-      _Compiler(_IterT __b, _IterT __e,
++      _Compiler(const _CharT* __b, const _CharT* __e,
+ 		const typename _TraitsT::locale_type& __traits, _FlagT __flags);
+ 
+       shared_ptr<const _RegexT>
+-      _M_get_nfa()
++      _M_get_nfa() noexcept
+       { return std::move(_M_nfa); }
+ 
+     private:
+@@ -122,13 +121,45 @@ namespace __detail
+ 	void
+ 	_M_insert_bracket_matcher(bool __neg);
+ 
+-      // Returns true if successfully matched one term and should continue.
++      // Cache of the last atom seen in a bracketed range expression.
++      struct _BracketState
++      {
++	enum class _Type : char { _None, _Char, _Class } _M_type = _Type::_None;
++	_CharT _M_char;
++
++	void
++	set(_CharT __c) noexcept { _M_type = _Type::_Char; _M_char = __c; }
++
++	_GLIBCXX_NODISCARD _CharT
++	get() const noexcept { return _M_char; }
++
++	void
++	reset(_Type __t = _Type::_None) noexcept { _M_type = __t; }
++
++	explicit operator bool() const noexcept
++	{ return _M_type != _Type::_None; }
++
++	// Previous token was a single character.
++	_GLIBCXX_NODISCARD bool
++	_M_is_char() const noexcept { return _M_type == _Type::_Char; }
++
++	// Previous token was a character class, equivalent class,
++	// collating symbol etc.
++	_GLIBCXX_NODISCARD bool
++	_M_is_class() const noexcept { return _M_type == _Type::_Class; }
++      };
++
++      template<bool __icase, bool __collate>
++	using _BracketMatcher
++	  = std::__detail::_BracketMatcher<_TraitsT, __icase, __collate>;
++
++      // Returns true if successfully parsed one term and should continue
++      // compiling a bracket expression.
+       // Returns false if the compiler should move on.
+       template<bool __icase, bool __collate>
+ 	bool
+-	_M_expression_term(pair<bool, _CharT>& __last_char,
+-			   _BracketMatcher<_TraitsT, __icase, __collate>&
+-			   __matcher);
++	_M_expression_term(_BracketState& __last_char,
++			   _BracketMatcher<__icase, __collate>& __matcher);
+ 
+       int
+       _M_cur_int_value(int __radix);
+@@ -144,6 +175,26 @@ namespace __detail
+ 	return ret;
+       }
+ 
++      static _FlagT
++      _S_validate(_FlagT __f)
++      {
++	using namespace regex_constants;
++	switch (__f & (ECMAScript|basic|extended|awk|grep|egrep))
++	  {
++	  case ECMAScript:
++	  case basic:
++	  case extended:
++	  case awk:
++	  case grep:
++	  case egrep:
++	    return __f;
++	  case _FlagT(0):
++	    return __f | ECMAScript;
++	  default:
++	    std::__throw_regex_error(_S_grammar, "conflicting grammar options");
++	  }
++      }
++
+       _FlagT              _M_flags;
+       _ScannerT           _M_scanner;
+       shared_ptr<_RegexT> _M_nfa;
+@@ -153,47 +204,6 @@ namespace __detail
+       const _CtypeT&      _M_ctype;
+     };
+ 
+-  template<typename _Tp>
+-    struct __is_contiguous_iter : is_pointer<_Tp>::type { };
+-
+-  template<typename _Tp, typename _Cont>
+-    struct
+-    __is_contiguous_iter<__gnu_cxx::__normal_iterator<_Tp*, _Cont>>
+-    : true_type { };
+-
+-  template<typename _Iter, typename _TraitsT>
+-    using __enable_if_contiguous_iter
+-      = __enable_if_t< __is_contiguous_iter<_Iter>::value,
+-                       std::shared_ptr<const _NFA<_TraitsT>> >;
+-
+-  template<typename _Iter, typename _TraitsT>
+-    using __disable_if_contiguous_iter
+-      = __enable_if_t< !__is_contiguous_iter<_Iter>::value,
+-                       std::shared_ptr<const _NFA<_TraitsT>> >;
+-
+-  template<typename _TraitsT, typename _FwdIter>
+-    inline __enable_if_contiguous_iter<_FwdIter, _TraitsT>
+-    __compile_nfa(_FwdIter __first, _FwdIter __last,
+-		  const typename _TraitsT::locale_type& __loc,
+-		  regex_constants::syntax_option_type __flags)
+-    {
+-      size_t __len = __last - __first;
+-      const auto* __cfirst = __len ? std::__addressof(*__first) : nullptr;
+-      using _Cmplr = _Compiler<_TraitsT>;
+-      return _Cmplr(__cfirst, __cfirst + __len, __loc, __flags)._M_get_nfa();
+-    }
+-
+-  template<typename _TraitsT, typename _FwdIter>
+-    inline __disable_if_contiguous_iter<_FwdIter, _TraitsT>
+-    __compile_nfa(_FwdIter __first, _FwdIter __last,
+-		  const typename _TraitsT::locale_type& __loc,
+-		  regex_constants::syntax_option_type __flags)
+-    {
+-      const basic_string<typename _TraitsT::char_type> __str(__first, __last);
+-      return __compile_nfa<_TraitsT>(__str.data(), __str.data() + __str.size(),
+-				     __loc, __flags);
+-    }
+-
+   // [28.13.14]
+   template<typename _TraitsT, bool __icase, bool __collate>
+     class _RegexTranslatorBase
 diff --git a/libstdc++-v3/include/bits/regex_compiler.tcc b/libstdc++-v3/include/bits/regex_compiler.tcc
-index 440669debe0..e4f73971bbb 100644
+index 440669debe0..9000aec8e25 100644
 --- a/libstdc++-v3/include/bits/regex_compiler.tcc
 +++ b/libstdc++-v3/include/bits/regex_compiler.tcc
-@@ -586,9 +586,9 @@ namespace __detail
+@@ -63,17 +63,9 @@ namespace __detail
+ {
+   template<typename _TraitsT>
+     _Compiler<_TraitsT>::
+-    _Compiler(_IterT __b, _IterT __e,
++    _Compiler(const _CharT* __b, const _CharT* __e,
+ 	      const typename _TraitsT::locale_type& __loc, _FlagT __flags)
+-    : _M_flags((__flags
+-		& (regex_constants::ECMAScript
+-		   | regex_constants::basic
+-		   | regex_constants::extended
+-		   | regex_constants::grep
+-		   | regex_constants::egrep
+-		   | regex_constants::awk))
+-	       ? __flags
+-	       : __flags | regex_constants::ECMAScript),
++    : _M_flags(_S_validate(__flags)),
+       _M_scanner(__b, __e, _M_flags, __loc),
+       _M_nfa(make_shared<_RegexT>(__loc, _M_flags)),
+       _M_traits(_M_nfa->_M_traits),
+@@ -140,7 +132,8 @@ namespace __detail
+ 	return true;
+       if (this->_M_atom())
+ 	{
+-	  while (this->_M_quantifier());
++	  while (this->_M_quantifier())
++	    ;
+ 	  return true;
+ 	}
+       return false;
+@@ -410,7 +403,7 @@ namespace __detail
+     _M_insert_character_class_matcher()
+     {
+       __glibcxx_assert(_M_value.size() == 1);
+-      _BracketMatcher<_TraitsT, __icase, __collate> __matcher
++      _BracketMatcher<__icase, __collate> __matcher
+ 	(_M_ctype.is(_CtypeT::upper, _M_value[0]), _M_traits);
+       __matcher._M_add_character_class(_M_value, false);
+       __matcher._M_ready();
+@@ -424,25 +417,17 @@ namespace __detail
+     _Compiler<_TraitsT>::
+     _M_insert_bracket_matcher(bool __neg)
+     {
+-      _BracketMatcher<_TraitsT, __icase, __collate> __matcher(__neg, _M_traits);
+-      pair<bool, _CharT> __last_char; // Optional<_CharT>
+-      __last_char.first = false;
+-      if (!(_M_flags & regex_constants::ECMAScript))
+-	{
+-	  if (_M_try_char())
+-	    {
+-	      __last_char.first = true;
+-	      __last_char.second = _M_value[0];
+-	    }
+-	  else if (_M_match_token(_ScannerT::_S_token_bracket_dash))
+-	    {
+-	      __last_char.first = true;
+-	      __last_char.second = '-';
+-	    }
+-	}
+-      while (_M_expression_term(__last_char, __matcher));
+-      if (__last_char.first)
+-	__matcher._M_add_char(__last_char.second);
++      _BracketMatcher<__icase, __collate> __matcher(__neg, _M_traits);
++      _BracketState __last_char;
++      if (_M_try_char())
++	__last_char.set(_M_value[0]);
++      else if (_M_match_token(_ScannerT::_S_token_bracket_dash))
++	// Dash as first character is a normal character.
++	__last_char.set('-');
++      while (_M_expression_term(__last_char, __matcher))
++	;
++      if (__last_char._M_is_char())
++	__matcher._M_add_char(__last_char.get());
+       __matcher._M_ready();
+       _M_stack.push(_StateSeqT(
+ 		      *_M_nfa,
+@@ -453,27 +438,27 @@ namespace __detail
+   template<bool __icase, bool __collate>
+     bool
+     _Compiler<_TraitsT>::
+-    _M_expression_term(pair<bool, _CharT>& __last_char,
+-		       _BracketMatcher<_TraitsT, __icase, __collate>& __matcher)
++    _M_expression_term(_BracketState& __last_char,
++		       _BracketMatcher<__icase, __collate>& __matcher)
+     {
+       if (_M_match_token(_ScannerT::_S_token_bracket_end))
+ 	return false;
+ 
++      // Add any previously cached char into the matcher and update cache.
+       const auto __push_char = [&](_CharT __ch)
+       {
+-	if (__last_char.first)
+-	  __matcher._M_add_char(__last_char.second);
+-	else
+-	  __last_char.first = true;
+-	__last_char.second = __ch;
++	if (__last_char._M_is_char())
++	  __matcher._M_add_char(__last_char.get());
++	__last_char.set(__ch);
+       };
+-      const auto __flush = [&]
++      // Add any previously cached char into the matcher and update cache.
++      const auto __push_class = [&]
+       {
+-	if (__last_char.first)
+-	  {
+-	    __matcher._M_add_char(__last_char.second);
+-	    __last_char.first = false;
+-	  }
++        if (__last_char._M_is_char())
++	  __matcher._M_add_char(__last_char.get());
++	// We don't cache anything here, just record that the last thing
++	// processed was a character class (or similar).
++	__last_char.reset(_BracketState::_Type::_Class);
+       };
+ 
+       if (_M_match_token(_ScannerT::_S_token_collsymbol))
+@@ -482,16 +467,16 @@ namespace __detail
+ 	  if (__symbol.size() == 1)
+ 	    __push_char(__symbol[0]);
+ 	  else
+-	    __flush();
++	    __push_class();
+ 	}
+       else if (_M_match_token(_ScannerT::_S_token_equiv_class_name))
+ 	{
+-	  __flush();
++	  __push_class();
+ 	  __matcher._M_add_equivalence_class(_M_value);
+ 	}
+       else if (_M_match_token(_ScannerT::_S_token_char_class_name))
+ 	{
+-	  __flush();
++	  __push_class();
+ 	  __matcher._M_add_character_class(_M_value, false);
+ 	}
+       else if (_M_try_char())
+@@ -508,49 +493,50 @@ namespace __detail
+       // It turns out that no one reads BNFs ;)
+       else if (_M_match_token(_ScannerT::_S_token_bracket_dash))
+ 	{
+-	  if (!__last_char.first)
++	  if (_M_match_token(_ScannerT::_S_token_bracket_end))
+ 	    {
+-	      if (!(_M_flags & regex_constants::ECMAScript))
+-		{
+-		  if (_M_match_token(_ScannerT::_S_token_bracket_end))
+-		    {
+-		      __push_char('-');
+-		      return false;
+-		    }
+-		  __throw_regex_error(
+-		    regex_constants::error_range,
+-		    "Unexpected dash in bracket expression. For POSIX syntax, "
+-		    "a dash is not treated literally only when it is at "
+-		    "beginning or end.");
+-		}
++	      // For "-]" the dash is a literal character.
+ 	      __push_char('-');
++	      return false;
+ 	    }
+-	  else
++	  else if (__last_char._M_is_class())
++	    {
++	      // "\\w-" is invalid, start of range must be a single char.
++	      __throw_regex_error(regex_constants::error_range,
++		    "Invalid start of range in bracket expression.");
++	    }
++	  else if (__last_char._M_is_char())
+ 	    {
+ 	      if (_M_try_char())
+ 		{
+-		  __matcher._M_make_range(__last_char.second, _M_value[0]);
+-		  __last_char.first = false;
++		  // "x-y"
++		  __matcher._M_make_range(__last_char.get(), _M_value[0]);
++		  __last_char.reset();
+ 		}
+ 	      else if (_M_match_token(_ScannerT::_S_token_bracket_dash))
+ 		{
+-		  __matcher._M_make_range(__last_char.second, '-');
+-		  __last_char.first = false;
++		  // "x--"
++		  __matcher._M_make_range(__last_char.get(), '-');
++		  __last_char.reset();
+ 		}
+ 	      else
+-		{
+-		  if (_M_scanner._M_get_token()
+-		      != _ScannerT::_S_token_bracket_end)
+-		    __throw_regex_error(
+-		      regex_constants::error_range,
+-		      "Character is expected after a dash.");
+-		  __push_char('-');
+-		}
++		__throw_regex_error(regex_constants::error_range,
++		      "Invalid end of range in bracket expression.");
+ 	    }
++	  else if (_M_flags & regex_constants::ECMAScript)
++	    {
++	      // A dash that is not part of an existing range. Might be the
++	      // start of a new range, or might just be a literal '-' char.
++	      // Only ECMAScript allows that in the middle of a bracket expr.
++	      __push_char('-');
++	    }
++	  else
++	    __throw_regex_error(regex_constants::error_range,
++				"Invalid dash in bracket expression.");
+ 	}
+       else if (_M_match_token(_ScannerT::_S_token_quoted_class))
+ 	{
+-	  __flush();
++	  __push_class();
+ 	  __matcher._M_add_character_class(_M_value,
+ 					   _M_ctype.is(_CtypeT::upper,
+ 						       _M_value[0]));
+@@ -586,9 +572,9 @@ namespace __detail
    template<typename _TraitsT>
      bool
      _Compiler<_TraitsT>::
@@ -14008,6 +15313,266 @@ index 440669debe0..e4f73971bbb 100644
  	{
  	  _M_value = _M_scanner._M_get_value();
  	  _M_scanner._M_advance();
+diff --git a/libstdc++-v3/include/bits/regex_constants.h b/libstdc++-v3/include/bits/regex_constants.h
+index 1c3dd36d57c..0fd2879c817 100644
+--- a/libstdc++-v3/include/bits/regex_constants.h
++++ b/libstdc++-v3/include/bits/regex_constants.h
+@@ -64,7 +64,7 @@ namespace regex_constants
+     _S_grep,
+     _S_egrep,
+     _S_polynomial,
+-    _S_syntax_last
++    _S_multiline
+   };
+ 
+   /**
+@@ -170,6 +170,24 @@ namespace regex_constants
+   _GLIBCXX17_INLINE constexpr syntax_option_type egrep =
+     static_cast<syntax_option_type>(1 << _S_egrep);
+ 
++#if __cplusplus >= 201703L || !defined __STRICT_ANSI__
++  // _GLIBCXX_RESOLVE_LIB_DEFECTS
++  // 2503. multiline option should be added to syntax_option_type
++  /**
++   * Specifies that the `^` anchor matches at the beginning of a line,
++   * and the `$` anchor matches at the end of a line, not only at the
++   * beginning/end of the input.
++   * Valid for the ECMAScript syntax, ignored otherwise.
++   * @since C++17
++   */
++  _GLIBCXX17_INLINE constexpr syntax_option_type multiline =
++    static_cast<syntax_option_type>(1 << _S_multiline);
++#endif
++
++  /// Extension: Equivalent to regex_constants::multiline for C++11 and C++14.
++  _GLIBCXX17_INLINE constexpr syntax_option_type __multiline =
++    static_cast<syntax_option_type>(1 << _S_multiline);
++
+   /**
+    * Extension: Ensure both space complexity of compiled regex and
+    * time complexity execution are not exponential.
+@@ -310,9 +328,10 @@ namespace regex_constants
+     static_cast<match_flag_type>(1 << _S_continuous);
+ 
+   /**
+-   * --first is a valid iterator position.  When this flag is set then the
+-   * flags match_not_bol and match_not_bow are ignored by the regular
+-   * expression algorithms 28.11 and iterators 28.12.
++   * `--first` is a valid iterator position.  When this flag is set then the
++   * flags `match_not_bol` and `match_not_bow` are ignored by the algorithms
++   * `regex_match`, `regex_search`, and `regex_replace`, and by the iterators
++   * `regex_iterator` and `regex_token_iterator`.
+    */
+   _GLIBCXX17_INLINE constexpr match_flag_type match_prev_avail =
+     static_cast<match_flag_type>(1 << _S_prev_avail);
+diff --git a/libstdc++-v3/include/bits/regex_error.h b/libstdc++-v3/include/bits/regex_error.h
+index 27593833544..e7b7b420ec4 100644
+--- a/libstdc++-v3/include/bits/regex_error.h
++++ b/libstdc++-v3/include/bits/regex_error.h
+@@ -61,6 +61,8 @@ namespace regex_constants
+       _S_error_badrepeat,
+       _S_error_complexity,
+       _S_error_stack,
++      _S_null,
++      _S_grammar
+     };
+ 
+   /** The expression contained an invalid collating element name. */
+@@ -150,7 +152,7 @@ namespace regex_constants
+      * @returns the regex error code.
+      */
+     regex_constants::error_type
+-    code() const
++    code() const noexcept
+     { return _M_code; }
+ 
+   private:
+diff --git a/libstdc++-v3/include/bits/regex_executor.h b/libstdc++-v3/include/bits/regex_executor.h
+index 4a641eeee6c..ebaad88b75f 100644
+--- a/libstdc++-v3/include/bits/regex_executor.h
++++ b/libstdc++-v3/include/bits/regex_executor.h
+@@ -78,12 +78,12 @@ namespace __detail
+       _M_results(__results),
+       _M_rep_count(_M_nfa.size()),
+       _M_states(_M_nfa._M_start(), _M_nfa.size()),
+-      _M_flags((__flags & regex_constants::match_prev_avail)
+-	       ? (__flags
+-		  & ~regex_constants::match_not_bol
+-		  & ~regex_constants::match_not_bow)
+-	       : __flags)
+-      { }
++      _M_flags(__flags)
++      {
++	using namespace regex_constants;
++	if (__flags & match_prev_avail) // ignore not_bol and not_bow
++	  _M_flags &= ~(match_not_bol | match_not_bow);
++      }
+ 
+       // Set matched when string exactly matches the pattern.
+       bool
+@@ -165,16 +165,39 @@ namespace __detail
+       bool
+       _M_at_begin() const
+       {
+-	return _M_current == _M_begin
+-	  && !(_M_flags & (regex_constants::match_not_bol
+-			   | regex_constants::match_prev_avail));
++	if (_M_current == _M_begin)
++	  {
++	    // match_not_bol means ^ does not match [_M_begin,_M_begin)
++	    if (_M_flags & regex_constants::match_not_bol)
++	      return false;
++	    // match_prev_avail means _M_begin is not the start of the input.
++	    if (_M_flags & regex_constants::match_prev_avail)
++	      {
++		// For ECMAScript multiline matches, check if the previous
++		// character is a line terminator.
++		if (_M_match_multiline())
++		  return _M_is_line_terminator(*std::prev(_M_current));
++		else
++		  return false;
++	      }
++	    else // ^ matches at _M_begin
++	      return true;
++	  }
++	else if (_M_match_multiline())
++	  return _M_is_line_terminator(*std::prev(_M_current));
++	else
++	  return false;
+       }
+ 
+       bool
+       _M_at_end() const
+       {
+-	return _M_current == _M_end
+-	  && !(_M_flags & regex_constants::match_not_eol);
++	if (_M_current == _M_end)
++	  return !(_M_flags & regex_constants::match_not_eol);
++	else if (_M_match_multiline())
++	  return _M_is_line_terminator(*_M_current);
++	else
++	  return false;
+       }
+ 
+       bool
+@@ -183,6 +206,31 @@ namespace __detail
+       bool
+       _M_lookahead(_StateIdT __next);
+ 
++      bool
++      _M_is_line_terminator(_CharT __c) const
++      {
++	const auto& __traits = _M_re._M_automaton->_M_traits;
++	const auto& __ct = use_facet<ctype<_CharT>>(__traits.getloc());
++	const char __n{ __ct.narrow(__c, ' ') };
++	if (__n == '\n')
++	  return true;
++	if (_M_re._M_automaton->_M_options() & regex_constants::ECMAScript)
++	  {
++	    if (__n == '\r')
++	      return true;
++	    // FIXME: U+2028 (line separator) and U+2029 (paragraph separator)
++	  }
++	return false;
++      }
++
++      bool
++      _M_match_multiline() const noexcept
++      {
++	constexpr auto __m
++	  = regex_constants::ECMAScript | regex_constants::__multiline;
++	return (_M_re._M_automaton->_M_options() & __m) == __m;
++      }
++
+        // Holds additional information used in BFS-mode.
+       template<typename _SearchMode, typename _ResultsVec>
+ 	struct _State_info;
+diff --git a/libstdc++-v3/include/bits/regex_executor.tcc b/libstdc++-v3/include/bits/regex_executor.tcc
+index 405d1c4d0d1..88bbbf42f78 100644
+--- a/libstdc++-v3/include/bits/regex_executor.tcc
++++ b/libstdc++-v3/include/bits/regex_executor.tcc
+@@ -423,7 +423,7 @@ namespace __detail
+   template<typename _BiIter, typename _Alloc, typename _TraitsT,
+ 	   bool __dfs_mode>
+     void _Executor<_BiIter, _Alloc, _TraitsT, __dfs_mode>::
+-    _M_handle_accept(_Match_mode __match_mode, _StateIdT __i)
++    _M_handle_accept(_Match_mode __match_mode, _StateIdT)
+     {
+       if (__dfs_mode)
+ 	{
+diff --git a/libstdc++-v3/include/bits/regex_scanner.h b/libstdc++-v3/include/bits/regex_scanner.h
+index e810fa7dd31..4e7d5efb34b 100644
+--- a/libstdc++-v3/include/bits/regex_scanner.h
++++ b/libstdc++-v3/include/bits/regex_scanner.h
+@@ -211,23 +211,22 @@ namespace __detail
+     : public _ScannerBase
+     {
+     public:
+-      typedef const _CharT*                                       _IterT;
+       typedef std::basic_string<_CharT>                           _StringT;
+       typedef regex_constants::syntax_option_type                 _FlagT;
+       typedef const std::ctype<_CharT>                            _CtypeT;
+ 
+-      _Scanner(_IterT __begin, _IterT __end,
++      _Scanner(const _CharT* __begin, const _CharT* __end,
+ 	       _FlagT __flags, std::locale __loc);
+ 
+       void
+       _M_advance();
+ 
+       _TokenT
+-      _M_get_token() const
++      _M_get_token() const noexcept
+       { return _M_token; }
+ 
+       const _StringT&
+-      _M_get_value() const
++      _M_get_value() const noexcept
+       { return _M_value; }
+ 
+ #ifdef _GLIBCXX_DEBUG
+@@ -257,8 +256,8 @@ namespace __detail
+       void
+       _M_eat_class(char);
+ 
+-      _IterT                        _M_current;
+-      _IterT                        _M_end;
++      const _CharT*                 _M_current;
++      const _CharT*                 _M_end;
+       _CtypeT&                      _M_ctype;
+       _StringT                      _M_value;
+       void (_Scanner::* _M_eat_escape)();
+diff --git a/libstdc++-v3/include/bits/regex_scanner.tcc b/libstdc++-v3/include/bits/regex_scanner.tcc
+index a3512083f0e..473dc888a20 100644
+--- a/libstdc++-v3/include/bits/regex_scanner.tcc
++++ b/libstdc++-v3/include/bits/regex_scanner.tcc
+@@ -54,8 +54,7 @@ namespace __detail
+ {
+   template<typename _CharT>
+     _Scanner<_CharT>::
+-    _Scanner(typename _Scanner::_IterT __begin,
+-	     typename _Scanner::_IterT __end,
++    _Scanner(const _CharT* __begin, const _CharT* __end,
+ 	     _FlagT __flags, std::locale __loc)
+     : _ScannerBase(__flags),
+       _M_current(__begin), _M_end(__end),
+@@ -176,6 +175,16 @@ namespace __detail
+ 	  _M_state = _S_state_in_brace;
+ 	  _M_token = _S_token_interval_begin;
+ 	}
++      else if (__builtin_expect(__c == _CharT(0), false))
++	{
++	  if (!_M_is_ecma())
++	    {
++	      __throw_regex_error(regex_constants::_S_null,
++		  "Unexpected null character in regular expression");
++	    }
++	  _M_token = _S_token_ord_char;
++	  _M_value.assign(1, __c);
++	}
+       else if (__c != ']' && __c != '}')
+ 	{
+ 	  auto __it = _M_token_tbl;
 diff --git a/libstdc++-v3/include/bits/stl_construct.h b/libstdc++-v3/include/bits/stl_construct.h
 index e53ed0d9f91..f14fba0cfb1 100644
 --- a/libstdc++-v3/include/bits/stl_construct.h
@@ -14058,7 +15623,7 @@ index 20c73b4fc3c..8236fe35ce7 100644
  	    + (__y._M_last - __y._M_cur);
  	}
 diff --git a/libstdc++-v3/include/bits/stl_iterator.h b/libstdc++-v3/include/bits/stl_iterator.h
-index beeb4ef4c8a..4247bb116c3 100644
+index beeb4ef4c8a..38a828e633e 100644
 --- a/libstdc++-v3/include/bits/stl_iterator.h
 +++ b/libstdc++-v3/include/bits/stl_iterator.h
 @@ -537,6 +537,22 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
@@ -14136,6 +15701,76 @@ index beeb4ef4c8a..4247bb116c3 100644
    template<typename _Iterator>
      inline _GLIBCXX17_CONSTEXPR bool
      operator!=(const move_iterator<_Iterator>& __x,
+@@ -2188,7 +2223,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	return *this;
+       }
+ 
+-      decltype(auto)
++      constexpr decltype(auto)
+       operator++(int)
+       {
+ 	__glibcxx_assert(_M_length > 0);
+@@ -2200,7 +2235,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	    ++_M_length;
+ 	    __throw_exception_again;
+ 	  }
+-
+       }
+ 
+       constexpr counted_iterator
+diff --git a/libstdc++-v3/include/bits/stl_list.h b/libstdc++-v3/include/bits/stl_list.h
+index dbe05a9834b..2c70adf2b93 100644
+--- a/libstdc++-v3/include/bits/stl_list.h
++++ b/libstdc++-v3/include/bits/stl_list.h
+@@ -1,6 +1,7 @@
+ // List implementation -*- C++ -*-
+ 
+ // Copyright (C) 2001-2021 Free Software Foundation, Inc.
++// Copyright The GNU Toolchain Authors.
+ //
+ // This file is part of the GNU ISO C++ Library.  This library is free
+ // software; you can redistribute it and/or modify it under the
+@@ -1966,6 +1967,40 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+ 			     __false_type{});
+       }
+ #endif
++
++#if _GLIBCXX_USE_CXX11_ABI
++      // Update _M_size members after merging (some of) __src into __dest.
++      struct _Finalize_merge
++      {
++	explicit
++	_Finalize_merge(list& __dest, list& __src, const iterator& __src_next)
++	: _M_dest(__dest), _M_src(__src), _M_next(__src_next)
++	{ }
++
++	~_Finalize_merge()
++	{
++	  // For the common case, _M_next == _M_sec.end() and the std::distance
++	  // call is fast. But if any *iter1 < *iter2 comparison throws then we
++	  // have to count how many elements remain in _M_src.
++	  const size_t __num_unmerged = std::distance(_M_next, _M_src.end());
++	  const size_t __orig_size = _M_src._M_get_size();
++	  _M_dest._M_inc_size(__orig_size - __num_unmerged);
++	  _M_src._M_set_size(__num_unmerged);
++	}
++
++	list& _M_dest;
++	list& _M_src;
++	const iterator& _M_next;
++
++#if __cplusplus >= 201103L
++	_Finalize_merge(const _Finalize_merge&) = delete;
++#endif
++      };
++#else
++      struct _Finalize_merge
++      { explicit _Finalize_merge(list&, list&, const iterator&) { } };
++#endif
++
+     };
+ 
+ #if __cpp_deduction_guides >= 201606
 diff --git a/libstdc++-v3/include/experimental/bits/fs_path.h b/libstdc++-v3/include/experimental/bits/fs_path.h
 index 1cc1b3bf686..830b51e45a0 100644
 --- a/libstdc++-v3/include/experimental/bits/fs_path.h
@@ -14435,9 +16070,51 @@ index 8572e376c92..65f923993fa 100644
  	  else
  	    {
 diff --git a/libstdc++-v3/include/std/future b/libstdc++-v3/include/std/future
-index 09e54c3703b..f5d8da472f5 100644
+index 09e54c3703b..88478860c7d 100644
 --- a/libstdc++-v3/include/std/future
 +++ b/libstdc++-v3/include/std/future
+@@ -139,34 +139,34 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     deferred = 2
+   };
+ 
+-  constexpr launch operator&(launch __x, launch __y)
++  constexpr launch operator&(launch __x, launch __y) noexcept
+   {
+     return static_cast<launch>(
+ 	static_cast<int>(__x) & static_cast<int>(__y));
+   }
+ 
+-  constexpr launch operator|(launch __x, launch __y)
++  constexpr launch operator|(launch __x, launch __y) noexcept
+   {
+     return static_cast<launch>(
+ 	static_cast<int>(__x) | static_cast<int>(__y));
+   }
+ 
+-  constexpr launch operator^(launch __x, launch __y)
++  constexpr launch operator^(launch __x, launch __y) noexcept
+   {
+     return static_cast<launch>(
+ 	static_cast<int>(__x) ^ static_cast<int>(__y));
+   }
+ 
+-  constexpr launch operator~(launch __x)
++  constexpr launch operator~(launch __x) noexcept
+   { return static_cast<launch>(~static_cast<int>(__x)); }
+ 
+-  inline launch& operator&=(launch& __x, launch __y)
++  inline launch& operator&=(launch& __x, launch __y) noexcept
+   { return __x = __x & __y; }
+ 
+-  inline launch& operator|=(launch& __x, launch __y)
++  inline launch& operator|=(launch& __x, launch __y) noexcept
+   { return __x = __x | __y; }
+ 
+-  inline launch& operator^=(launch& __x, launch __y)
++  inline launch& operator^=(launch& __x, launch __y) noexcept
+   { return __x = __x ^ __y; }
+ 
+   /// Status code for futures
 @@ -1621,6 +1621,17 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        }
      };
@@ -14498,6 +16175,47 @@ index f55ee15e1b1..bbdfb7dbe5c 100644
  	    { return default_sentinel; }
  	  };
  
+diff --git a/libstdc++-v3/include/std/source_location b/libstdc++-v3/include/std/source_location
+index 6cf6d7949cf..647ca0b9e3d 100644
+--- a/libstdc++-v3/include/std/source_location
++++ b/libstdc++-v3/include/std/source_location
+@@ -43,12 +43,20 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+   {
+   private:
+     using uint_least32_t = __UINT_LEAST32_TYPE__;
++    struct __impl
++    {
++      const char* _M_file_name;
++      const char* _M_function_name;
++      unsigned _M_line;
++      unsigned _M_column;
++    };
++    using __builtin_ret_type = decltype(__builtin_source_location());
+ 
+   public:
+ 
+     // [support.srcloc.cons], creation
+     static consteval source_location
+-    current(const void* __p = __builtin_source_location()) noexcept
++    current(__builtin_ret_type __p = __builtin_source_location()) noexcept
+     {
+       source_location __ret;
+       __ret._M_impl = static_cast <const __impl*>(__p);
+@@ -75,14 +83,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     { return _M_impl ? _M_impl->_M_function_name : ""; }
+ 
+   private:
+-    struct __impl
+-    {
+-      const char* _M_file_name;
+-      const char* _M_function_name;
+-      unsigned _M_line;
+-      unsigned _M_column;
+-    };
+-
+     const __impl* _M_impl = nullptr;
+   };
+ 
 diff --git a/libstdc++-v3/include/std/span b/libstdc++-v3/include/std/span
 index af0d24b29f2..2adf1ca2e09 100644
 --- a/libstdc++-v3/include/std/span
@@ -14517,6 +16235,18 @@ index af0d24b29f2..2adf1ca2e09 100644
  	  && __is_compatible_ref<ranges::range_reference_t<_Range>>::value
  	constexpr explicit(extent != dynamic_extent)
  	span(_Range&& __range)
+diff --git a/libstdc++-v3/include/std/sstream b/libstdc++-v3/include/std/sstream
+index f21664100ab..56555ecd98a 100644
+--- a/libstdc++-v3/include/std/sstream
++++ b/libstdc++-v3/include/std/sstream
+@@ -425,6 +425,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+       // This might not be the same character as _M_string.end() because
+       // basic_stringbuf::overflow might have written to unused capacity
+       // in _M_string without updating its length.
++      __attribute__((__always_inline__))
+       char_type*
+       _M_high_mark() const _GLIBCXX_NOEXCEPT
+       {
 diff --git a/libstdc++-v3/include/std/syncstream b/libstdc++-v3/include/std/syncstream
 index db6ebd50471..ac39d0f2243 100644
 --- a/libstdc++-v3/include/std/syncstream
@@ -14556,6 +16286,188 @@ index dcf30bd9a8d..63bd68fbe43 100644
        // Constraint for a non-explicit constructor.
        // True iff each Ti in _Types... can be constructed from Ui in _UTypes...
        // and every Ui is implicitly convertible to Ti.
+diff --git a/libstdc++-v3/include/std/variant b/libstdc++-v3/include/std/variant
+index c0585cb5999..285c5be6521 100644
+--- a/libstdc++-v3/include/std/variant
++++ b/libstdc++-v3/include/std/variant
+@@ -435,13 +435,6 @@ namespace __variant
+       ~_Variant_storage()
+       { _M_reset(); }
+ 
+-      void*
+-      _M_storage() const noexcept
+-      {
+-	return const_cast<void*>(static_cast<const void*>(
+-	    std::addressof(_M_u)));
+-      }
+-
+       constexpr bool
+       _M_valid() const noexcept
+       {
+@@ -473,13 +466,6 @@ namespace __variant
+       void _M_reset() noexcept
+       { _M_index = static_cast<__index_type>(variant_npos); }
+ 
+-      void*
+-      _M_storage() const noexcept
+-      {
+-	return const_cast<void*>(static_cast<const void*>(
+-	    std::addressof(_M_u)));
+-      }
+-
+       constexpr bool
+       _M_valid() const noexcept
+       {
+@@ -804,11 +790,6 @@ namespace __variant
+     : _FUN_type<_Tp, _Variant>
+     { };
+ 
+-  // Returns the raw storage for __v.
+-  template<typename _Variant>
+-    void* __get_storage(_Variant&& __v) noexcept
+-    { return __v._M_storage(); }
+-
+   template <typename _Maybe_variant_cookie, typename _Variant>
+     struct _Extra_visit_slot_needed
+     {
+@@ -1108,19 +1089,21 @@ namespace __variant
+ 	>;
+     }
+ 
+-} // namespace __variant
+-} // namespace __detail
+-
+   template<size_t _Np, typename _Variant, typename... _Args>
+-    void __variant_construct_by_index(_Variant& __v, _Args&&... __args)
++    inline void
++    __construct_by_index(_Variant& __v, _Args&&... __args)
+     {
+-      __v._M_index = _Np;
+       auto&& __storage = __detail::__variant::__get<_Np>(__v);
+       ::new ((void*)std::addressof(__storage))
+         remove_reference_t<decltype(__storage)>
+ 	  (std::forward<_Args>(__args)...);
++      // Construction didn't throw, so can set the new index now:
++      __v._M_index = _Np;
+     }
+ 
++} // namespace __variant
++} // namespace __detail
++
+   template<typename _Tp, typename... _Types>
+     constexpr bool
+     holds_alternative(const variant<_Types...>& __v) noexcept
+@@ -1356,8 +1339,9 @@ namespace __variant
+       template <typename... _UTypes, typename _Tp>
+ 	friend decltype(auto) __variant_cast(_Tp&&);
+       template<size_t _Np, typename _Variant, typename... _Args>
+-	friend void __variant_construct_by_index(_Variant& __v,
+-						 _Args&&... __args);
++	friend void
++	__detail::__variant::__construct_by_index(_Variant& __v,
++						  _Args&&... __args);
+ 
+       static_assert(sizeof...(_Types) > 0,
+ 		    "variant must have at least one alternative");
+@@ -1521,12 +1505,13 @@ namespace __variant
+ 	  static_assert(_Np < sizeof...(_Types),
+ 			"The index must be in [0, number of alternatives)");
+ 	  using type = variant_alternative_t<_Np, variant>;
++	  namespace __variant = std::__detail::__variant;
+ 	  // Provide the strong exception-safety guarantee when possible,
+ 	  // to avoid becoming valueless.
+ 	  if constexpr (is_nothrow_constructible_v<type, _Args...>)
+ 	    {
+ 	      this->_M_reset();
+-	      __variant_construct_by_index<_Np>(*this,
++	      __variant::__construct_by_index<_Np>(*this,
+ 		  std::forward<_Args>(__args)...);
+ 	    }
+ 	  else if constexpr (is_scalar_v<type>)
+@@ -1535,9 +1520,9 @@ namespace __variant
+ 	      const type __tmp(std::forward<_Args>(__args)...);
+ 	      // But these steps won't throw:
+ 	      this->_M_reset();
+-	      __variant_construct_by_index<_Np>(*this, __tmp);
++	      __variant::__construct_by_index<_Np>(*this, __tmp);
+ 	    }
+-	  else if constexpr (__detail::__variant::_Never_valueless_alt<type>()
++	  else if constexpr (__variant::_Never_valueless_alt<type>()
+ 	      && _Traits::_S_move_assign)
+ 	    {
+ 	      // This construction might throw:
+@@ -1551,17 +1536,8 @@ namespace __variant
+ 	      // This case only provides the basic exception-safety guarantee,
+ 	      // i.e. the variant can become valueless.
+ 	      this->_M_reset();
+-	      __try
+-		{
+-		  __variant_construct_by_index<_Np>(*this,
+-		    std::forward<_Args>(__args)...);
+-		}
+-	      __catch (...)
+-		{
+-		  using __index_type = decltype(this->_M_index);
+-		  this->_M_index = static_cast<__index_type>(variant_npos);
+-		  __throw_exception_again;
+-		}
++	      __variant::__construct_by_index<_Np>(*this,
++		std::forward<_Args>(__args)...);
+ 	    }
+ 	  return std::get<_Np>(*this);
+ 	}
+@@ -1575,6 +1551,7 @@ namespace __variant
+ 	  static_assert(_Np < sizeof...(_Types),
+ 			"The index must be in [0, number of alternatives)");
+ 	  using type = variant_alternative_t<_Np, variant>;
++	  namespace __variant = std::__detail::__variant;
+ 	  // Provide the strong exception-safety guarantee when possible,
+ 	  // to avoid becoming valueless.
+ 	  if constexpr (is_nothrow_constructible_v<type,
+@@ -1582,10 +1559,10 @@ namespace __variant
+ 						   _Args...>)
+ 	    {
+ 	      this->_M_reset();
+-	      __variant_construct_by_index<_Np>(*this, __il,
++	      __variant::__construct_by_index<_Np>(*this, __il,
+ 		  std::forward<_Args>(__args)...);
+ 	    }
+-	  else if constexpr (__detail::__variant::_Never_valueless_alt<type>()
++	  else if constexpr (__variant::_Never_valueless_alt<type>()
+ 	      && _Traits::_S_move_assign)
+ 	    {
+ 	      // This construction might throw:
+@@ -1599,17 +1576,8 @@ namespace __variant
+ 	      // This case only provides the basic exception-safety guarantee,
+ 	      // i.e. the variant can become valueless.
+ 	      this->_M_reset();
+-	      __try
+-		{
+-		  __variant_construct_by_index<_Np>(*this, __il,
+-		    std::forward<_Args>(__args)...);
+-		}
+-	      __catch (...)
+-		{
+-		  using __index_type = decltype(this->_M_index);
+-		  this->_M_index = static_cast<__index_type>(variant_npos);
+-		  __throw_exception_again;
+-		}
++	      __variant::__construct_by_index<_Np>(*this, __il,
++		std::forward<_Args>(__args)...);
+ 	    }
+ 	  return std::get<_Np>(*this);
+ 	}
+@@ -1685,10 +1653,6 @@ namespace __variant
+ 	friend constexpr decltype(auto)
+ 	__detail::__variant::__get(_Vp&& __v) noexcept;
+ 
+-      template<typename _Vp>
+-	friend void*
+-	__detail::__variant::__get_storage(_Vp&& __v) noexcept;
+-
+ #define _VARIANT_RELATION_FUNCTION_TEMPLATE(__OP) \
+       template<typename... _Tp> \
+ 	friend constexpr bool \
 diff --git a/libstdc++-v3/src/Makefile.am b/libstdc++-v3/src/Makefile.am
 index 16f4cc6eff4..f92a52748c5 100644
 --- a/libstdc++-v3/src/Makefile.am
@@ -15415,6 +17327,39 @@ index 00000000000..0f6f520c33b
 +  test_stable();
 +  test_lwg3088();
 +}
+diff --git a/libstdc++-v3/testsuite/24_iterators/counted_iterator/lwg3643.cc b/libstdc++-v3/testsuite/24_iterators/counted_iterator/lwg3643.cc
+new file mode 100644
+index 00000000000..e6f12b46c12
+--- /dev/null
++++ b/libstdc++-v3/testsuite/24_iterators/counted_iterator/lwg3643.cc
+@@ -0,0 +1,27 @@
++// { dg-options "-std=gnu++20" }
++// { dg-do compile { target c++20 } }
++
++#include <iterator>
++
++struct InputIterator
++{
++  using difference_type = int;
++  using value_type = int;
++
++  constexpr int operator*() const noexcept { return 0; }
++  InputIterator& operator++() { return *this; }
++  constexpr void operator++(int) { }
++};
++
++static_assert( std::input_iterator<InputIterator> );
++static_assert( !std::forward_iterator<InputIterator> );
++
++constexpr bool
++test_lwg3643()
++{
++  std::counted_iterator<InputIterator> iter({}, 1);
++  iter++;
++  return iter == std::default_sentinel;
++}
++
++static_assert( test_lwg3643() );
 diff --git a/libstdc++-v3/testsuite/24_iterators/move_iterator/dr3265.cc b/libstdc++-v3/testsuite/24_iterators/move_iterator/dr3265.cc
 index e4219b8c78b..3ce0df5d111 100644
 --- a/libstdc++-v3/testsuite/24_iterators/move_iterator/dr3265.cc
@@ -15566,7 +17511,7 @@ index f947f8ae848..e8705ca7879 100644
 +  test_pr105502();
  }
 diff --git a/libstdc++-v3/testsuite/27_io/filesystem/iterators/error_reporting.cc b/libstdc++-v3/testsuite/27_io/filesystem/iterators/error_reporting.cc
-index 1f297a731a3..1c8ea4c9249 100644
+index 1f297a731a3..a26b29f0974 100644
 --- a/libstdc++-v3/testsuite/27_io/filesystem/iterators/error_reporting.cc
 +++ b/libstdc++-v3/testsuite/27_io/filesystem/iterators/error_reporting.cc
 @@ -28,35 +28,44 @@
@@ -15627,6 +17572,29 @@ index 1f297a731a3..1c8ea4c9249 100644
  }
  
  void
+@@ -98,7 +107,7 @@ void
+ test02()
+ {
+   namespace fs = std::filesystem;
+-  auto dir = __gnu_test::nonexistent_path();
++  const auto dir = __gnu_test::nonexistent_path();
+   fs::create_directories(dir/"subdir");
+ 
+   std::error_code ec;
+@@ -128,7 +137,12 @@ test02()
+   }
+ #endif
+ 
+-  fs::remove_all(dir, ec);
++  // Cannot use fs::remove_all here because that uses
++  // recursive_directory_iterator which would use the fake readdir above.
++#ifndef _GLIBCXX_FILESYSTEM_IS_WINDOWS
++  ::rmdir((dir/"subdir").c_str());
++  ::rmdir(dir.c_str());
++#endif
+ }
+ 
+ int
 diff --git a/libstdc++-v3/testsuite/27_io/filesystem/operations/copy.cc b/libstdc++-v3/testsuite/27_io/filesystem/operations/copy.cc
 index 761cfc29b13..c00cf85641e 100644
 --- a/libstdc++-v3/testsuite/27_io/filesystem/operations/copy.cc
@@ -15706,6 +17674,30 @@ index b55cd6c60b6..1cfda583be3 100644
  
    std::error_code ec;
    fs::path p = fs::temp_directory_path(ec);
+diff --git a/libstdc++-v3/testsuite/27_io/filesystem/path/nonmember/hash_value.cc b/libstdc++-v3/testsuite/27_io/filesystem/path/nonmember/hash_value.cc
+index 7b7c912a6df..be15b314149 100644
+--- a/libstdc++-v3/testsuite/27_io/filesystem/path/nonmember/hash_value.cc
++++ b/libstdc++-v3/testsuite/27_io/filesystem/path/nonmember/hash_value.cc
+@@ -42,9 +42,19 @@ test02()
+   }
+ }
+ 
++void
++test03()
++{
++  std::hash<path> h;
++  // LWG 3657. std::hash<std::filesystem::path> is not enabled
++  for (const path p : __gnu_test::test_paths)
++    VERIFY( h(p) == hash_value(p) );
++}
++
+ int
+ main()
+ {
+   test01();
+   test02();
++  test03();
+ }
 diff --git a/libstdc++-v3/testsuite/27_io/headers/iosfwd/synopsis.cc b/libstdc++-v3/testsuite/27_io/headers/iosfwd/synopsis.cc
 new file mode 100644
 index 00000000000..48f733bf28a
@@ -16051,6 +18043,394 @@ index 00000000000..e2c9c9b8dfa
 +		   ostreambuf_iterator<wchar_t, Traits<wchar_t>>
 +		   >::value,
 +    "std::ostreambuf_iterator<wchar_t> has the correct default template argument");
+diff --git a/libstdc++-v3/testsuite/28_regex/algorithms/regex_match/cstring_bracket_01.cc b/libstdc++-v3/testsuite/28_regex/algorithms/regex_match/cstring_bracket_01.cc
+index 7df70604ea6..0d76e63da7b 100644
+--- a/libstdc++-v3/testsuite/28_regex/algorithms/regex_match/cstring_bracket_01.cc
++++ b/libstdc++-v3/testsuite/28_regex/algorithms/regex_match/cstring_bracket_01.cc
+@@ -69,6 +69,16 @@ test01()
+ void
+ test02()
+ {
++  VERIFY(regex_match("-", regex("[-]", regex_constants::ECMAScript)));
++  VERIFY(regex_match("-", regex("[--]", regex_constants::ECMAScript)));
++  VERIFY(regex_match("-", regex("[---]", regex_constants::ECMAScript)));
++  VERIFY(regex_match("-", regex("[----]", regex_constants::ECMAScript)));
++  VERIFY(regex_match("-", regex("[-----]", regex_constants::ECMAScript)));
++
++  VERIFY(regex_match("-", regex("[-]", regex_constants::extended)));
++  VERIFY(regex_match("-", regex("[--]", regex_constants::extended)));
++  VERIFY(regex_match("-", regex("[---]", regex_constants::extended)));
++  VERIFY(regex_match("-", regex("[----]", regex_constants::extended)));
+   try
+   {
+     std::regex re("[-----]", std::regex::extended);
+@@ -78,7 +88,6 @@ test02()
+   {
+     VERIFY(e.code() == std::regex_constants::error_range);
+   }
+-  std::regex re("[-----]", std::regex::ECMAScript);
+ 
+   VERIFY(!regex_match("b", regex("[-ac]", regex_constants::extended)));
+   VERIFY(!regex_match("b", regex("[ac-]", regex_constants::extended)));
+@@ -93,7 +102,27 @@ test02()
+   }
+   catch (const std::regex_error& e)
+   {
++    VERIFY(e.code() == std::regex_constants::error_range);
++  }
++  try
++  {
++    regex("[@--]", regex_constants::extended);
++    VERIFY(false);
+   }
++  catch (const std::regex_error& e)
++  {
++    VERIFY(e.code() == std::regex_constants::error_range);
++  }
++  try
++  {
++    regex("[--%]", regex_constants::extended);
++    VERIFY(false);
++  }
++  catch (const std::regex_error& e)
++  {
++    VERIFY(e.code() == std::regex_constants::error_range);
++  }
++
+   VERIFY(regex_match("].", regex("[][.hyphen.]-0]*", regex_constants::extended)));
+ }
+ 
+@@ -158,6 +187,36 @@ test06()
+   VERIFY(regex_match("a-", debian_cron_namespace_ok));
+ }
+ 
++// libstdc++/102447
++void
++test07()
++{
++  VERIFY(regex_match("-", std::regex("[\\w-]", std::regex::ECMAScript)));
++  VERIFY(regex_match("a", std::regex("[\\w-]", std::regex::ECMAScript)));
++  VERIFY(regex_match("-", std::regex("[a-]", std::regex::ECMAScript)));
++  VERIFY(regex_match("a", std::regex("[a-]", std::regex::ECMAScript)));
++
++  try
++  {
++    std::regex re("[\\w-a]", std::regex::ECMAScript);
++    VERIFY(false);
++  }
++  catch (const std::regex_error& e)
++  {
++    VERIFY(e.code() == std::regex_constants::error_range);
++  }
++
++  try
++  {
++    std::regex re("[\\w--]", std::regex::ECMAScript);
++    VERIFY(false);
++  }
++  catch (const std::regex_error& e)
++  {
++    VERIFY(e.code() == std::regex_constants::error_range);
++  }
++}
++
+ int
+ main()
+ {
+@@ -167,6 +226,7 @@ main()
+   test04();
+   test05();
+   test06();
++  test07();
+ 
+   return 0;
+ }
+diff --git a/libstdc++-v3/testsuite/28_regex/algorithms/regex_match/multiline.cc b/libstdc++-v3/testsuite/28_regex/algorithms/regex_match/multiline.cc
+new file mode 100644
+index 00000000000..a1982fc8f78
+--- /dev/null
++++ b/libstdc++-v3/testsuite/28_regex/algorithms/regex_match/multiline.cc
+@@ -0,0 +1,74 @@
++// { dg-do run { target c++11 } }
++#include <regex>
++#include <testsuite_hooks.h>
++
++#if __cplusplus >= 201703L || !defined __STRICT_ANSI__
++static_assert( std::regex_constants::multiline == std::regex::multiline );
++static_assert( std::regex_constants::__multiline == std::regex::multiline );
++#else
++namespace test { constexpr int multiline = 0; }
++namespace check {
++  using namespace test;
++  using namespace std::regex_constants;
++  int ml = multiline;
++}
++#endif
++
++void
++test01()
++{
++  using namespace std::regex_constants;
++
++  std::regex ml{"^a.$", __multiline};
++  VERIFY( ml.flags() == __multiline );
++  VERIFY(!std::regex_search("abx\nxab", ml));
++  VERIFY(std::regex_search("x\nab", ml));
++  VERIFY(std::regex_search("ab\n", ml));
++  VERIFY(std::regex_search("x\nab\nx", ml));
++
++  ml.assign("a$\n^b$\n^c", ECMAScript|__multiline);
++  VERIFY( ml.flags() == ECMAScript|__multiline );
++  VERIFY( regex_search("a\nb\nc", ml) );
++
++  ml.assign("a$\n^b$\n^c", ECMAScript|__multiline|icase);
++  VERIFY( ml.flags() == ECMAScript|__multiline|icase );
++  VERIFY( regex_search("A\nB\nC", ml) );
++}
++
++void
++test_pr102480()
++{
++  using namespace std::regex_constants;
++
++  std::regex re("^a");
++  std::regex reml("^a", __multiline);
++  VERIFY( std::regex_match("\na" + 1, re));
++  VERIFY( std::regex_match("\na" + 1, reml));
++  // PR libstdc++/102480
++  VERIFY(!std::regex_match("\na" + 1, re, match_prev_avail));
++  VERIFY( std::regex_match("\na" + 1, reml, match_prev_avail));
++  VERIFY(!std::regex_match("\na" + 1, re, match_not_bol));
++  VERIFY(!std::regex_match("\na" + 1, re, match_prev_avail|match_not_bol));
++  VERIFY( std::regex_match("\na" + 1, reml, match_prev_avail|match_not_bol));
++  VERIFY(!std::regex_match("\ra" + 1, re, match_prev_avail));
++  VERIFY( std::regex_match("\ra" + 1, reml, match_prev_avail));
++  VERIFY(!std::regex_match("xa" + 1, re, match_prev_avail));
++  VERIFY(!std::regex_match("xa" + 1, reml, match_prev_avail));
++
++  std::regex bre("^a", basic|__multiline);
++  VERIFY(std::regex_match("\na" + 1, bre));
++  VERIFY(!std::regex_match("\na" + 1, bre, match_not_bol));
++  // multiline is ignored for any grammar except ECMAScript,
++  // so none of the following should match even though
++  // match_prev_avail is set and *--first == '\n'.
++  VERIFY(!std::regex_match("\na" + 1, bre, match_prev_avail));
++  VERIFY(!std::regex_match("\na" + 1, bre, match_prev_avail|match_not_bol));
++  VERIFY(!std::regex_match("\ra" + 1, bre, match_prev_avail));
++  VERIFY(!std::regex_match("xa" + 1, bre, match_prev_avail));
++}
++
++int main()
++{
++  test01();
++  test_pr102480();
++}
+diff --git a/libstdc++-v3/testsuite/28_regex/algorithms/regex_replace/char/103664.cc b/libstdc++-v3/testsuite/28_regex/algorithms/regex_replace/char/103664.cc
+new file mode 100644
+index 00000000000..c61912823d5
+--- /dev/null
++++ b/libstdc++-v3/testsuite/28_regex/algorithms/regex_replace/char/103664.cc
+@@ -0,0 +1,12 @@
++// { dg-do run { target c++11 } }
++// { dg-timeout-factor 2 }
++
++#include <regex>
++#include <testsuite_hooks.h>
++
++int main()
++{
++  // PR libstdc++/103664
++  std::string a = regex_replace("123", std::regex("2"), std::string("a\0b", 3));
++  VERIFY( a == std::string("1a\0b3", 5) );
++}
+diff --git a/libstdc++-v3/testsuite/28_regex/basic_regex/84110.cc b/libstdc++-v3/testsuite/28_regex/basic_regex/84110.cc
+new file mode 100644
+index 00000000000..a4d5db6c14a
+--- /dev/null
++++ b/libstdc++-v3/testsuite/28_regex/basic_regex/84110.cc
+@@ -0,0 +1,43 @@
++// { dg-do run { target c++11 } }
++// { dg-timeout-factor 2 }
++#include <regex>
++#include <string>
++#include <testsuite_hooks.h>
++
++void test01()
++{
++  const std::string s(1ul, '\0');
++  std::regex re(s);
++  VERIFY( std::regex_match(s, re) ); // PR libstdc++/84110
++
++#if __cpp_exceptions
++  using namespace std::regex_constants;
++  // See https://gcc.gnu.org/pipermail/gcc-patches/2021-October/582486.html
++  using std::regex_constants::extended;
++
++  for (auto syn : {basic, extended, awk, grep, egrep})
++  {
++    try
++    {
++      std::regex{s, syn}; // '\0' is not valid for other grammars
++      VERIFY( false );
++    }
++    catch (const std::regex_error&)
++    {
++    }
++  }
++#endif
++}
++
++void test02()
++{
++  const std::string s("uh-\0h", 5);
++  std::regex re(s);
++  VERIFY( std::regex_match(s, re) );
++}
++
++int main()
++{
++  test01();
++  test02();
++}
+diff --git a/libstdc++-v3/testsuite/28_regex/basic_regex/assign/exception_safety.cc b/libstdc++-v3/testsuite/28_regex/basic_regex/assign/exception_safety.cc
+new file mode 100644
+index 00000000000..462eebcf2cd
+--- /dev/null
++++ b/libstdc++-v3/testsuite/28_regex/basic_regex/assign/exception_safety.cc
+@@ -0,0 +1,20 @@
++// { dg-do run { target c++11 } }
++#include <regex>
++#include <testsuite_hooks.h>
++
++int main()
++{
++  const auto f = std::regex::ECMAScript|std::regex::icase;
++  std::regex re("abc", f);
++  try
++  {
++    re.assign("[", std::regex::extended);
++    VERIFY( false );
++  }
++  catch (const std::regex_error&)
++  {
++    // [re.regex.assign] "If an exception is thrown, *this is unchanged."
++    VERIFY( re.flags() == f );
++    VERIFY( std::regex_match("abc", re) );
++  }
++}
+diff --git a/libstdc++-v3/testsuite/28_regex/basic_regex/ctors/char/other.cc b/libstdc++-v3/testsuite/28_regex/basic_regex/ctors/char/other.cc
+new file mode 100644
+index 00000000000..10c20d9d4bc
+--- /dev/null
++++ b/libstdc++-v3/testsuite/28_regex/basic_regex/ctors/char/other.cc
+@@ -0,0 +1,38 @@
++// { dg-do run { target c++11 } }
++// { dg-timeout-factor 2 }
++#include <regex>
++#include <testsuite_iterators.h>
++#include <testsuite_hooks.h>
++
++void
++test01()
++{
++  signed char s[] = { 'a', '.' };
++  std::regex re(s, s+2); // This used to fail up to GCC 11.2
++  // VERIFY( regex_match("an", re) );
++
++  std::wstring str = L"xx";
++  str[0] = '1';
++  str[1] = '2';
++  re.assign(str.begin(), str.end());
++  VERIFY( regex_match("12", re) );
++}
++
++void
++test02()
++{
++  int i[] = { 'a', '.', '[', 'x', 'y', 'z', ']' };
++  __gnu_test::forward_container<int> fwd(i);
++  std::regex re(fwd.begin(), fwd.end());
++  VERIFY( regex_match("any", re) );
++
++  __gnu_test::input_container<int> input(i);
++  re.assign(input.begin(), input.end(), std::regex::icase);
++  VERIFY( regex_match("ANY", re) );
++}
++
++int main()
++{
++  test01();
++  test02();
++}
+diff --git a/libstdc++-v3/testsuite/28_regex/basic_regex/ctors/grammar.cc b/libstdc++-v3/testsuite/28_regex/basic_regex/ctors/grammar.cc
+new file mode 100644
+index 00000000000..fd8531c4530
+--- /dev/null
++++ b/libstdc++-v3/testsuite/28_regex/basic_regex/ctors/grammar.cc
+@@ -0,0 +1,53 @@
++// { dg-do run { target c++11 } }
++#include <regex>
++#include <testsuite_hooks.h>
++
++void
++test01()
++{
++  std::regex re{""};
++  VERIFY( re.flags() & std::regex::ECMAScript );
++
++  std::regex re2{"", std::regex::flag_type{}};
++  VERIFY( re2.flags() == std::regex::flag_type() ); // See also PR 83598
++}
++
++void
++test02()
++{
++  // A valid value of type syntax_option_type shall have at most one of the
++  // grammar elements ECMAScript, basic, extended, awk, grep, egrep, set.
++
++  try
++  {
++    std::regex{"", std::regex::ECMAScript|std::regex::basic};
++    VERIFY( false );
++  }
++  catch (const std::regex_error&)
++  {
++  }
++
++  try
++  {
++    std::regex{"", std::regex::extended|std::regex::basic};
++    VERIFY( false );
++  }
++  catch (const std::regex_error&)
++  {
++  }
++
++  try
++  {
++    std::regex{"", std::regex::grep|std::regex::basic};
++    VERIFY( false );
++  }
++  catch (const std::regex_error&)
++  {
++  }
++}
++
++int main()
++{
++  test01();
++  test02();
++}
+diff --git a/libstdc++-v3/testsuite/28_regex/match_results/102667.cc b/libstdc++-v3/testsuite/28_regex/match_results/102667.cc
+index 9e38c9edaa4..1614f3f9eb8 100644
+--- a/libstdc++-v3/testsuite/28_regex/match_results/102667.cc
++++ b/libstdc++-v3/testsuite/28_regex/match_results/102667.cc
+@@ -1,4 +1,5 @@
+ // { dg-do run { target c++11 } }
++// { dg-timeout-factor 2 }
+ 
+ #include <regex>
+ #include <testsuite_hooks.h>
 diff --git a/libstdc++-v3/testsuite/29_atomics/atomic/cons/user_pod.cc b/libstdc++-v3/testsuite/29_atomics/atomic/cons/user_pod.cc
 index 7eab17b12e0..dffdaef7afd 100644
 --- a/libstdc++-v3/testsuite/29_atomics/atomic/cons/user_pod.cc
@@ -16190,6 +18570,33 @@ index 00000000000..0eb69763ab9
 +  std::packaged_task task3{[&x](float) -> X& { return x; }};
 +  check_type<std::packaged_task<X&(float)>>(task3);
 +}
+diff --git a/libstdc++-v3/testsuite/experimental/filesystem/iterators/error_reporting.cc b/libstdc++-v3/testsuite/experimental/filesystem/iterators/error_reporting.cc
+index 806c511ebef..f005b7d5293 100644
+--- a/libstdc++-v3/testsuite/experimental/filesystem/iterators/error_reporting.cc
++++ b/libstdc++-v3/testsuite/experimental/filesystem/iterators/error_reporting.cc
+@@ -99,7 +99,7 @@ void
+ test02()
+ {
+   namespace fs = std::experimental::filesystem;
+-  auto dir = __gnu_test::nonexistent_path();
++  const auto dir = __gnu_test::nonexistent_path();
+   fs::create_directories(dir/"subdir");
+ 
+   std::error_code ec;
+@@ -129,7 +129,12 @@ test02()
+   }
+ #endif
+ 
+-  fs::remove_all(dir, ec);
++  // Cannot use fs::remove_all here because that depends on
++  // recursive_directory_iterator which would use the fake readdir above.
++#ifndef _GLIBCXX_FILESYSTEM_IS_WINDOWS
++  ::rmdir((dir/"subdir").c_str());
++  ::rmdir(dir.c_str());
++#endif
+ }
+ 
+ int
 diff --git a/libstdc++-v3/testsuite/experimental/filesystem/operations/copy.cc b/libstdc++-v3/testsuite/experimental/filesystem/operations/copy.cc
 index 947d270e6a4..817e51d2d21 100644
 --- a/libstdc++-v3/testsuite/experimental/filesystem/operations/copy.cc
@@ -16292,3 +18699,45 @@ index 5df9f330cd4..ed0614e2797 100644
  {
    // To see a problem with gcc 3.3 and before, set a break point here.
    // Single step through c_str implementation, call sched_yield after
+diff --git a/libstdc++-v3/testsuite/std/ranges/access/empty.cc b/libstdc++-v3/testsuite/std/ranges/access/empty.cc
+index b2d8b105325..693355c6cf5 100644
+--- a/libstdc++-v3/testsuite/std/ranges/access/empty.cc
++++ b/libstdc++-v3/testsuite/std/ranges/access/empty.cc
+@@ -119,6 +119,16 @@ test04()
+   static_assert( ! noexcept(std::ranges::empty(E3{})) );
+ }
+ 
++template<typename T>
++  concept has_empty = requires (T& t) { std::ranges::empty(t); };
++
++// If T is an array of unknown bound, ranges::empty(E) is ill-formed.
++static_assert( ! has_empty<int[]> );
++static_assert( ! has_empty<int(&)[]> );
++static_assert( ! has_empty<int[][2]> );
++struct Incomplete;
++static_assert( ! has_empty<Incomplete[]> );
++
+ int
+ main()
+ {
+diff --git a/libstdc++-v3/testsuite/std/ranges/access/size.cc b/libstdc++-v3/testsuite/std/ranges/access/size.cc
+index f25a1cb9ddb..db843cddccb 100644
+--- a/libstdc++-v3/testsuite/std/ranges/access/size.cc
++++ b/libstdc++-v3/testsuite/std/ranges/access/size.cc
+@@ -120,6 +120,16 @@ test06()
+   static_assert( std::ranges::size(R{}) == 42 );
+ }
+ 
++template<typename T>
++  concept has_size = requires (T& t) { std::ranges::size(t); };
++
++// If T is an array of unknown bound, ranges::size(E) is ill-formed.
++static_assert( ! has_size<int[]> );
++static_assert( ! has_size<int(&)[]> );
++static_assert( ! has_size<int[][2]> );
++struct Incomplete;
++static_assert( ! has_size<Incomplete[]> );
++
+ int
+ main()
+ {
