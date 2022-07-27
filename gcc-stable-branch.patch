@@ -16,7 +16,26 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (77):
+GCC Administrator (96):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -100,7 +119,7 @@ H.J. Lu (3):
       x86: Add .note.GNU-stack section only for Linux
       x86: Require AVX for F16C and VAES
 
-Harald Anlauf (7):
+Harald Anlauf (8):
       Fortran: improve error recovery on invalid array section
       Fortran: fix error recovery on invalid array section
       Fortran: fix checking of arguments to UNPACK when MASK is a variable [PR105813]
@@ -108,6 +127,7 @@ Harald Anlauf (7):
       Fortran: handle explicit-shape specs with constant bounds [PR105954]
       Fortran: improve error recovery for EXTENDS_TYPE_OF() [PR106121]
       Fortran: error recovery on invalid CLASS(), PARAMETER declarations [PR105243]
+      Fortran: error recovery from calculation of storage size of a symbol [PR103504]
 
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
@@ -119,6 +139,9 @@ Iain Buclaw (6):
       d: Set TYPE_ARTIFICIAL on internal TypeInfo types
       tilegx: Fix infinite loop in gen-mul-tables generator
       d: Fix error: aggregate value used where floating point was expected
+
+Ian Lance Taylor (1):
+      libgo: don't include <linux/fs.h> when building gen-sysinfo.go
 
 Jakub Jelinek (12):
       emit-rtl: Fix -fcompare-debug bug with label references in debug insns [PR105203]
@@ -138,7 +161,7 @@ Jan Hubicka (2):
       Fix modref_tree::remap_params
       Fix ipa-cp wrt volatile loads
 
-Jason Merrill (18):
+Jason Merrill (19):
       c++: rodata and defaulted ctor [PR104142]
       c++: low -faligned-new [PR102071]
       c++: local function versioning [PR104669]
@@ -157,11 +180,12 @@ Jason Merrill (18):
       c++: redeclared hidden friend take 2 [PR105852]
       c++: anon union designated init [PR105925]
       c++: dependent generic lambda template-id [PR106024]
+      c++: defaulted friend op== [PR106361]
 
 Jeff Law (1):
       [committed] Fix more problems with new linker warnings
 
-Jonathan Wakely (62):
+Jonathan Wakely (68):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -224,12 +248,21 @@ Jonathan Wakely (62):
       libstdc++: Add constexpr to std::counted_iterator post-increment (LWG 3643)
       libstdc++: Properly remove temporary directories in filesystem tests
       libstdc++: Add missing prerequisite to generated header [PR106162]
+      libstdc++: Fix experimental::filesystem::status on Windows [PR88881]
+      libstdc++: testsuite: Guard use of C99 std::log2
+      libstdc++: Make std::common_iterator completely constexpr-able (LWG 3574)
+      libstdc++: Use std::construct_at in std::common_iterator [PR103992]
+      libstdc++: Fix minor bugs in std::common_iterator
+      libstdc++: Fix std::common_iterator assignment [PR100823]
 
 Kewen Lin (1):
       testsuite: Skip pr105250.c for powerpc and s390 [PR105266]
 
 Kito Cheng (1):
       RISC-V: Fix wrong expansion for arch-canonicalize
+
+Maciej W. Rozycki (1):
+      RISC-V: Remove duplicate backslashes from `stack_protect_set_<mode>'
 
 Marek Polacek (4):
       c++: ambiguous call not diagnosed after DR2352 [PR97296]
@@ -240,11 +273,13 @@ Marek Polacek (4):
 Mark Mentovai (1):
       libstdc++: Rename __null_terminated to avoid collision with Apple SDK
 
-Martin Jambor (1):
+Martin Jambor (2):
       ipa: Release body of clone_of when removing its last clone (PR 100413)
+      tree-sra: Fix union handling in build_reconstructed_reference
 
-Martin Liska (1):
+Martin Liska (2):
       ipa-icf: skip variables with body_removed
+      libsanitizer: cherry-pick 9cf13067cb5088626ba7 from upstream
 
 Matthias Kretz (1):
       c++: don't ICE on NAMESPACE_DECL inside FUNCTION_DECL
@@ -252,15 +287,17 @@ Matthias Kretz (1):
 Max Filippov (1):
       gcc: xtensa: fix PR target/105879
 
-Michael Meissner (1):
+Michael Meissner (2):
       rs6000: Ignore fusion option flags for inlining test [PR102059]
+      [BACKPORT] Disable generating load/store vector pairs for block copies.
 
-Patrick Palka (5):
+Patrick Palka (6):
       c++: partial ordering with dependent NTTP type [PR105289]
       c++: ICE with requires-expr and -Wsequence-point [PR105304]
       c++: decltype of non-dependent call of class type [PR105386]
       libstdc++: Don't use std::tolower in <charconv> [PR103911]
       c++: deduction guides and ttp rewriting [PR102479]
+      libstdc++: Fix backward compatibility of P2325R3 backport [PR106320]
 
 Paul A. Clarke (1):
       rs6000: __Uglify non-uglified local variables in headers
@@ -274,7 +311,7 @@ Qing Zhao (1):
 Rainer Orth (1):
       libstdc++: Fix 28_regex/basic_regex/84110.cc on Solaris
 
-Richard Biener (14):
+Richard Biener (17):
       Update BASE-VER to 11.3.1
       ipa/105598 - testcase for PR105598
       middle-end/105140 - fix bogus recursion in fold_convertible_p
@@ -289,12 +326,18 @@ Richard Biener (14):
       rtl-optimization/105559 - avoid quadratic behavior in delete_insn_and_edges
       tree-optimization/105437 - BB vect with extern defs of throwing stmts
       tree-optimization/105726 - adjust array bound heuristic
+      tree-optimization/103116 - SLP permutes and peeling for gaps
+      middle-end/103193 - avoid canonicalizing <= and >= to == for floats
+      tree-optimization/105618 - restore load sinking
 
 Richard Earnshaw (1):
       arm: big-endian issue in gen_cpymem_ldrd_strd [PR105981]
 
 Richard Sandiford (1):
       rtl-ssa: Fix prev/next_def confusion [PR104869]
+
+Sebastian Huber (1):
+      RTEMS: Do not define _GNU_SOURCE by default
 
 Sebastian Pop (1):
       [AArch64] add barriers to ool __sync builtins
@@ -310,8 +353,17 @@ Sergei Trofimovich (1):
 Simon Cook (1):
       RISC-V: Don't unconditionally add m,a,f,d in arch-canonicalize
 
+Steve Kargl (1):
+      Fortran: do not generate conflicting results under -ff2c [PR104313]
+
+Surya Kumari Jangala (1):
+      regrename: Fix -fcompare-debug issue in check_new_reg_p [PR105041]
+
 Tamar Christina (1):
       testsuite: Backport testsuite changes from GCC 12 to GCC 11
+
+Thomas Rodgers (1):
+      libstdc++: Minor codegen improvement for atomic wait spinloop
 
 Thomas W Rodgers (1):
       libstdc++: Make atomic notify_one and notify_all non-const
@@ -334,10 +386,67 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..68feff899db 100644
+index a0587d18824..f03359313f9 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,453 @@
+@@ -1,3 +1,510 @@
++2022-07-25  Sebastian Huber  <sebastian.huber@embedded-brains.de>
++
++	Backported from master:
++	2022-07-25  Sebastian Huber  <sebastian.huber@embedded-brains.de>
++
++	* config/rs6000/rtems.h (CPLUSPLUS_CPP_SPEC): Undef.
++
++2022-07-22  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2022-05-17  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/105618
++	* tree-ssa-sink.c (statement_sink_location): For virtual
++	PHI uses ignore those defining the used virtual operand.
++
++2022-07-22  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2021-11-24  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/103193
++	* match.pd: Avoid canonicalizing (le/ge @0 @0) to (eq @0 @0)
++	with NaNs and -ftrapping-math.
++
++2022-07-22  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2022-05-04  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/103116
++	* tree-vect-stmts.c (get_group_load_store_type): Handle the
++	case we need peeling for gaps even though GROUP_GAP is zero.
++
++2022-07-21  Surya Kumari Jangala  <jskumari@linux.vnet.ibm.com>
++
++	Backported from master:
++	2022-06-14  Surya Kumari Jangala  <jskumari@linux.ibm.com>
++
++	PR rtl-optimization/105041
++	* regrename.c (check_new_reg_p): Use nregs value from du chain.
++
++2022-07-14   Michael Meissner  <meissner@linux.ibm.com>
++
++	* config/rs6000/rs6000.c (rs6000_option_override_internal): Do
++	not generate block copies with vector pair instructions if we are
++	tuning for power10.  Back port from master branch.
++
++2022-07-12  Martin Jambor  <mjambor@suse.cz>
++
++	Backported from master:
++	2022-07-04  Martin Jambor  <mjambor@suse.cz>
++
++	PR tree-optimization/105860
++	* tree-sra.c (build_reconstructed_reference): Start expr
++	traversal only just below the outermost union.
++
 +2022-07-04  Richard Sandiford  <richard.sandiford@arm.com>
 +
 +	Backported from master:
@@ -1597,6 +1706,19 @@ index 3a91cfe687f..0bdf6aafe35 100755
  
    long_exts += extra_long_ext
  
+diff --git a/gcc/config/riscv/riscv.md b/gcc/config/riscv/riscv.md
+index c3687d57047..3af34de063c 100644
+--- a/gcc/config/riscv/riscv.md
++++ b/gcc/config/riscv/riscv.md
+@@ -2558,7 +2558,7 @@
+ 	 UNSPEC_SSP_SET))
+    (set (match_scratch:GPR 2 "=&r") (const_int 0))]
+   ""
+-  "<load>\\t%2, %1\;<store>\\t%2, %0\;li\t%2, 0"
++  "<load>\t%2, %1\;<store>\t%2, %0\;li\t%2, 0"
+   [(set_attr "length" "12")])
+ 
+ (define_expand "stack_protect_test"
 diff --git a/gcc/config/rs6000/bmi2intrin.h b/gcc/config/rs6000/bmi2intrin.h
 index 5b7b761b9d5..03299e6cccd 100644
 --- a/gcc/config/rs6000/bmi2intrin.h
@@ -4551,10 +4673,22 @@ index eab712fdfa6..4d7e14f312a 100644
  
  extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
 diff --git a/gcc/config/rs6000/rs6000.c b/gcc/config/rs6000/rs6000.c
-index 0421dc7adb3..8c89b45922f 100644
+index 0421dc7adb3..73f90f134f8 100644
 --- a/gcc/config/rs6000/rs6000.c
 +++ b/gcc/config/rs6000/rs6000.c
-@@ -5742,33 +5742,68 @@ const char *rs6000_machine;
+@@ -4149,7 +4149,10 @@ rs6000_option_override_internal (bool global_init_p)
+ 
+   if (!(rs6000_isa_flags_explicit & OPTION_MASK_BLOCK_OPS_VECTOR_PAIR))
+     {
+-      if (TARGET_MMA && TARGET_EFFICIENT_UNALIGNED_VSX)
++      /* Do not generate lxvp and stxvp on power10 since there are some
++	 performance issues.  */
++      if (TARGET_MMA && TARGET_EFFICIENT_UNALIGNED_VSX
++	  && rs6000_tune != PROCESSOR_POWER10)
+ 	rs6000_isa_flags |= OPTION_MASK_BLOCK_OPS_VECTOR_PAIR;
+       else
+ 	rs6000_isa_flags &= ~OPTION_MASK_BLOCK_OPS_VECTOR_PAIR;
+@@ -5742,33 +5745,68 @@ const char *rs6000_machine;
  const char *
  rs6000_machine_from_flags (void)
  {
@@ -4647,7 +4781,7 @@ index 0421dc7adb3..8c89b45922f 100644
  
    HOST_WIDE_INT flags = rs6000_isa_flags;
  
-@@ -25074,6 +25109,11 @@ rs6000_can_inline_p (tree caller, tree callee)
+@@ -25074,6 +25112,11 @@ rs6000_can_inline_p (tree caller, tree callee)
        else
  	caller_isa = rs6000_isa_flags;
  
@@ -4659,6 +4793,20 @@ index 0421dc7adb3..8c89b45922f 100644
        /* The callee's options must be a subset of the caller's options, i.e.
  	 a vsx function may inline an altivec function, but a no-vsx function
  	 must not inline a vsx function.  However, for those options that the
+diff --git a/gcc/config/rs6000/rtems.h b/gcc/config/rs6000/rtems.h
+index 872cc2849af..bd2271f94b9 100644
+--- a/gcc/config/rs6000/rtems.h
++++ b/gcc/config/rs6000/rtems.h
+@@ -23,6 +23,9 @@
+    see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+    <http://www.gnu.org/licenses/>.  */
+ 
++/* Undef gnu-user.h macro we don't want.  */
++#undef CPLUSPLUS_CPP_SPEC
++
+ /* Copy and paste from linux64.h and freebsd64.h */
+ #ifdef IN_LIBGCC2
+ #undef TARGET_64BIT
 diff --git a/gcc/config/rs6000/smmintrin.h b/gcc/config/rs6000/smmintrin.h
 index bdf6eb365d8..9d9df7842ba 100644
 --- a/gcc/config/rs6000/smmintrin.h
@@ -6332,10 +6480,15 @@ index cdf22f14b94..fabc313197a 100644
  	}
  
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..fc3a70020ab 100644
+index 85c8fdd38cd..92eb8fc1672 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,202 @@
+@@ -1,3 +1,207 @@
++2022-07-22  Jason Merrill  <jason@redhat.com>
++
++	PR c++/106361
++	* decl.c (move_fn_p): Remove assert.
++
 +2022-07-01  Jason Merrill  <jason@redhat.com>
 +
 +	PR c++/106024
@@ -6667,7 +6820,7 @@ index a2d8c1c77b3..fded2527e5e 100644
  extern void print_template_statistics		(void);
  bool template_template_parameter_p		(const_tree);
 diff --git a/gcc/cp/decl.c b/gcc/cp/decl.c
-index bffbd004167..052378a2e75 100644
+index bffbd004167..514d4c1bc20 100644
 --- a/gcc/cp/decl.c
 +++ b/gcc/cp/decl.c
 @@ -1059,11 +1059,14 @@ decls_match (tree newdecl, tree olddecl, bool record_versions /* = true */)
@@ -6790,6 +6943,15 @@ index bffbd004167..052378a2e75 100644
        release_tree_vector (cleanups);
      }
  
+@@ -14663,8 +14689,6 @@ copy_fn_p (const_tree d)
+ bool
+ move_fn_p (const_tree d)
+ {
+-  gcc_assert (DECL_FUNCTION_MEMBER_P (d));
+-
+   if (cxx_dialect == cxx98)
+     /* There are no move constructors if we are in C++98 mode.  */
+     return false;
 diff --git a/gcc/cp/decl2.c b/gcc/cp/decl2.c
 index 885c4749989..c00508103e9 100644
 --- a/gcc/cp/decl2.c
@@ -7523,10 +7685,28 @@ index 70c5b3886ef..8ce775753f3 100644
  	  return fold_build_pointer_plus_loc (loc, arg00, arg01);
  	}
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..00ed00373bf 100644
+index ee1c7bb4b31..c858dc265d1 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,84 @@
+@@ -1,3 +1,102 @@
++2022-07-26  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-07-26  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/103504
++	* interface.c (get_sym_storage_size): Array bounds and character
++	length can only be of integer type.
++
++2022-07-16  Steve Kargl  <kargl@gcc.gnu.org>
++
++	Backported from master:
++	2022-07-15  Steve Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/104313
++	* trans-decl.c (gfc_generate_return): Do not generate conflicting
++	fake results for functions with no result variable under -ff2c.
++
 +2022-07-03  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -7677,6 +7857,31 @@ index edacd974a21..6f27b4bf440 100644
  	    {
  	      t = false;
  	      goto cleanup;
+diff --git a/gcc/fortran/interface.c b/gcc/fortran/interface.c
+index 9e3e8aa9da9..b7294cbeb4e 100644
+--- a/gcc/fortran/interface.c
++++ b/gcc/fortran/interface.c
+@@ -2760,7 +2760,8 @@ get_sym_storage_size (gfc_symbol *sym)
+   if (sym->ts.type == BT_CHARACTER)
+     {
+       if (sym->ts.u.cl && sym->ts.u.cl->length
+-          && sym->ts.u.cl->length->expr_type == EXPR_CONSTANT)
++	  && sym->ts.u.cl->length->expr_type == EXPR_CONSTANT
++	  && sym->ts.u.cl->length->ts.type == BT_INTEGER)
+ 	strlen = mpz_get_ui (sym->ts.u.cl->length->value.integer);
+       else
+ 	return 0;
+@@ -2777,7 +2778,9 @@ get_sym_storage_size (gfc_symbol *sym)
+   for (i = 0; i < sym->as->rank; i++)
+     {
+       if (sym->as->upper[i]->expr_type != EXPR_CONSTANT
+-	  || sym->as->lower[i]->expr_type != EXPR_CONSTANT)
++	  || sym->as->lower[i]->expr_type != EXPR_CONSTANT
++	  || sym->as->upper[i]->ts.type != BT_INTEGER
++	  || sym->as->lower[i]->ts.type != BT_INTEGER)
+ 	return 0;
+ 
+       elements *= mpz_get_si (sym->as->upper[i]->value.integer)
 diff --git a/gcc/fortran/simplify.c b/gcc/fortran/simplify.c
 index 3599e1b3194..85ea1311c7e 100644
 --- a/gcc/fortran/simplify.c
@@ -7851,6 +8056,19 @@ index 3599e1b3194..85ea1311c7e 100644
  	}
      }
  
+diff --git a/gcc/fortran/trans-decl.c b/gcc/fortran/trans-decl.c
+index 95af7d93162..38b09fed2cb 100644
+--- a/gcc/fortran/trans-decl.c
++++ b/gcc/fortran/trans-decl.c
+@@ -6564,7 +6564,7 @@ gfc_generate_return (void)
+ 	     NULL_TREE, and a 'return' is generated without a variable.
+ 	     The following generates a 'return __result_XXX' where XXX is
+ 	     the function name.  */
+-	  if (sym == sym->result && sym->attr.function)
++	  if (sym == sym->result && sym->attr.function && !flag_f2c)
+ 	    {
+ 	      result = gfc_get_fake_result_decl (sym, 0);
+ 	      result = fold_build2_loc (input_location, MODIFY_EXPR,
 diff --git a/gcc/fortran/trans-expr.c b/gcc/fortran/trans-expr.c
 index a5c391d077e..9b65b9cf474 100644
 --- a/gcc/fortran/trans-expr.c
@@ -8078,6 +8296,36 @@ index b406096a39c..0ec0a79080a 100644
    bitmap_clear (&non_reload_pseudos);
    bitmap_initialize (&failed_reload_insns, &reg_obstack);
    EXECUTE_IF_SET_IN_BITMAP (&failed_reload_pseudos, 0, u, bi)
+diff --git a/gcc/match.pd b/gcc/match.pd
+index e89601c0c14..8126f90ee75 100644
+--- a/gcc/match.pd
++++ b/gcc/match.pd
+@@ -4114,7 +4114,10 @@ DEFINE_INT_AND_FLOAT_ROUND_FN (RINT)
+   (if (! FLOAT_TYPE_P (TREE_TYPE (@0))
+        || ! HONOR_NANS (@0))
+    { constant_boolean_node (true, type); }
+-   (if (cmp != EQ_EXPR)
++   (if (cmp != EQ_EXPR
++	/* With -ftrapping-math conversion to EQ loses an exception.  */
++	&& (! FLOAT_TYPE_P (TREE_TYPE (@0))
++	    || ! flag_trapping_math))
+     (eq @0 @0)))))
+ (for cmp (ne gt lt)
+  (simplify
+diff --git a/gcc/regrename.c b/gcc/regrename.c
+index c0d4643f802..0cf93d323d9 100644
+--- a/gcc/regrename.c
++++ b/gcc/regrename.c
+@@ -324,8 +324,7 @@ static bool
+ check_new_reg_p (int reg ATTRIBUTE_UNUSED, int new_reg,
+ 		 class du_head *this_head, HARD_REG_SET this_unavailable)
+ {
+-  machine_mode mode = GET_MODE (*this_head->first->loc);
+-  int nregs = hard_regno_nregs (new_reg, mode);
++  int nregs = this_head->nregs;
+   int i;
+   struct du_chain *tmp;
+ 
 diff --git a/gcc/rtl-ssa/accesses.cc b/gcc/rtl-ssa/accesses.cc
 index de3a29edbeb..af7b568fa98 100644
 --- a/gcc/rtl-ssa/accesses.cc
@@ -8304,10 +8552,65 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..a2a46377e34 100644
+index 5fc23605244..9dfc76da8c4 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,631 @@
+@@ -1,3 +1,686 @@
++2022-07-26  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-07-26  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/103504
++	* gfortran.dg/pr103504.f90: New test.
++
++2022-07-22  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2022-05-17  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/105618
++	* gcc.dg/tree-ssa/ssa-sink-19.c: New testcase.
++
++2022-07-22  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2022-05-04  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/103116
++	* gcc.dg/vect/pr103116-1.c: New testcase.
++	* gcc.dg/vect/pr103116-2.c: Likewise.
++
++2022-07-22  Jason Merrill  <jason@redhat.com>
++
++	PR c++/106361
++	* g++.dg/cpp2a/spaceship-eq14.C: New test.
++
++2022-07-21  Surya Kumari Jangala  <jskumari@linux.vnet.ibm.com>
++
++	Backported from master:
++	2022-06-14  Surya Kumari Jangala  <jskumari@linux.ibm.com>
++
++	PR rtl-optimization/105041
++	* gcc.target/powerpc/pr105041.c: New test.
++
++2022-07-16  Steve Kargl  <kargl@gcc.gnu.org>
++
++	Backported from master:
++	2022-07-15  Steve Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/104313
++	* gfortran.dg/pr104313.f: New test.
++
++2022-07-12  Martin Jambor  <mjambor@suse.cz>
++
++	Backported from master:
++	2022-07-04  Martin Jambor  <mjambor@suse.cz>
++
++	PR tree-optimization/105860
++	* gcc.dg/tree-ssa/alias-access-path-13.c: New test.
++	* gcc.dg/tree-ssa/pr105860.c: Likewise.
++
 +2022-07-04  Richard Sandiford  <richard.sandiford@arm.com>
 +
 +	Backported from master:
@@ -9572,6 +9875,29 @@ index 00000000000..f3c3899e97a
 +void bar( ) {
 +  foo(S{});
 +}
+diff --git a/gcc/testsuite/g++.dg/cpp2a/spaceship-eq14.C b/gcc/testsuite/g++.dg/cpp2a/spaceship-eq14.C
+new file mode 100644
+index 00000000000..896e5232bf6
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp2a/spaceship-eq14.C
+@@ -0,0 +1,17 @@
++// PR c++/106361
++// { dg-do compile { target c++20 } }
++
++struct foo {
++  int x;
++};
++
++struct bar {
++  foo f;			// { dg-error "operator==" }
++  friend bool operator==(const bar& a, const bar& b);
++};
++
++bool operator==(const bar& a, const bar& b) = default;
++
++int main() {
++  return bar{} == bar{};	// { dg-error "deleted" }
++}
 diff --git a/gcc/testsuite/g++.dg/ipa/pr100413.C b/gcc/testsuite/g++.dg/ipa/pr100413.C
 new file mode 100644
 index 00000000000..96d71e7cf35
@@ -10427,6 +10753,144 @@ index 00000000000..0a4ea3b0bd1
 +    __builtin_abort ();
 +  return 0;
 +}
+diff --git a/gcc/testsuite/gcc.dg/tree-ssa/alias-access-path-13.c b/gcc/testsuite/gcc.dg/tree-ssa/alias-access-path-13.c
+new file mode 100644
+index 00000000000..87a94f5bf31
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/tree-ssa/alias-access-path-13.c
+@@ -0,0 +1,36 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -fdump-tree-fre1" } */
++
++struct inn
++{
++  int val;
++};
++
++struct biggerstruct
++{
++  int a, b;
++};
++
++union foo
++{
++  struct inn inn;
++  struct biggerstruct baz;
++} *fooptr;
++
++struct bar
++{
++  union foo foo;
++  int val2;
++} *barptr;
++
++int
++test ()
++{
++  union foo foo;
++  foo.inn.val = 0;
++  barptr->val2 = 123;
++  *fooptr = foo;
++  return barptr->val2;
++}
++
++/* { dg-final { scan-tree-dump-times "return 123" 1 "fre1"} } */
+diff --git a/gcc/testsuite/gcc.dg/tree-ssa/pr105860.c b/gcc/testsuite/gcc.dg/tree-ssa/pr105860.c
+new file mode 100644
+index 00000000000..77bcb4a6739
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/tree-ssa/pr105860.c
+@@ -0,0 +1,63 @@
++/* { dg-do run } */
++/* { dg-options "-O1" } */
++
++struct S1  {
++        unsigned int _0;
++        unsigned int _1;
++} ;
++struct S2  {
++        struct S1 _s1;
++        unsigned long _x2;
++} ;
++
++struct ufld_type1  {
++        unsigned int _u1t;
++        struct S2 _s2;
++} ;
++
++struct ufld_type2  {
++        unsigned int _u2t;
++        struct S1 _s1;
++} ;
++struct parm_type {
++        union {
++                struct ufld_type1 var_1;
++                struct ufld_type2 var_2;
++        } U;
++};
++
++struct parm_type  bad_function( struct parm_type arg0 )
++{
++        struct parm_type rv;
++        struct S2 var4;
++        switch( arg0.U.var_2._u2t ) {
++        case 4294967041:
++                var4._s1 = arg0.U.var_1._s2._s1;
++                rv.U.var_1._u1t = 4294967041;
++                rv.U.var_1._s2 = var4;
++                break;
++        case 4294967043:
++                rv.U.var_2._u2t = 4294967043;
++                rv.U.var_2._s1 = arg0.U.var_2._s1;
++                break;
++        default:
++                break;
++        }
++        return rv;
++}
++
++int main() {
++        struct parm_type val;
++        struct parm_type out;
++        val.U.var_2._u2t = 4294967043;
++        val.U.var_2._s1._0 = 0x01010101;
++        val.U.var_2._s1._1 = 0x02020202;
++        out = bad_function(val);
++	if (val.U.var_2._u2t != 4294967043)
++	  __builtin_abort ();
++        if (out.U.var_2._s1._0 != 0x01010101)
++	  __builtin_abort ();
++        if (val.U.var_2._s1._1 != 0x02020202 )
++	  __builtin_abort ();
++	return 0;
++}
+diff --git a/gcc/testsuite/gcc.dg/tree-ssa/ssa-sink-19.c b/gcc/testsuite/gcc.dg/tree-ssa/ssa-sink-19.c
+new file mode 100644
+index 00000000000..f3eb0ef3a4e
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/tree-ssa/ssa-sink-19.c
+@@ -0,0 +1,21 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -fdump-tree-sink-details -fdump-tree-cddce2-details" } */
++
++static int b=4;
++int c;
++
++int
++main()
++{
++  int e[5] = {1,1,1,1,1};
++  for (; b >= 0; b--) {
++    c = e[b];
++  }
++  return 0;
++}
++
++/* We should sink e[b] out of the loop which is possible after
++   applying store motion to c and b.  */
++/* { dg-final { scan-tree-dump "Sinking # VUSE" "sink" } } */
++/* And remove the loop after final value replacement.  */
++/* { dg-final { scan-tree-dump "fix_loop_structure: removing loop" "cddce2" } } */
 diff --git a/gcc/testsuite/gcc.dg/vect/complex/fast-math-bb-slp-complex-mul-float.c b/gcc/testsuite/gcc.dg/vect/complex/fast-math-bb-slp-complex-mul-float.c
 index 827687b92fa..8eb8baceb31 100644
 --- a/gcc/testsuite/gcc.dg/vect/complex/fast-math-bb-slp-complex-mul-float.c
@@ -10641,6 +11105,127 @@ index 72b4930d9bb..c57f065cccd 100644
 -/* { dg-final { scan-tree-dump-times "not vectorized: unsupported unaligned store" 1 "vect" { target { ! vect_hw_misalign } } } } */
 +/* { dg-final { scan-tree-dump-times "unsupported unaligned access" 1 "vect" { target { ! vect_hw_misalign } } } } */
  /* { dg-final { scan-tree-dump-times "vectorized 1 loops" 0 "vect" { target { ! vect_hw_misalign } } } } */
+diff --git a/gcc/testsuite/gcc.dg/vect/pr103116-1.c b/gcc/testsuite/gcc.dg/vect/pr103116-1.c
+new file mode 100644
+index 00000000000..d3639fc8cfd
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/vect/pr103116-1.c
+@@ -0,0 +1,50 @@
++/* { dg-require-effective-target mmap } */
++
++#include <sys/mman.h>
++#include <stdio.h>
++
++#define COUNT 128
++#define MMAP_SIZE 0x20000
++#define ADDRESS 0x1122000000
++#define TYPE unsigned int
++
++#ifndef MAP_ANONYMOUS
++#define MAP_ANONYMOUS MAP_ANON
++#endif
++
++void __attribute__((noipa))
++loop (TYPE *restrict x, TYPE *restrict y)
++{
++  for (int i = 0; i < COUNT; ++i)
++    {
++      x[i * 4] = y[i * 2] + 1;
++      x[i * 4 + 1] = y[i * 2] + 2;
++      x[i * 4 + 2] = y[i * 2 + 1] + 3;
++      x[i * 4 + 3] = y[i * 2 + 1] + 4;
++    }
++}
++
++TYPE x[COUNT * 4];
++
++int
++main (void)
++{
++  void *y;
++  TYPE *end_y;
++
++  y = mmap ((void *) ADDRESS, MMAP_SIZE, PROT_READ | PROT_WRITE,
++            MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++  if (y == MAP_FAILED)
++    {
++      perror ("mmap");
++      return 1;
++    }
++
++  end_y = (TYPE *) ((char *) y + MMAP_SIZE);
++
++  loop (x, end_y - COUNT * 2);
++
++  return 0;
++}
++
++/* { dg-final { scan-tree-dump "Data access with gaps requires scalar epilogue loop" "vect" { target { vect_perm && vect_int } } } } */
+diff --git a/gcc/testsuite/gcc.dg/vect/pr103116-2.c b/gcc/testsuite/gcc.dg/vect/pr103116-2.c
+new file mode 100644
+index 00000000000..2f4ed0f404c
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/vect/pr103116-2.c
+@@ -0,0 +1,59 @@
++/* { dg-require-effective-target mmap } */
++/* { dg-additional-options "-mssse3" { target x86_64-*-* i?86-*-* } } */
++
++#include <sys/mman.h>
++#include <stdio.h>
++#include "tree-vect.h"
++
++#define COUNT 128
++#define MMAP_SIZE 0x20000
++#define ADDRESS 0x1122000000
++#define TYPE unsigned short
++#define GROUP_SIZE 2
++
++#ifndef MAP_ANONYMOUS
++#define MAP_ANONYMOUS MAP_ANON
++#endif
++
++void __attribute__((noipa))
++loop (TYPE *restrict x, TYPE *restrict y)
++{
++  for (int i = 0; i < COUNT; ++i)
++    {
++      x[i * 8] = y[i * GROUP_SIZE] + 1;
++      x[i * 8 + 1] = y[i * GROUP_SIZE] + 2;
++      x[i * 8 + 2] = y[i * GROUP_SIZE + 1] + 3;
++      x[i * 8 + 3] = y[i * GROUP_SIZE + 1] + 4;
++      x[i * 8 + 4] = y[i * GROUP_SIZE] + 5;
++      x[i * 8 + 5] = y[i * GROUP_SIZE] + 6;
++      x[i * 8 + 6] = y[i * GROUP_SIZE + 1] + 7;
++      x[i * 8 + 7] = y[i * GROUP_SIZE + 1] + 8;
++    }
++}
++
++TYPE x[COUNT * 4];
++
++int
++main (void)
++{
++  void *y;
++  TYPE *end_y;
++
++  check_vect ();
++
++  y = mmap ((void *) ADDRESS, MMAP_SIZE, PROT_READ | PROT_WRITE,
++            MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++  if (y == MAP_FAILED)
++    {
++      perror ("mmap");
++      return 1;
++    }
++
++  end_y = (TYPE *) ((char *) y + MMAP_SIZE);
++
++  loop (x, end_y - COUNT * GROUP_SIZE);
++
++  return 0;
++}
++
++/* { dg-final { scan-tree-dump "peeling for gaps insufficient for access" "vect" { target { vect_perm_short } } } } */
 diff --git a/gcc/testsuite/gcc.dg/vect/vect.exp b/gcc/testsuite/gcc.dg/vect/vect.exp
 index dca9a4db6f6..3c60eff7072 100644
 --- a/gcc/testsuite/gcc.dg/vect/vect.exp
@@ -11392,6 +11977,34 @@ index 00000000000..4a0ad3daf73
 +  *a = foo (a);
 +  return 0;
 +}
+diff --git a/gcc/testsuite/gcc.target/powerpc/pr105041.c b/gcc/testsuite/gcc.target/powerpc/pr105041.c
+new file mode 100644
+index 00000000000..c52b7a5ef30
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/powerpc/pr105041.c
+@@ -0,0 +1,22 @@
++/* { dg-options "-mdejagnu-cpu=power4 -O2 -fcompare-debug -frename-registers" } */
++
++double m;
++int n;
++
++unsigned int
++foo (unsigned int x, int y)
++{
++  long long int a = y, b = !a;
++  int c = 0;
++
++  if (b != x)
++    while ((int) m == a)
++      {
++        c = a;
++        a = 0;
++      }
++
++  n = b = y;
++
++  return x + c;
++}
 diff --git a/gcc/testsuite/gcc.target/sparc/20220510-1.c b/gcc/testsuite/gcc.target/sparc/20220510-1.c
 new file mode 100644
 index 00000000000..f321cab8482
@@ -11827,6 +12440,57 @@ index 00000000000..61d492985ad
 +end program
 +
 +! { dg-final { scan-tree-dump-not "_gfortran_stop_numeric" "original" } }
+diff --git a/gcc/testsuite/gfortran.dg/pr103504.f90 b/gcc/testsuite/gfortran.dg/pr103504.f90
+new file mode 100644
+index 00000000000..607d1c6c8cc
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/pr103504.f90
+@@ -0,0 +1,28 @@
++! { dg-do compile }
++! PR fortran/103504 - ICE in get_sym_storage_size, at fortran/interface.c:2800
++! Contributed by G.Steinmetz
++
++program p
++  implicit none
++  real      :: y(1)
++  character :: b
++  call s(y)
++  call t(y)
++  call u(y)
++  call c(b)
++contains
++  subroutine s(x)
++    real :: x(abs(1.):1)        ! { dg-error "must be of INTEGER type" }
++  end
++  subroutine t(x)
++    real :: x(abs(1.):1)        ! { dg-error "must be of INTEGER type" }
++  end
++  subroutine u(x)
++    real :: x(1:abs(1.))        ! { dg-error "must be of INTEGER type" }
++  end
++  subroutine c(z)
++    character(len=abs(1.)) :: z ! { dg-error "must be of INTEGER type" }
++  end subroutine c
++end
++
++! { dg-prune-output "must be of INTEGER type" }
+diff --git a/gcc/testsuite/gfortran.dg/pr104313.f b/gcc/testsuite/gfortran.dg/pr104313.f
+new file mode 100644
+index 00000000000..89c8947cb0a
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/pr104313.f
+@@ -0,0 +1,11 @@
++! { dg-do compile }
++! { dg-additional-options "-ff2c -fdump-tree-original" }
++!
++! PR fortran/104313 - ICE verify_gimple failed with -ff2c
++! Contributed by G.Steinmetz
++
++      function f(a)
++      return
++      end
++
++! { dg-final { scan-tree-dump-times "return" 1 "original" } }
 diff --git a/gcc/testsuite/gfortran.dg/pr104849.f90 b/gcc/testsuite/gfortran.dg/pr104849.f90
 new file mode 100644
 index 00000000000..ae221b5ba10
@@ -11922,6 +12586,30 @@ index 2809f88b16f..25fb98c6bed 100644
      # Ignore harmless warnings from Xcode 3.2.x.
      regsub -all "(^|\n)\[^\n\]*ld: warning: can't add line info to anonymous symbol\[^\n\]*" $text "" text
      regsub -all "(^|\n)\[^\n\]*warning: DWARFDebugInfoEntry::AppendDependants\[^\n\]*AT_\[^\n\]*FORM_ref4\[^\n\]*" $text "" text
+diff --git a/gcc/tree-sra.c b/gcc/tree-sra.c
+index 970ad386873..dea9cf3235c 100644
+--- a/gcc/tree-sra.c
++++ b/gcc/tree-sra.c
+@@ -1647,7 +1647,18 @@ build_ref_for_offset (location_t loc, tree base, poly_int64 offset,
+ static tree
+ build_reconstructed_reference (location_t, tree base, struct access *model)
+ {
+-  tree expr = model->expr, prev_expr = NULL;
++  tree expr = model->expr;
++  /* We have to make sure to start just below the outermost union.  */
++  tree start_expr = expr;
++  while (handled_component_p (expr))
++    {
++      if (TREE_CODE (TREE_TYPE (TREE_OPERAND (expr, 0))) == UNION_TYPE)
++	start_expr = expr;
++      expr = TREE_OPERAND (expr, 0);
++    }
++
++  expr = start_expr;
++  tree prev_expr = NULL_TREE;
+   while (!types_compatible_p (TREE_TYPE (expr), TREE_TYPE (base)))
+     {
+       if (!handled_component_p (expr))
 diff --git a/gcc/tree-ssa-loop-ivopts.c b/gcc/tree-ssa-loop-ivopts.c
 index 4012ae3f19d..913b3ad4258 100644
 --- a/gcc/tree-ssa-loop-ivopts.c
@@ -12178,6 +12866,20 @@ index 32e1632705b..c8cb7328a63 100644
  	      update_stmt (gsi_stmt (gsi));
  	    }
  	}
+diff --git a/gcc/tree-ssa-sink.c b/gcc/tree-ssa-sink.c
+index 3c2ed795f85..b3097531203 100644
+--- a/gcc/tree-ssa-sink.c
++++ b/gcc/tree-ssa-sink.c
+@@ -390,6 +390,9 @@ statement_sink_location (gimple *stmt, basic_block frombb,
+ 		 with the use.  */
+ 	      if (gimple_code (use_stmt) == GIMPLE_PHI)
+ 		{
++		  /* If the PHI defines the virtual operand, ignore it.  */
++		  if (gimple_phi_result (use_stmt) == gimple_vuse (stmt))
++		    continue;
+ 		  /* In case the PHI node post-dominates the current insert
+ 		     location we can disregard it.  But make sure it is not
+ 		     dominating it as well as can happen in a CFG cycle.  */
 diff --git a/gcc/tree-vect-slp.c b/gcc/tree-vect-slp.c
 index 7289656db0f..a034abf9628 100644
 --- a/gcc/tree-vect-slp.c
@@ -12196,6 +12898,48 @@ index 7289656db0f..a034abf9628 100644
        else if (is_a <bb_vec_info> (vinfo)
  	       && gimple_bb (last_stmt) != gimple_bb (stmt_info->stmt)
  	       && gimple_could_trap_p (stmt_info->stmt))
+diff --git a/gcc/tree-vect-stmts.c b/gcc/tree-vect-stmts.c
+index 0d61b0f51d0..973c6dcea18 100644
+--- a/gcc/tree-vect-stmts.c
++++ b/gcc/tree-vect-stmts.c
+@@ -2207,6 +2207,37 @@ get_group_load_store_type (vec_info *vinfo, stmt_vec_info stmt_info,
+ 	      gcc_assert (!loop_vinfo || cmp > 0);
+ 	      *memory_access_type = VMAT_CONTIGUOUS;
+ 	    }
++
++	  /* When we have a contiguous access across loop iterations
++	     but the access in the loop doesn't cover the full vector
++	     we can end up with no gap recorded but still excess
++	     elements accessed, see PR103116.  Make sure we peel for
++	     gaps if necessary and sufficient and give up if not.  */
++	  if (loop_vinfo
++	      && *memory_access_type == VMAT_CONTIGUOUS
++	      && SLP_TREE_LOAD_PERMUTATION (slp_node).exists ()
++	      && !multiple_p (group_size * LOOP_VINFO_VECT_FACTOR (loop_vinfo),
++			      nunits))
++	    {
++	      unsigned HOST_WIDE_INT cnunits, cvf;
++	      if (!can_overrun_p
++		  || !nunits.is_constant (&cnunits)
++		  || !LOOP_VINFO_VECT_FACTOR (loop_vinfo).is_constant (&cvf)
++		  /* Peeling for gaps assumes that a single scalar iteration
++		     is enough to make sure the last vector iteration doesn't
++		     access excess elements.
++		     ???  Enhancements include peeling multiple iterations
++		     or using masked loads with a static mask.  */
++		  || (group_size * cvf) % cnunits + group_size < cnunits)
++		{
++		  if (dump_enabled_p ())
++		    dump_printf_loc (MSG_MISSED_OPTIMIZATION, vect_location,
++				     "peeling for gaps insufficient for "
++				     "access\n");
++		  return false;
++		}
++	      overrun_p = true;
++	    }
+ 	}
+     }
+   else
 diff --git a/gcc/value-prof.c b/gcc/value-prof.c
 index 42748771192..688089b04d2 100644
 --- a/gcc/value-prof.c
@@ -12415,6 +13159,20 @@ index 88d2d84d100..6ec6df79392 100644
  
  LSE_OBJS := $(O0) $(O1)
  
+diff --git a/libgo/sysinfo.c b/libgo/sysinfo.c
+index 8ce061e2f5f..336a5983750 100644
+--- a/libgo/sysinfo.c
++++ b/libgo/sysinfo.c
+@@ -158,9 +158,6 @@
+ #if defined(HAVE_LINUX_ETHER_H)
+ #include <linux/ether.h>
+ #endif
+-#if defined(HAVE_LINUX_FS_H)
+-#include <linux/fs.h>
+-#endif
+ #if defined(HAVE_LINUX_REBOOT_H)
+ #include <linux/reboot.h>
+ #endif
 diff --git a/libphobos/ChangeLog b/libphobos/ChangeLog
 index acd0b312ef2..f3d44133243 100644
 --- a/libphobos/ChangeLog
@@ -12518,11 +13276,134 @@ index bafd5ad4502..8e2f1eefd5b 100755
                    -L${BUILD_DIR}/src/.libs"
        echo ${GDCLDFLAGS}
        ;;
+diff --git a/libsanitizer/sanitizer_common/sanitizer_platform_limits_posix.cpp b/libsanitizer/sanitizer_common/sanitizer_platform_limits_posix.cpp
+index 025e575b5bc..5743516c046 100644
+--- a/libsanitizer/sanitizer_common/sanitizer_platform_limits_posix.cpp
++++ b/libsanitizer/sanitizer_common/sanitizer_platform_limits_posix.cpp
+@@ -72,7 +72,9 @@
+ #include <sys/vt.h>
+ #include <linux/cdrom.h>
+ #include <linux/fd.h>
++#if SANITIZER_ANDROID
+ #include <linux/fs.h>
++#endif
+ #include <linux/hdreg.h>
+ #include <linux/input.h>
+ #include <linux/ioctl.h>
+@@ -828,10 +830,10 @@ unsigned struct_ElfW_Phdr_sz = sizeof(Elf_Phdr);
+   unsigned IOCTL_EVIOCGPROP = IOCTL_NOT_PRESENT;
+   unsigned IOCTL_EVIOCSKEYCODE_V2 = IOCTL_NOT_PRESENT;
+ #endif
+-  unsigned IOCTL_FS_IOC_GETFLAGS = FS_IOC_GETFLAGS;
+-  unsigned IOCTL_FS_IOC_GETVERSION = FS_IOC_GETVERSION;
+-  unsigned IOCTL_FS_IOC_SETFLAGS = FS_IOC_SETFLAGS;
+-  unsigned IOCTL_FS_IOC_SETVERSION = FS_IOC_SETVERSION;
++  unsigned IOCTL_FS_IOC_GETFLAGS = _IOR('f', 1, long);
++  unsigned IOCTL_FS_IOC_GETVERSION = _IOR('v', 1, long);
++  unsigned IOCTL_FS_IOC_SETFLAGS = _IOW('f', 2, long);
++  unsigned IOCTL_FS_IOC_SETVERSION = _IOW('v', 2, long);
+   unsigned IOCTL_GIO_CMAP = GIO_CMAP;
+   unsigned IOCTL_GIO_FONT = GIO_FONT;
+   unsigned IOCTL_GIO_UNIMAP = GIO_UNIMAP;
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..8460d240ad8 100644
+index 85e04c45288..15efb0b1b6c 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,758 @@
+@@ -1,3 +1,852 @@
++2022-07-26  Thomas Rodgers  <trodgers@redhat.com>
++
++	Backported from master:
++	2022-07-26  Thomas Rodgers  <trodgers@redhat.com>
++
++	* include/bits/atomic_wait.h (__atomic_spin): Merge spin loops.
++
++2022-07-22  Patrick Palka  <ppalka@redhat.com>
++
++	PR libstdc++/106320
++	* include/std/ranges (single_view): Relax constraints on
++	default constructor so as to preserve pre-P2325R3 behavior.
++	(filter_view): Likewise.
++	(transform_view): Likewise.
++	(take_while_view): Likewise.
++	(drop_while_view): Likewise.
++	* testsuite/std/ranges/adaptors/join.cc (test13): New test.
++	* testsuite/std/ranges/p2325.cc: Fix S to be only non default
++	constructible and not also non copy constructible.  XFAIL the
++	tests that verify a non default constructible functor makes a
++	view non default constructible (lines 94, 97 and 98).  XFAIL
++	the test that effectively verifies a non default constructible
++	element type makes single_view non default constructible (line
++	114).
++
++2022-07-22  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-07-20  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/100823
++	* include/bits/stl_iterator.h (common_iterator): Define move
++	constructor and move assignment operator.
++	(common_iterator::_M_assign): New function implementing
++	assignment.
++	(common_iterator::operator=): Use _M_assign.
++	(common_iterator::_S_valueless): New constant.
++	* testsuite/24_iterators/common_iterator/100823.cc: New test.
++
++2022-07-22  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-07-20  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/bits/stl_iterator.h (common_iterator): Fix incorrect
++	uses of is_nothrow_assignable_v. Fix inconsistent constraints on
++	friend declaration. Do not move argument in copy constructor.
++	* testsuite/24_iterators/common_iterator/1.cc: Check for
++	noexcept constructibnle/assignable.
++
++2022-07-22  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-01-14  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/103992
++	* include/bits/stl_iterator.h (common_iterator): Use
++	std::construct_at instead of placement new.
++	* testsuite/24_iterators/common_iterator/1.cc: Check copy
++	construction is usable in constant expressions.
++
++2022-07-22  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-01-11  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/bits/stl_iterator.h (common_iterator): Add constexpr
++	to all member functions (LWG 3574).
++	* testsuite/24_iterators/common_iterator/1.cc: Evaluate some
++	tests as constant expressions.
++	* testsuite/24_iterators/common_iterator/2.cc: Likewise.
++
++2022-07-22  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-06-28  Jonathan Wakely  <jwakely@redhat.com>
++
++	* testsuite/20_util/from_chars/4.cc: Only use log2 if C99 math
++	functions are available.
++
++2022-07-22  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-06-30  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/88881
++	* src/filesystem/ops.cc (has_trailing_slash): New helper
++	function.
++	(fs::status): Strip trailing slashes.
++	(fs::symlink_status): Likewise.
++	* testsuite/experimental/filesystem/operations/temp_directory_path.cc:
++	Clean the environment before each test and use TMP instead of
++	TMPDIR so the test passes on Windows.
++
 +2022-07-07  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backported from master:
@@ -14228,6 +15109,45 @@ index 60b976bf8d1..2abdc400260 100644
  	return __atomic_compare_exchange(__ptr, std::__addressof(__expected),
  					 std::__addressof(__desired), false,
  					 int(__success), int(__failure));
+diff --git a/libstdc++-v3/include/bits/atomic_wait.h b/libstdc++-v3/include/bits/atomic_wait.h
+index 394f666d02e..571a0dd08ef 100644
+--- a/libstdc++-v3/include/bits/atomic_wait.h
++++ b/libstdc++-v3/include/bits/atomic_wait.h
+@@ -142,8 +142,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ #endif
+     }
+ 
+-    constexpr auto __atomic_spin_count_1 = 12;
+-    constexpr auto __atomic_spin_count_2 = 4;
++    constexpr auto __atomic_spin_count_relax = 12;
++    constexpr auto __atomic_spin_count = 16;
+ 
+     struct __default_spin_policy
+     {
+@@ -157,18 +157,15 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       bool
+       __atomic_spin(_Pred& __pred, _Spin __spin = _Spin{ }) noexcept
+       {
+-	for (auto __i = 0; __i < __atomic_spin_count_1; ++__i)
++	for (auto __i = 0; __i < __atomic_spin_count; ++__i)
+ 	  {
+ 	    if (__pred())
+ 	      return true;
+-	    __detail::__thread_relax();
+-	  }
+ 
+-	for (auto __i = 0; __i < __atomic_spin_count_2; ++__i)
+-	  {
+-	    if (__pred())
+-	      return true;
+-	    __detail::__thread_yield();
++	    if (__i < __atomic_spin_count_relax)
++	      __detail::__thread_relax();
++	    else
++	      __detail::__thread_yield();
+ 	  }
+ 
+ 	while (__spin())
 diff --git a/libstdc++-v3/include/bits/forward_list.tcc b/libstdc++-v3/include/bits/forward_list.tcc
 index bd7a859091f..1145230b910 100644
 --- a/libstdc++-v3/include/bits/forward_list.tcc
@@ -15623,10 +16543,24 @@ index 20c73b4fc3c..8236fe35ce7 100644
  	    + (__y._M_last - __y._M_cur);
  	}
 diff --git a/libstdc++-v3/include/bits/stl_iterator.h b/libstdc++-v3/include/bits/stl_iterator.h
-index beeb4ef4c8a..38a828e633e 100644
+index beeb4ef4c8a..fc36bd186a5 100644
 --- a/libstdc++-v3/include/bits/stl_iterator.h
 +++ b/libstdc++-v3/include/bits/stl_iterator.h
-@@ -537,6 +537,22 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+@@ -77,11 +77,12 @@
+ # define __cpp_lib_array_constexpr 201803L
+ #endif
+ 
+-#if __cplusplus > 201703L
++#if __cplusplus >= 202002L
+ # include <compare>
+ # include <new>
+ # include <bits/exception_defines.h>
+ # include <bits/iterator_concepts.h>
++# include <bits/stl_construct.h>
+ #endif
+ 
+ namespace std _GLIBCXX_VISIBILITY(default)
+@@ -537,6 +538,22 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
      operator<=>(const reverse_iterator<_IteratorL>& __x,
  		const reverse_iterator<_IteratorR>& __y)
      { return __y.base() <=> __x.base(); }
@@ -15649,7 +16583,7 @@ index beeb4ef4c8a..38a828e633e 100644
  #endif // C++20
    ///@}
  
-@@ -1113,6 +1129,23 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+@@ -1113,6 +1130,23 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
  		const __normal_iterator<_IteratorR, _Container>& __rhs)
      noexcept(noexcept(std::__detail::__synth3way(__lhs.base(), __rhs.base())))
      { return std::__detail::__synth3way(__lhs.base(), __rhs.base()); }
@@ -15673,7 +16607,7 @@ index beeb4ef4c8a..38a828e633e 100644
  #else
     // Forward iterator requirements
    template<typename _IteratorL, typename _IteratorR, typename _Container>
-@@ -1588,20 +1621,22 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+@@ -1588,20 +1622,22 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
  #endif
      { return !(__x < __y); }
  
@@ -15701,7 +16635,337 @@ index beeb4ef4c8a..38a828e633e 100644
    template<typename _Iterator>
      inline _GLIBCXX17_CONSTEXPR bool
      operator!=(const move_iterator<_Iterator>& __x,
-@@ -2188,7 +2223,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+@@ -1697,7 +1733,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       _S_noexcept1()
+       {
+ 	if constexpr (is_trivially_default_constructible_v<_Tp>)
+-	  return is_nothrow_assignable_v<_Tp, _Up>;
++	  return is_nothrow_assignable_v<_Tp&, _Up>;
+ 	else
+ 	  return is_nothrow_constructible_v<_Tp, _Up>;
+       }
+@@ -1767,19 +1803,20 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       noexcept(_S_noexcept<const _It2&, const _Sent2&>())
+       : _M_valueless(), _M_index(__x._M_index)
+       {
++	__glibcxx_assert(__x._M_has_value());
+ 	if (_M_index == 0)
+ 	  {
+ 	    if constexpr (is_trivially_default_constructible_v<_It>)
+ 	      _M_it = std::move(__x._M_it);
+ 	    else
+-	      ::new((void*)std::__addressof(_M_it)) _It(__x._M_it);
++	      std::construct_at(std::__addressof(_M_it), __x._M_it);
+ 	  }
+ 	else if (_M_index == 1)
+ 	  {
+ 	    if constexpr (is_trivially_default_constructible_v<_Sent>)
+ 	      _M_sent = std::move(__x._M_sent);
+ 	    else
+-	      ::new((void*)std::__addressof(_M_sent)) _Sent(__x._M_sent);
++	      std::construct_at(std::__addressof(_M_sent), __x._M_sent);
+ 	  }
+       }
+ 
+@@ -1787,31 +1824,75 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     common_iterator(const common_iterator& __x)
+     noexcept(_S_noexcept<const _It&, const _Sent&>())
+     : _M_valueless(), _M_index(__x._M_index)
++    {
++      if (_M_index == 0)
++	{
++	  if constexpr (is_trivially_default_constructible_v<_It>)
++	    _M_it = __x._M_it;
++	  else
++	    std::construct_at(std::__addressof(_M_it), __x._M_it);
++	}
++      else if (_M_index == 1)
++	{
++	  if constexpr (is_trivially_default_constructible_v<_Sent>)
++	    _M_sent = __x._M_sent;
++	  else
++	    std::construct_at(std::__addressof(_M_sent), __x._M_sent);
++	}
++    }
++
++    constexpr
++    common_iterator(common_iterator&& __x)
++    noexcept(_S_noexcept<_It, _Sent>())
++    : _M_valueless(), _M_index(__x._M_index)
+     {
+       if (_M_index == 0)
+ 	{
+ 	  if constexpr (is_trivially_default_constructible_v<_It>)
+ 	    _M_it = std::move(__x._M_it);
+ 	  else
+-	    ::new((void*)std::__addressof(_M_it)) _It(__x._M_it);
++	    std::construct_at(std::__addressof(_M_it), std::move(__x._M_it));
+ 	}
+       else if (_M_index == 1)
+ 	{
+ 	  if constexpr (is_trivially_default_constructible_v<_Sent>)
+ 	    _M_sent = std::move(__x._M_sent);
+ 	  else
+-	    ::new((void*)std::__addressof(_M_sent)) _Sent(__x._M_sent);
++	    std::construct_at(std::__addressof(_M_sent),
++			      std::move(__x._M_sent));
+ 	}
+     }
+ 
+-    common_iterator&
++    constexpr common_iterator&
++    operator=(const common_iterator&) = default;
++
++    constexpr common_iterator&
+     operator=(const common_iterator& __x)
+     noexcept(is_nothrow_copy_assignable_v<_It>
+ 	     && is_nothrow_copy_assignable_v<_Sent>
+ 	     && is_nothrow_copy_constructible_v<_It>
+ 	     && is_nothrow_copy_constructible_v<_Sent>)
++    requires (!is_trivially_copy_assignable_v<_It>
++		|| !is_trivially_copy_assignable_v<_Sent>)
+     {
+-      return this->operator=<_It, _Sent>(__x);
++      _M_assign(__x);
++      return *this;
++    }
++
++    constexpr common_iterator&
++    operator=(common_iterator&&) = default;
++
++    constexpr common_iterator&
++    operator=(common_iterator&& __x)
++    noexcept(is_nothrow_move_assignable_v<_It>
++	     && is_nothrow_move_assignable_v<_Sent>
++	     && is_nothrow_move_constructible_v<_It>
++	     && is_nothrow_move_constructible_v<_Sent>)
++    requires (!is_trivially_move_assignable_v<_It>
++		|| !is_trivially_move_assignable_v<_Sent>)
++    {
++      _M_assign(std::move(__x));
++      return *this;
+     }
+ 
+     template<typename _It2, typename _Sent2>
+@@ -1819,72 +1900,45 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	&& convertible_to<const _Sent2&, _Sent>
+ 	&& assignable_from<_It&, const _It2&>
+ 	&& assignable_from<_Sent&, const _Sent2&>
+-      common_iterator&
++      constexpr common_iterator&
+       operator=(const common_iterator<_It2, _Sent2>& __x)
+       noexcept(is_nothrow_constructible_v<_It, const _It2&>
+ 	       && is_nothrow_constructible_v<_Sent, const _Sent2&>
+-	       && is_nothrow_assignable_v<_It, const _It2&>
+-	       && is_nothrow_assignable_v<_Sent, const _Sent2&>)
++	       && is_nothrow_assignable_v<_It&, const _It2&>
++	       && is_nothrow_assignable_v<_Sent&, const _Sent2&>)
+       {
+-	switch(_M_index << 2 | __x._M_index)
+-	  {
+-	  case 0b0000:
+-	    _M_it = __x._M_it;
+-	    break;
+-	  case 0b0101:
+-	    _M_sent = __x._M_sent;
+-	    break;
+-	  case 0b0001:
+-	    _M_it.~_It();
+-	    _M_index = -1;
+-	    [[fallthrough]];
+-	  case 0b1001:
+-	    ::new((void*)std::__addressof(_M_sent)) _Sent(__x._M_sent);
+-	    _M_index = 1;
+-	    break;
+-	  case 0b0100:
+-	    _M_sent.~_Sent();
+-	    _M_index = -1;
+-	    [[fallthrough]];
+-	  case 0b1000:
+-	    ::new((void*)std::__addressof(_M_it)) _It(__x._M_it);
+-	    _M_index = 0;
+-	    break;
+-	  default:
+-	    __glibcxx_assert(__x._M_has_value());
+-	    __builtin_unreachable();
+-	  }
++	__glibcxx_assert(__x._M_has_value());
++	_M_assign(__x);
+ 	return *this;
+       }
+ 
++    constexpr
+     ~common_iterator()
+     {
+-      switch (_M_index)
+-	{
+-	case 0:
+-	  _M_it.~_It();
+-	  break;
+-	case 1:
+-	  _M_sent.~_Sent();
+-	  break;
+-	}
++      if (_M_index == 0)
++	_M_it.~_It();
++      else if (_M_index == 1)
++	_M_sent.~_Sent();
+     }
+ 
+-    decltype(auto)
++    [[nodiscard]]
++    constexpr decltype(auto)
+     operator*()
+     {
+       __glibcxx_assert(_M_index == 0);
+       return *_M_it;
+     }
+ 
+-    decltype(auto)
++    [[nodiscard]]
++    constexpr decltype(auto)
+     operator*() const requires __detail::__dereferenceable<const _It>
+     {
+       __glibcxx_assert(_M_index == 0);
+       return *_M_it;
+     }
+ 
+-    decltype(auto)
++    [[nodiscard]]
++    constexpr decltype(auto)
+     operator->() const requires __detail::__common_iter_has_arrow<_It>
+     {
+       __glibcxx_assert(_M_index == 0);
+@@ -1899,7 +1953,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	return __arrow_proxy{*_M_it};
+     }
+ 
+-    common_iterator&
++    constexpr common_iterator&
+     operator++()
+     {
+       __glibcxx_assert(_M_index == 0);
+@@ -1907,7 +1961,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       return *this;
+     }
+ 
+-    decltype(auto)
++    constexpr decltype(auto)
+     operator++(int)
+     {
+       __glibcxx_assert(_M_index == 0);
+@@ -1929,9 +1983,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 
+     template<typename _It2, sentinel_for<_It> _Sent2>
+       requires sentinel_for<_Sent, _It2>
+-      friend bool
+-      operator==(const common_iterator& __x,
+-		 const common_iterator<_It2, _Sent2>& __y)
++      friend constexpr bool
++      operator== [[nodiscard]] (const common_iterator& __x,
++				const common_iterator<_It2, _Sent2>& __y)
+       {
+ 	switch(__x._M_index << 2 | __y._M_index)
+ 	  {
+@@ -1951,9 +2005,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 
+     template<typename _It2, sentinel_for<_It> _Sent2>
+       requires sentinel_for<_Sent, _It2> && equality_comparable_with<_It, _It2>
+-      friend bool
+-      operator==(const common_iterator& __x,
+-		 const common_iterator<_It2, _Sent2>& __y)
++      friend constexpr bool
++      operator== [[nodiscard]] (const common_iterator& __x,
++				const common_iterator<_It2, _Sent2>& __y)
+       {
+ 	switch(__x._M_index << 2 | __y._M_index)
+ 	  {
+@@ -1974,9 +2028,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 
+     template<sized_sentinel_for<_It> _It2, sized_sentinel_for<_It> _Sent2>
+       requires sized_sentinel_for<_Sent, _It2>
+-      friend iter_difference_t<_It2>
+-      operator-(const common_iterator& __x,
+-		const common_iterator<_It2, _Sent2>& __y)
++      friend constexpr iter_difference_t<_It2>
++      operator- [[nodiscard]] (const common_iterator& __x,
++			       const common_iterator<_It2, _Sent2>& __y)
+       {
+ 	switch(__x._M_index << 2 | __y._M_index)
+ 	  {
+@@ -1995,7 +2049,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	  }
+       }
+ 
+-    friend iter_rvalue_reference_t<_It>
++    [[nodiscard]]
++    friend constexpr iter_rvalue_reference_t<_It>
+     iter_move(const common_iterator& __i)
+     noexcept(noexcept(ranges::iter_move(std::declval<const _It&>())))
+     requires input_iterator<_It>
+@@ -2005,7 +2060,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     }
+ 
+     template<indirectly_swappable<_It> _It2, typename _Sent2>
+-      friend void
++      friend constexpr void
+       iter_swap(const common_iterator& __x,
+ 		const common_iterator<_It2, _Sent2>& __y)
+       noexcept(noexcept(ranges::iter_swap(std::declval<const _It&>(),
+@@ -2018,9 +2073,40 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 
+   private:
+     template<input_or_output_iterator _It2, sentinel_for<_It2> _Sent2>
++      requires (!same_as<_It2, _Sent2>) && copyable<_It2>
+       friend class common_iterator;
+ 
+-    bool _M_has_value() const noexcept { return _M_index < 2; }
++    constexpr bool
++    _M_has_value() const noexcept { return _M_index != _S_valueless; }
++
++    template<typename _CIt>
++      constexpr void
++      _M_assign(_CIt&& __x)
++      {
++	if (_M_index == __x._M_index)
++	  {
++	    if (_M_index == 0)
++	      _M_it = std::forward<_CIt>(__x)._M_it;
++	    else if (_M_index == 1)
++	      _M_sent = std::forward<_CIt>(__x)._M_sent;
++	  }
++	else
++	  {
++	    if (_M_index == 0)
++	      _M_it.~_It();
++	    else if (_M_index == 1)
++	      _M_sent.~_Sent();
++	    _M_index = _S_valueless;
++
++	    if (__x._M_index == 0)
++	      std::construct_at(std::__addressof(_M_it),
++				std::forward<_CIt>(__x)._M_it);
++	    else if (__x._M_index == 1)
++	      std::construct_at(std::__addressof(_M_sent),
++				std::forward<_CIt>(__x)._M_sent);
++	    _M_index = __x._M_index;
++	  }
++      }
+ 
+     union
+     {
+@@ -2028,7 +2114,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       _Sent _M_sent;
+       unsigned char _M_valueless;
+     };
+-    unsigned char _M_index; // 0==_M_it, 1==_M_sent, 2==valueless
++    unsigned char _M_index; // 0 == _M_it, 1 == _M_sent, 2 == valueless
++
++    static constexpr unsigned char _S_valueless{2};
+   };
+ 
+   template<typename _It, typename _Sent>
+@@ -2188,7 +2276,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
  	return *this;
        }
  
@@ -15710,7 +16974,7 @@ index beeb4ef4c8a..38a828e633e 100644
        operator++(int)
        {
  	__glibcxx_assert(_M_length > 0);
-@@ -2200,7 +2235,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+@@ -2200,7 +2288,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
  	    ++_M_length;
  	    __throw_exception_again;
  	  }
@@ -16163,10 +17427,63 @@ index 52fa4b6cccb..610383992fb 100644
  
  _GLIBCXX_END_NAMESPACE_VERSION
 diff --git a/libstdc++-v3/include/std/ranges b/libstdc++-v3/include/std/ranges
-index f55ee15e1b1..bbdfb7dbe5c 100644
+index f55ee15e1b1..0a67c45f1b8 100644
 --- a/libstdc++-v3/include/std/ranges
 +++ b/libstdc++-v3/include/std/ranges
-@@ -2916,7 +2916,7 @@ namespace views::__adaptor
+@@ -200,7 +200,7 @@ namespace ranges
+     class single_view : public view_interface<single_view<_Tp>>
+     {
+     public:
+-      single_view() requires default_initializable<_Tp> = default;
++      single_view() = default;
+ 
+       constexpr explicit
+       single_view(const _Tp& __t)
+@@ -1463,9 +1463,7 @@ namespace views::__adaptor
+       _Vp _M_base = _Vp();
+ 
+     public:
+-      filter_view() requires (default_initializable<_Vp>
+-			      && default_initializable<_Pred>)
+-	= default;
++      filter_view() requires default_initializable<_Vp> = default;
+ 
+       constexpr
+       filter_view(_Vp __base, _Pred __pred)
+@@ -1829,9 +1827,7 @@ namespace views::__adaptor
+       _Vp _M_base = _Vp();
+ 
+     public:
+-      transform_view() requires (default_initializable<_Vp>
+-				 && default_initializable<_Fp>)
+-	= default;
++      transform_view() requires default_initializable<_Vp> = default;
+ 
+       constexpr
+       transform_view(_Vp __base, _Fp __fun)
+@@ -2150,9 +2146,7 @@ namespace views::__adaptor
+       _Vp _M_base = _Vp();
+ 
+     public:
+-      take_while_view() requires (default_initializable<_Vp>
+-				  && default_initializable<_Pred>)
+-	= default;
++      take_while_view() requires default_initializable<_Vp> = default;
+ 
+       constexpr
+       take_while_view(_Vp base, _Pred __pred)
+@@ -2356,9 +2350,7 @@ namespace views::__adaptor
+       _Vp _M_base = _Vp();
+ 
+     public:
+-      drop_while_view() requires (default_initializable<_Vp>
+-				  && default_initializable<_Pred>)
+-	= default;
++      drop_while_view() requires default_initializable<_Vp> = default;
+ 
+       constexpr
+       drop_while_view(_Vp __base, _Pred __pred)
+@@ -2916,7 +2908,7 @@ namespace views::__adaptor
  	    { return _InnerIter<_Const>{_M_i}; }
  
  	    constexpr default_sentinel_t
@@ -16847,7 +18164,7 @@ index 529d4e09016..a76a2e6198d 100644
  
  _GLIBCXX_END_NAMESPACE_VERSION
 diff --git a/libstdc++-v3/src/filesystem/ops.cc b/libstdc++-v3/src/filesystem/ops.cc
-index 3f2290f372d..0eaa4b655a1 100644
+index 3f2290f372d..b7df8d99b6c 100644
 --- a/libstdc++-v3/src/filesystem/ops.cc
 +++ b/libstdc++-v3/src/filesystem/ops.cc
 @@ -27,6 +27,10 @@
@@ -16876,7 +18193,84 @@ index 3f2290f372d..0eaa4b655a1 100644
      }
    // _GLIBCXX_RESOLVE_LIB_DEFECTS
    // 2683. filesystem::copy() says "no effects"
-@@ -1289,7 +1297,8 @@ fs::system_complete(const path& p, error_code& ec)
+@@ -1195,13 +1203,43 @@ fs::space(const path& p, error_code& ec) noexcept
+   return info;
+ }
+ 
++#if _GLIBCXX_FILESYSTEM_IS_WINDOWS
++static bool has_trailing_slash(const fs::path& p)
++{
++  wchar_t c = p.native().back();
++  return c == '/' || c == L'\\';
++}
++#endif
++
+ #ifdef _GLIBCXX_HAVE_SYS_STAT_H
+ fs::file_status
+ fs::status(const fs::path& p, error_code& ec) noexcept
+ {
+   file_status status;
++
++  auto str = p.c_str();
++
++#if _GLIBCXX_FILESYSTEM_IS_WINDOWS
++  // stat() fails if there's a trailing slash (PR 88881)
++  path p2;
++  if (p.has_relative_path() && has_trailing_slash(p))
++    {
++      __try
++	{
++	  p2 = p.parent_path();
++	  str = p2.c_str();
++	}
++      __catch(const bad_alloc&)
++	{
++	  ec = std::make_error_code(std::errc::not_enough_memory);
++	  return status;
++	}
++      str = p2.c_str();
++    }
++#endif
++
+   stat_type st;
+-  if (posix::stat(p.c_str(), &st))
++  if (posix::stat(str, &st))
+     {
+       int err = errno;
+       ec.assign(err, std::generic_category());
+@@ -1224,8 +1262,30 @@ fs::file_status
+ fs::symlink_status(const fs::path& p, std::error_code& ec) noexcept
+ {
+   file_status status;
++
++  auto str = p.c_str();
++
++#if _GLIBCXX_FILESYSTEM_IS_WINDOWS
++  // stat() fails if there's a trailing slash (PR 88881)
++  path p2;
++  if (p.has_relative_path() && has_trailing_slash(p))
++    {
++      __try
++	{
++	  p2 = p.parent_path();
++	  str = p2.c_str();
++	}
++      __catch(const bad_alloc&)
++	{
++	  ec = std::make_error_code(std::errc::not_enough_memory);
++	  return status;
++	}
++      str = p2.c_str();
++    }
++#endif
++
+   stat_type st;
+-  if (posix::lstat(p.c_str(), &st))
++  if (posix::lstat(str, &st))
+     {
+       int err = errno;
+       ec.assign(err, std::generic_category());
+@@ -1289,7 +1349,8 @@ fs::system_complete(const path& p, error_code& ec)
  #endif
  }
  
@@ -16886,7 +18280,7 @@ index 3f2290f372d..0eaa4b655a1 100644
  {
    error_code ec;
    path tmp = temp_directory_path(ec);
-@@ -1298,31 +1307,12 @@ fs::path fs::temp_directory_path()
+@@ -1298,31 +1359,12 @@ fs::path fs::temp_directory_path()
    return tmp;
  }
  
@@ -16923,7 +18317,7 @@ index 3f2290f372d..0eaa4b655a1 100644
    auto st = status(p, ec);
    if (ec)
      p.clear();
-@@ -1331,7 +1321,5 @@ fs::path fs::temp_directory_path(error_code& ec)
+@@ -1331,7 +1373,5 @@ fs::path fs::temp_directory_path(error_code& ec)
        p.clear();
        ec = std::make_error_code(std::errc::not_a_directory);
      }
@@ -17086,6 +18480,22 @@ index e3d024d525b..3720774abaf 100644
    test01();
 +  test02();
  }
+diff --git a/libstdc++-v3/testsuite/20_util/from_chars/4.cc b/libstdc++-v3/testsuite/20_util/from_chars/4.cc
+index 7cee4dcbc23..4064f1d4177 100644
+--- a/libstdc++-v3/testsuite/20_util/from_chars/4.cc
++++ b/libstdc++-v3/testsuite/20_util/from_chars/4.cc
+@@ -300,9 +300,11 @@ test_max_mantissa()
+ 
+   if (Float_limits::is_iec559 && Float_limits::digits < UInt_limits::digits)
+   {
++#ifdef _GLIBCXX_USE_C99_MATH_TR1
+     std::printf("Testing %d-bit float, using %zu-bit integer\n",
+ 	Float_limits::digits + (int)std::log2(Float_limits::max_exponent) + 1,
+ 	sizeof(UIntT) * __CHAR_BIT__);
++#endif
+ 
+     std::from_chars_result res;
+     FloatT flt;
 diff --git a/libstdc++-v3/testsuite/20_util/from_chars/pr105324.cc b/libstdc++-v3/testsuite/20_util/from_chars/pr105324.cc
 new file mode 100644
 index 00000000000..ef24b4c5c7b
@@ -17327,6 +18737,201 @@ index 00000000000..0f6f520c33b
 +  test_stable();
 +  test_lwg3088();
 +}
+diff --git a/libstdc++-v3/testsuite/24_iterators/common_iterator/1.cc b/libstdc++-v3/testsuite/24_iterators/common_iterator/1.cc
+index fb8c7adab27..e07069adab6 100644
+--- a/libstdc++-v3/testsuite/24_iterators/common_iterator/1.cc
++++ b/libstdc++-v3/testsuite/24_iterators/common_iterator/1.cc
+@@ -27,15 +27,30 @@ test01()
+   using I = std::common_iterator<int*, const int*>;
+   static_assert( std::is_default_constructible_v<I> );
+   static_assert( std::is_copy_constructible_v<I> );
++  static_assert( std::is_move_constructible_v<I> );
+   static_assert( std::is_copy_assignable_v<I> );
++  static_assert( std::is_move_assignable_v<I> );
+   static_assert( std::is_constructible_v<I, int*> );
+   static_assert( std::is_constructible_v<I, const int*> );
+ 
+-  struct sentinel { operator int*() const { return nullptr; } };
++  static_assert( std::is_nothrow_copy_constructible_v<I> ); // GCC extension
++  static_assert( std::is_nothrow_move_constructible_v<I> ); // GCC extension
++  static_assert( std::is_nothrow_copy_assignable_v<I> ); // GCC extension
++  static_assert( std::is_nothrow_move_assignable_v<I> ); // GCC extension
++
++  struct sentinel { operator int*() const noexcept { return nullptr; } };
+   using K = std::common_iterator<int*, sentinel>;
+   static_assert( std::is_constructible_v<I, const K&> );
+   static_assert( std::is_assignable_v<I, const K&> );
+ 
++  static_assert( std::is_nothrow_assignable_v<I&, const K&> ); // GCC extension
++
++  struct sentinel_throwing { operator int*() const { return nullptr; } };
++  using K_throwing = std::common_iterator<int*, sentinel_throwing>;
++  // Conversion is noexcept(false)
++  static_assert( ! std::is_nothrow_assignable_v<I&, const K_throwing&> );
++
++
+   struct sentinel2
+   {
+     const int* p;
+@@ -46,6 +61,12 @@ test01()
+   using J = std::common_iterator<const int*, sentinel2>;
+   static_assert( std::is_constructible_v<J, const I&> );
+   static_assert( std::is_convertible_v<const I&, J> );
++
++  static_assert( std::is_constructible_v<J, I> );
++  static_assert( std::is_convertible_v<I, J> );
++
++  // Constructor is noexcept(false)
++  static_assert( ! std::is_nothrow_constructible_v<J, I> );
+ }
+ 
+ void
+@@ -88,7 +109,7 @@ test02()
+     VERIFY( i == (&i - out) );
+ }
+ 
+-void
++constexpr bool
+ test03()
+ {
+   int arr[2] = { 1, 2 };
+@@ -117,6 +138,9 @@ test03()
+   VERIFY( (j - end) == -2 );
+   VERIFY( (j - i) == 0 );
+ 
++  if (std::is_constant_evaluated())
++    return true;
++
+   try
+   {
+     struct S { operator const int*() const { throw 1; } };
+@@ -126,8 +150,12 @@ test03()
+   catch (int)
+   {
+   }
++
++  return true;
+ }
+ 
++static_assert( test03() );
++
+ void
+ test04()
+ {
+@@ -150,6 +178,22 @@ test04()
+   VERIFY( x.i == 2 );
+ }
+ 
++constexpr bool
++test_pr103992()
++{
++  using C1 = std::common_iterator<std::reverse_iterator<int*>,
++				  std::unreachable_sentinel_t>;
++  using C2 = std::common_iterator<std::reverse_iterator<const int*>,
++				  std::unreachable_sentinel_t>;
++  C1 c1;
++  C2 c2 = c1;
++  C1 c3 = c1;
++
++  return true;
++}
++
++static_assert( test_pr103992() );
++
+ int
+ main()
+ {
+diff --git a/libstdc++-v3/testsuite/24_iterators/common_iterator/100823.cc b/libstdc++-v3/testsuite/24_iterators/common_iterator/100823.cc
+new file mode 100644
+index 00000000000..4f2b23de8cc
+--- /dev/null
++++ b/libstdc++-v3/testsuite/24_iterators/common_iterator/100823.cc
+@@ -0,0 +1,43 @@
++// { dg-options "-std=gnu++20 -D_GLIBCXX_ASSERTIONS" }
++// { dg-do run { target c++20 } }
++#include <iterator>
++#include <testsuite_iterators.h>
++#include <testsuite_hooks.h>
++
++void
++test_valueless_assignment()
++{
++  int x[1] { };
++  __gnu_test::test_forward_range<int> r(x);
++  using Iter = decltype(r.begin());
++  using Sent = decltype(r.end());
++
++  std::common_iterator<Iter, Sent> i;
++  const std::common_iterator<Iter, Sent> j(r.begin());
++  try
++  {
++    struct Bomb
++    {
++      bool operator==(Iter) const { return true; }
++      operator Sent() const { throw 1; }
++    };
++    std::common_iterator<Iter, Bomb> b{Bomb{}};
++    i = b; // Throws, leaving i valueless-by-exception.
++    VERIFY(false);
++  }
++  catch (int)
++  {
++    std::common_iterator<Iter, Sent> k(i);
++
++    // PR libstdc++/100823
++    k = i; // Valid even though both operands are valueless.
++
++    i = j; // No longer valueless.
++  }
++  VERIFY( i == j );
++}
++
++int main()
++{
++  test_valueless_assignment();
++}
+diff --git a/libstdc++-v3/testsuite/24_iterators/common_iterator/2.cc b/libstdc++-v3/testsuite/24_iterators/common_iterator/2.cc
+index 80f4f2b0151..f8580b57890 100644
+--- a/libstdc++-v3/testsuite/24_iterators/common_iterator/2.cc
++++ b/libstdc++-v3/testsuite/24_iterators/common_iterator/2.cc
+@@ -32,18 +32,18 @@ struct iterator
+   using difference_type = std::ptrdiff_t;
+   using reference = value;
+ 
+-  value operator*() const { return value{counter}; }
++  constexpr value operator*() const { return value{counter}; }
+ 
+-  iterator& operator++() { ++counter; return *this; }
++  constexpr iterator& operator++() { ++counter; return *this; }
+ 
+-  iterator operator++(int) { auto i = *this; ++counter; return i; }
++  constexpr iterator operator++(int) { auto i = *this; ++counter; return i; }
+ 
+-  bool operator==(sentinel s) const { return counter == s.limit; }
++  constexpr bool operator==(sentinel s) const { return counter == s.limit; }
+ 
+   int counter = 0;
+ };
+ 
+-void
++constexpr bool
+ test01()
+ {
+   iterator i;
+@@ -54,10 +54,12 @@ test01()
+   VERIFY( begin->n == 1 );
+   ++begin;
+   VERIFY( begin == end );
++
++  return true;
+ }
+ 
+ int
+ main()
+ {
+-  test01();
++  constexpr bool b1 = test01();
+ }
 diff --git a/libstdc++-v3/testsuite/24_iterators/counted_iterator/lwg3643.cc b/libstdc++-v3/testsuite/24_iterators/counted_iterator/lwg3643.cc
 new file mode 100644
 index 00000000000..e6f12b46c12
@@ -18643,7 +20248,7 @@ index 947d270e6a4..817e51d2d21 100644
 +  test_pr99290();
  }
 diff --git a/libstdc++-v3/testsuite/experimental/filesystem/operations/temp_directory_path.cc b/libstdc++-v3/testsuite/experimental/filesystem/operations/temp_directory_path.cc
-index 03e777b0041..badd8a884cc 100644
+index 03e777b0041..b78f663dee9 100644
 --- a/libstdc++-v3/testsuite/experimental/filesystem/operations/temp_directory_path.cc
 +++ b/libstdc++-v3/testsuite/experimental/filesystem/operations/temp_directory_path.cc
 @@ -21,6 +21,7 @@
@@ -18678,6 +20283,27 @@ index 03e777b0041..badd8a884cc 100644
  
    std::error_code ec;
    fs::path p = fs::temp_directory_path(ec);
+@@ -98,6 +105,8 @@ test03()
+   if (!__gnu_test::permissions_are_testable())
+     return;
+ 
++  clean_env();
++
+   auto p = __gnu_test::nonexistent_path();
+   create_directories(p/"tmp");
+   permissions(p, fs::perms::none);
+@@ -122,8 +131,10 @@ test03()
+ void
+ test04()
+ {
++  clean_env();
++
+   __gnu_test::scoped_file f;
+-  set_env("TMPDIR", f.path.string());
++  set_env("TMP", f.path.string());
+   std::error_code ec;
+   auto r = fs::temp_directory_path(ec);
+   VERIFY( ec == std::make_error_code(std::errc::not_a_directory) );
 diff --git a/libstdc++-v3/testsuite/ext/rope/pthread7-rope.cc b/libstdc++-v3/testsuite/ext/rope/pthread7-rope.cc
 index 5df9f330cd4..ed0614e2797 100644
 --- a/libstdc++-v3/testsuite/ext/rope/pthread7-rope.cc
@@ -18741,3 +20367,78 @@ index f25a1cb9ddb..db843cddccb 100644
  int
  main()
  {
+diff --git a/libstdc++-v3/testsuite/std/ranges/adaptors/join.cc b/libstdc++-v3/testsuite/std/ranges/adaptors/join.cc
+index d774e8d9385..14e254bc734 100644
+--- a/libstdc++-v3/testsuite/std/ranges/adaptors/join.cc
++++ b/libstdc++-v3/testsuite/std/ranges/adaptors/join.cc
+@@ -193,6 +193,20 @@ test11()
+     ;
+ }
+ 
++void
++test13()
++{
++  // PR libstdc++/106320
++  auto l = std::views::transform([](auto x) {
++    return x | std::views::transform([x=0](auto y) {
++      return y;
++    });
++  });
++  static_assert(!std::default_initializable<decltype(l)>);
++  std::vector<std::vector<int>> v{{5, 6, 7}};
++  v | l | std::views::join;
++}
++
+ int
+ main()
+ {
+@@ -207,4 +221,5 @@ main()
+   test09();
+   test10();
+   test11();
++  test13();
+ }
+diff --git a/libstdc++-v3/testsuite/std/ranges/p2325.cc b/libstdc++-v3/testsuite/std/ranges/p2325.cc
+index 205b3458928..ab743916f5b 100644
+--- a/libstdc++-v3/testsuite/std/ranges/p2325.cc
++++ b/libstdc++-v3/testsuite/std/ranges/p2325.cc
+@@ -5,8 +5,8 @@
+ // Parts of P2325R3 are deliberately omitted in libstdc++ 11, in particular the
+ // removal of default ctors for back_/front_insert_iterator, ostream_iterator,
+ // ref_view and basic_istream_view/::iterator, so as to maximize backward
+-// compatibility with pre-P2325R3 code.  So most static_asserts in this test fail,
+-// see the xfails at the end of this file.
++// compatibility with pre-P2325R3 code.  Namely all asserts that verify lack of
++// default constructibility fail; see the xfails at the end of this file.
+ 
+ #include <ranges>
+ #include <iterator>
+@@ -93,7 +93,7 @@ test06()
+   static_assert(default_initializable<decltype(views::single(0) | adaptor(f1))>);
+   static_assert(!default_initializable<decltype(views::single(0) | adaptor(f2))>);
+ 
+-  struct S { S() = delete; };
++  struct S { S() = delete; S(const S&) = default; S(S&&) = default; };
+   static_assert(!default_initializable<decltype(views::single(declval<S>()) | adaptor(f1))>);
+   static_assert(!default_initializable<decltype(views::single(declval<S>()) | adaptor(f2))>);
+ }
+@@ -109,7 +109,7 @@ void
+ test07()
+ {
+   // Verify join_view is conditionally default constructible.
+-  struct S { S() = delete; };
++  struct S { S() = delete; S(const S&) = default; S(S&&) = default; };
+   using type1 = ranges::join_view<ranges::single_view<ranges::single_view<S>>>;
+   static_assert(!default_initializable<type1>);
+   using type2 = ranges::join_view<ranges::single_view<ranges::single_view<int>>>;
+@@ -173,6 +173,10 @@ test11()
+ // { dg-bogus "static assertion failed" "" { xfail *-*-* } 76 }
+ // { dg-bogus "static assertion failed" "" { xfail *-*-* } 77 }
+ // { dg-bogus "static assertion failed" "" { xfail *-*-* } 84 }
++// { dg-bogus "static assertion failed" "" { xfail *-*-* } 94 }
++// { dg-bogus "static assertion failed" "" { xfail *-*-* } 97 }
++// { dg-bogus "static assertion failed" "" { xfail *-*-* } 98 }
++// { dg-bogus "static assertion failed" "" { xfail *-*-* } 114 }
+ // { dg-bogus "static assertion failed" "" { xfail *-*-* } 124 }
+ // { dg-bogus "static assertion failed" "" { xfail *-*-* } 126 }
+ // { dg-bogus "static assertion failed" "" { xfail *-*-* } 128 }
