@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (96):
+GCC Administrator (97):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -386,10 +387,18 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..f03359313f9 100644
+index a0587d18824..9147220d6fb 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,510 @@
+@@ -1,3 +1,518 @@
++2022-07-27  Maciej W. Rozycki  <macro@embecosm.com>
++
++	Backported from master:
++	2022-07-27  Maciej W. Rozycki  <macro@embecosm.com>
++
++	* config/riscv/riscv.md (stack_protect_set_<mode>): Remove
++	duplicate backslashes.
++
 +2022-07-25  Sebastian Huber  <sebastian.huber@embedded-brains.de>
 +
 +	Backported from master:
