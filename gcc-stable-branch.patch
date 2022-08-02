@@ -268,6 +268,9 @@ Kewen Lin (2):
 Kito Cheng (1):
       RISC-V: Fix wrong expansion for arch-canonicalize
 
+Lewis Hyatt (1):
+      c: Fix location for _Pragma tokens [PR97498]
+
 Maciej W. Rozycki (1):
       RISC-V: Remove duplicate backslashes from `stack_protect_set_<mode>'
 
@@ -1088,6 +1091,18 @@ index 7b8f49d78dc..16fc52302e5 100644
 - restart:
    code = TREE_CODE (x);
    cl = TREE_CODE_CLASS (code);
+ 
+diff --git a/gcc/c/c-parser.c b/gcc/c/c-parser.c
+index 7690977f6b8..407c22afa6f 100644
+--- a/gcc/c/c-parser.c
++++ b/gcc/c/c-parser.c
+@@ -12289,6 +12289,7 @@ c_parser_pragma (c_parser *parser, enum pragma_context context, bool *if_p)
+   unsigned int id;
+   const char *construct = NULL;
+ 
++  input_location = c_parser_peek_token (parser)->location;
+   id = c_parser_peek_token (parser)->pragma_kind;
+   gcc_assert (id != PRAGMA_NONE);
  
 diff --git a/gcc/cfgrtl.c b/gcc/cfgrtl.c
 index 8fd128b471c..4fb145ee4c4 100644
@@ -9364,6 +9379,16 @@ index 00000000000..85277b97007
 +  long long l = (long long) ((0 | v) - ((V) { } == 0));
 +  return l;
 +}
+diff --git a/gcc/testsuite/c-c++-common/pr97498.c b/gcc/testsuite/c-c++-common/pr97498.c
+new file mode 100644
+index 00000000000..f5fa420415b
+--- /dev/null
++++ b/gcc/testsuite/c-c++-common/pr97498.c
+@@ -0,0 +1,4 @@
++/* { dg-do compile } */
++/* { dg-additional-options "-Wunused-function" } */
++#pragma GCC diagnostic ignored "-Wunused-function"
++static void f() {} _Pragma("GCC diagnostic error \"-Wunused-function\"") /* { dg-bogus "-Wunused-function" } */
 diff --git a/gcc/testsuite/g++.dg/cpp0x/constexpr-105321.C b/gcc/testsuite/g++.dg/cpp0x/constexpr-105321.C
 new file mode 100644
 index 00000000000..adb6830ff22
@@ -10746,6 +10771,25 @@ index 00000000000..e380d56ee06
 +{
 +  g -= (V){bar((V){~0})[3]};
 +}
+diff --git a/gcc/testsuite/gcc.dg/pragma-message.c b/gcc/testsuite/gcc.dg/pragma-message.c
+index 2f44b617710..1b7cf09de0a 100644
+--- a/gcc/testsuite/gcc.dg/pragma-message.c
++++ b/gcc/testsuite/gcc.dg/pragma-message.c
+@@ -42,9 +42,11 @@
+ #pragma message ("Okay " THREE)  /* { dg-message "Okay 3" } */
+ 
+ /* Create a TODO() that prints a message on compilation.  */
+-#define DO_PRAGMA(x) _Pragma (#x)
+-#define TODO(x) DO_PRAGMA(message ("TODO - " #x))
+-TODO(Okay 4)                     /* { dg-message "TODO - Okay 4" } */
++#define DO_PRAGMA(x) _Pragma (#x) /* { dg-line pragma_loc1 } */
++#define TODO(x) DO_PRAGMA(message ("TODO - " #x)) /* { dg-line pragma_loc2 } */
++TODO(Okay 4) /* { dg-message "in expansion of macro 'TODO'" } */
++/* { dg-message "TODO - Okay 4" "test4.1" { target *-*-* } pragma_loc1 } */
++/* { dg-message "in expansion of macro 'DO_PRAGMA'" "test4.2" { target *-*-* } pragma_loc2 } */
+ 
+ #if 0
+ #pragma message ("Not printed")
 diff --git a/gcc/testsuite/gcc.dg/torture/pr105148.c b/gcc/testsuite/gcc.dg/torture/pr105148.c
 new file mode 100644
 index 00000000000..3338b0f3281
@@ -13101,6 +13145,18 @@ index 3f63896333e..c89d9c8bdcd 100644
  2022-04-21  Release Manager
  
  	* GCC 11.3.0 released.
+diff --git a/libcpp/directives.c b/libcpp/directives.c
+index 347ddb8b1e1..d764ddfa38e 100644
+--- a/libcpp/directives.c
++++ b/libcpp/directives.c
+@@ -1905,6 +1905,7 @@ destringize_and_run (cpp_reader *pfile, const cpp_string *in,
+       maxcount = 50;
+       toks = XNEWVEC (cpp_token, maxcount);
+       toks[0] = pfile->directive_result;
++      toks[0].src_loc = expansion_loc;
+ 
+       do
+ 	{
 diff --git a/libcpp/expr.c b/libcpp/expr.c
 index dd5611dce0e..57db654ed31 100644
 --- a/libcpp/expr.c
