@@ -16,7 +16,12 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (97):
+GCC Administrator (102):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -256,8 +261,9 @@ Jonathan Wakely (68):
       libstdc++: Fix minor bugs in std::common_iterator
       libstdc++: Fix std::common_iterator assignment [PR100823]
 
-Kewen Lin (1):
+Kewen Lin (2):
       testsuite: Skip pr105250.c for powerpc and s390 [PR105266]
+      rs6000: Preserve REG_EH_REGION when replacing load/store [PR106091]
 
 Kito Cheng (1):
       RISC-V: Fix wrong expansion for arch-canonicalize
@@ -305,6 +311,9 @@ Paul A. Clarke (1):
 
 Pavel I. Kryukov (1):
       libstdc++: Add self-merge check to std::forward_list::merge [PR103853]
+
+Peter Bergner (1):
+      rs6000: Adjust -mdejagnu-cpu to filter out -mtune [PR106345]
 
 Qing Zhao (1):
       i386: Adjust -fzero-call-used-regs to always use XOR [PR101891]
@@ -4681,6 +4690,44 @@ index eab712fdfa6..4d7e14f312a 100644
  }
  
  extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+diff --git a/gcc/config/rs6000/rs6000-p8swap.c b/gcc/config/rs6000/rs6000-p8swap.c
+index 903002a4576..4741d14d99f 100644
+--- a/gcc/config/rs6000/rs6000-p8swap.c
++++ b/gcc/config/rs6000/rs6000-p8swap.c
+@@ -1668,7 +1668,15 @@ replace_swapped_aligned_store (swap_web_entry *insn_entry,
+   gcc_assert ((GET_CODE (new_body) == SET)
+ 	      && MEM_P (SET_DEST (new_body)));
+ 
+-  set_block_for_insn (new_insn, BLOCK_FOR_INSN (store_insn));
++  basic_block bb = BLOCK_FOR_INSN (store_insn);
++  set_block_for_insn (new_insn, bb);
++  /* Handle REG_EH_REGION note.  */
++  if (cfun->can_throw_non_call_exceptions && BB_END (bb) == store_insn)
++    {
++      rtx note = find_reg_note (store_insn, REG_EH_REGION, NULL_RTX);
++      if (note)
++	add_reg_note (new_insn, REG_EH_REGION, XEXP (note, 0));
++    }
+   df_insn_rescan (new_insn);
+ 
+   df_insn_delete (store_insn);
+@@ -1761,7 +1769,15 @@ replace_swapped_aligned_load (swap_web_entry *insn_entry, rtx swap_insn)
+   gcc_assert ((GET_CODE (new_body) == SET)
+ 	      && MEM_P (SET_SRC (new_body)));
+ 
+-  set_block_for_insn (new_insn, BLOCK_FOR_INSN (def_insn));
++  basic_block bb = BLOCK_FOR_INSN (def_insn);
++  set_block_for_insn (new_insn, bb);
++  /* Handle REG_EH_REGION note.  */
++  if (cfun->can_throw_non_call_exceptions && BB_END (bb) == def_insn)
++    {
++      rtx note = find_reg_note (def_insn, REG_EH_REGION, NULL_RTX);
++      if (note)
++	add_reg_note (new_insn, REG_EH_REGION, XEXP (note, 0));
++    }
+   df_insn_rescan (new_insn);
+ 
+   df_insn_delete (def_insn);
 diff --git a/gcc/config/rs6000/rs6000.c b/gcc/config/rs6000/rs6000.c
 index 0421dc7adb3..73f90f134f8 100644
 --- a/gcc/config/rs6000/rs6000.c
@@ -4802,6 +4849,30 @@ index 0421dc7adb3..73f90f134f8 100644
        /* The callee's options must be a subset of the caller's options, i.e.
  	 a vsx function may inline an altivec function, but a no-vsx function
  	 must not inline a vsx function.  However, for those options that the
+diff --git a/gcc/config/rs6000/rs6000.h b/gcc/config/rs6000/rs6000.h
+index 4ca6372435d..3b3dea5114a 100644
+--- a/gcc/config/rs6000/rs6000.h
++++ b/gcc/config/rs6000/rs6000.h
+@@ -81,12 +81,15 @@
+ # define SUBTARGET_DRIVER_SELF_SPECS ""
+ #endif
+ 
+-/* Only for use in the testsuite: -mdejagnu-cpu= simply overrides -mcpu=.
++/* Only for use in the testsuite: -mdejagnu-cpu=<value> filters out all
++   -mcpu= as well as -mtune= options then simply adds -mcpu=<value>,
++   while -mdejagnu-tune=<value> filters out all -mtune= options then
++   simply adds -mtune=<value>.
+    With older versions of Dejagnu the command line arguments you set in
+-   RUNTESTFLAGS override those set in the testcases; with this option,
+-   the testcase will always win.  Ditto for -mdejagnu-tune=.  */
++   RUNTESTFLAGS override those set in the testcases; with these options,
++   the testcase will always win.  */
+ #define DRIVER_SELF_SPECS \
+-  "%{mdejagnu-cpu=*: %<mcpu=* -mcpu=%*}", \
++  "%{mdejagnu-cpu=*: %<mcpu=* %<mtune=* -mcpu=%*}", \
+   "%{mdejagnu-tune=*: %<mtune=* -mtune=%*}", \
+   "%{mdejagnu-*: %<mdejagnu-*}", \
+    SUBTARGET_DRIVER_SELF_SPECS
 diff --git a/gcc/config/rs6000/rtems.h b/gcc/config/rs6000/rtems.h
 index 872cc2849af..bd2271f94b9 100644
 --- a/gcc/config/rs6000/rtems.h
@@ -12013,6 +12084,27 @@ index 00000000000..c52b7a5ef30
 +  n = b = y;
 +
 +  return x + c;
++}
+diff --git a/gcc/testsuite/gcc.target/powerpc/pr106091.c b/gcc/testsuite/gcc.target/powerpc/pr106091.c
+new file mode 100644
+index 00000000000..61ce8cf4733
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/powerpc/pr106091.c
+@@ -0,0 +1,15 @@
++/* { dg-options "-O -fnon-call-exceptions -fno-tree-dce -fno-tree-forwprop -w" } */
++
++/* Verify there is no ICE.  */
++
++typedef short __attribute__ ((__vector_size__ (64))) V;
++V v, w;
++
++inline V foo (V a, V b);
++
++V
++foo (V a, V b)
++{
++  b &= v < b;
++  return (V){foo (b, w)[3], (V){}[3]};
 +}
 diff --git a/gcc/testsuite/gcc.target/sparc/20220510-1.c b/gcc/testsuite/gcc.target/sparc/20220510-1.c
 new file mode 100644
