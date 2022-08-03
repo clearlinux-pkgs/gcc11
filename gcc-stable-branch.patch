@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (102):
+GCC Administrator (103):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -399,10 +400,30 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..9147220d6fb 100644
+index a0587d18824..846aa4e5b25 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,518 @@
+@@ -1,3 +1,538 @@
++2022-08-02  Peter Bergner  <bergner@linux.ibm.com>
++
++	Backported from master:
++	2022-07-25  Peter Bergner  <bergner@linux.ibm.com>
++		    Kewen Lin  <linkw@linux.ibm.com>
++
++	PR testsuite/106345
++	* config/rs6000/rs6000.h (DRIVER_SELF_SPECS): Adjust -mdejagnu-cpu
++	to filter out all -mtune options.
++
++2022-08-02  Kewen Lin  <linkw@linux.ibm.com>
++
++	Backported from master:
++	2022-07-26  Kewen Lin  <linkw@linux.ibm.com>
++
++	PR target/106091
++	* config/rs6000/rs6000-p8swap.c (replace_swapped_aligned_store): Copy
++	REG_EH_REGION when replacing one store insn having it.
++	(replace_swapped_aligned_load): Likewise.
++
 +2022-07-27  Maciej W. Rozycki  <macro@embecosm.com>
 +
 +	Backported from master:
@@ -1092,6 +1113,23 @@ index 7b8f49d78dc..16fc52302e5 100644
    code = TREE_CODE (x);
    cl = TREE_CODE_CLASS (code);
  
+diff --git a/gcc/c/ChangeLog b/gcc/c/ChangeLog
+index 8d0dffcaa10..b64ceda32ef 100644
+--- a/gcc/c/ChangeLog
++++ b/gcc/c/ChangeLog
+@@ -1,3 +1,12 @@
++2022-08-02  Lewis Hyatt  <lhyatt@gmail.com>
++
++	Backported from master:
++	2022-07-10  Lewis Hyatt  <lhyatt@gmail.com>
++
++	PR preprocessor/97498
++	* c-parser.c (c_parser_pragma): Set input_location to the
++	location of the pragma, rather than the start of the line.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/gcc/c/c-parser.c b/gcc/c/c-parser.c
 index 7690977f6b8..407c22afa6f 100644
 --- a/gcc/c/c-parser.c
@@ -8647,10 +8685,27 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..9dfc76da8c4 100644
+index 5fc23605244..81967d17e76 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,686 @@
+@@ -1,3 +1,703 @@
++2022-08-02  Lewis Hyatt  <lhyatt@gmail.com>
++
++	Backported from master:
++	2022-07-10  Lewis Hyatt  <lhyatt@gmail.com>
++
++	PR preprocessor/97498
++	* c-c++-common/pr97498.c: New test.
++	* gcc.dg/pragma-message.c: Adapt for improved warning locations.
++
++2022-08-02  Kewen Lin  <linkw@linux.ibm.com>
++
++	Backported from master:
++	2022-07-26  Kewen Lin  <linkw@linux.ibm.com>
++
++	PR target/106091
++	* gcc.target/powerpc/pr106091.c: New test.
++
 +2022-07-26  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -13129,10 +13184,20 @@ index a7ef9b8d9fe..93b9c8ef0ee 100644
  	      > GET_MODE_SIZE (SCALAR_INT_TYPE_MODE (TREE_TYPE (inner)))))
  	break;
 diff --git a/libcpp/ChangeLog b/libcpp/ChangeLog
-index 3f63896333e..c89d9c8bdcd 100644
+index 3f63896333e..b7feb1f443c 100644
 --- a/libcpp/ChangeLog
 +++ b/libcpp/ChangeLog
-@@ -1,3 +1,12 @@
+@@ -1,3 +1,22 @@
++2022-08-02  Lewis Hyatt  <lhyatt@gmail.com>
++
++	Backported from master:
++	2022-07-10  Lewis Hyatt  <lhyatt@gmail.com>
++
++	PR preprocessor/97498
++	* directives.c (destringize_and_run): Override the location of
++	the CPP_PRAGMA token from a _Pragma directive to the location of
++	the expansion point, as is done for the tokens lexed from it.
++
 +2022-06-15  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
