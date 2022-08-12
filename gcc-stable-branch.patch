@@ -16,7 +16,10 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (109):
+GCC Administrator (112):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -323,9 +326,10 @@ Paul A. Clarke (1):
 Pavel I. Kryukov (1):
       libstdc++: Add self-merge check to std::forward_list::merge [PR103853]
 
-Peter Bergner (2):
+Peter Bergner (3):
       rs6000: Adjust -mdejagnu-cpu to filter out -mtune [PR106345]
       rs6000: Update testsuite to use -mdejagnu-cpu= and -mdejagnu-tune= options
+      c: Handle initializations of opaque types [PR106016]
 
 Qing Zhao (1):
       i386: Adjust -fzero-call-used-regs to always use XOR [PR101891]
@@ -7795,6 +7799,25 @@ index 07e908624a0..0dc51220682 100644
  
    INSN_LOCATION (new_rtx) = INSN_LOCATION (insn);
  
+diff --git a/gcc/expr.c b/gcc/expr.c
+index 14a25c25450..baf48ea7148 100644
+--- a/gcc/expr.c
++++ b/gcc/expr.c
+@@ -6192,13 +6192,13 @@ count_type_elements (const_tree type, bool for_ctor_p)
+     case OFFSET_TYPE:
+     case REFERENCE_TYPE:
+     case NULLPTR_TYPE:
++    case OPAQUE_TYPE:
+       return 1;
+ 
+     case ERROR_MARK:
+       return 0;
+ 
+     case VOID_TYPE:
+-    case OPAQUE_TYPE:
+     case METHOD_TYPE:
+     case FUNCTION_TYPE:
+     case LANG_TYPE:
 diff --git a/gcc/fold-const.c b/gcc/fold-const.c
 index 70c5b3886ef..8ce775753f3 100644
 --- a/gcc/fold-const.c
@@ -12398,6 +12421,26 @@ index 00000000000..c52b7a5ef30
 +  n = b = y;
 +
 +  return x + c;
++}
+diff --git a/gcc/testsuite/gcc.target/powerpc/pr106016.c b/gcc/testsuite/gcc.target/powerpc/pr106016.c
+new file mode 100644
+index 00000000000..3db8345dcc6
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/powerpc/pr106016.c
+@@ -0,0 +1,14 @@
++/* PR target/106016 */
++/* { dg-require-effective-target power10_ok } */
++/* { dg-options "-O2 -mdejagnu-cpu=power10" } */
++
++/* Make sure we do not ICE on the following test case.  */
++
++extern void bar (__vector_quad *);
++
++void
++foo (__vector_quad *a, __vector_quad *b)
++{
++  __vector_quad arr[2] = {*a, *b};
++  bar (&arr[0]);
 +}
 diff --git a/gcc/testsuite/gcc.target/powerpc/pr106091.c b/gcc/testsuite/gcc.target/powerpc/pr106091.c
 new file mode 100644
