@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (116):
+GCC Administrator (117):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -373,10 +374,12 @@ Sebastian Huber (1):
 Sebastian Pop (1):
       [AArch64] add barriers to ool __sync builtins
 
-Segher Boessenkool (3):
+Segher Boessenkool (5):
       rs6000/testsuite: Skip pr105140.c
       rs6000: Improve .machine
       rs6000: Do not use rs6000_cpu for .machine ppc and ppc64 (PR104829)
+      rs6000: Disparage lfiwzx and similar
+      rs6000/testsuite: xfail bswap-brw.c
 
 Sergei Trofimovich (1):
       gcov-profile: Allow negative counts of indirect calls [PR105282]
@@ -399,6 +402,9 @@ Thomas Rodgers (1):
 Thomas W Rodgers (1):
       libstdc++: Make atomic notify_one and notify_all non-const
 
+Tobias Burnus (1):
+      OpenMP: Fix folding with simd's linear clause [PR106492]
+
 Uros Bizjak (2):
       i386: Fix assert in ix86_function_arg [PR105970]
       alpha: Introduce target specific store_data_bypass_p function [PR105209]
@@ -417,10 +423,25 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..57b10654883 100644
+index a0587d18824..cea7b6a3f8c 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,552 @@
+@@ -1,3 +1,567 @@
++2022-08-16  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	Backported from master:
++	2022-04-21  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	PR target/103197
++	PR target/102146
++	* config/rs6000/rs6000.md (zero_extendqi<mode>2 for EXTQI): Disparage
++	the "Z" alternatives in {l,st}{f,xs}iwzx.
++	(zero_extendhi<mode>2 for EXTHI): Ditto.
++	(zero_extendsi<mode>2 for EXTSI): Ditto.
++	(*movsi_internal1): Ditto.
++	(*mov<mode>_internal1 for QHI): Ditto.
++	(movsd_hardfloat): Ditto.
++
 +2022-08-12  Peter Bergner  <bergner@linux.ibm.com>
 +
 +	Backported from master:
@@ -4960,6 +4981,86 @@ index 4ca6372435d..3b3dea5114a 100644
    "%{mdejagnu-tune=*: %<mtune=* -mtune=%*}", \
    "%{mdejagnu-*: %<mdejagnu-*}", \
     SUBTARGET_DRIVER_SELF_SPECS
+diff --git a/gcc/config/rs6000/rs6000.md b/gcc/config/rs6000/rs6000.md
+index a4a7d105f5e..4ef392ebe7b 100644
+--- a/gcc/config/rs6000/rs6000.md
++++ b/gcc/config/rs6000/rs6000.md
+@@ -835,8 +835,8 @@
+ ;; complex forms.  Basic data transfer is done later.
+ 
+ (define_insn "zero_extendqi<mode>2"
+-  [(set (match_operand:EXTQI 0 "gpc_reg_operand" "=r,r,^wa,^v")
+-	(zero_extend:EXTQI (match_operand:QI 1 "reg_or_mem_operand" "m,r,Z,v")))]
++  [(set (match_operand:EXTQI 0 "gpc_reg_operand" "=r,r,wa,^v")
++	(zero_extend:EXTQI (match_operand:QI 1 "reg_or_mem_operand" "m,r,?Z,v")))]
+   ""
+   "@
+    lbz%U1%X1 %0,%1
+@@ -889,8 +889,8 @@
+ 
+ 
+ (define_insn "zero_extendhi<mode>2"
+-  [(set (match_operand:EXTHI 0 "gpc_reg_operand" "=r,r,^wa,^v")
+-	(zero_extend:EXTHI (match_operand:HI 1 "reg_or_mem_operand" "m,r,Z,v")))]
++  [(set (match_operand:EXTHI 0 "gpc_reg_operand" "=r,r,wa,^v")
++	(zero_extend:EXTHI (match_operand:HI 1 "reg_or_mem_operand" "m,r,?Z,v")))]
+   ""
+   "@
+    lhz%U1%X1 %0,%1
+@@ -944,7 +944,7 @@
+ 
+ (define_insn "zero_extendsi<mode>2"
+   [(set (match_operand:EXTSI 0 "gpc_reg_operand" "=r,r,d,wa,wa,r,wa")
+-	(zero_extend:EXTSI (match_operand:SI 1 "reg_or_mem_operand" "m,r,Z,Z,r,wa,wa")))]
++	(zero_extend:EXTSI (match_operand:SI 1 "reg_or_mem_operand" "m,r,?Z,?Z,r,wa,wa")))]
+   ""
+   "@
+    lwz%U1%X1 %0,%1
+@@ -7312,7 +7312,7 @@
+   [(set (match_operand:SI 0 "nonimmediate_operand"
+ 	  "=r,         r,
+ 	   r,          d,          v,
+-	   m,          Z,          Z,
++	   m,          ?Z,         ?Z,
+ 	   r,          r,          r,          r,
+ 	   wa,         wa,         wa,         v,
+ 	   wa,         v,          v,
+@@ -7320,7 +7320,7 @@
+ 	   r,          *h,         *h")
+ 	(match_operand:SI 1 "input_operand"
+ 	  "r,          U,
+-	   m,          Z,          Z,
++	   m,          ?Z,         ?Z,
+ 	   r,          d,          v,
+ 	   I,          L,          eI,         n,
+ 	   wa,         O,          wM,         wB,
+@@ -7601,11 +7601,11 @@
+ ;;		MTVSRWZ     MF%1       MT%1       NOP
+ (define_insn "*mov<mode>_internal"
+   [(set (match_operand:QHI 0 "nonimmediate_operand"
+-		"=r,        r,         wa,        m,         Z,         r,
++		"=r,        r,         wa,        m,         ?Z,        r,
+ 		 wa,        wa,        wa,        v,         ?v,        r,
+ 		 wa,        r,         *c*l,      *h")
+ 	(match_operand:QHI 1 "input_operand"
+-		"r,         m,         Z,         r,         wa,        i,
++		"r,         m,         ?Z,        r,         wa,        i,
+ 		 wa,        O,         wM,        wB,        wS,        wa,
+ 		 r,         *h,        r,         0"))]
+   "gpc_reg_operand (operands[0], <MODE>mode)
+@@ -7784,10 +7784,10 @@
+ ;;	FMR          MR         MT%0       MF%1       NOP
+ (define_insn "movsd_hardfloat"
+   [(set (match_operand:SD 0 "nonimmediate_operand"
+-	 "=!r,       d,         m,         Z,         ?d,        ?r,
++	 "=!r,       d,         m,         ?Z,        ?d,        ?r,
+ 	  f,         !r,        *c*l,      !r,        *h")
+ 	(match_operand:SD 1 "input_operand"
+-	 "m,         Z,         r,         wx,        r,         d,
++	 "m,         ?Z,        r,         wx,        r,         d,
+ 	  f,         r,         r,         *h,        0"))]
+   "(register_operand (operands[0], SDmode)
+    || register_operand (operands[1], SDmode))
 diff --git a/gcc/config/rs6000/rtems.h b/gcc/config/rs6000/rtems.h
 index 872cc2849af..bd2271f94b9 100644
 --- a/gcc/config/rs6000/rtems.h
@@ -7566,10 +7667,19 @@ index d447ce80174..baae5a0f1e4 100644
  	return error_mark_node;
      }
 diff --git a/gcc/d/ChangeLog b/gcc/d/ChangeLog
-index 6021ffdbf78..3877893c950 100644
+index 6021ffdbf78..a32a7f3ea2a 100644
 --- a/gcc/d/ChangeLog
 +++ b/gcc/d/ChangeLog
-@@ -1,3 +1,36 @@
+@@ -1,3 +1,45 @@
++2022-08-16  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2022-08-16  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	PR d/106638
++	* gdc.texi: Update DIP links to point at upstream dlang/DIPs
++	repository.
++
 +2022-07-04  Iain Buclaw  <ibuclaw@gdcproject.org>
 +
 +	Backported from master:
@@ -8516,6 +8626,24 @@ index e89601c0c14..8126f90ee75 100644
      (eq @0 @0)))))
  (for cmp (ne gt lt)
   (simplify
+diff --git a/gcc/omp-low.c b/gcc/omp-low.c
+index 962cf886710..a8cabbf8bb3 100644
+--- a/gcc/omp-low.c
++++ b/gcc/omp-low.c
+@@ -5903,10 +5903,10 @@ lower_rec_input_clauses (tree clauses, gimple_seq *ilist, gimple_seq *dlist,
+ 			}
+ 
+ 		      if (POINTER_TYPE_P (TREE_TYPE (x)))
+-			x = fold_build2 (POINTER_PLUS_EXPR,
+-					 TREE_TYPE (x), x, t);
++			x = fold_build_pointer_plus (x, t);
+ 		      else
+-			x = fold_build2 (PLUS_EXPR, TREE_TYPE (x), x, t);
++			x = fold_build2 (PLUS_EXPR, TREE_TYPE (x), x,
++					 fold_convert (TREE_TYPE (x), t));
+ 		    }
+ 
+ 		  if ((OMP_CLAUSE_CODE (c) != OMP_CLAUSE_LINEAR
 diff --git a/gcc/regrename.c b/gcc/regrename.c
 index c0d4643f802..0cf93d323d9 100644
 --- a/gcc/regrename.c
@@ -8756,10 +8884,19 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..fd2c38c6541 100644
+index 5fc23605244..7ee206e0c85 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,735 @@
+@@ -1,3 +1,744 @@
++2022-08-16  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	Backported from master:
++	2022-04-21  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	PR target/103197
++	PR target/102146
++	* gcc.target/powerpc/bswap-brw.c: Add xfail on scan-assembler for -m32.
++
 +2022-08-12  Peter Bergner  <bergner@linux.ibm.com>
 +
 +	Backported from master:
@@ -10161,6 +10298,61 @@ index 00000000000..896e5232bf6
 +int main() {
 +  return bar{} == bar{};	// { dg-error "deleted" }
 +}
+diff --git a/gcc/testsuite/g++.dg/gomp/pr106492.C b/gcc/testsuite/g++.dg/gomp/pr106492.C
+new file mode 100644
+index 00000000000..f263bb42710
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/gomp/pr106492.C
+@@ -0,0 +1,49 @@
++/* PR middle-end/106492 */
++
++template <typename T>
++struct S {
++  T a : 12;
++  S () : a(0)
++  {
++#pragma omp for simd linear(a)
++    for (int k = 0; k < 64; ++k)
++      a++;
++  }
++};
++struct U {
++  int a : 12;
++  U () : a(0)
++  {
++#pragma omp for simd linear(a)
++    for (int k = 0; k < 64; ++k)
++      a++;
++  }
++};
++
++S<int> s;
++U u;
++
++
++template <typename T>
++struct Sptr {
++  T a;
++  Sptr (T init) : a(init)
++  {
++#pragma omp for simd linear(a)
++    for (int k = 0; k < 64; ++k)
++      a++;
++  }
++};
++struct Uptr {
++  int *a;
++  Uptr (int *init) : a(init)
++  {
++#pragma omp for simd linear(a)
++    for (int k = 0; k < 64; ++k)
++      a++;
++  }
++};
++
++int i[1024];
++Sptr<int *> sptr(i);
++Uptr uptr(&i[100]);
 diff --git a/gcc/testsuite/g++.dg/ipa/pr100413.C b/gcc/testsuite/g++.dg/ipa/pr100413.C
 new file mode 100644
 index 00000000000..96d71e7cf35
@@ -12367,6 +12559,18 @@ index 64755b00c39..42dcaea4988 100644
  
  extern int foo (int) __attribute__ ((zero_call_used_regs("used-gpr")));
  
+diff --git a/gcc/testsuite/gcc.target/powerpc/bswap-brw.c b/gcc/testsuite/gcc.target/powerpc/bswap-brw.c
+index b3f923eea84..0ed2a7bd1d2 100644
+--- a/gcc/testsuite/gcc.target/powerpc/bswap-brw.c
++++ b/gcc/testsuite/gcc.target/powerpc/bswap-brw.c
+@@ -17,6 +17,6 @@ bswap_int_dbl (unsigned int a)
+   /* Force the value to be loaded into a vector register.  */
+   __asm__ (" # %x0" : "+wa" (b));
+ 
+-  /* { dg-final { scan-assembler {\mxxbrw\M} } } */
++  /* { dg-final { scan-assembler {\mxxbrw\M} {xfail {has_arch_pwr10 && {! has_arch_ppc64}}} } } */
+   return (double) __builtin_bswap32 (b);
+ }
 diff --git a/gcc/testsuite/gcc.target/powerpc/fusion.c b/gcc/testsuite/gcc.target/powerpc/fusion.c
 index 876b9f54d5a..2a115580439 100644
 --- a/gcc/testsuite/gcc.target/powerpc/fusion.c
