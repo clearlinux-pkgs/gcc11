@@ -16,7 +16,13 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (118):
+GCC Administrator (124):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -281,6 +287,9 @@ Jonathan Wakely (68):
 Kewen Lin (2):
       testsuite: Skip pr105250.c for powerpc and s390 [PR105266]
       rs6000: Preserve REG_EH_REGION when replacing load/store [PR106091]
+
+Kewen.Lin (1):
+      rs6000: Adjust mov optabs for opaque modes [PR103353]
 
 Kito Cheng (1):
       RISC-V: Fix wrong expansion for arch-canonicalize
@@ -3502,6 +3511,65 @@ index c04348068e0..4503e75ce18 100644
  }
  
  #endif /* _MM_MALLOC_H_INCLUDED */
+diff --git a/gcc/config/rs6000/mma.md b/gcc/config/rs6000/mma.md
+index fa081608c4c..59822d47dfc 100644
+--- a/gcc/config/rs6000/mma.md
++++ b/gcc/config/rs6000/mma.md
+@@ -267,10 +267,25 @@
+ (define_expand "movoo"
+   [(set (match_operand:OO 0 "nonimmediate_operand")
+ 	(match_operand:OO 1 "input_operand"))]
+-  "TARGET_MMA"
++  ""
+ {
+-  rs6000_emit_move (operands[0], operands[1], OOmode);
+-  DONE;
++  if (TARGET_MMA)
++    {
++      rs6000_emit_move (operands[0], operands[1], OOmode);
++      DONE;
++    }
++  else if (currently_expanding_to_rtl && seen_error ())
++    {
++      /* PR103353 shows we may want to continue to expand the __builtin_vsx_lxvp
++	 built-in function, even if we have already emitted error messages about
++	 some missing required conditions.  As shown in that PR, without one
++	 explicit mov optab on OOmode provided, it would call emit_move_insn
++	 recursively.  So we allow this pattern to be generated when we are
++	 expanding to RTL and have seen errors.  It would not cause further ICEs
++	 as the compilation would stop soon after expanding.  */
++    }
++  else
++    gcc_unreachable ();
+ })
+ 
+ (define_insn_and_split "*movoo"
+@@ -299,10 +314,22 @@
+ (define_expand "movxo"
+   [(set (match_operand:XO 0 "nonimmediate_operand")
+ 	(match_operand:XO 1 "input_operand"))]
+-  "TARGET_MMA"
++  ""
+ {
+-  rs6000_emit_move (operands[0], operands[1], XOmode);
+-  DONE;
++  if (TARGET_MMA)
++    {
++      rs6000_emit_move (operands[0], operands[1], XOmode);
++      DONE;
++    }
++  else if (currently_expanding_to_rtl && seen_error ())
++    {
++      /* PR103353 shows we may want to continue to expand the __builtin_vsx_lxvp
++	 built-in function, even if we have already emitted error messages about
++	 some missing required conditions.  So do the same handlings for XOmode
++	 as OOmode here.  */
++    }
++  else
++    gcc_unreachable ();
+ })
+ 
+ (define_insn_and_split "*movxo"
 diff --git a/gcc/config/rs6000/mmintrin.h b/gcc/config/rs6000/mmintrin.h
 index 0bd929c5afe..a826fdd0c7f 100644
 --- a/gcc/config/rs6000/mmintrin.h
@@ -12678,6 +12746,34 @@ index 00000000000..4a0ad3daf73
 +{
 +  *a = foo (a);
 +  return 0;
++}
+diff --git a/gcc/testsuite/gcc.target/powerpc/pr103353.c b/gcc/testsuite/gcc.target/powerpc/pr103353.c
+new file mode 100644
+index 00000000000..5d519fb1b7b
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/powerpc/pr103353.c
+@@ -0,0 +1,22 @@
++/* { dg-require-effective-target powerpc_altivec_ok } */
++/* If the default cpu type is power10 or later, MMA is enabled by default.
++   To keep the test point available all the time, this case specifies
++   -mdejagnu-cpu=power6 to make it be tested without MMA.  */
++/* { dg-options "-maltivec -mdejagnu-cpu=power6" } */
++
++/* Verify there is no ICE and don't check the error messages on MMA
++   requirement since they could be fragile and are not test points
++   of this case.  */
++/* { dg-excess-errors "pr103353" } */
++
++void
++foo (__vector_pair *dst, double *x)
++{
++  dst[0] = __builtin_vsx_lxvp (0, (__vector_pair *)(void *)x);
++}
++
++void
++bar (__vector_pair *src, double *x)
++{
++  __builtin_vsx_stxvp (src[0], 0, (__vector_pair *)(void *)x);
 +}
 diff --git a/gcc/testsuite/gcc.target/powerpc/pr105041.c b/gcc/testsuite/gcc.target/powerpc/pr105041.c
 new file mode 100644
