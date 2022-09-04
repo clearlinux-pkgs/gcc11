@@ -16,7 +16,9 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (133):
+GCC Administrator (135):
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -447,10 +449,43 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..109fc2122d3 100644
+index a0587d18824..a424a18b42d 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,595 @@
+@@ -1,3 +1,628 @@
++2022-09-02  Richard Earnshaw  <rearnsha@arm.com>
++
++	Backported from master:
++	2022-08-03  Richard Earnshaw  <rearnsha@arm.com>
++
++	PR rtl-optimization/106187
++	* alias.h (mems_same_for_tbaa_p): Declare.
++	* alias.c (mems_same_for_tbaa_p): New function.
++	* dse.c (record_store): Use it instead of open-coding
++	alias check.
++	* cselib.h (cselib_redundant_set_p): Declare.
++	* cselib.c: Include alias.h
++	(cselib_redundant_set_p): New function.
++	* cfgcleanup.c: (mark_effect): Use cselib_redundant_set_p instead
++	of rtx_equal_for_cselib_p.
++	* postreload.c (reload_cse_simplify): Use cselib_redundant_set_p.
++	(reload_cse_noop_set_p): Delete.
++
++2022-09-02  Richard Earnshaw  <rearnsha@arm.com>
++
++	Backported from master:
++	2022-05-13  Richard Earnshaw  <rearnsha@arm.com>
++
++	PR target/105463
++	* config/arm/mve.md (*movmisalign<mode>_mve_store): Use
++	mve_memory_operand.
++	(*movmisalign<mode>_mve_load): Likewise.
++	* config/arm/vec-common.md (movmisalign<mode>): Convert to generator
++	form...
++	(@movmisalign<mode>): ... thus.  Use generic predicates and then
++	rework operands if they are not valid.  For MVE rework to a
++	narrower element size if the alignment is not high enough.
++
 +2022-08-30  Peter Bergner  <bergner@linux.ibm.com>
 +
 +	Backported from master:
