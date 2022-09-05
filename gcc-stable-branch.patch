@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (135):
+GCC Administrator (136):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -225,7 +226,7 @@ Jason Merrill (19):
 Jeff Law (1):
       [committed] Fix more problems with new linker warnings
 
-Jonathan Wakely (68):
+Jonathan Wakely (69):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -294,6 +295,7 @@ Jonathan Wakely (68):
       libstdc++: Use std::construct_at in std::common_iterator [PR103992]
       libstdc++: Fix minor bugs in std::common_iterator
       libstdc++: Fix std::common_iterator assignment [PR100823]
+      libstdc++: Make std::string_view(Range&&) constructor explicit
 
 Kewen Lin (2):
       testsuite: Skip pr105250.c for powerpc and s390 [PR105266]
@@ -19058,6 +19060,19 @@ index f21664100ab..56555ecd98a 100644
        char_type*
        _M_high_mark() const _GLIBCXX_NOEXCEPT
        {
+diff --git a/libstdc++-v3/include/std/string_view b/libstdc++-v3/include/std/string_view
+index d8cbee9bee0..68df70e99f1 100644
+--- a/libstdc++-v3/include/std/string_view
++++ b/libstdc++-v3/include/std/string_view
+@@ -160,7 +160,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	      })
+ 	  && (!requires { typename _DRange::traits_type; }
+ 	      || is_same_v<typename _DRange::traits_type, _Traits>)
+-	constexpr
++	constexpr explicit
+ 	basic_string_view(_Range&& __r)
+ 	noexcept(noexcept(ranges::size(__r)) && noexcept(ranges::data(__r)))
+ 	: _M_len(ranges::size(__r)), _M_str(ranges::data(__r))
 diff --git a/libstdc++-v3/include/std/syncstream b/libstdc++-v3/include/std/syncstream
 index db6ebd50471..ac39d0f2243 100644
 --- a/libstdc++-v3/include/std/syncstream
@@ -20163,6 +20178,152 @@ index 4d744f8a411..536ca6153d3 100644
 +  oom = true;
    ss = std::move(s); // allocators are equal, should not allocate new storage
    VERIFY( ss.c_str() == ptr );
+ }
+diff --git a/libstdc++-v3/testsuite/21_strings/basic_string_view/cons/char/range_c++20.cc b/libstdc++-v3/testsuite/21_strings/basic_string_view/cons/char/range_c++20.cc
+index fa85f1994c9..c95239c613b 100644
+--- a/libstdc++-v3/testsuite/21_strings/basic_string_view/cons/char/range_c++20.cc
++++ b/libstdc++-v3/testsuite/21_strings/basic_string_view/cons/char/range_c++20.cc
+@@ -36,7 +36,7 @@ test01()
+   };
+ 
+   R r;
+-  std::string_view s = r;
++  std::string_view s{r};
+   VERIFY( s == r.str );
+   VERIFY( s.data() == std::ranges::data(r) );
+   VERIFY( s.size() == std::ranges::size(r) );
+@@ -50,10 +50,15 @@ test01()
+   static_assert( std::ranges::contiguous_range<R2> );
+   static_assert( std::ranges::sized_range<R2> );
+   R2 r2;
+-  std::string_view s2 = r2; // uses conversion to string_view
++  std::string_view s2(r2); // uses conversion to string_view
+   VERIFY( s2 == "Out of range" );
+   VERIFY( std::string_view(const_cast<const R2&>(r2)) == s2 );
+ 
++  // And again using copy-initialization instead of direct-initialization.
++  std::string_view s2_implicit = r2; // uses conversion to string_view
++  VERIFY( s2_implicit == "Out of range" );
++  VERIFY( std::string_view(const_cast<const R2&>(r2)) == s2_implicit );
++
+   struct R3 : R
+   {
+     using R::begin;
+@@ -91,7 +96,7 @@ test01()
+   static_assert( std::ranges::contiguous_range<R5> );
+   static_assert( std::ranges::sized_range<R5> );
+   R5 r5;
+-  std::string_view s5 = r5; // Uses range constructor
++  std::string_view s5(r5); // Uses range constructor
+   VERIFY( s5 == r5.str );
+   s5 = std::string_view(std::move(r5)); // In C++20 this used conversion op.
+   VERIFY( s5 == r5.str );	        // In C++23 it uses range constructor.
+@@ -156,15 +161,30 @@ test04()
+   };
+ 
+   R r;
+-  std::basic_string_view s = r; // Use deduction guide.
++  std::basic_string_view s(r); // Use deduction guide.
+ 
+   static_assert( std::is_same_v<decltype(s), std::string_view> );
+ }
+ 
++void
++test05()
++{
++  struct R
++  {
++    const char* begin() const { return nullptr; }
++    const char* end() const { return nullptr; }
++  };
++
++  // P2499R0 string_view range constructor should be explicit
++  // P2516R0 string_view is implicitly convertible from what?
++  static_assert( ! std::is_convertible_v<R, std::string_view> );
++}
++
+ int main()
+ {
+   test01();
+   test02();
+   test03();
+   test04();
++  test05();
+ }
+diff --git a/libstdc++-v3/testsuite/21_strings/basic_string_view/cons/wchar_t/range_c++20.cc b/libstdc++-v3/testsuite/21_strings/basic_string_view/cons/wchar_t/range_c++20.cc
+index cf73ae36a60..2144ca49e77 100644
+--- a/libstdc++-v3/testsuite/21_strings/basic_string_view/cons/wchar_t/range_c++20.cc
++++ b/libstdc++-v3/testsuite/21_strings/basic_string_view/cons/wchar_t/range_c++20.cc
+@@ -36,7 +36,7 @@ test01()
+   };
+ 
+   R r;
+-  std::wstring_view s = r;
++  std::wstring_view s{r};
+   VERIFY( s == r.str );
+   VERIFY( s.data() == std::ranges::data(r) );
+   VERIFY( s.size() == std::ranges::size(r) );
+@@ -50,10 +50,15 @@ test01()
+   static_assert( std::ranges::contiguous_range<R2> );
+   static_assert( std::ranges::sized_range<R2> );
+   R2 r2;
+-  std::wstring_view s2 = r2; // uses conversion to wstring_view
++  std::wstring_view s2(r2); // uses conversion to wstring_view
+   VERIFY( s2 == L"Out of range" );
+   VERIFY( std::wstring_view(const_cast<const R2&>(r2)) == s2 );
+ 
++  // And again using copy-initialization instead of direct-initialization.
++  std::wstring_view s2_implicit = r2; // uses conversion to wstring_view
++  VERIFY( s2_implicit == L"Out of range" );
++  VERIFY( std::wstring_view(const_cast<const R2&>(r2)) == s2_implicit );
++
+   struct R3 : R
+   {
+     using R::begin;
+@@ -91,10 +96,10 @@ test01()
+   static_assert( std::ranges::contiguous_range<R5> );
+   static_assert( std::ranges::sized_range<R5> );
+   R5 r5;
+-  std::wstring_view s5 = r5; // Uses range constructor
++  std::wstring_view s5(r5); // Uses range constructor
+   VERIFY( s5 == r5.str );
+   s5 = std::wstring_view(std::move(r5)); // In C++20 this used conversion op.
+-  VERIFY( s5 == r5.str );	        // In C++23 it uses range constructor.
++  VERIFY( s5 == r5.str );	         // In C++23 it uses range constructor.
+ 
+   wchar_t arr[] = L"arrangement\0with\0nulls";
+   std::wstring_view sa = arr; // Does not use range constructor
+@@ -156,15 +161,30 @@ test04()
+   };
+ 
+   R r;
+-  std::basic_string_view s = r; // Use deduction guide.
++  std::basic_string_view s(r); // Use deduction guide.
+ 
+   static_assert( std::is_same_v<decltype(s), std::wstring_view> );
+ }
+ 
++void
++test05()
++{
++  struct R
++  {
++    const wchar_t* begin() const { return nullptr; }
++    const wchar_t* end() const { return nullptr; }
++  };
++
++  // P2499R0 string_view range constructor should be explicit
++  // P2516R0 string_view is implicitly convertible from what?
++  static_assert( ! std::is_convertible_v<R, std::wstring_view> );
++}
++
+ int main()
+ {
+   test01();
+   test02();
+   test03();
+   test04();
++  test05();
  }
 diff --git a/libstdc++-v3/testsuite/21_strings/basic_string_view/operations/copy/char/constexpr.cc b/libstdc++-v3/testsuite/21_strings/basic_string_view/operations/copy/char/constexpr.cc
 index f467d114c24..7ae3ccda22f 100644
