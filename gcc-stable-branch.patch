@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (136):
+GCC Administrator (137):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -296,6 +297,9 @@ Jonathan Wakely (69):
       libstdc++: Fix minor bugs in std::common_iterator
       libstdc++: Fix std::common_iterator assignment [PR100823]
       libstdc++: Make std::string_view(Range&&) constructor explicit
+
+José Rui Faustino de Sousa (1):
+      Fortran: Fix ICE with -fcheck=pointer [PR100136]
 
 Kewen Lin (2):
       testsuite: Skip pr105250.c for powerpc and s390 [PR105266]
@@ -8471,10 +8475,19 @@ index 70c5b3886ef..8ce775753f3 100644
  	  return fold_build_pointer_plus_loc (loc, arg00, arg01);
  	}
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..c858dc265d1 100644
+index ee1c7bb4b31..79c9816384e 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,102 @@
+@@ -1,3 +1,111 @@
++2022-09-05  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
++
++	Backported from master:
++	2022-09-04  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
++
++	PR fortran/100136
++	* trans-expr.c (gfc_conv_procedure_call): Add handling of pointer
++	expressions.
++
 +2022-07-26  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -8856,10 +8869,30 @@ index 95af7d93162..38b09fed2cb 100644
  	      result = gfc_get_fake_result_decl (sym, 0);
  	      result = fold_build2_loc (input_location, MODIFY_EXPR,
 diff --git a/gcc/fortran/trans-expr.c b/gcc/fortran/trans-expr.c
-index a5c391d077e..9b65b9cf474 100644
+index a5c391d077e..7db91de4194 100644
 --- a/gcc/fortran/trans-expr.c
 +++ b/gcc/fortran/trans-expr.c
-@@ -8782,8 +8782,8 @@ gfc_trans_structure_assign (tree dest, gfc_expr * expr, bool init, bool coarray)
+@@ -6808,16 +6808,15 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
+ 	      else
+ 		goto end_pointer_check;
+ 
++	      tmp = parmse.expr;
+ 	      if (fsym && fsym->ts.type == BT_CLASS)
+ 		{
+-		  tmp = build_fold_indirect_ref_loc (input_location,
+-						      parmse.expr);
++		  if (POINTER_TYPE_P (TREE_TYPE (tmp)))
++		    tmp = build_fold_indirect_ref_loc (input_location, tmp);
+ 		  tmp = gfc_class_data_get (tmp);
+ 		  if (GFC_DESCRIPTOR_TYPE_P (TREE_TYPE (tmp)))
+ 		    tmp = gfc_conv_descriptor_data_get (tmp);
+ 		}
+-	      else
+-		tmp = parmse.expr;
+ 
+ 	      /* If the argument is passed by value, we need to strip the
+ 		 INDIRECT_REF.  */
+@@ -8782,8 +8781,8 @@ gfc_trans_structure_assign (tree dest, gfc_expr * expr, bool init, bool coarray)
    return gfc_finish_block (&block);
  }
  
@@ -9403,10 +9436,18 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..462af7c9c02 100644
+index 5fc23605244..8c4f588c85a 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,790 @@
+@@ -1,3 +1,798 @@
++2022-09-05  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
++
++	Backported from master:
++	2022-09-04  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
++
++	PR fortran/100136
++	* gfortran.dg/PR100136.f90: New test.
++
 +2022-08-30  Peter Bergner  <bergner@linux.ibm.com>
 +
 +	Backported from master:
@@ -13599,6 +13640,51 @@ index 00000000000..0d697e22c9f
 +    alias float4 = __vector(float[4]);
 +    cast(float4)(a) = 1.0f;
 +}
+diff --git a/gcc/testsuite/gfortran.dg/PR100136.f90 b/gcc/testsuite/gfortran.dg/PR100136.f90
+new file mode 100644
+index 00000000000..922af4aecc3
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/PR100136.f90
+@@ -0,0 +1,39 @@
++! { dg-do run }
++! { dg-options "-fcheck=pointer" }
++! { dg-shouldfail "Argument not allocated" }
++! { dg-output "Fortran runtime error: Allocatable actual argument 'c_init2' is not allocated" }
++!
++! Tests fix for PR100136
++!
++! Test cut down from PR58586
++!
++
++module test_pr58586_mod
++  implicit none
++
++  type :: a
++  end type
++
++  type :: c
++     type(a), allocatable :: a
++  end type
++
++contains
++
++  subroutine add_class_c (d)
++    class(c), value :: d
++  end subroutine
++
++  class(c) function c_init2()
++    allocatable :: c_init2
++  end function
++
++end module test_pr58586_mod
++
++program test_pr58586
++  use test_pr58586_mod
++
++  ! This needs to execute, to see whether the segfault at runtime is resolved
++  call add_class_c(c_init2())
++
++end program
 diff --git a/gcc/testsuite/gfortran.dg/class_58.f90 b/gcc/testsuite/gfortran.dg/class_58.f90
 index 20b601a2f51..fceb575432d 100644
 --- a/gcc/testsuite/gfortran.dg/class_58.f90
@@ -14802,10 +14888,22 @@ index 025e575b5bc..5743516c046 100644
    unsigned IOCTL_GIO_FONT = GIO_FONT;
    unsigned IOCTL_GIO_UNIMAP = GIO_UNIMAP;
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..15efb0b1b6c 100644
+index 85e04c45288..871f23cb892 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,852 @@
+@@ -1,3 +1,864 @@
++2022-09-05  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-08-04  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/std/string_view (basic_string_view(Range&&)): Add
++	explicit as per P2499R0.
++	* testsuite/21_strings/basic_string_view/cons/char/range_c++20.cc:
++	Adjust implicit conversions. Check implicit conversions fail.
++	* testsuite/21_strings/basic_string_view/cons/wchar_t/range_c++20.cc:
++	Likewise.
++
 +2022-07-26  Thomas Rodgers  <trodgers@redhat.com>
 +
 +	Backported from master:
