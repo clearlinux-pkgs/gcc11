@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (137):
+GCC Administrator (138):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -227,7 +228,7 @@ Jason Merrill (19):
 Jeff Law (1):
       [committed] Fix more problems with new linker warnings
 
-Jonathan Wakely (69):
+Jonathan Wakely (74):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -297,6 +298,11 @@ Jonathan Wakely (69):
       libstdc++: Fix minor bugs in std::common_iterator
       libstdc++: Fix std::common_iterator assignment [PR100823]
       libstdc++: Make std::string_view(Range&&) constructor explicit
+      libstdc++: Tweak common_iterator::operator-> return type [PR104443]
+      libstdc++: Check for EOF if extraction avoids buffer overflow [PR106248]
+      libstdc++: Fix for explicit copy ctors in <thread> and <future> [PR106695]
+      libstdc++: Check for overflow in regex back-reference [PR106607]
+      libstdc++: Fix feature test macros in <version> for freestanding
 
 José Rui Faustino de Sousa (1):
       Fortran: Fix ICE with -fcheck=pointer [PR100136]
@@ -17596,7 +17602,7 @@ index bf7dcc54dba..bae2138e309 100644
    template<typename _TraitsT, bool __icase, bool __collate>
      class _RegexTranslatorBase
 diff --git a/libstdc++-v3/include/bits/regex_compiler.tcc b/libstdc++-v3/include/bits/regex_compiler.tcc
-index 440669debe0..9000aec8e25 100644
+index 440669debe0..6f42f2aed65 100644
 --- a/libstdc++-v3/include/bits/regex_compiler.tcc
 +++ b/libstdc++-v3/include/bits/regex_compiler.tcc
 @@ -63,17 +63,9 @@ namespace __detail
@@ -17827,6 +17833,23 @@ index 440669debe0..9000aec8e25 100644
  	{
  	  _M_value = _M_scanner._M_get_value();
  	  _M_scanner._M_advance();
+@@ -602,10 +588,12 @@ namespace __detail
+     _Compiler<_TraitsT>::
+     _M_cur_int_value(int __radix)
+     {
+-      long __v = 0;
+-      for (typename _StringT::size_type __i = 0;
+-	   __i < _M_value.length(); ++__i)
+-	__v =__v * __radix + _M_traits.value(_M_value[__i], __radix);
++      int __v = 0;
++      for (_CharT __c : _M_value)
++	if (__builtin_mul_overflow(__v, __radix, &__v)
++	    || __builtin_add_overflow(__v, _M_traits.value(__c, __radix), &__v))
++	    std::__throw_regex_error(regex_constants::error_backref,
++				     "invalid back reference");
+       return __v;
+     }
+ 
 diff --git a/libstdc++-v3/include/bits/regex_constants.h b/libstdc++-v3/include/bits/regex_constants.h
 index 1c3dd36d57c..0fd2879c817 100644
 --- a/libstdc++-v3/include/bits/regex_constants.h
@@ -18087,6 +18110,32 @@ index a3512083f0e..473dc888a20 100644
        else if (__c != ']' && __c != '}')
  	{
  	  auto __it = _M_token_tbl;
+diff --git a/libstdc++-v3/include/bits/std_thread.h b/libstdc++-v3/include/bits/std_thread.h
+index 2a500bf1777..976526001c5 100644
+--- a/libstdc++-v3/include/bits/std_thread.h
++++ b/libstdc++-v3/include/bits/std_thread.h
+@@ -204,7 +204,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 
+ 	template<typename... _Args>
+ 	  _State_impl(_Args&&... __args)
+-	  : _M_func{{std::forward<_Args>(__args)...}}
++	  : _M_func(std::forward<_Args>(__args)...)
+ 	  { }
+ 
+ 	void
+@@ -238,6 +238,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     template<typename _Tuple>
+       struct _Invoker
+       {
++	template<typename... _Args>
++	  explicit
++	  _Invoker(_Args&&... __args)
++	  : _M_t(std::forward<_Args>(__args)...)
++	  { }
++
+ 	_Tuple _M_t;
+ 
+ 	template<typename>
 diff --git a/libstdc++-v3/include/bits/stl_construct.h b/libstdc++-v3/include/bits/stl_construct.h
 index e53ed0d9f91..f14fba0cfb1 100644
 --- a/libstdc++-v3/include/bits/stl_construct.h
@@ -18137,7 +18186,7 @@ index 20c73b4fc3c..8236fe35ce7 100644
  	    + (__y._M_last - __y._M_cur);
  	}
 diff --git a/libstdc++-v3/include/bits/stl_iterator.h b/libstdc++-v3/include/bits/stl_iterator.h
-index beeb4ef4c8a..fc36bd186a5 100644
+index beeb4ef4c8a..7d5d12e3bcf 100644
 --- a/libstdc++-v3/include/bits/stl_iterator.h
 +++ b/libstdc++-v3/include/bits/stl_iterator.h
 @@ -77,11 +77,12 @@
@@ -18426,7 +18475,7 @@ index beeb4ef4c8a..fc36bd186a5 100644
  
 -    decltype(auto)
 +    [[nodiscard]]
-+    constexpr decltype(auto)
++    constexpr auto
      operator->() const requires __detail::__common_iter_has_arrow<_It>
      {
        __glibcxx_assert(_M_index == 0);
@@ -18928,7 +18977,7 @@ index 8572e376c92..65f923993fa 100644
  	  else
  	    {
 diff --git a/libstdc++-v3/include/std/future b/libstdc++-v3/include/std/future
-index 09e54c3703b..88478860c7d 100644
+index 09e54c3703b..7aa243eb625 100644
 --- a/libstdc++-v3/include/std/future
 +++ b/libstdc++-v3/include/std/future
 @@ -139,34 +139,34 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
@@ -18991,6 +19040,24 @@ index 09e54c3703b..88478860c7d 100644
    /// swap
    template<typename _Res, typename... _ArgTypes>
      inline void
+@@ -1647,7 +1658,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	explicit
+ 	_Deferred_state(_Args&&... __args)
+ 	: _M_result(new _Result<_Res>()),
+-	  _M_fn{{std::forward<_Args>(__args)...}}
++	  _M_fn(std::forward<_Args>(__args)...)
+ 	{ }
+ 
+     private:
+@@ -1714,7 +1725,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	explicit
+ 	_Async_state_impl(_Args&&... __args)
+ 	: _M_result(new _Result<_Res>()),
+-	  _M_fn{{std::forward<_Args>(__args)...}}
++	  _M_fn(std::forward<_Args>(__args)...)
+ 	{
+ 	  _M_thread = std::thread{&_Async_state_impl::_M_run, this};
+ 	}
 diff --git a/libstdc++-v3/include/std/iosfwd b/libstdc++-v3/include/std/iosfwd
 index 52fa4b6cccb..610383992fb 100644
 --- a/libstdc++-v3/include/std/iosfwd
@@ -19020,6 +19087,64 @@ index 52fa4b6cccb..610383992fb 100644
    /** @}  */
  
  _GLIBCXX_END_NAMESPACE_VERSION
+diff --git a/libstdc++-v3/include/std/istream b/libstdc++-v3/include/std/istream
+index 5ad60dbd709..109564b3c0d 100644
+--- a/libstdc++-v3/include/std/istream
++++ b/libstdc++-v3/include/std/istream
+@@ -784,7 +784,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+    *  - if `width()` is greater than zero, `n` is `min(width(), n)`
+    *  - otherwise `n` is the number of elements of the array
+    *  - (before C++20 the pointer is assumed to point to an array of
+-   *  - the largest possible size for an array of `char_type`).
++   *    the largest possible size for an array of `char_type`).
+    *
+    *  Characters are extracted and stored until one of the following happens:
+    *  - `n - 1` characters are stored
+@@ -802,19 +802,40 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     inline basic_istream<_CharT, _Traits>&
+     operator>>(basic_istream<_CharT, _Traits>& __in, _CharT* __s)
+     {
++#ifdef __OPTIMIZE__
++      // Function inlining might make the buffer size known, allowing us to
++      // prevent overflow.
+       size_t __n = __builtin_object_size(__s, 0);
+-      if (__builtin_expect(__n < sizeof(_CharT), false))
++      if (__n < sizeof(_CharT))
+ 	{
+ 	  // There is not even space for the required null terminator.
+ 	  __glibcxx_assert(__n >= sizeof(_CharT));
++	  // No point calling __istream_extract, but still need to reset width.
+ 	  __in.width(0);
+ 	  __in.setstate(ios_base::failbit);
+ 	}
++      else if (__n != (size_t)-1)
++	{
++	  __n /= sizeof(_CharT);
++	  streamsize __w = __in.width();
++	  std::__istream_extract(__in, __s, __n);
++	  if (__in.good() && (__w <= 0 || __n < __w))
++	    {
++	      // Stopped extracting early to avoid overflowing the buffer,
++	      // but might have stopped anyway (and set eofbit) if at EOF.
++	      const typename _Traits::int_type __c = __in.rdbuf()->sgetc();
++	      const bool __eof = _Traits::eq_int_type(__c, _Traits::eof());
++	      if (__builtin_expect(__eof, true)) // Assume EOF, not overflow.
++		__in.setstate(ios_base::eofbit);
++	    }
++	}
+       else
++#endif // __OPTIMIZE
+ 	{
+-	  if (__n == (size_t)-1)
+-	    __n = __gnu_cxx::__numeric_traits<streamsize>::__max;
+-	  std::__istream_extract(__in, __s, __n / sizeof(_CharT));
++	  // Buffer size is unknown, have to assume it's huge.
++	  streamsize __n = __gnu_cxx::__numeric_traits<streamsize>::__max;
++	  __n /= sizeof(_CharT);
++	  std::__istream_extract(__in, __s, __n);
+ 	}
+       return __in;
+     }
 diff --git a/libstdc++-v3/include/std/ranges b/libstdc++-v3/include/std/ranges
 index f55ee15e1b1..0a67c45f1b8 100644
 --- a/libstdc++-v3/include/std/ranges
@@ -19392,6 +19517,41 @@ index c0585cb5999..285c5be6521 100644
  #define _VARIANT_RELATION_FUNCTION_TEMPLATE(__OP) \
        template<typename... _Tp> \
  	friend constexpr bool \
+diff --git a/libstdc++-v3/include/std/version b/libstdc++-v3/include/std/version
+index f35b9da2307..e86b94bf9dc 100644
+--- a/libstdc++-v3/include/std/version
++++ b/libstdc++-v3/include/std/version
+@@ -177,6 +177,9 @@
+ #define __cpp_lib_atomic_float 201711L
+ #define __cpp_lib_atomic_ref 201806L
+ #define __cpp_lib_atomic_value_initialization 201911L
++#if __has_builtin(__builtin_bit_cast)
++# define __cpp_lib_bit_cast 201806L
++#endif
+ #define __cpp_lib_bitops 201907L
+ #define __cpp_lib_bounded_array_traits 201902L
+ // __cpp_lib_char8_t is defined in <bits/c++config.h>
+@@ -209,9 +212,6 @@
+ # endif
+ #endif
+ #define __cpp_lib_bind_front 201907L
+-#if __has_builtin(__builtin_bit_cast)
+-# define __cpp_lib_bit_cast 201806L
+-#endif
+ // FIXME: #define __cpp_lib_execution 201902L
+ #define __cpp_lib_integer_comparison_functions 202002L
+ #define __cpp_lib_constexpr_algorithms 201806L
+@@ -272,8 +272,10 @@
+ #if __cplusplus > 202002L
+ // c++2b
+ #define __cpp_lib_is_scoped_enum 202011L
++#if _GLIBCXX_HOSTED
+ #define __cpp_lib_string_contains 202011L
+ #define __cpp_lib_to_underlying 202102L
++#endif
+ #endif // C++2b
+ #endif // C++20
+ #endif // C++17
 diff --git a/libstdc++-v3/src/Makefile.am b/libstdc++-v3/src/Makefile.am
 index 16f4cc6eff4..f92a52748c5 100644
 --- a/libstdc++-v3/src/Makefile.am
@@ -20868,6 +21028,98 @@ index f947f8ae848..e8705ca7879 100644
 -  return 0;
 +  test_pr105502();
  }
+diff --git a/libstdc++-v3/testsuite/27_io/basic_istream/extractors_character/char/pr106248.cc b/libstdc++-v3/testsuite/27_io/basic_istream/extractors_character/char/pr106248.cc
+new file mode 100644
+index 00000000000..6d89a0e5fef
+--- /dev/null
++++ b/libstdc++-v3/testsuite/27_io/basic_istream/extractors_character/char/pr106248.cc
+@@ -0,0 +1,40 @@
++// { dg-do run }
++
++#include <sstream>
++#include <testsuite_hooks.h>
++
++void
++test_pr106248()
++{
++  char buf[5] = {'x', 'x', 'x', 'x', 'x'};
++  std::string s("  four");
++  std::istringstream in(s);
++  in >> buf;
++#if __cplusplus >= 202002L
++  // Extraction stops because buffer is full.
++  VERIFY( in.good() );
++#else
++  // PR libstdc++/106248
++  // Extraction stops because all input has been consumed and eofbit is set.
++  VERIFY( in.eof() );
++#endif
++  // Extracted string must be null-terminated.
++  VERIFY( buf[4] == '\0' );
++  VERIFY( std::string(buf) == "four" );
++
++  in.clear();
++  in.str(s);
++  for (int i = 0; i < 5; ++i)
++    s[i] = 'x';
++
++  in.width(5);
++  in >> buf;
++  // Extraction stops due to field width, eofbit not set.
++  VERIFY( in.good() );
++  VERIFY( std::string(buf) == "four" );
++}
++
++int main()
++{
++  test_pr106248();
++}
+diff --git a/libstdc++-v3/testsuite/27_io/basic_istream/extractors_character/wchar_t/pr106248.cc b/libstdc++-v3/testsuite/27_io/basic_istream/extractors_character/wchar_t/pr106248.cc
+new file mode 100644
+index 00000000000..7c226600b9e
+--- /dev/null
++++ b/libstdc++-v3/testsuite/27_io/basic_istream/extractors_character/wchar_t/pr106248.cc
+@@ -0,0 +1,40 @@
++// { dg-do run }
++
++#include <sstream>
++#include <testsuite_hooks.h>
++
++void
++test_pr106248()
++{
++  wchar_t buf[5] = {L'x', L'x', L'x', L'x', L'x'};
++  std::wstring s(L"  four");
++  std::wistringstream in(s);
++  in >> buf;
++#if __cplusplus >= 202002L
++  // Extraction stops because buffer is full.
++  VERIFY( in.good() );
++#else
++  // PR libstdc++/106248
++  // Extraction stops because all input has been consumed and eofbit is set.
++  VERIFY( in.eof() );
++#endif
++  // Extracted string must be null-terminated.
++  VERIFY( buf[4] == L'\0' );
++  VERIFY( std::wstring(buf) == L"four" );
++
++  in.clear();
++  in.str(s);
++  for (int i = 0; i < 5; ++i)
++    s[i] = L'x';
++
++  in.width(5);
++  in >> buf;
++  // Extraction stops due to field width, eofbit not set.
++  VERIFY( in.good() );
++  VERIFY( std::wstring(buf) == L"four" );
++}
++
++int main()
++{
++  test_pr106248();
++}
 diff --git a/libstdc++-v3/testsuite/27_io/filesystem/iterators/error_reporting.cc b/libstdc++-v3/testsuite/27_io/filesystem/iterators/error_reporting.cc
 index 1f297a731a3..a26b29f0974 100644
 --- a/libstdc++-v3/testsuite/27_io/filesystem/iterators/error_reporting.cc
@@ -21601,6 +21853,37 @@ index 00000000000..c61912823d5
 +  std::string a = regex_replace("123", std::regex("2"), std::string("a\0b", 3));
 +  VERIFY( a == std::string("1a\0b3", 5) );
 +}
+diff --git a/libstdc++-v3/testsuite/28_regex/basic_regex/106607.cc b/libstdc++-v3/testsuite/28_regex/basic_regex/106607.cc
+new file mode 100644
+index 00000000000..f8e7fb2364d
+--- /dev/null
++++ b/libstdc++-v3/testsuite/28_regex/basic_regex/106607.cc
+@@ -0,0 +1,25 @@
++// { dg-do run { target c++11 } }
++
++#include <regex>
++#include <string>
++#include <climits>
++#include <testsuite_hooks.h>
++
++// PR libstdc++/106607 - Regex integer overflow on large backreference value
++
++int main()
++{
++  std::regex r("(.)\\1"); // OK
++
++  try
++  {
++    long long n = (unsigned)-1 + 2LL;          // 4294967297 for 32-bit int
++    VERIFY( (int)n == 1 );                     // 4294967297 % 2^32 == 1
++    std::regex r("(.)\\" + std::to_string(n)); // Invalid back reference.
++    VERIFY(false);
++  }
++  catch (const std::regex_error& e)
++  {
++    VERIFY( e.code() == std::regex_constants::error_backref );
++  }
++}
 diff --git a/libstdc++-v3/testsuite/28_regex/basic_regex/84110.cc b/libstdc++-v3/testsuite/28_regex/basic_regex/84110.cc
 new file mode 100644
 index 00000000000..a4d5db6c14a
@@ -21837,6 +22120,41 @@ index 9d92ff954f1..f572ce7ef11 100644
  {
    std::atomic_wait(a, v);
    std::atomic_notify_one(a);
+diff --git a/libstdc++-v3/testsuite/30_threads/async/106695.cc b/libstdc++-v3/testsuite/30_threads/async/106695.cc
+new file mode 100644
+index 00000000000..74996342dc7
+--- /dev/null
++++ b/libstdc++-v3/testsuite/30_threads/async/106695.cc
+@@ -0,0 +1,29 @@
++// { dg-do compile { target c++11 } }
++// { dg-require-gthreads "" }
++
++// PR libstdc++/106695
++// Explicit copy constructor does not work for a parameter passed via std::async
++
++#include <future>
++
++struct A {
++  A() = default;
++  explicit A(const A&) = default;
++};
++
++void func(const A&) { }
++
++void
++test_async()
++{
++  (void) std::async(std::launch::async, func, A{});
++  (void) std::async(std::launch::deferred, func, A{});
++  (void) std::async(func, A{});
++}
++
++void
++test_task()
++{
++  std::packaged_task<void(const A&)> task(func);
++  task(A{});
++}
 diff --git a/libstdc++-v3/testsuite/30_threads/packaged_task/cons/deduction.cc b/libstdc++-v3/testsuite/30_threads/packaged_task/cons/deduction.cc
 new file mode 100644
 index 00000000000..0eb69763ab9
@@ -21927,6 +22245,33 @@ index 00000000000..0eb69763ab9
 +
 +  std::packaged_task task3{[&x](float) -> X& { return x; }};
 +  check_type<std::packaged_task<X&(float)>>(task3);
++}
+diff --git a/libstdc++-v3/testsuite/30_threads/thread/106695.cc b/libstdc++-v3/testsuite/30_threads/thread/106695.cc
+new file mode 100644
+index 00000000000..97e9e922d8e
+--- /dev/null
++++ b/libstdc++-v3/testsuite/30_threads/thread/106695.cc
+@@ -0,0 +1,21 @@
++// { dg-do compile { target c++11 } }
++// { dg-require-gthreads "" }
++
++// PR libstdc++/106695
++// Explicit copy constructor does not work for a parameter passed via std::async
++
++#include <thread>
++
++struct A {
++  A() = default;
++  explicit A(const A&) = default;
++};
++
++void func(const A&) { }
++
++void
++test_thread()
++{
++  std::thread t(func, A{});
++  t.join();
 +}
 diff --git a/libstdc++-v3/testsuite/experimental/filesystem/iterators/error_reporting.cc b/libstdc++-v3/testsuite/experimental/filesystem/iterators/error_reporting.cc
 index 806c511ebef..f005b7d5293 100644
