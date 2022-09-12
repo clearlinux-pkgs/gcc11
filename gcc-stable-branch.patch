@@ -16,7 +16,10 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (140):
+GCC Administrator (143):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -367,11 +370,12 @@ Paul A. Clarke (1):
 Pavel I. Kryukov (1):
       libstdc++: Add self-merge check to std::forward_list::merge [PR103853]
 
-Peter Bergner (4):
+Peter Bergner (5):
       rs6000: Adjust -mdejagnu-cpu to filter out -mtune [PR106345]
       rs6000: Update testsuite to use -mdejagnu-cpu= and -mdejagnu-tune= options
       c: Handle initializations of opaque types [PR106016]
       rs6000: Allow conversions of MMA pointer types [PR106017]
+      rs6000: Don't ICE when we disassemble an MMA variable [PR101322]
 
 Qing Zhao (1):
       i386: Adjust -fzero-call-used-regs to always use XOR [PR101891]
@@ -5140,6 +5144,24 @@ index eab712fdfa6..4d7e14f312a 100644
  }
  
  extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+diff --git a/gcc/config/rs6000/rs6000-call.c b/gcc/config/rs6000/rs6000-call.c
+index ef20cb30388..e58b149d022 100644
+--- a/gcc/config/rs6000/rs6000-call.c
++++ b/gcc/config/rs6000/rs6000-call.c
+@@ -11877,7 +11877,12 @@ rs6000_gimple_fold_mma_builtin (gimple_stmt_iterator *gsi)
+       unsigned nvec = (fncode == MMA_BUILTIN_DISASSEMBLE_ACC) ? 4 : 2;
+       tree dst_ptr = gimple_call_arg (stmt, 0);
+       tree src_ptr = gimple_call_arg (stmt, 1);
+-      tree src_type = TREE_TYPE (src_ptr);
++      tree src_type = (fncode == MMA_BUILTIN_DISASSEMBLE_ACC)
++		      ? build_pointer_type (vector_quad_type_node)
++		      : build_pointer_type (vector_pair_type_node);
++      if (TREE_TYPE (src_ptr) != src_type)
++	src_ptr = build1 (NOP_EXPR, src_type, src_ptr);
++
+       tree src = create_tmp_reg_or_ssa_name (TREE_TYPE (src_type));
+       gimplify_assign (src, build_simple_mem_ref (src_ptr), &new_seq);
+ 
 diff --git a/gcc/config/rs6000/rs6000-p8swap.c b/gcc/config/rs6000/rs6000-p8swap.c
 index 903002a4576..4741d14d99f 100644
 --- a/gcc/config/rs6000/rs6000-p8swap.c
@@ -11582,6 +11604,29 @@ index 00000000000..e0865e3515b
 +v4ui f(unsigned int *array)
 +{
 +    return t1<1>(array+7);
++}
+diff --git a/gcc/testsuite/g++.target/powerpc/pr101322.C b/gcc/testsuite/g++.target/powerpc/pr101322.C
+new file mode 100644
+index 00000000000..43eaf3afcd4
+--- /dev/null
++++ b/gcc/testsuite/g++.target/powerpc/pr101322.C
+@@ -0,0 +1,17 @@
++/* PR target/101322 */
++/* { dg-require-effective-target power10_ok } */
++/* { dg-options "-O2 -mdejagnu-cpu=power10" } */
++
++/* Verify we don't ICE on the following test cases.  */
++
++void
++foo (char *resp, char *vpp)
++{
++  __builtin_vsx_disassemble_pair (resp, (__vector_pair *) vpp);
++}
++
++void
++bar (char *resp, char *vpp)
++{
++  __builtin_mma_disassemble_acc (resp, (__vector_quad *)vpp);
 +}
 diff --git a/gcc/testsuite/gcc.dg/analyzer/pr105252.c b/gcc/testsuite/gcc.dg/analyzer/pr105252.c
 new file mode 100644
