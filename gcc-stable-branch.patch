@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (144):
+GCC Administrator (145):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -446,11 +447,18 @@ Tamar Christina (1):
 Thomas Rodgers (1):
       libstdc++: Minor codegen improvement for atomic wait spinloop
 
+Thomas Schwinge (1):
+      nvptx: Define (dummy) 'TARGET_PTX_6_0'
+
 Thomas W Rodgers (1):
       libstdc++: Make atomic notify_one and notify_all non-const
 
 Tobias Burnus (1):
       OpenMP: Fix folding with simd's linear clause [PR106492]
+
+Tom de Vries (2):
+      [nvptx] Add bar.warp.sync
+      [nvptx] Add uniform_warp_check insn
 
 Uros Bizjak (2):
       i386: Fix assert in ix86_function_arg [PR105970]
@@ -2100,6 +2108,114 @@ index fcfcba0134d..79dcb6b26d5 100644
  		    (match_operand:SI 3 "const_0_to_255_mul_8_operand" "n,n,n")]
  		   UNSPEC_PALIGNR))]
    "(TARGET_MMX || TARGET_MMX_WITH_SSE) && TARGET_SSSE3"
+diff --git a/gcc/config/nvptx/nvptx.c b/gcc/config/nvptx/nvptx.c
+index 7a7a9130e84..d25ddf45408 100644
+--- a/gcc/config/nvptx/nvptx.c
++++ b/gcc/config/nvptx/nvptx.c
+@@ -4503,6 +4503,7 @@ nvptx_single (unsigned mask, basic_block from, basic_block to)
+   rtx_insn *neuter_start = NULL;
+   rtx_insn *worker_label = NULL, *vector_label = NULL;
+   rtx_insn *worker_jump = NULL, *vector_jump = NULL;
++  rtx_insn *warp_sync = NULL;
+   for (mode = GOMP_DIM_WORKER; mode <= GOMP_DIM_VECTOR; mode++)
+     if (GOMP_DIM_MASK (mode) & skip_mask)
+       {
+@@ -4535,11 +4536,29 @@ nvptx_single (unsigned mask, basic_block from, basic_block to)
+ 	if (tail_branch)
+ 	  {
+ 	    label_insn = emit_label_before (label, before);
++	    if (mode == GOMP_DIM_VECTOR)
++	      {
++		if (TARGET_PTX_6_0)
++		  warp_sync = emit_insn_after (gen_nvptx_warpsync (),
++					       label_insn);
++		else
++		  warp_sync = emit_insn_after (gen_nvptx_uniform_warp_check (),
++					       label_insn);
++	      }
+ 	    before = label_insn;
+ 	  }
+ 	else
+ 	  {
+ 	    label_insn = emit_label_after (label, tail);
++	    if (mode == GOMP_DIM_VECTOR)
++	      {
++		if (TARGET_PTX_6_0)
++		  warp_sync = emit_insn_after (gen_nvptx_warpsync (),
++					       label_insn);
++		else
++		  warp_sync = emit_insn_after (gen_nvptx_uniform_warp_check (),
++					       label_insn);
++	      }
+ 	    if ((mode == GOMP_DIM_VECTOR || mode == GOMP_DIM_WORKER)
+ 		&& CALL_P (tail) && find_reg_note (tail, REG_NORETURN, NULL))
+ 	      emit_insn_after (gen_exit (), label_insn);
+@@ -4607,6 +4626,8 @@ nvptx_single (unsigned mask, basic_block from, basic_block to)
+ 		 setp.ne.u32 %rcond,%rcondu32,0;
+ 	  */
+ 	  rtx_insn *label = PREV_INSN (tail);
++	  if (label == warp_sync)
++	    label = PREV_INSN (label);
+ 	  gcc_assert (label && LABEL_P (label));
+ 	  rtx tmp = gen_reg_rtx (BImode);
+ 	  emit_insn_before (gen_movbi (tmp, const0_rtx),
+diff --git a/gcc/config/nvptx/nvptx.h b/gcc/config/nvptx/nvptx.h
+index 2451703e77f..3273ad86673 100644
+--- a/gcc/config/nvptx/nvptx.h
++++ b/gcc/config/nvptx/nvptx.h
+@@ -98,6 +98,9 @@
+ 
+ #define TARGET_SM35 (ptx_isa_option >= PTX_ISA_SM35)
+ 
++/* 'TARGET_PTX_*' not applicable before GCC 12.  */
++#define TARGET_PTX_6_0 false
++
+ /* Registers.  Since ptx is a virtual target, we just define a few
+    hard registers for special purposes and leave pseudos unallocated.
+    We have to have some available hard registers, to keep gcc setup
+diff --git a/gcc/config/nvptx/nvptx.md b/gcc/config/nvptx/nvptx.md
+index 0f15609ee4b..f1b32e285d7 100644
+--- a/gcc/config/nvptx/nvptx.md
++++ b/gcc/config/nvptx/nvptx.md
+@@ -55,6 +55,8 @@
+    UNSPECV_CAS
+    UNSPECV_XCHG
+    UNSPECV_BARSYNC
++   UNSPECV_WARPSYNC
++   UNSPECV_UNIFORM_WARP_CHECK
+    UNSPECV_MEMBAR
+    UNSPECV_MEMBAR_CTA
+    UNSPECV_DIM_POS
+@@ -1718,6 +1720,29 @@
+   }
+   [(set_attr "predicable" "false")])
+ 
++(define_insn "nvptx_warpsync"
++  [(unspec_volatile [(const_int 0)] UNSPECV_WARPSYNC)]
++  "TARGET_PTX_6_0"
++  "\\tbar.warp.sync\\t0xffffffff;"
++  [(set_attr "predicable" "false")])
++
++(define_insn "nvptx_uniform_warp_check"
++  [(unspec_volatile [(const_int 0)] UNSPECV_UNIFORM_WARP_CHECK)]
++  ""
++  {
++    output_asm_insn ("{", NULL);
++    output_asm_insn ("\\t"	 ".reg.b32"	   "\\t" "act;", NULL);
++    output_asm_insn ("\\t"	 "vote.ballot.b32" "\\t" "act,1;", NULL);
++    output_asm_insn ("\\t"	 ".reg.pred"	   "\\t" "uni;", NULL);
++    output_asm_insn ("\\t"	 "setp.eq.b32"	   "\\t" "uni,act,0xffffffff;",
++		     NULL);
++    output_asm_insn ("@ !uni\\t" "trap;", NULL);
++    output_asm_insn ("@ !uni\\t" "exit;", NULL);
++    output_asm_insn ("}", NULL);
++    return "";
++  }
++  [(set_attr "predicable" "false")])
++
+ (define_expand "memory_barrier"
+   [(set (match_dup 0)
+ 	(unspec_volatile:BLK [(match_dup 0)] UNSPECV_MEMBAR))]
 diff --git a/gcc/config/riscv/arch-canonicalize b/gcc/config/riscv/arch-canonicalize
 index 3a91cfe687f..0bdf6aafe35 100755
 --- a/gcc/config/riscv/arch-canonicalize
@@ -9517,10 +9633,29 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..af65189d7b5 100644
+index 5fc23605244..961a2246213 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,806 @@
+@@ -1,3 +1,825 @@
++2022-09-13  Kewen Lin  <linkw@linux.ibm.com>
++
++	Backported from master:
++	2022-09-07  Kewen Lin  <linkw@linux.ibm.com>
++
++	PR testsuite/106345
++	* lib/target-supports.exp (check_effective_target_powerpc_sqrt): Add
++	a function definition to avoid pedwarn about empty translation unit.
++	(check_effective_target_has_arch_pwr5): Likewise.
++	(check_effective_target_has_arch_pwr6): Likewise.
++	(check_effective_target_has_arch_pwr7): Likewise.
++	(check_effective_target_has_arch_pwr8): Likewise.
++	(check_effective_target_has_arch_pwr9): Likewise.
++	(check_effective_target_has_arch_pwr10): Likewise.
++	(check_effective_target_has_arch_ppc64): Likewise.
++	(check_effective_target_ppc_float128): Likewise.
++	(check_effective_target_ppc_float128_insns): Likewise.
++	(check_effective_target_powerpc_vsx): Likewise.
++
 +2022-09-12  Peter Bergner  <bergner@linux.ibm.com>
 +
 +	Backported from master:
