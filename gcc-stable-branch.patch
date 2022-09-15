@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (145):
+GCC Administrator (146):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -478,10 +479,34 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..050e65f4710 100644
+index a0587d18824..3deb69f998a 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,644 @@
+@@ -1,3 +1,668 @@
++2022-09-14  Tom de Vries  <tdevries@suse.de>
++
++	Backported from master:
++	2022-02-01  Tom de Vries  <tdevries@suse.de>
++
++	* config/nvptx/nvptx.c (nvptx_single): Use nvptx_uniform_warp_check.
++	* config/nvptx/nvptx.md (define_c_enum "unspecv"): Add
++	UNSPECV_UNIFORM_WARP_CHECK.
++	(define_insn "nvptx_uniform_warp_check"): New define_insn.
++
++2022-09-14  Tom de Vries  <tdevries@suse.de>
++
++	Backported from master:
++	2022-02-01  Tom de Vries  <tdevries@suse.de>
++
++	* config/nvptx/nvptx.c (nvptx_single): Use nvptx_warpsync.
++	* config/nvptx/nvptx.md (define_c_enum "unspecv"): Add
++	UNSPECV_WARPSYNC.
++	(define_insn "nvptx_warpsync"): New define_insn.
++
++2022-09-14  Thomas Schwinge  <thomas@codesourcery.com>
++
++	* config/nvptx/nvptx.h (TARGET_PTX_6_0): '#define' to 'false'.
++
 +2022-09-12  Peter Bergner  <bergner@linux.ibm.com>
 +
 +	Backported from master:
