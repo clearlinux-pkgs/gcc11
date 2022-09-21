@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (151):
+GCC Administrator (152):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -419,8 +420,9 @@ Richard Earnshaw (3):
       arm: correctly handle misaligned MEMs on MVE [PR105463]
       cselib: add function to check if SET is redundant [PR106187]
 
-Richard Sandiford (1):
+Richard Sandiford (2):
       rtl-ssa: Fix prev/next_def confusion [PR104869]
+      aarch64: Fix GTY markup for arm_sve.h [PR106491]
 
 Sebastian Huber (2):
       RTEMS: Do not define _GNU_SOURCE by default
@@ -1507,6 +1509,40 @@ index b91eeeba101..ad62da81d31 100644
  };
  
  rtx aarch64_atomic_ool_func(machine_mode mode, rtx model_rtx,
+diff --git a/gcc/config/aarch64/aarch64-sve-builtins.cc b/gcc/config/aarch64/aarch64-sve-builtins.cc
+index f44f81f1375..fcc458af3d6 100644
+--- a/gcc/config/aarch64/aarch64-sve-builtins.cc
++++ b/gcc/config/aarch64/aarch64-sve-builtins.cc
+@@ -530,7 +530,8 @@ static CONSTEXPR const function_group_info function_groups[] = {
+ };
+ 
+ /* The scalar type associated with each vector type.  */
+-GTY(()) tree scalar_types[NUM_VECTOR_TYPES];
++extern GTY(()) tree scalar_types[NUM_VECTOR_TYPES];
++tree scalar_types[NUM_VECTOR_TYPES];
+ 
+ /* The single-predicate and single-vector types, with their built-in
+    "__SV..._t" name.  Allow an index of NUM_VECTOR_TYPES, which always
+@@ -538,13 +539,16 @@ GTY(()) tree scalar_types[NUM_VECTOR_TYPES];
+ static GTY(()) tree abi_vector_types[NUM_VECTOR_TYPES + 1];
+ 
+ /* Same, but with the arm_sve.h "sv..._t" name.  */
+-GTY(()) tree acle_vector_types[MAX_TUPLE_SIZE][NUM_VECTOR_TYPES + 1];
++extern GTY(()) tree acle_vector_types[MAX_TUPLE_SIZE][NUM_VECTOR_TYPES + 1];
++tree acle_vector_types[MAX_TUPLE_SIZE][NUM_VECTOR_TYPES + 1];
+ 
+ /* The svpattern enum type.  */
+-GTY(()) tree acle_svpattern;
++extern GTY(()) tree acle_svpattern;
++tree acle_svpattern;
+ 
+ /* The svprfop enum type.  */
+-GTY(()) tree acle_svprfop;
++extern GTY(()) tree acle_svprfop;
++tree acle_svprfop;
+ 
+ /* The list of all registered function decls, indexed by code.  */
+ static GTY(()) vec<registered_function *, va_gc> *registered_functions;
 diff --git a/gcc/config/aarch64/aarch64.c b/gcc/config/aarch64/aarch64.c
 index c155f4883cf..7e6f9d08ea3 100644
 --- a/gcc/config/aarch64/aarch64.c
