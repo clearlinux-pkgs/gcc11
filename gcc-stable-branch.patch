@@ -183,7 +183,7 @@ H.J. Lu (3):
       x86: Add .note.GNU-stack section only for Linux
       x86: Require AVX for F16C and VAES
 
-Harald Anlauf (9):
+Harald Anlauf (10):
       Fortran: improve error recovery on invalid array section
       Fortran: fix error recovery on invalid array section
       Fortran: fix checking of arguments to UNPACK when MASK is a variable [PR105813]
@@ -193,6 +193,7 @@ Harald Anlauf (9):
       Fortran: error recovery on invalid CLASS(), PARAMETER declarations [PR105243]
       Fortran: error recovery from calculation of storage size of a symbol [PR103504]
       Fortran: catch NULL pointer dereferences while simplifying PACK [PR106857]
+      Fortran: error recovery on invalid ARRAY argument to FINDLOC [PR106986]
 
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
@@ -8984,7 +8985,7 @@ index 9e3e8aa9da9..b7294cbeb4e 100644
  
        elements *= mpz_get_si (sym->as->upper[i]->value.integer)
 diff --git a/gcc/fortran/simplify.c b/gcc/fortran/simplify.c
-index 3599e1b3194..e02c2e1cf3f 100644
+index 3599e1b3194..a1834e33081 100644
 --- a/gcc/fortran/simplify.c
 +++ b/gcc/fortran/simplify.c
 @@ -3092,6 +3092,10 @@ gfc_simplify_extends_type_of (gfc_expr *a, gfc_expr *mold)
@@ -9157,7 +9158,15 @@ index 3599e1b3194..e02c2e1cf3f 100644
  	}
      }
  
-@@ -6451,7 +6382,7 @@ gfc_simplify_pack (gfc_expr *array, gfc_expr *mask, gfc_expr *vector)
+@@ -5915,6 +5846,7 @@ gfc_simplify_findloc (gfc_expr *array, gfc_expr *value, gfc_expr *dim,
+   bool back_val = false;
+ 
+   if (!is_constant_array_expr (array)
++      || array->shape == NULL
+       || !gfc_is_constant_expr (dim))
+     return NULL;
+ 
+@@ -6451,7 +6383,7 @@ gfc_simplify_pack (gfc_expr *array, gfc_expr *mask, gfc_expr *vector)
        /* Copy only those elements of ARRAY to RESULT whose
  	 MASK equals .TRUE..  */
        mask_ctor = gfc_constructor_first (mask->value.constructor);
@@ -14435,6 +14444,20 @@ index 00000000000..4b0f86a75a6
 +  type(t), parameter :: a(2,2) = t(1)
 +  type(t), parameter :: b(4) = reshape(a, [2])                          ! { dg-error "Different shape" }
 +  type(t), parameter :: c(2) = pack(b, [.false.,.true.,.false.,.true.]) ! { dg-error "Different shape" }
++end
+diff --git a/gcc/testsuite/gfortran.dg/pr106986.f90 b/gcc/testsuite/gfortran.dg/pr106986.f90
+new file mode 100644
+index 00000000000..a309b25d181
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/pr106986.f90
+@@ -0,0 +1,8 @@
++! { dg-do compile }
++! PR fortran/106986 - ICE in simplify_findloc_nodim
++! Contributed by G.Steinmetz
++
++program p
++  integer, parameter :: a(:) = [1] ! { dg-error "deferred shape" }
++  print *, findloc (a, 1)
 +end
 diff --git a/gcc/testsuite/gfortran.dg/pr47614.f b/gcc/testsuite/gfortran.dg/pr47614.f
 index 500d210a2a4..d772eef257f 100644
