@@ -16,7 +16,10 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (154):
+GCC Administrator (157):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -324,8 +327,9 @@ Jonathan Wakely (74):
       libstdc++: Check for overflow in regex back-reference [PR106607]
       libstdc++: Fix feature test macros in <version> for freestanding
 
-José Rui Faustino de Sousa (1):
+José Rui Faustino de Sousa (2):
       Fortran: Fix ICE with -fcheck=pointer [PR100136]
+      Fortran: Fix ICE with automatic reallocation [PR100245]
 
 Kewen Lin (3):
       testsuite: Skip pr105250.c for powerpc and s390 [PR105266]
@@ -8755,10 +8759,19 @@ index 70c5b3886ef..8ce775753f3 100644
  	  return fold_build_pointer_plus_loc (loc, arg00, arg01);
  	}
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..81c5f380d1e 100644
+index ee1c7bb4b31..dbe7e682d89 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,120 @@
+@@ -1,3 +1,129 @@
++2022-09-24  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
++
++	Backported from master:
++	2022-09-03  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
++
++	PR fortran/100245
++	* trans-expr.c (trans_class_assignment): Add if clause to handle
++	derived type in the LHS.
++
 +2022-09-22  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -9167,7 +9180,7 @@ index 95af7d93162..38b09fed2cb 100644
  	      result = gfc_get_fake_result_decl (sym, 0);
  	      result = fold_build2_loc (input_location, MODIFY_EXPR,
 diff --git a/gcc/fortran/trans-expr.c b/gcc/fortran/trans-expr.c
-index a5c391d077e..7db91de4194 100644
+index a5c391d077e..a09accbcad0 100644
 --- a/gcc/fortran/trans-expr.c
 +++ b/gcc/fortran/trans-expr.c
 @@ -6808,16 +6808,15 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
@@ -9201,6 +9214,16 @@ index a5c391d077e..7db91de4194 100644
                              gfc_component *un, gfc_expr *init)
  {
    gfc_constructor *ctor;
+@@ -11021,6 +11020,9 @@ trans_class_assignment (stmtblock_t *block, gfc_expr *lhs, gfc_expr *rhs,
+       class_han = GFC_CLASS_TYPE_P (TREE_TYPE (lse->expr))
+ 	  ? gfc_class_data_get (lse->expr) : lse->expr;
+ 
++      if (!POINTER_TYPE_P (TREE_TYPE (class_han)))
++	class_han = gfc_build_addr_expr (NULL_TREE, class_han);
++
+       /* Allocate block.  */
+       gfc_init_block (&alloc);
+       gfc_allocate_using_malloc (&alloc, class_han, size, NULL_TREE);
 diff --git a/gcc/gcc.c b/gcc/gcc.c
 index 0af888c7d78..6b208f4680f 100644
 --- a/gcc/gcc.c
@@ -9734,10 +9757,18 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..ea0057df87d 100644
+index 5fc23605244..5a992e9f1ab 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,833 @@
+@@ -1,3 +1,841 @@
++2022-09-24  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
++
++	Backported from master:
++	2022-09-03  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
++
++	PR fortran/100245
++	* gfortran.dg/PR100245.f90: New test.
++
 +2022-09-22  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -14041,6 +14072,40 @@ index 00000000000..922af4aecc3
 +  call add_class_c(c_init2())
 +
 +end program
+diff --git a/gcc/testsuite/gfortran.dg/PR100245.f90 b/gcc/testsuite/gfortran.dg/PR100245.f90
+new file mode 100644
+index 00000000000..07c1f7b3a1c
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/PR100245.f90
+@@ -0,0 +1,28 @@
++! { dg-do run }
++!
++! Test the fix for PR100245
++!
++
++program main_p
++
++  implicit none
++
++  type :: foo_t
++    integer :: a
++  end type foo_t
++
++  integer, parameter :: a = 42
++
++  class(foo_t), allocatable :: val
++  class(foo_t), allocatable :: rs1
++  type(foo_t),  allocatable :: rs2
++
++  allocate(val, source=foo_t(42))
++  if (val%a/=a) stop 1
++  rs1 = val
++  if (rs1%a/=a) stop 2
++  rs2 = val
++  if (rs2%a/=a) stop 3
++  deallocate(val, rs1, rs2)
++
++end program main_p
 diff --git a/gcc/testsuite/gfortran.dg/class_58.f90 b/gcc/testsuite/gfortran.dg/class_58.f90
 index 20b601a2f51..fceb575432d 100644
 --- a/gcc/testsuite/gfortran.dg/class_58.f90
