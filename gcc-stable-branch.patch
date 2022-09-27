@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (157):
+GCC Administrator (158):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -8760,10 +8761,19 @@ index 70c5b3886ef..8ce775753f3 100644
  	  return fold_build_pointer_plus_loc (loc, arg00, arg01);
  	}
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..dbe7e682d89 100644
+index ee1c7bb4b31..35f26a7b82f 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,129 @@
+@@ -1,3 +1,138 @@
++2022-09-26  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-09-20  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/106986
++	* simplify.c (gfc_simplify_findloc): Do not try to simplify
++	intrinsic FINDLOC when the ARRAY argument has a NULL shape.
++
 +2022-09-24  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
 +
 +	Backported from master:
@@ -9766,10 +9776,18 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..5a992e9f1ab 100644
+index 5fc23605244..6ac0c4f8dad 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,841 @@
+@@ -1,3 +1,849 @@
++2022-09-26  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-09-20  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/106986
++	* gfortran.dg/pr106986.f90: New test.
++
 +2022-09-24  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
 +
 +	Backported from master:
