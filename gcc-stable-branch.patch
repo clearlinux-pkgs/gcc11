@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (160):
+GCC Administrator (161):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -181,10 +182,11 @@ GCC Administrator (160):
 Georg-Johann Lay (1):
       Fix PR target/99184: Wrong cast from double to 16-bit and 32-bit ints
 
-H.J. Lu (3):
+H.J. Lu (4):
       x86: Add missing .note.GNU-stack to assembly source
       x86: Add .note.GNU-stack section only for Linux
       x86: Require AVX for F16C and VAES
+      i386: Mark XMM4-XMM6 as clobbered by encodekey128/encodekey256
 
 Harald Anlauf (10):
       Fortran: improve error recovery on invalid array section
@@ -503,10 +505,22 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..cbf33229e76 100644
+index a0587d18824..34ffa9b46e1 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,685 @@
+@@ -1,3 +1,697 @@
++2022-09-29  H.J. Lu  <hjl.tools@gmail.com>
++
++	Backported from master:
++	2022-09-28  H.J. Lu  <hjl.tools@gmail.com>
++
++	PR target/107061
++	* config/i386/predicates.md (encodekey128_operation): Check
++	XMM4-XMM6 as clobbered.
++	(encodekey256_operation): Likewise.
++	* config/i386/sse.md (encodekey128u32): Clobber XMM4-XMM6.
++	(encodekey256u32): Likewise.
++
 +2022-09-28  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
 +
 +	* config/aarch64/aarch64-cores.def (neoverse-v2): New entry.
@@ -2214,8 +2228,46 @@ index 48300af9a09..1623bbcbd2d 100644
  
  	  /* addr = &temp; */
  	  t = build1 (ADDR_EXPR, build_pointer_type (type), temp);
+diff --git a/gcc/config/i386/predicates.md b/gcc/config/i386/predicates.md
+index b815aca0da7..58aebd416f4 100644
+--- a/gcc/config/i386/predicates.md
++++ b/gcc/config/i386/predicates.md
+@@ -1851,11 +1851,11 @@
+   for(i = 4; i < 7; i++)
+     {
+       elt = XVECEXP (op, 0, i);
+-      if (GET_CODE (elt) != SET
+-	  || GET_CODE (SET_DEST (elt)) != REG
+-	  || GET_MODE (SET_DEST (elt)) != V2DImode
+-	  || REGNO (SET_DEST (elt)) != GET_SSE_REGNO (i)
+-	  || SET_SRC (elt) != CONST0_RTX (V2DImode))
++      if (GET_CODE (elt) != CLOBBER
++	  || GET_MODE (elt) != VOIDmode
++	  || GET_CODE (XEXP (elt, 0)) != REG
++	  || GET_MODE (XEXP (elt, 0)) != V2DImode
++	  || REGNO (XEXP (elt, 0)) != GET_SSE_REGNO (i))
+ 	return false;
+     }
+ 
+@@ -1901,11 +1901,11 @@
+   for(i = 4; i < 7; i++)
+     {
+       elt = XVECEXP (op, 0, i + 1);
+-      if (GET_CODE (elt) != SET
+-	  || GET_CODE (SET_DEST (elt)) != REG
+-	  || GET_MODE (SET_DEST (elt)) != V2DImode
+-	  || REGNO (SET_DEST (elt)) != GET_SSE_REGNO (i)
+-	  || SET_SRC (elt) != CONST0_RTX (V2DImode))
++      if (GET_CODE (elt) != CLOBBER
++	  || GET_MODE (elt) != VOIDmode
++	  || GET_CODE (XEXP (elt, 0)) != REG
++	  || GET_MODE (XEXP (elt, 0)) != V2DImode
++	  || REGNO (XEXP (elt, 0)) != GET_SSE_REGNO (i))
+ 	return false;
+     }
+ 
 diff --git a/gcc/config/i386/sse.md b/gcc/config/i386/sse.md
-index fcfcba0134d..79dcb6b26d5 100644
+index fcfcba0134d..2334d0e7c63 100644
 --- a/gcc/config/i386/sse.md
 +++ b/gcc/config/i386/sse.md
 @@ -17256,9 +17256,9 @@
@@ -2231,6 +2283,24 @@ index fcfcba0134d..79dcb6b26d5 100644
  		    (match_operand:SI 3 "const_0_to_255_mul_8_operand" "n,n,n")]
  		   UNSPEC_PALIGNR))]
    "(TARGET_MMX || TARGET_MMX_WITH_SSE) && TARGET_SSSE3"
+@@ -24127,7 +24127,7 @@
+ 
+   for (i = 4; i < 7; i++)
+     XVECEXP (operands[2], 0, i)
+-      = gen_rtx_SET (xmm_regs[i], CONST0_RTX (V2DImode));
++      = gen_rtx_CLOBBER (VOIDmode, xmm_regs[i]);
+ 
+   XVECEXP (operands[2], 0, 7)
+     = gen_rtx_CLOBBER (VOIDmode, gen_rtx_REG (CCmode, FLAGS_REG));
+@@ -24184,7 +24184,7 @@
+ 
+   for (i = 4; i < 7; i++)
+     XVECEXP (operands[2], 0, i + 1)
+-      = gen_rtx_SET (xmm_regs[i], CONST0_RTX (V2DImode));
++      = gen_rtx_CLOBBER (VOIDmode, xmm_regs[i]);
+ 
+   XVECEXP (operands[2], 0, 8)
+     = gen_rtx_CLOBBER (VOIDmode, gen_rtx_REG (CCmode, FLAGS_REG));
 diff --git a/gcc/config/nvptx/nvptx.c b/gcc/config/nvptx/nvptx.c
 index 7a7a9130e84..d25ddf45408 100644
 --- a/gcc/config/nvptx/nvptx.c
@@ -9823,10 +9893,20 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..6ac0c4f8dad 100644
+index 5fc23605244..8144b1e3f92 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,849 @@
+@@ -1,3 +1,859 @@
++2022-09-29  H.J. Lu  <hjl.tools@gmail.com>
++
++	Backported from master:
++	2022-09-28  H.J. Lu  <hjl.tools@gmail.com>
++
++	PR target/107061
++	* gcc.target/i386/keylocker-encodekey128.c: Don't check
++	XMM4-XMM6.
++	* gcc.target/i386/keylocker-encodekey256.c: Likewise.
++
 +2022-09-26  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -13048,6 +13128,30 @@ index b4a4a140e54..9d6be88e7d5 100644
 +#ifdef __linux__
 +	.section	.note.GNU-stack,"",@progbits
 +#endif
+diff --git a/gcc/testsuite/gcc.target/i386/keylocker-encodekey128.c b/gcc/testsuite/gcc.target/i386/keylocker-encodekey128.c
+index 805e0628673..57fa9bdc831 100644
+--- a/gcc/testsuite/gcc.target/i386/keylocker-encodekey128.c
++++ b/gcc/testsuite/gcc.target/i386/keylocker-encodekey128.c
+@@ -6,7 +6,6 @@
+ /* { dg-final { scan-assembler "(?:movdqu|movups)\[ \\t\]+\[^\\n\]*%xmm0,\[^\\n\\r\]*" } } */
+ /* { dg-final { scan-assembler "(?:movdqu|movups)\[ \\t\]+\[^\\n\]*%xmm1,\[^\\n\\r\]*16\[^\\n\\r\]*" } } */
+ /* { dg-final { scan-assembler "(?:movdqu|movups)\[ \\t\]+\[^\\n\]*%xmm2,\[^\\n\\r\]*32\[^\\n\\r\]*" } } */
+-/* { dg-final { scan-assembler "(?:movdqa|movaps)\[ \\t\]+\[^\\n\]*%xmm\[4-6\],\[^\\n\\r\]*" } } */
+ 
+ #include <immintrin.h>
+ 
+diff --git a/gcc/testsuite/gcc.target/i386/keylocker-encodekey256.c b/gcc/testsuite/gcc.target/i386/keylocker-encodekey256.c
+index 26f04dcf014..a9398b4e7a2 100644
+--- a/gcc/testsuite/gcc.target/i386/keylocker-encodekey256.c
++++ b/gcc/testsuite/gcc.target/i386/keylocker-encodekey256.c
+@@ -8,7 +8,6 @@
+ /* { dg-final { scan-assembler "(?:movdqu|movups)\[ \\t\]+\[^\\n\]*%xmm1,\[^\\n\\r\]*16\[^\\n\\r\]*" } } */
+ /* { dg-final { scan-assembler "(?:movdqu|movups)\[ \\t\]+\[^\\n\]*%xmm2,\[^\\n\\r\]*32\[^\\n\\r\]*" } } */
+ /* { dg-final { scan-assembler "(?:movdqu|movups)\[ \\t\]+\[^\\n\]*%xmm3,\[^\\n\\r\]*48\[^\\n\\r\]*" } } */
+-/* { dg-final { scan-assembler "(?:movdqa|movaps)\[ \\t\]+\[^\\n\]*%xmm\[4-6\],\[^\\n\\r\]*" } } */
+ 
+ #include <immintrin.h>
+ 
 diff --git a/gcc/testsuite/gcc.target/i386/pr104637.c b/gcc/testsuite/gcc.target/i386/pr104637.c
 new file mode 100644
 index 00000000000..36e8b6ed97d
