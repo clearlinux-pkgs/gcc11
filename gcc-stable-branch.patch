@@ -16,7 +16,10 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (161):
+GCC Administrator (164):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -337,9 +340,10 @@ Jonathan Wakely (74):
       libstdc++: Check for overflow in regex back-reference [PR106607]
       libstdc++: Fix feature test macros in <version> for freestanding
 
-José Rui Faustino de Sousa (2):
+José Rui Faustino de Sousa (3):
       Fortran: Fix ICE with -fcheck=pointer [PR100136]
       Fortran: Fix ICE with automatic reallocation [PR100245]
+      Fortran: Fix function attributes [PR100132]
 
 Kewen Lin (3):
       testsuite: Skip pr105250.c for powerpc and s390 [PR105266]
@@ -8882,10 +8886,55 @@ index 70c5b3886ef..8ce775753f3 100644
  	  return fold_build_pointer_plus_loc (loc, arg00, arg01);
  	}
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..35f26a7b82f 100644
+index ee1c7bb4b31..2cdaf14ce13 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,138 @@
+@@ -1,3 +1,183 @@
++2022-10-01  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
++
++	Backported from master:
++	2022-09-20  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
++
++	PR fortran/100132
++	* trans-types.c (create_fn_spec): Fix function attributes when
++	passing polymorphic pointers.
++
++2022-09-30  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-09-27  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/107054
++	* simplify.c (gfc_simplify_unpack): Replace assert by condition
++	that terminates simplification when there are not enough elements
++	in the constructor of argument VECTOR.
++
++2022-09-30  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-09-22  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/82868
++	* trans-decl.c (generate_coarray_sym_init): Skip symbol
++	if attr.associate_var.
++
++2022-09-30  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-09-20  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/106985
++	* expr.c (gfc_simplify_expr): Avoid NULL pointer dereference.
++
++2022-09-30  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-08-24  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/103694
++	* simplify.c (simplify_size): The size expression of an array cannot
++	be simplified if an error occurs while resolving the array spec.
++
 +2022-09-26  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -9414,6 +9463,36 @@ index a5c391d077e..a09accbcad0 100644
        /* Allocate block.  */
        gfc_init_block (&alloc);
        gfc_allocate_using_malloc (&alloc, class_han, size, NULL_TREE);
+diff --git a/gcc/fortran/trans-types.c b/gcc/fortran/trans-types.c
+index d6520eee5c0..96b8b512749 100644
+--- a/gcc/fortran/trans-types.c
++++ b/gcc/fortran/trans-types.c
+@@ -2981,12 +2981,23 @@ create_fn_spec (gfc_symbol *sym, tree fntype)
+   for (f = gfc_sym_get_dummy_args (sym); f; f = f->next)
+     if (spec_len < sizeof (spec))
+       {
+-	if (!f->sym || f->sym->attr.pointer || f->sym->attr.target
++	bool is_class = false;
++	bool is_pointer = false;
++
++	if (f->sym)
++	  {
++	    is_class = f->sym->ts.type == BT_CLASS && CLASS_DATA (f->sym)
++	      && f->sym->attr.class_ok;
++	    is_pointer = is_class ? CLASS_DATA (f->sym)->attr.class_pointer
++				  : f->sym->attr.pointer;
++	  }
++
++	if (f->sym == NULL || is_pointer || f->sym->attr.target
+ 	    || f->sym->attr.external || f->sym->attr.cray_pointer
+ 	    || (f->sym->ts.type == BT_DERIVED
+ 		&& (f->sym->ts.u.derived->attr.proc_pointer_comp
+ 		    || f->sym->ts.u.derived->attr.pointer_comp))
+-	    || (f->sym->ts.type == BT_CLASS
++	    || (is_class
+ 		&& (CLASS_DATA (f->sym)->ts.u.derived->attr.proc_pointer_comp
+ 		    || CLASS_DATA (f->sym)->ts.u.derived->attr.pointer_comp))
+ 	    || (f->sym->ts.type == BT_INTEGER && f->sym->ts.is_c_interop))
 diff --git a/gcc/gcc.c b/gcc/gcc.c
 index 0af888c7d78..6b208f4680f 100644
 --- a/gcc/gcc.c
@@ -9947,10 +10026,50 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..8144b1e3f92 100644
+index 5fc23605244..0c2024d0ed5 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,859 @@
+@@ -1,3 +1,899 @@
++2022-10-01  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
++
++	Backported from master:
++	2022-09-20  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
++
++	PR fortran/100132
++	* gfortran.dg/PR100132.f90: New test.
++
++2022-09-30  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-09-27  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/107054
++	* gfortran.dg/pr107054.f90: New test.
++
++2022-09-30  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-09-22  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/82868
++	* gfortran.dg/associate_26a.f90: New test.
++
++2022-09-30  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-09-20  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/106985
++	* gfortran.dg/pr106985.f90: New test.
++
++2022-09-30  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-08-24  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/103694
++	* gfortran.dg/pr103694.f90: New test.
++
 +2022-09-29  H.J. Lu  <hjl.tools@gmail.com>
 +
 +	Backported from master:
@@ -14259,6 +14378,87 @@ index 00000000000..0d697e22c9f
 +    alias float4 = __vector(float[4]);
 +    cast(float4)(a) = 1.0f;
 +}
+diff --git a/gcc/testsuite/gfortran.dg/PR100132.f90 b/gcc/testsuite/gfortran.dg/PR100132.f90
+new file mode 100644
+index 00000000000..78ae6702810
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/PR100132.f90
+@@ -0,0 +1,75 @@
++! { dg-do run }
++!
++! Test the fix for PR100132
++!
++
++module main_m
++  implicit none
++
++  private
++
++  public :: &
++    foo_t
++
++  public :: &
++    set,    &
++    get
++
++  type :: foo_t
++    integer :: i
++  end type foo_t
++
++  type(foo_t), save, pointer :: data => null()
++
++contains
++
++  subroutine set(this)
++    class(foo_t), pointer, intent(in) :: this
++
++    if(associated(data)) stop 1
++    data => this
++  end subroutine set
++
++  subroutine get(this)
++    type(foo_t), pointer, intent(out) :: this
++
++    if(.not.associated(data)) stop 4
++    this => data
++    nullify(data)
++  end subroutine get
++
++end module main_m
++
++program main_p
++
++  use :: main_m, only: &
++    foo_t, set, get
++
++  implicit none
++
++  integer, parameter :: n = 1000
++
++  type(foo_t), pointer :: ps
++  type(foo_t),  target :: s
++  integer              :: i, j, yay, nay
++
++  yay = 0
++  nay = 0
++  do i = 1, n
++    s%i = i
++    call set(s)
++    call get(ps)
++    if(.not.associated(ps)) stop 13
++    j = ps%i
++    if(i/=j) stop 14
++    if(i/=s%i) stop 15
++    if(ps%i/=s%i) stop 16
++    if(associated(ps, s))then
++      yay = yay + 1
++    else
++      nay = nay + 1
++    end if
++  end do
++  if((yay/=n).or.(nay/=0)) stop 17
++
++end program main_p
 diff --git a/gcc/testsuite/gfortran.dg/PR100136.f90 b/gcc/testsuite/gfortran.dg/PR100136.f90
 new file mode 100644
 index 00000000000..922af4aecc3
