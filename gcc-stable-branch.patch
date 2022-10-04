@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (164):
+GCC Administrator (165):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -464,8 +465,9 @@ Segher Boessenkool (7):
       rs6000: Add effective target has_arch_ppc64
       rs6000: Make the has_arch target selectors actually work
 
-Sergei Trofimovich (1):
+Sergei Trofimovich (2):
       gcov-profile: Allow negative counts of indirect calls [PR105282]
+      gcc/config/t-i386: add build dependencies on i386-builtin-types.inc
 
 Simon Cook (1):
       RISC-V: Don't unconditionally add m,a,f,d in arch-canonicalize
@@ -513,10 +515,20 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..34ffa9b46e1 100644
+index a0587d18824..b0bd2b57837 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,697 @@
+@@ -1,3 +1,707 @@
++2022-10-03  Sergei Trofimovich  <siarheit@google.com>
++
++	Backported from master:
++	2022-10-03  Sergei Trofimovich  <siarheit@google.com>
++
++	PR target/107064
++	* config/i386/t-i386: Add build-time dependencies against
++	i386-builtin-types.inc to i386-builtins.o, i386-expand.o,
++	i386-features.o.
++
 +2022-09-29  H.J. Lu  <hjl.tools@gmail.com>
 +
 +	Backported from master:
@@ -2309,6 +2321,23 @@ index fcfcba0134d..2334d0e7c63 100644
  
    XVECEXP (operands[2], 0, 8)
      = gen_rtx_CLOBBER (VOIDmode, gen_rtx_REG (CCmode, FLAGS_REG));
+diff --git a/gcc/config/i386/t-i386 b/gcc/config/i386/t-i386
+index 66d5a8cd79b..04b54252222 100644
+--- a/gcc/config/i386/t-i386
++++ b/gcc/config/i386/t-i386
+@@ -61,7 +61,12 @@ i386-features.o: $(srcdir)/config/i386/i386-features.c
+ 	$(COMPILE) $<
+ 	$(POSTCOMPILE)
+ 
++# i386-builtin-types.inc is included into i386-builtins.h.
++# Below are direct users of i386-builtins.h:
+ i386.o: i386-builtin-types.inc
++i386-builtins.o: i386-builtin-types.inc
++i386-expand.o: i386-builtin-types.inc
++i386-features.o: i386-builtin-types.inc
+ 
+ i386-builtin-types.inc: s-i386-bt ; @true
+ s-i386-bt: $(srcdir)/config/i386/i386-builtin-types.awk \
 diff --git a/gcc/config/nvptx/nvptx.c b/gcc/config/nvptx/nvptx.c
 index 7a7a9130e84..d25ddf45408 100644
 --- a/gcc/config/nvptx/nvptx.c
