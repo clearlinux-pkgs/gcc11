@@ -16,7 +16,13 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (165):
+GCC Administrator (171):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -341,10 +347,11 @@ Jonathan Wakely (74):
       libstdc++: Check for overflow in regex back-reference [PR106607]
       libstdc++: Fix feature test macros in <version> for freestanding
 
-José Rui Faustino de Sousa (3):
+José Rui Faustino de Sousa (4):
       Fortran: Fix ICE with -fcheck=pointer [PR100136]
       Fortran: Fix ICE with automatic reallocation [PR100245]
       Fortran: Fix function attributes [PR100132]
+      Fortran: Fix ICE and wrong code for assumed-rank arrays [PR100029, PR100040]
 
 Kewen Lin (3):
       testsuite: Skip pr105250.c for powerpc and s390 [PR105266]
@@ -8915,10 +8922,24 @@ index 70c5b3886ef..8ce775753f3 100644
  	  return fold_build_pointer_plus_loc (loc, arg00, arg01);
  	}
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..2cdaf14ce13 100644
+index ee1c7bb4b31..f7debfae765 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,183 @@
+@@ -1,3 +1,197 @@
++2022-10-08  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
++
++	Backported from master:
++	2022-10-01  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
++
++	PR fortran/100040
++	PR fortran/100029
++	* trans-expr.c (gfc_conv_class_to_class): Add code to have
++	assumed-rank arrays recognized as full arrays and fix the type
++	of the array assignment.
++	(gfc_conv_procedure_call): Change order of code blocks such that
++	the free of ALLOCATABLE dummy arguments with INTENT(OUT) occurs
++	first.
++
 +2022-10-01  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
 +
 +	Backported from master:
@@ -9448,10 +9469,86 @@ index 95af7d93162..68fb19e6f2b 100644
  	      result = gfc_get_fake_result_decl (sym, 0);
  	      result = fold_build2_loc (input_location, MODIFY_EXPR,
 diff --git a/gcc/fortran/trans-expr.c b/gcc/fortran/trans-expr.c
-index a5c391d077e..a09accbcad0 100644
+index a5c391d077e..a3b428d06e2 100644
 --- a/gcc/fortran/trans-expr.c
 +++ b/gcc/fortran/trans-expr.c
-@@ -6808,16 +6808,15 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
+@@ -1136,8 +1136,10 @@ gfc_conv_class_to_class (gfc_se *parmse, gfc_expr *e, gfc_typespec class_ts,
+     return;
+ 
+   /* Test for FULL_ARRAY.  */
+-  if (e->rank == 0 && gfc_expr_attr (e).codimension
+-      && gfc_expr_attr (e).dimension)
++  if (e->rank == 0
++      && ((gfc_expr_attr (e).codimension && gfc_expr_attr (e).dimension)
++	  || (class_ts.u.derived->components->as
++	      && class_ts.u.derived->components->as->type == AS_ASSUMED_RANK)))
+     full_array = true;
+   else
+     gfc_is_class_array_ref (e, &full_array);
+@@ -1185,8 +1187,12 @@ gfc_conv_class_to_class (gfc_se *parmse, gfc_expr *e, gfc_typespec class_ts,
+ 	  && e->rank != class_ts.u.derived->components->as->rank)
+ 	{
+ 	  if (e->rank == 0)
+-	    gfc_add_modify (&parmse->post, gfc_class_data_get (parmse->expr),
+-			    gfc_conv_descriptor_data_get (ctree));
++	    {
++	      tmp = gfc_class_data_get (parmse->expr);
++	      gfc_add_modify (&parmse->post, tmp,
++			      fold_convert (TREE_TYPE (tmp),
++					 gfc_conv_descriptor_data_get (ctree)));
++	    }
+ 	  else
+ 	    class_array_data_assign (&parmse->post, parmse->expr, ctree, true);
+ 	}
+@@ -6154,23 +6160,6 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
+ 		    base_object = build_fold_indirect_ref_loc (input_location,
+ 							       parmse.expr);
+ 
+-		  /* A class array element needs converting back to be a
+-		     class object, if the formal argument is a class object.  */
+-		  if (fsym && fsym->ts.type == BT_CLASS
+-			&& e->ts.type == BT_CLASS
+-			&& ((CLASS_DATA (fsym)->as
+-			     && CLASS_DATA (fsym)->as->type == AS_ASSUMED_RANK)
+-			    || CLASS_DATA (e)->attr.dimension))
+-		    gfc_conv_class_to_class (&parmse, e, fsym->ts, false,
+-				     fsym->attr.intent != INTENT_IN
+-				     && (CLASS_DATA (fsym)->attr.class_pointer
+-					 || CLASS_DATA (fsym)->attr.allocatable),
+-				     fsym->attr.optional
+-				     && e->expr_type == EXPR_VARIABLE
+-				     && e->symtree->n.sym->attr.optional,
+-				     CLASS_DATA (fsym)->attr.class_pointer
+-				     || CLASS_DATA (fsym)->attr.allocatable);
+-
+ 		  /* If an ALLOCATABLE dummy argument has INTENT(OUT) and is
+ 		     allocated on entry, it must be deallocated.  */
+ 		  if (fsym && fsym->attr.intent == INTENT_OUT
+@@ -6230,6 +6219,23 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
+ 		      gfc_add_expr_to_block (&se->pre, tmp);
+ 		    }
+ 
++		  /* A class array element needs converting back to be a
++		     class object, if the formal argument is a class object.  */
++		  if (fsym && fsym->ts.type == BT_CLASS
++			&& e->ts.type == BT_CLASS
++			&& ((CLASS_DATA (fsym)->as
++			     && CLASS_DATA (fsym)->as->type == AS_ASSUMED_RANK)
++			    || CLASS_DATA (e)->attr.dimension))
++		    gfc_conv_class_to_class (&parmse, e, fsym->ts, false,
++				     fsym->attr.intent != INTENT_IN
++				     && (CLASS_DATA (fsym)->attr.class_pointer
++					 || CLASS_DATA (fsym)->attr.allocatable),
++				     fsym->attr.optional
++				     && e->expr_type == EXPR_VARIABLE
++				     && e->symtree->n.sym->attr.optional,
++				     CLASS_DATA (fsym)->attr.class_pointer
++				     || CLASS_DATA (fsym)->attr.allocatable);
++
+ 		  if (fsym && (fsym->ts.type == BT_DERIVED
+ 			       || fsym->ts.type == BT_ASSUMED)
+ 		      && e->ts.type == BT_CLASS
+@@ -6808,16 +6814,15 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
  	      else
  		goto end_pointer_check;
  
@@ -9471,7 +9568,7 @@ index a5c391d077e..a09accbcad0 100644
  
  	      /* If the argument is passed by value, we need to strip the
  		 INDIRECT_REF.  */
-@@ -8782,8 +8781,8 @@ gfc_trans_structure_assign (tree dest, gfc_expr * expr, bool init, bool coarray)
+@@ -8782,8 +8787,8 @@ gfc_trans_structure_assign (tree dest, gfc_expr * expr, bool init, bool coarray)
    return gfc_finish_block (&block);
  }
  
@@ -9482,7 +9579,7 @@ index a5c391d077e..a09accbcad0 100644
                              gfc_component *un, gfc_expr *init)
  {
    gfc_constructor *ctor;
-@@ -11021,6 +11020,9 @@ trans_class_assignment (stmtblock_t *block, gfc_expr *lhs, gfc_expr *rhs,
+@@ -11021,6 +11026,9 @@ trans_class_assignment (stmtblock_t *block, gfc_expr *lhs, gfc_expr *rhs,
        class_han = GFC_CLASS_TYPE_P (TREE_TYPE (lse->expr))
  	  ? gfc_class_data_get (lse->expr) : lse->expr;
  
@@ -10055,10 +10152,20 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..0c2024d0ed5 100644
+index 5fc23605244..1c877fb42ea 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,899 @@
+@@ -1,3 +1,909 @@
++2022-10-08  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
++
++	Backported from master:
++	2022-10-01  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
++
++	PR fortran/100029
++	PR fortran/100040
++	* gfortran.dg/PR100029.f90: New test.
++	* gfortran.dg/PR100040.f90: New test.
++
 +2022-10-01  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
 +
 +	Backported from master:
@@ -14407,6 +14514,76 @@ index 00000000000..0d697e22c9f
 +    alias float4 = __vector(float[4]);
 +    cast(float4)(a) = 1.0f;
 +}
+diff --git a/gcc/testsuite/gfortran.dg/PR100029.f90 b/gcc/testsuite/gfortran.dg/PR100029.f90
+new file mode 100644
+index 00000000000..fd7e4c46032
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/PR100029.f90
+@@ -0,0 +1,22 @@
++! { dg-do run }
++!
++! Test the fix for PR100029
++!
++
++program foo_p
++  implicit none
++
++  type :: foo_t
++  end type foo_t
++  
++  class(foo_t), allocatable :: pout
++
++  call foo_s(pout)
++
++contains
++
++  subroutine foo_s(that)
++    class(foo_t), allocatable, intent(out) :: that(..)
++  end subroutine foo_s
++
++end program foo_p
+diff --git a/gcc/testsuite/gfortran.dg/PR100040.f90 b/gcc/testsuite/gfortran.dg/PR100040.f90
+new file mode 100644
+index 00000000000..0a135ff30a3
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/PR100040.f90
+@@ -0,0 +1,36 @@
++! { dg-do run }
++!
++! Test the fix for PR100040
++!
++
++program foo_p
++  implicit none
++
++  integer, parameter :: n = 11
++
++  type :: foo_t
++    integer :: i
++  end type foo_t
++  
++  type(foo_t), parameter :: a = foo_t(n)
++  
++  class(foo_t), allocatable :: pout
++
++  call foo_s(pout)
++  if(.not.allocated(pout)) stop 1
++  if(pout%i/=n) stop 2
++
++contains
++
++  subroutine foo_s(that)
++    class(foo_t), allocatable, intent(out) :: that(..)
++
++    select rank(that)
++    rank(0)
++      that = a
++    rank default
++      stop 3
++    end select
++  end subroutine foo_s
++
++end program foo_p
 diff --git a/gcc/testsuite/gfortran.dg/PR100132.f90 b/gcc/testsuite/gfortran.dg/PR100132.f90
 new file mode 100644
 index 00000000000..78ae6702810
