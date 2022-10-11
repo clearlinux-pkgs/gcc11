@@ -16,7 +16,8 @@ Eric Botcazou (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (171):
+GCC Administrator (172):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -433,7 +434,7 @@ Qing Zhao (1):
 Rainer Orth (1):
       libstdc++: Fix 28_regex/basic_regex/84110.cc on Solaris
 
-Richard Biener (17):
+Richard Biener (23):
       Update BASE-VER to 11.3.1
       ipa/105598 - testcase for PR105598
       middle-end/105140 - fix bogus recursion in fold_convertible_p
@@ -451,6 +452,12 @@ Richard Biener (17):
       tree-optimization/103116 - SLP permutes and peeling for gaps
       middle-end/103193 - avoid canonicalizing <= and >= to == for floats
       tree-optimization/105618 - restore load sinking
+      middle-end/106027 - fix types in needle folding
+      tree-optimization/106112 - fix CSE from wider operation
+      tree-optimization/106131 - wrong code with FRE rewriting
+      middle-end/106331 - fix mem attributes for string op arguments
+      tree-optimization/106513 - fix mistake in bswap symbolic number shifts
+      lto/106540 - fix LTO tree input wrt dwarf2out_register_external_die
 
 Richard Earnshaw (3):
       arm: big-endian issue in gen_cpymem_ldrd_strd [PR105981]
@@ -1411,6 +1418,45 @@ index ca036767134..3884f111d82 100644
  }
  
  /* Emit RTX emission of the content of the buffer.  */
+diff --git a/gcc/builtins.c b/gcc/builtins.c
+index 64f4999ab07..627a89b3c45 100644
+--- a/gcc/builtins.c
++++ b/gcc/builtins.c
+@@ -2110,7 +2110,7 @@ expand_builtin_prefetch (tree exp)
+ static rtx
+ get_memory_rtx (tree exp, tree len)
+ {
+-  tree orig_exp = exp;
++  tree orig_exp = exp, base;
+   rtx addr, mem;
+ 
+   /* When EXP is not resolved SAVE_EXPR, MEM_ATTRS can be still derived
+@@ -2141,10 +2141,11 @@ get_memory_rtx (tree exp, tree len)
+   if (is_gimple_mem_ref_addr (TREE_OPERAND (exp, 0)))
+     set_mem_attributes (mem, exp, 0);
+   else if (TREE_CODE (TREE_OPERAND (exp, 0)) == ADDR_EXPR
+-	   && (exp = get_base_address (TREE_OPERAND (TREE_OPERAND (exp, 0),
+-						     0))))
++	   && (base = get_base_address (TREE_OPERAND (TREE_OPERAND (exp, 0),
++						      0))))
+     {
+-      exp = build_fold_addr_expr (exp);
++      unsigned int align = get_pointer_alignment (TREE_OPERAND (exp, 0));
++      exp = build_fold_addr_expr (base);
+       exp = fold_build2 (MEM_REF,
+ 			 build_array_type (char_type_node,
+ 					   build_range_type (sizetype,
+@@ -2152,6 +2153,10 @@ get_memory_rtx (tree exp, tree len)
+ 							     NULL)),
+ 			 exp, build_int_cst (ptr_type_node, 0));
+       set_mem_attributes (mem, exp, 0);
++      /* Since we stripped parts make sure the offset is unknown and the
++	 alignment is computed from the original address.  */
++      clear_mem_offset (mem);
++      set_mem_align (mem, align);
+     }
+   set_mem_alias_set (mem, 0);
+   return mem;
 diff --git a/gcc/c-family/ChangeLog b/gcc/c-family/ChangeLog
 index dff48ba4655..65de3d901d3 100644
 --- a/gcc/c-family/ChangeLog
@@ -8888,7 +8934,7 @@ index 14a25c25450..baf48ea7148 100644
      case FUNCTION_TYPE:
      case LANG_TYPE:
 diff --git a/gcc/fold-const.c b/gcc/fold-const.c
-index 70c5b3886ef..8ce775753f3 100644
+index 70c5b3886ef..901255a18d6 100644
 --- a/gcc/fold-const.c
 +++ b/gcc/fold-const.c
 @@ -2355,7 +2355,7 @@ build_zero_vector (tree type)
@@ -8909,6 +8955,15 @@ index 70c5b3886ef..8ce775753f3 100644
  
      default:
        return false;
+@@ -7508,7 +7508,7 @@ tree_swap_operands_p (const_tree arg0, const_tree arg1)
+ static tree
+ fold_to_nonsharp_ineq_using_bound (location_t loc, tree ineq, tree bound)
+ {
+-  tree a, typea, type = TREE_TYPE (ineq), a1, diff, y;
++  tree a, typea, type = TREE_TYPE (bound), a1, diff, y;
+ 
+   if (TREE_CODE (bound) == LT_EXPR)
+     a = TREE_OPERAND (bound, 0);
 @@ -9488,6 +9488,16 @@ fold_unary_loc (location_t loc, enum tree_code code, tree type, tree op0)
  		  > min_align_of_type (TREE_TYPE (TREE_TYPE (arg00)))))
  	    return NULL_TREE;
@@ -8926,11 +8981,60 @@ index 70c5b3886ef..8ce775753f3 100644
  	  arg00 = fold_convert_loc (loc, type, arg00);
  	  return fold_build_pointer_plus_loc (loc, arg00, arg01);
  	}
+@@ -11987,11 +11997,15 @@ fold_binary_loc (location_t loc, enum tree_code code, tree type,
+ 	{
+ 	  tem = fold_to_nonsharp_ineq_using_bound (loc, arg0, arg1);
+ 	  if (tem && !operand_equal_p (tem, arg0, 0))
+-	    return fold_build2_loc (loc, code, type, tem, arg1);
++	    return fold_convert (type,
++				 fold_build2_loc (loc, code, TREE_TYPE (arg1),
++						  tem, arg1));
+ 
+ 	  tem = fold_to_nonsharp_ineq_using_bound (loc, arg1, arg0);
+ 	  if (tem && !operand_equal_p (tem, arg1, 0))
+-	    return fold_build2_loc (loc, code, type, arg0, tem);
++	    return fold_convert (type,
++				 fold_build2_loc (loc, code, TREE_TYPE (arg0),
++						  arg0, tem));
+ 	}
+ 
+       if ((tem = fold_truth_andor (loc, code, type, arg0, arg1, op0, op1))
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..f7debfae765 100644
+index ee1c7bb4b31..a3678e0cabe 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,197 @@
+@@ -1,3 +1,228 @@
++2022-10-10  Mikael Morin  <mikael@gcc.gnu.org>
++
++	Backported from master:
++	2022-09-25  Mikael Morin  <mikael@gcc.gnu.org>
++
++	PR fortran/106817
++	* trans-expr.c (gfc_conv_procedure_call): Collect all clobbers
++	to their own separate block.  Append the block of clobbers to
++	the procedure preliminary block after the argument evaluation
++	codes for all the arguments.
++
++2022-10-10  Mikael Morin  <mikael@gcc.gnu.org>
++
++	Backported from master:
++	2022-09-25  Mikael Morin  <mikael@gcc.gnu.org>
++
++	PR fortran/105012
++	* trans-expr.c (gfc_conv_procedure_call): Retrieve variable
++	from the just calculated variable reference.
++
++2022-10-10  Mikael Morin  <mikael@gcc.gnu.org>
++
++	Backported from master:
++	2022-09-25  Mikael Morin  <mikael@gcc.gnu.org>
++
++	* trans.h (gfc_conv_expr_reference): Remove add_clobber
++	argument.
++	* trans-expr.c (gfc_conv_expr_reference): Ditto. Inline code
++	depending on add_clobber and conditions controlling it ...
++	(gfc_conv_procedure_call): ... to here.
++
 +2022-10-08  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
 +
 +	Backported from master:
@@ -9808,6 +9912,19 @@ index 2c78a08d3f1..3690782eca4 100644
    if (icode == CODE_FOR_nothing)
      {
        if (tcode == LT_EXPR
+diff --git a/gcc/gimple-ssa-store-merging.c b/gcc/gimple-ssa-store-merging.c
+index 0a74b025d00..6c1b8cdb487 100644
+--- a/gcc/gimple-ssa-store-merging.c
++++ b/gcc/gimple-ssa-store-merging.c
+@@ -263,7 +263,7 @@ do_shift_rotate (enum tree_code code,
+ 		 int count)
+ {
+   int i, size = TYPE_PRECISION (n->type) / BITS_PER_UNIT;
+-  unsigned head_marker;
++  uint64_t head_marker;
+ 
+   if (count < 0
+       || count >= TYPE_PRECISION (n->type)
 diff --git a/gcc/gimple-ssa-warn-restrict.c b/gcc/gimple-ssa-warn-restrict.c
 index ad37f20afaa..cfaa2179bb6 100644
 --- a/gcc/gimple-ssa-warn-restrict.c
@@ -9965,6 +10082,27 @@ index b406096a39c..0ec0a79080a 100644
    bitmap_clear (&non_reload_pseudos);
    bitmap_initialize (&failed_reload_insns, &reg_obstack);
    EXECUTE_IF_SET_IN_BITMAP (&failed_reload_pseudos, 0, u, bi)
+diff --git a/gcc/lto-streamer-in.c b/gcc/lto-streamer-in.c
+index eb8a7dc57b0..0c5af5cecef 100644
+--- a/gcc/lto-streamer-in.c
++++ b/gcc/lto-streamer-in.c
+@@ -1699,11 +1699,14 @@ lto_read_tree_1 (class lto_input_block *ib, class data_in *data_in, tree expr)
+   /* Read all the pointer fields in EXPR.  */
+   streamer_read_tree_body (ib, data_in, expr);
+ 
+-  /* Read any LTO-specific data not read by the tree streamer.  */
++  /* Read any LTO-specific data not read by the tree streamer.  Do not use
++     stream_read_tree here since that flushes the dref_queue in mids of
++     SCC reading.  */
+   if (DECL_P (expr)
+       && TREE_CODE (expr) != FUNCTION_DECL
+       && TREE_CODE (expr) != TRANSLATION_UNIT_DECL)
+-    DECL_INITIAL (expr) = stream_read_tree (ib, data_in);
++    DECL_INITIAL (expr)
++      = lto_input_tree_1 (ib, data_in, streamer_read_record_start (ib), 0);
+ 
+   /* Stream references to early generated DIEs.  Keep in sync with the
+      trees handled in dwarf2out_register_external_die.  */
 diff --git a/gcc/match.pd b/gcc/match.pd
 index e89601c0c14..8126f90ee75 100644
 --- a/gcc/match.pd
@@ -10286,10 +10424,26 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..1c877fb42ea 100644
+index 5fc23605244..ac1f71dd7bc 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,909 @@
+@@ -1,3 +1,925 @@
++2022-10-10  Mikael Morin  <mikael@gcc.gnu.org>
++
++	Backported from master:
++	2022-09-25  Mikael Morin  <mikael@gcc.gnu.org>
++
++	PR fortran/106817
++	* gfortran.dg/intent_optimize_4.f90: New test.
++
++2022-10-10  Mikael Morin  <mikael@gcc.gnu.org>
++
++	Backported from master:
++	2022-09-25  Mikael Morin  <mikael@gcc.gnu.org>
++
++	PR fortran/105012
++	* gfortran.dg/intent_out_15.f90: New test.
++
 +2022-10-08  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
 +
 +	Backported from master:
@@ -12370,6 +12524,46 @@ index 75862e2b5be..fef69e7cf09 100644
  
  /* When compiled with C++, this code was breaking because of different
     tree representations of arrays between C and C++.  */
+diff --git a/gcc/testsuite/g++.dg/torture/pr106131.C b/gcc/testsuite/g++.dg/torture/pr106131.C
+new file mode 100644
+index 00000000000..e110f4a8fe6
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/torture/pr106131.C
+@@ -0,0 +1,34 @@
++// { dg-do run { target c++11 } }
++
++struct Pair {
++    int a, b;
++    Pair(const Pair &) = default;
++    Pair(int _a, int _b) : a(_a), b(_b) {}
++    Pair &operator=(const Pair &z) {
++	a = z.a;
++	b = z.b;
++	return *this;
++    }
++};
++
++const int &max(const int &a, const int &b)
++{
++  return a < b ? b : a;
++}
++
++int foo(Pair x, Pair y)
++{
++  return max(x.b, y.b);
++}
++
++int main()
++{
++  auto f = new Pair[3] {{0, -11}, {0, -8}, {0, 2}};
++  for (int i = 0; i < 1; i++) {
++      f[i] = f[0];
++      if(i == 0)
++	f[i] = f[2];
++      if (foo(f[i], f[1]) != 2)
++	__builtin_abort();
++  }
++}
 diff --git a/gcc/testsuite/g++.dg/ubsan/pr105729.C b/gcc/testsuite/g++.dg/ubsan/pr105729.C
 new file mode 100644
 index 00000000000..fb676630994
@@ -12848,6 +13042,20 @@ index 00000000000..e380d56ee06
 +{
 +  g -= (V){bar((V){~0})[3]};
 +}
+diff --git a/gcc/testsuite/gcc.dg/pr106027.c b/gcc/testsuite/gcc.dg/pr106027.c
+new file mode 100644
+index 00000000000..735205fb252
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/pr106027.c
+@@ -0,0 +1,8 @@
++/* { dg-do compile } */
++/* { dg-options "-O" } */
++
++int
++foo (unsigned int x, int y)
++{
++  return x <= (((y != y) < 0) ? y < 1 : 0);
++}
 diff --git a/gcc/testsuite/gcc.dg/pragma-message.c b/gcc/testsuite/gcc.dg/pragma-message.c
 index 2f44b617710..1b7cf09de0a 100644
 --- a/gcc/testsuite/gcc.dg/pragma-message.c
@@ -12952,6 +13160,60 @@ index 00000000000..0a4ea3b0bd1
 +  f(&info, &blocks[0]);
 +  if (info.num != 4)
 +    __builtin_abort ();
++  return 0;
++}
+diff --git a/gcc/testsuite/gcc.dg/torture/pr106112.c b/gcc/testsuite/gcc.dg/torture/pr106112.c
+new file mode 100644
+index 00000000000..bd7f63c0935
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/torture/pr106112.c
+@@ -0,0 +1,16 @@
++/* { dg-do run } */
++
++__INT32_TYPE__ a = 5, b, c, d;
++__UINT64_TYPE__ e = 20862985922;
++int main()
++{
++  __UINT32_TYPE__ f = 4294967292;
++  e = e | f;
++  c = -1 % ((~f ^ 4294967292) - (e - d));
++  b = ~-~e % ~-d;
++  if (b)
++    a = 0;
++  if (a < 1)
++    __builtin_abort();
++  return 0;
++}
+diff --git a/gcc/testsuite/gcc.dg/torture/pr106513.c b/gcc/testsuite/gcc.dg/torture/pr106513.c
+new file mode 100644
+index 00000000000..aa4f4d513d7
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/torture/pr106513.c
+@@ -0,0 +1,26 @@
++/* { dg-do run } */
++
++typedef __INT64_TYPE__ int64_t;
++
++__attribute__((noinline)) int64_t
++swap64 (int64_t n)
++{
++  return (((n & (((int64_t) 0xff) )) << 56) |
++          ((n & (((int64_t) 0xff) << 8)) << 40) |
++          ((n & (((int64_t) 0xff) << 16)) << 24) |
++          ((n & (((int64_t) 0xff) << 24)) << 8) |
++          ((n & (((int64_t) 0xff) << 32)) >> 8) |
++          ((n & (((int64_t) 0xff) << 40)) >> 24) |
++          ((n & (((int64_t) 0xff) << 48)) >> 40) |
++          ((n & ((int64_t)(0xffull << 56))) >> 56));
++}
++
++int main (void)
++{
++  volatile int64_t n = 0x8000000000000000ll;
++
++  if (swap64(n) != 0xffffffffffffff80ll)
++    __builtin_abort ();
++
 +  return 0;
 +}
 diff --git a/gcc/testsuite/gcc.dg/tree-ssa/alias-access-path-13.c b/gcc/testsuite/gcc.dg/tree-ssa/alias-access-path-13.c
@@ -15310,6 +15572,19 @@ index 00000000000..89004bf9aa7
 +end
 +
 +! { dg-final { scan-tree-dump-not "_gfortran_stop_numeric" "original" } }
+diff --git a/gcc/testsuite/gfortran.dg/pr106331.f90 b/gcc/testsuite/gfortran.dg/pr106331.f90
+new file mode 100644
+index 00000000000..3873863be48
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/pr106331.f90
+@@ -0,0 +1,7 @@
++! { dg-do run }
++! { dg-options "-Og" }
++
++PROGRAM main
++  CHARACTER(LEN=24) :: a(2)
++  a = ''
++END PROGRAM
 diff --git a/gcc/testsuite/gfortran.dg/pr106857.f90 b/gcc/testsuite/gfortran.dg/pr106857.f90
 new file mode 100644
 index 00000000000..4b0f86a75a6
@@ -15877,6 +16152,67 @@ index 32e1632705b..c8cb7328a63 100644
  	      update_stmt (gsi_stmt (gsi));
  	    }
  	}
+diff --git a/gcc/tree-ssa-sccvn.c b/gcc/tree-ssa-sccvn.c
+index eaa97566d35..b4c9fac198b 100644
+--- a/gcc/tree-ssa-sccvn.c
++++ b/gcc/tree-ssa-sccvn.c
+@@ -3197,12 +3197,12 @@ vn_reference_lookup_3 (ao_ref *ref, tree vuse, void *data_,
+       poly_int64 extra_off = 0;
+       if (j == 0 && i >= 0
+ 	  && lhs_ops[0].opcode == MEM_REF
+-	  && maybe_ne (lhs_ops[0].off, -1))
++	  && known_ne (lhs_ops[0].off, -1))
+ 	{
+ 	  if (known_eq (lhs_ops[0].off, vr->operands[i].off))
+ 	    i--, j--;
+ 	  else if (vr->operands[i].opcode == MEM_REF
+-		   && maybe_ne (vr->operands[i].off, -1))
++		   && known_ne (vr->operands[i].off, -1))
+ 	    {
+ 	      extra_off = vr->operands[i].off - lhs_ops[0].off;
+ 	      i--, j--;
+@@ -3229,6 +3229,7 @@ vn_reference_lookup_3 (ao_ref *ref, tree vuse, void *data_,
+       copy_reference_ops_from_ref (rhs1, &rhs);
+ 
+       /* Apply an extra offset to the inner MEM_REF of the RHS.  */
++      bool force_no_tbaa = false;
+       if (maybe_ne (extra_off, 0))
+ 	{
+ 	  if (rhs.length () < 2)
+@@ -3241,6 +3242,10 @@ vn_reference_lookup_3 (ao_ref *ref, tree vuse, void *data_,
+ 	  rhs[ix].op0 = int_const_binop (PLUS_EXPR, rhs[ix].op0,
+ 					 build_int_cst (TREE_TYPE (rhs[ix].op0),
+ 							extra_off));
++	  /* When we have offsetted the RHS, reading only parts of it,
++	     we can no longer use the original TBAA type, force alias-set
++	     zero.  */
++	  force_no_tbaa = true;
+ 	}
+ 
+       /* Save the operands since we need to use the original ones for
+@@ -3293,8 +3298,11 @@ vn_reference_lookup_3 (ao_ref *ref, tree vuse, void *data_,
+       /* Adjust *ref from the new operands.  */
+       ao_ref rhs1_ref;
+       ao_ref_init (&rhs1_ref, rhs1);
+-      if (!ao_ref_init_from_vn_reference (&r, ao_ref_alias_set (&rhs1_ref),
+-					  ao_ref_base_alias_set (&rhs1_ref),
++      if (!ao_ref_init_from_vn_reference (&r,
++					  force_no_tbaa ? 0
++					  : ao_ref_alias_set (&rhs1_ref),
++					  force_no_tbaa ? 0
++					  : ao_ref_base_alias_set (&rhs1_ref),
+ 					  vr->type, vr->operands))
+ 	return (void *)-1;
+       /* This can happen with bitfields.  */
+@@ -4843,7 +4851,7 @@ valueized_wider_op (tree wide_type, tree op, bool allow_truncate)
+ 
+   /* For constants simply extend it.  */
+   if (TREE_CODE (op) == INTEGER_CST)
+-    return wide_int_to_tree (wide_type, wi::to_wide (op));
++    return wide_int_to_tree (wide_type, wi::to_widest (op));
+ 
+   return NULL_TREE;
+ }
 diff --git a/gcc/tree-ssa-sink.c b/gcc/tree-ssa-sink.c
 index 3c2ed795f85..b3097531203 100644
 --- a/gcc/tree-ssa-sink.c
