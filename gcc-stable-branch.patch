@@ -10,13 +10,16 @@ David Malcolm (2):
       analyzer: fix ICE comparing VECTOR_CSTs [PR105252]
       analyzer: fix ICEs on complex constants [PR105365,105366]
 
-Eric Botcazou (1):
+Eric Botcazou (2):
       Fix internal error with vectorization on SPARC
+      Fix PR target/107248
 
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (173):
+GCC Administrator (175):
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -7570,9 +7573,74 @@ index ae1a33e8d95..ba311cbf2df 100644
  
  extern __inline __m64 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
 diff --git a/gcc/config/sparc/sparc.c b/gcc/config/sparc/sparc.c
-index 7c8a1f18c39..e4fe2f065c9 100644
+index 7c8a1f18c39..a9196d68863 100644
 --- a/gcc/config/sparc/sparc.c
 +++ b/gcc/config/sparc/sparc.c
+@@ -6122,6 +6122,9 @@ sparc_expand_prologue (void)
+ 	}
+ 
+       RTX_FRAME_RELATED_P (insn) = 1;
++
++      /* Ensure no memory access is done before the frame is established.  */
++      emit_insn (gen_frame_blockage ());
+     }
+   else
+     {
+@@ -6136,13 +6139,7 @@ sparc_expand_prologue (void)
+ 	  /* %sp is not the CFA register anymore.  */
+ 	  emit_insn (gen_stack_pointer_inc (GEN_INT (4096 - size)));
+ 
+-	  /* Make sure no %fp-based store is issued until after the frame is
+-	     established.  The offset between the frame pointer and the stack
+-	     pointer is calculated relative to the value of the stack pointer
+-	     at the end of the function prologue, and moving instructions that
+-	     access the stack via the frame pointer between the instructions
+-	     that decrement the stack pointer could result in accessing the
+-	     register window save area, which is volatile.  */
++	  /* Likewise.  */
+ 	  emit_insn (gen_frame_blockage ());
+ 	}
+       else
+@@ -6238,8 +6235,8 @@ sparc_flat_expand_prologue (void)
+ 	}
+       RTX_FRAME_RELATED_P (insn) = 1;
+ 
+-      /* Ensure nothing is scheduled until after the frame is established.  */
+-      emit_insn (gen_blockage ());
++      /* Ensure no memory access is done before the frame is established.  */
++      emit_insn (gen_frame_blockage ());
+ 
+       if (frame_pointer_needed)
+ 	{
+@@ -6326,6 +6323,9 @@ sparc_expand_epilogue (bool for_eh)
+     ; /* do nothing.  */
+   else if (sparc_leaf_function_p)
+     {
++      /* Ensure no memory access is done after the frame is destroyed.  */
++      emit_insn (gen_frame_blockage ());
++
+       if (size <= 4096)
+ 	emit_insn (gen_stack_pointer_inc (GEN_INT (size)));
+       else if (size <= 8192)
+@@ -6376,15 +6376,15 @@ sparc_flat_expand_epilogue (bool for_eh)
+     ; /* do nothing.  */
+   else if (frame_pointer_needed)
+     {
+-      /* Make sure the frame is destroyed after everything else is done.  */
+-      emit_insn (gen_blockage ());
++      /* Ensure no memory access is done after the frame is destroyed.  */
++      emit_insn (gen_frame_blockage ());
+ 
+       emit_move_insn (stack_pointer_rtx, gen_rtx_REG (Pmode, 1));
+     }
+   else
+     {
+       /* Likewise.  */
+-      emit_insn (gen_blockage ());
++      emit_insn (gen_frame_blockage ());
+ 
+       if (size <= 4096)
+ 	emit_insn (gen_stack_pointer_inc (GEN_INT (size)));
 @@ -8956,8 +8956,20 @@ epilogue_renumber (rtx *where, int test)
        if (REGNO (*where) >= 8 && REGNO (*where) < 24)      /* oX or lX */
  	return 1;
