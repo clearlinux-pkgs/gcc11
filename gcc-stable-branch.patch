@@ -3,6 +3,9 @@ Alexandre Oliva (3):
       [PR105324] libstdc++: testsuite: pr105324 requires FP from_char
       libstdc++: ppc: conditionalize vsx-only simd intrinsics
 
+Andre Vieira (1):
+      aarch64: Implement ACLE Data Intrinsics
+
 Andreas Krebbel (1):
       IBM zSystems/testsuite: PR105147: Skip pr105140.c
 
@@ -17,7 +20,8 @@ Eric Botcazou (2):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (175):
+GCC Administrator (176):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -538,10 +542,41 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..37f60a81388 100644
+index a0587d18824..97173966d06 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,766 @@
+@@ -1,3 +1,797 @@
++2022-10-14  Andre Vieira  <andre.simoesdiasvieira@arm.com>
++
++	Backported from master:
++	2022-07-25  Andre Vieira  <andre.simoesdiasvieira@arm.com>
++
++	* config/aarch64/aarch64.md (rbit<mode>2): Rename this ...
++	(@aarch64_rbit<mode>): ... to this and change it in...
++	(ffs<mode>2,ctz<mode>2): ... here.
++	(@aarch64_rev16<mode>): New.
++	* config/aarch64/aarch64-builtins.c: (aarch64_builtins):
++	Define the following enum AARCH64_REV16, AARCH64_REV16L,
++	AARCH64_REV16LL, AARCH64_RBIT, AARCH64_RBITL, AARCH64_RBITLL.
++	(aarch64_init_data_intrinsics): New.
++	(aarch64_general_init_builtins): Add call to
++	aarch64_init_data_intrinsics.
++	(aarch64_expand_builtin_data_intrinsic): New.
++	(aarch64_general_expand_builtin): Add call to
++	aarch64_expand_builtin_data_intrinsic.
++	* config/aarch64/arm_acle.h (__clz, __clzl, __clzll, __cls, __clsl,
++	__clsll, __rbit, __rbitl, __rbitll, __rev, __revl, __revll, __rev16,
++	__rev16l, __rev16ll, __ror, __rorl, __rorll, __revsh): New.
++
++2022-10-14  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR target/107248
++	* config/sparc/sparc.c (sparc_expand_prologue): Emit a frame
++	blockage for leaf functions.
++	(sparc_flat_expand_prologue): Emit frame instead of full blockage.
++	(sparc_expand_epilogue): Emit a frame blockage for leaf functions.
++	(sparc_flat_expand_epilogue): Emit frame instead of full blockage.
++
 +2022-10-11  Richard Biener  <rguenther@suse.de>
 +
 +	Backported from master:
@@ -1682,6 +1717,119 @@ index 58294b7d7ac..18ff71ac5ad 100644
        if (ecx & bit_GFNI)
  	set_feature (FEATURE_GFNI);
        if (ecx & bit_MOVDIRI)
+diff --git a/gcc/config/aarch64/aarch64-builtins.c b/gcc/config/aarch64/aarch64-builtins.c
+index acdea2a0601..f9a8c0aa6a0 100644
+--- a/gcc/config/aarch64/aarch64-builtins.c
++++ b/gcc/config/aarch64/aarch64-builtins.c
+@@ -523,6 +523,12 @@ enum aarch64_builtins
+   AARCH64_MEMTAG_BUILTIN_SET_TAG,
+   AARCH64_MEMTAG_BUILTIN_GET_TAG,
+   AARCH64_MEMTAG_BUILTIN_END,
++  AARCH64_REV16,
++  AARCH64_REV16L,
++  AARCH64_REV16LL,
++  AARCH64_RBIT,
++  AARCH64_RBITL,
++  AARCH64_RBITLL,
+   AARCH64_BUILTIN_MAX
+ };
+ 
+@@ -1421,6 +1427,37 @@ aarch64_init_fpsr_fpcr_builtins (void)
+ 				   AARCH64_BUILTIN_SET_FPSR64);
+ }
+ 
++static void
++aarch64_init_data_intrinsics (void)
++{
++  tree uint32_fntype = build_function_type_list (uint32_type_node,
++                                                uint32_type_node, NULL_TREE);
++  tree ulong_fntype = build_function_type_list (long_unsigned_type_node,
++						long_unsigned_type_node,
++						NULL_TREE);
++  tree uint64_fntype = build_function_type_list (uint64_type_node,
++						 uint64_type_node, NULL_TREE);
++  aarch64_builtin_decls[AARCH64_REV16]
++    = aarch64_general_add_builtin ("__builtin_aarch64_rev16", uint32_fntype,
++				   AARCH64_REV16);
++  aarch64_builtin_decls[AARCH64_REV16L]
++    = aarch64_general_add_builtin ("__builtin_aarch64_rev16l", ulong_fntype,
++				   AARCH64_REV16L);
++  aarch64_builtin_decls[AARCH64_REV16LL]
++    = aarch64_general_add_builtin ("__builtin_aarch64_rev16ll", uint64_fntype,
++				   AARCH64_REV16LL);
++  aarch64_builtin_decls[AARCH64_RBIT]
++    = aarch64_general_add_builtin ("__builtin_aarch64_rbit", uint32_fntype,
++				   AARCH64_RBIT);
++  aarch64_builtin_decls[AARCH64_RBITL]
++    = aarch64_general_add_builtin ("__builtin_aarch64_rbitl", ulong_fntype,
++				   AARCH64_RBITL);
++  aarch64_builtin_decls[AARCH64_RBITLL]
++    = aarch64_general_add_builtin ("__builtin_aarch64_rbitll", uint64_fntype,
++				   AARCH64_RBITLL);
++}
++
++
+ /* Initialize all builtins in the AARCH64_BUILTIN_GENERAL group.  */
+ 
+ void
+@@ -1438,6 +1475,7 @@ aarch64_general_init_builtins (void)
+   aarch64_init_crc32_builtins ();
+   aarch64_init_builtin_rsqrt ();
+   aarch64_init_rng_builtins ();
++  aarch64_init_data_intrinsics ();
+ 
+   tree ftype_jcvt
+     = build_function_type_list (intSI_type_node, double_type_node, NULL);
+@@ -2032,6 +2070,38 @@ aarch64_expand_builtin_memtag (int fcode, tree exp, rtx target)
+   return target;
+ }
+ 
++/* Function to expand an expression EXP which calls one of the ACLE Data
++   Intrinsic builtins FCODE with the result going to TARGET.  */
++static rtx
++aarch64_expand_builtin_data_intrinsic (unsigned int fcode, tree exp, rtx target)
++{
++  expand_operand ops[2];
++  machine_mode mode = GET_MODE (target);
++  create_output_operand (&ops[0], target, mode);
++  create_input_operand (&ops[1], expand_normal (CALL_EXPR_ARG (exp, 0)), mode);
++  enum insn_code icode;
++
++  switch (fcode)
++    {
++    case AARCH64_REV16:
++    case AARCH64_REV16L:
++    case AARCH64_REV16LL:
++      icode = code_for_aarch64_rev16 (mode);
++      break;
++    case AARCH64_RBIT:
++    case AARCH64_RBITL:
++    case AARCH64_RBITLL:
++      icode = code_for_aarch64_rbit (mode);
++      break;
++    default:
++      gcc_unreachable ();
++    }
++
++  expand_insn (icode, 2, ops);
++  return ops[0].value;
++}
++
++
+ /* Expand an expression EXP as fpsr or fpcr setter (depending on
+    UNSPEC) using MODE.  */
+ static void
+@@ -2184,6 +2254,10 @@ aarch64_general_expand_builtin (unsigned int fcode, tree exp, rtx target,
+       && fcode <= AARCH64_MEMTAG_BUILTIN_END)
+     return aarch64_expand_builtin_memtag (fcode, exp, target);
+ 
++  if (fcode >= AARCH64_REV16
++      && fcode <= AARCH64_RBITLL)
++    return aarch64_expand_builtin_data_intrinsic (fcode, exp, target);
++
+   gcc_unreachable ();
+ }
+ 
 diff --git a/gcc/config/aarch64/aarch64-cores.def b/gcc/config/aarch64/aarch64-cores.def
 index 4643e0e2795..911cd1be449 100644
 --- a/gcc/config/aarch64/aarch64-cores.def
@@ -1795,6 +1943,120 @@ index c155f4883cf..7e6f9d08ea3 100644
  
  #define DEF4(B)  DEF0(B, 1), DEF0(B, 2), DEF0(B, 4), DEF0(B, 8), \
  		 { NULL, NULL, NULL, NULL }
+diff --git a/gcc/config/aarch64/aarch64.md b/gcc/config/aarch64/aarch64.md
+index aef6da9732d..06616c66a80 100644
+--- a/gcc/config/aarch64/aarch64.md
++++ b/gcc/config/aarch64/aarch64.md
+@@ -4762,7 +4762,7 @@
+     rtx ccreg = aarch64_gen_compare_reg (EQ, operands[1], const0_rtx);
+     rtx x = gen_rtx_NE (VOIDmode, ccreg, const0_rtx);
+ 
+-    emit_insn (gen_rbit<mode>2 (operands[0], operands[1]));
++    emit_insn (gen_aarch64_rbit (<MODE>mode, operands[0], operands[1]));
+     emit_insn (gen_clz<mode>2 (operands[0], operands[0]));
+     emit_insn (gen_csinc3<mode>_insn (operands[0], x, operands[0], const0_rtx));
+     DONE;
+@@ -4808,7 +4808,7 @@
+   [(set_attr "type" "clz")]
+ )
+ 
+-(define_insn "rbit<mode>2"
++(define_insn "@aarch64_rbit<mode>"
+   [(set (match_operand:GPI 0 "register_operand" "=r")
+ 	(unspec:GPI [(match_operand:GPI 1 "register_operand" "r")] UNSPEC_RBIT))]
+   ""
+@@ -4829,7 +4829,7 @@
+   "reload_completed"
+   [(const_int 0)]
+   "
+-  emit_insn (gen_rbit<mode>2 (operands[0], operands[1]));
++  emit_insn (gen_aarch64_rbit (<MODE>mode, operands[0], operands[1]));
+   emit_insn (gen_clz<mode>2 (operands[0], operands[0]));
+   DONE;
+ ")
+@@ -5819,6 +5819,13 @@
+   [(set_attr "type" "rev")]
+ )
+ 
++(define_insn "@aarch64_rev16<mode>"
++  [(set (match_operand:GPI 0 "register_operand" "=r")
++	(unspec:GPI [(match_operand:GPI 1 "register_operand" "r")] UNSPEC_REV))]
++  ""
++  "rev16\\t%<w>0, %<w>1"
++  [(set_attr "type" "rev")])
++
+ (define_insn "*aarch64_bfxil<mode>"
+   [(set (match_operand:GPI 0 "register_operand" "=r,r")
+     (ior:GPI (and:GPI (match_operand:GPI 1 "register_operand" "r,0")
+diff --git a/gcc/config/aarch64/arm_acle.h b/gcc/config/aarch64/arm_acle.h
+index 73b29f4b8dc..2f419351706 100644
+--- a/gcc/config/aarch64/arm_acle.h
++++ b/gcc/config/aarch64/arm_acle.h
+@@ -28,11 +28,64 @@
+ #define _GCC_ARM_ACLE_H
+ 
+ #include <stdint.h>
++#include <stddef.h>
+ 
+ #ifdef __cplusplus
+ extern "C" {
+ #endif
+ 
++#define _GCC_ARM_ACLE_ROR_FN(NAME, TYPE)				  \
++__extension__ extern __inline TYPE					  \
++__attribute__ ((__always_inline__, __gnu_inline__, __artificial__))	  \
++NAME (TYPE __value, uint32_t __rotate)					  \
++{									  \
++  size_t __size = sizeof (TYPE) * __CHAR_BIT__;				  \
++  __rotate = __rotate % __size;						  \
++  return __value >> __rotate | __value << ((__size - __rotate) % __size); \
++}
++
++_GCC_ARM_ACLE_ROR_FN (__ror, uint32_t)
++_GCC_ARM_ACLE_ROR_FN (__rorl, unsigned long)
++_GCC_ARM_ACLE_ROR_FN (__rorll, uint64_t)
++
++#undef _GCC_ARM_ACLE_ROR_FN
++
++#define _GCC_ARM_ACLE_DATA_FN(NAME, BUILTIN, ITYPE, RTYPE)	    \
++__extension__ extern __inline RTYPE				    \
++__attribute__ ((__always_inline__, __gnu_inline__, __artificial__)) \
++__##NAME (ITYPE __value)					    \
++{								    \
++  return __builtin_##BUILTIN (__value);				    \
++}
++
++_GCC_ARM_ACLE_DATA_FN (clz, clz, uint32_t, unsigned int)
++_GCC_ARM_ACLE_DATA_FN (clzl, clzl, unsigned long, unsigned int)
++_GCC_ARM_ACLE_DATA_FN (clzll, clzll, uint64_t, unsigned int)
++_GCC_ARM_ACLE_DATA_FN (cls, clrsb, uint32_t, unsigned int)
++_GCC_ARM_ACLE_DATA_FN (clsl, clrsbl, unsigned long, unsigned int)
++_GCC_ARM_ACLE_DATA_FN (clsll, clrsbll, uint64_t, unsigned int)
++_GCC_ARM_ACLE_DATA_FN (rev16, aarch64_rev16, uint32_t, uint32_t)
++_GCC_ARM_ACLE_DATA_FN (rev16l, aarch64_rev16l, unsigned long, unsigned long)
++_GCC_ARM_ACLE_DATA_FN (rev16ll, aarch64_rev16ll, uint64_t, uint64_t)
++_GCC_ARM_ACLE_DATA_FN (rbit, aarch64_rbit, uint32_t, uint32_t)
++_GCC_ARM_ACLE_DATA_FN (rbitl, aarch64_rbitl, unsigned long, unsigned long)
++_GCC_ARM_ACLE_DATA_FN (rbitll, aarch64_rbitll, uint64_t, uint64_t)
++_GCC_ARM_ACLE_DATA_FN (revsh, bswap16, int16_t, int16_t)
++_GCC_ARM_ACLE_DATA_FN (rev, bswap32, uint32_t, uint32_t)
++_GCC_ARM_ACLE_DATA_FN (revll, bswap64, uint64_t, uint64_t)
++
++#undef _GCC_ARM_ACLE_DATA_FN
++
++__extension__ extern __inline unsigned long
++__attribute__ ((__always_inline__, __gnu_inline__, __artificial__))
++__revl (unsigned long __value)
++{
++  if (sizeof (unsigned long) == 8)
++    return __revll (__value);
++  else
++    return __rev (__value);
++}
++
+ #pragma GCC push_options
+ #pragma GCC target ("arch=armv8.3-a")
+ __extension__ static __inline int32_t __attribute__ ((__always_inline__))
 diff --git a/gcc/config/alpha/alpha-protos.h b/gcc/config/alpha/alpha-protos.h
 index b2fa3d2fc11..13faf53fb05 100644
 --- a/gcc/config/alpha/alpha-protos.h
@@ -10552,10 +10814,17 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..8f5e9db1530 100644
+index 5fc23605244..1bbd5b56568 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,965 @@
+@@ -1,3 +1,972 @@
++2022-10-14  Andre Vieira  <andre.simoesdiasvieira@arm.com>
++
++	Backported from master:
++	2022-07-25  Andre Vieira  <andre.simoesdiasvieira@arm.com>
++
++	* gcc.target/aarch64/acle/data-intrinsics.c: New test.
++
 +2022-10-11  Richard Biener  <rguenther@suse.de>
 +
 +	Backported from master:
@@ -13870,6 +14139,480 @@ index dca9a4db6f6..3c60eff7072 100644
  	"" $DEFAULT_VECTCFLAGS
  
  # -ffast-math SLP tests
+diff --git a/gcc/testsuite/gcc.target/aarch64/acle/data-intrinsics.c b/gcc/testsuite/gcc.target/aarch64/acle/data-intrinsics.c
+new file mode 100644
+index 00000000000..e067ef20bbd
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/aarch64/acle/data-intrinsics.c
+@@ -0,0 +1,468 @@
++/* Test the ACLE data intrinsics.  */
++/* { dg-do assemble } */
++/* { dg-additional-options "--save-temps -O1" } */
++/* { dg-final { check-function-bodies "**" "" "" } } */
++
++#include "arm_acle.h"
++
++/*
++** test_clz:
++**	clz	w0, w0
++**	ret
++*/
++
++unsigned int test_clz (uint32_t a)
++{
++  return __clz (a);
++}
++
++/*
++** test_clzl:
++**	clz	[wx]0, [wx]0
++**	ret
++*/
++
++unsigned int test_clzl (unsigned long a)
++{
++  return __clzl (a);
++}
++
++/*
++** test_clzll:
++**	clz	x0, x0
++**	ret
++*/
++
++unsigned int test_clzll (uint64_t a)
++{
++  return __clzll (a);
++}
++
++/*
++** test_cls:
++**	cls	w0, w0
++**	ret
++*/
++
++unsigned int test_cls (uint32_t a)
++{
++  return __cls (a);
++}
++
++/*
++** test_clsl:
++**	cls	[wx]0, [wx]0
++**	ret
++*/
++
++unsigned int test_clsl (unsigned long a)
++{
++  return __clsl (a);
++}
++
++/*
++** test_clsll:
++**	cls	x0, x0
++**	ret
++*/
++
++unsigned int test_clsll (uint64_t a)
++{
++  return __clsll (a);
++}
++
++/*
++** test_rbit:
++**	rbit	w0, w0
++**	ret
++*/
++
++uint32_t test_rbit (uint32_t a)
++{
++  return __rbit (a);
++}
++
++/*
++** test_rbitl:
++**	rbit	[wx]0, [wx]0
++**	ret
++*/
++
++unsigned long test_rbitl (unsigned long a)
++{
++  return __rbitl (a);
++}
++
++/*
++** test_rbitll:
++**	rbit	x0, x0
++**	ret
++*/
++
++uint64_t test_rbitll (uint64_t a)
++{
++  return __rbitll (a);
++}
++
++/*
++** test_rev:
++**	rev	w0, w0
++**	ret
++*/
++
++uint32_t test_rev (uint32_t a)
++{
++  return __rev (a);
++}
++
++/*
++** test_revl:
++**	rev	[wx]0, [wx]0
++**	ret
++*/
++
++unsigned long test_revl (unsigned long a)
++{
++  return __revl (a);
++}
++
++/*
++** test_revll:
++**	rev	x0, x0
++**	ret
++*/
++
++uint64_t test_revll (uint64_t a)
++{
++  return __revll (a);
++}
++
++/*
++** test_rev16:
++**	rev16	w0, w0
++**	ret
++*/
++
++uint32_t test_rev16 (uint32_t a)
++{
++  return __rev16 (a);
++}
++
++/*
++** test_rev16l:
++**	rev16	[wx]0, [wx]0
++**	ret
++*/
++
++unsigned long test_rev16l (unsigned long a)
++{
++  return __rev16l (a);
++}
++
++/*
++** test_rev16ll:
++**	rev16	x0, x0
++**	ret
++*/
++
++uint64_t test_rev16ll (uint64_t a)
++{
++  return __rev16ll (a);
++}
++
++/*
++** test_ror:
++**	ror	w0, w0, w1
++**	ret
++*/
++
++uint32_t test_ror (uint32_t a, uint32_t r)
++{
++  return __ror (a, r);
++}
++
++/*
++** test_rorl:
++**	ror	[wx]0, [wx]0, [wx]1
++**	ret
++*/
++
++unsigned long test_rorl (unsigned long a, uint32_t r)
++{
++  return __rorl (a, r);
++}
++
++/*
++** test_rorll:
++**	ror	x0, x0, x1
++**	ret
++*/
++
++uint64_t test_rorll (uint64_t a, uint32_t r)
++{
++  return __rorll (a, r);
++}
++
++/*
++** test_revsh:
++**	rev16	w0, w0
++**	ret
++*/
++
++int16_t test_revsh (int16_t a)
++{
++  return __revsh (a);
++}
++
++uint32_t *g32;
++unsigned long *gul;
++uint64_t *g64;
++unsigned int *gui;
++int16_t *g16;
++
++/*
++** test_clz_mem:
++**	...
++**	clz	w[0-9]+, w[0-9]+
++**	...
++**	ret
++*/
++
++void test_clz_mem (uint32_t *a)
++{
++  *gui = __clz (*a);
++}
++
++/*
++** test_clzl_mem:
++**	...
++**	clz	[wx][0-9]+, [wx][0-9]+
++**	...
++**	ret
++*/
++
++void test_clzl_mem (unsigned long *a)
++{
++  *gui = __clzl (*a);
++}
++
++/*
++** test_clzll_mem:
++**	...
++**	clz	x[0-9]+, x[0-9]+
++**	...
++**	ret
++*/
++
++void test_clzll_mem (uint64_t *a)
++{
++  *gui = __clzll (*a);
++}
++
++/*
++** test_cls_mem:
++**	...
++**	cls	w[0-9]+, w[0-9]+
++**	...
++**	ret
++*/
++
++void test_cls_mem (uint32_t *a)
++{
++  *gui = __cls (*a);
++}
++
++/*
++** test_clsl_mem:
++**	...
++**	cls	[wx][0-9]+, [wx][0-9]+
++**	...
++**	ret
++*/
++
++void test_clsl_mem (unsigned long *a)
++{
++  *gui = __clsl (*a);
++}
++
++/*
++** test_clsll_mem:
++**	...
++**	cls	x[0-9]+, x[0-9]+
++**	...
++**	ret
++*/
++
++void test_clsll_mem (uint64_t *a)
++{
++  *gui = __clsll (*a);
++}
++
++/*
++** test_rbit_mem:
++**	...
++**	rbit	w[0-9]+, w[0-9]+
++**	...
++**	ret
++*/
++
++void test_rbit_mem (uint32_t *a)
++{
++  *g32 = __rbit (*a);
++}
++
++/*
++** test_rbitl_mem:
++**	...
++**	rbit	[wx][0-9]+, [wx][0-9]+
++**	...
++**	ret
++*/
++
++void test_rbitl_mem (unsigned long *a)
++{
++  *gul = __rbitl (*a);
++}
++
++/*
++** test_rbitll_mem:
++**	...
++**	rbit	x[0-9]+, x[0-9]+
++**	...
++**	ret
++*/
++
++void test_rbitll_mem (uint64_t *a)
++{
++  *g64 = __rbitll (*a);
++}
++
++/*
++** test_rev_mem:
++**	...
++**	rev	w[0-9]+, w[0-9]+
++**	...
++**	ret
++*/
++
++void test_rev_mem (uint32_t *a)
++{
++  *g32 = __rev (*a);
++}
++
++/*
++** test_revl_mem:
++**	...
++**	rev	[wx][0-9]+, [wx][0-9]+
++**	...
++**	ret
++*/
++
++void test_revl_mem (unsigned long *a)
++{
++  *gul = __revl (*a);
++}
++
++/*
++** test_revll_mem:
++**	...
++**	rev	x[0-9]+, x[0-9]+
++**	...
++**	ret
++*/
++
++void test_revll_mem (uint64_t *a)
++{
++  *g64 = __revll (*a);
++}
++
++/*
++** test_rev16_mem:
++**	...
++**	rev16	w[0-9]+, w[0-9]+
++**	...
++**	ret
++*/
++
++void test_rev16_mem (uint32_t *a)
++{
++  *g32 = __rev16 (*a);
++}
++
++/*
++** test_rev16l_mem:
++**	...
++**	rev16	[wx][0-9]+, [wx][0-9]+
++**	...
++**	ret
++*/
++
++void test_rev16l_mem (unsigned long *a)
++{
++  *gul = __rev16l (*a);
++}
++
++/*
++** test_rev16ll_mem:
++**	...
++**	rev16	x[0-9]+, x[0-9]+
++**	...
++**	ret
++*/
++
++void test_rev16ll_mem (uint64_t *a)
++{
++  *g64 = __rev16ll (*a);
++}
++
++/*
++** test_ror_mem:
++**	...
++**	ror	w[0-9]+, w[0-9]+, w[0-9]+
++**	...
++**	ret
++*/
++
++void test_ror_mem (uint32_t *a, uint32_t *r)
++{
++  *g32 = __ror (*a, *r);
++}
++
++/*
++** test_rorl_mem:
++**	...
++**	ror	[wx][0-9]+, [wx][0-9]+, [wx][0-9]+
++**	...
++**	ret
++*/
++
++void test_rorl_mem (unsigned long *a, uint32_t *r)
++{
++  *gul = __rorl (*a, *r);
++}
++
++/*
++** test_rorll_mem:
++**	...
++**	ror	x[0-9]+, x[0-9]+, x[0-9]+
++**	...
++**	ret
++*/
++
++void test_rorll_mem (uint64_t *a, uint32_t *r)
++{
++  *g64 = __rorll (*a, *r);
++}
++
++/*
++** test_revsh_mem:
++**	...
++**	rev16	w[0-9]+, w[0-9]+
++**	...
++**	ret
++*/
++
++void test_revsh_mem (int16_t *a)
++{
++  *g16 = __revsh (*a);
++}
 diff --git a/gcc/testsuite/gcc.target/aarch64/sync-comp-swap-ool.c b/gcc/testsuite/gcc.target/aarch64/sync-comp-swap-ool.c
 new file mode 100644
 index 00000000000..372f4aa8746
