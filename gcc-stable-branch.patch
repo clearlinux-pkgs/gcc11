@@ -417,6 +417,9 @@ Mikael Morin (3):
       fortran: Fix invalid function decl clobber ICE [PR105012]
       fortran: Move clobbers after evaluation of all arguments [PR106817]
 
+Pat Haugen (1):
+      Fix register count when not splitting Complex IEEE 128-bit args.
+
 Patrick Palka (6):
       c++: partial ordering with dependent NTTP type [PR105289]
       c++: ICE with requires-expr and -Wsequence-point [PR105304]
@@ -5890,10 +5893,23 @@ index eab712fdfa6..4d7e14f312a 100644
  
  extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
 diff --git a/gcc/config/rs6000/rs6000-call.c b/gcc/config/rs6000/rs6000-call.c
-index ef20cb30388..e58b149d022 100644
+index ef20cb30388..1be4797e834 100644
 --- a/gcc/config/rs6000/rs6000-call.c
 +++ b/gcc/config/rs6000/rs6000-call.c
-@@ -11877,7 +11877,12 @@ rs6000_gimple_fold_mma_builtin (gimple_stmt_iterator *gsi)
+@@ -7190,6 +7190,12 @@ rs6000_function_arg_advance_1 (CUMULATIVE_ARGS *cum, machine_mode mode,
+ 	{
+ 	  cum->vregno += n_elts;
+ 
++	  /* If we are not splitting Complex IEEE128 args then account for the
++	     fact that they are passed in 2 VSX regs. */
++	  if (!targetm.calls.split_complex_arg && type
++	      && TREE_CODE (type) == COMPLEX_TYPE && elt_mode == KCmode)
++	    cum->vregno++;
++
+ 	  if (!TARGET_ALTIVEC)
+ 	    error ("cannot pass argument in vector register because"
+ 		   " altivec instructions are disabled, use %qs"
+@@ -11877,7 +11883,12 @@ rs6000_gimple_fold_mma_builtin (gimple_stmt_iterator *gsi)
        unsigned nvec = (fncode == MMA_BUILTIN_DISASSEMBLE_ACC) ? 4 : 2;
        tree dst_ptr = gimple_call_arg (stmt, 0);
        tree src_ptr = gimple_call_arg (stmt, 1);
