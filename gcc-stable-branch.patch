@@ -20,7 +20,9 @@ Eric Botcazou (2):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (176):
+GCC Administrator (178):
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -442,7 +444,7 @@ Qing Zhao (1):
 Rainer Orth (1):
       libstdc++: Fix 28_regex/basic_regex/84110.cc on Solaris
 
-Richard Biener (23):
+Richard Biener (26):
       Update BASE-VER to 11.3.1
       ipa/105598 - testcase for PR105598
       middle-end/105140 - fix bogus recursion in fold_convertible_p
@@ -466,6 +468,9 @@ Richard Biener (23):
       middle-end/106331 - fix mem attributes for string op arguments
       tree-optimization/106513 - fix mistake in bswap symbolic number shifts
       lto/106540 - fix LTO tree input wrt dwarf2out_register_external_die
+      tree-optimization/106189 - avoid division by zero exception
+      tree-optimization/106892 - avoid invalid pointer association in predcom
+      tree-optimization/106934 - avoid BIT_FIELD_REF of bitfields
 
 Richard Earnshaw (3):
       arm: big-endian issue in gen_cpymem_ldrd_strd [PR105981]
@@ -10266,6 +10271,19 @@ index 0af888c7d78..6b208f4680f 100644
        validated = true;
        break;
  
+diff --git a/gcc/gimple-array-bounds.cc b/gcc/gimple-array-bounds.cc
+index b1179518651..8bcc0077b8c 100644
+--- a/gcc/gimple-array-bounds.cc
++++ b/gcc/gimple-array-bounds.cc
+@@ -783,7 +783,7 @@ array_bounds_checker::check_mem_ref (location_t location, tree ref,
+   int i = 0;
+   if (extrema[i] < -arrbounds[1] || extrema[i = 1] > ubound)
+     {
+-      HOST_WIDE_INT tmpidx = extrema[i].to_shwi () / eltsize.to_shwi ();
++      HOST_WIDE_INT tmpidx = (extrema[i] / eltsize).to_shwi ();
+ 
+       if (warning_at (location, OPT_Warray_bounds,
+ 		      "intermediate array offset %wi is outside array bounds "
 diff --git a/gcc/gimple-isel.cc b/gcc/gimple-isel.cc
 index 2c78a08d3f1..3690782eca4 100644
 --- a/gcc/gimple-isel.cc
@@ -13493,6 +13511,17 @@ index 00000000000..735205fb252
 +{
 +  return x <= (((y != y) < 0) ? y < 1 : 0);
 +}
+diff --git a/gcc/testsuite/gcc.dg/pr106189.c b/gcc/testsuite/gcc.dg/pr106189.c
+new file mode 100644
+index 00000000000..0eca8343c56
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/pr106189.c
+@@ -0,0 +1,5 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -Warray-bounds=2 -w" } */
++
++int a_n_0_0_a[][0];
++void a_n_0_0() { T(((char *)a_n_0_0_a)[1]); }
 diff --git a/gcc/testsuite/gcc.dg/pragma-message.c b/gcc/testsuite/gcc.dg/pragma-message.c
 index 2f44b617710..1b7cf09de0a 100644
 --- a/gcc/testsuite/gcc.dg/pragma-message.c
@@ -13652,6 +13681,42 @@ index 00000000000..aa4f4d513d7
 +    __builtin_abort ();
 +
 +  return 0;
++}
+diff --git a/gcc/testsuite/gcc.dg/torture/pr106892.c b/gcc/testsuite/gcc.dg/torture/pr106892.c
+new file mode 100644
+index 00000000000..73a66a037b7
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/torture/pr106892.c
+@@ -0,0 +1,30 @@
++/* { dg-do run } */
++
++int a, b, c, d, e;
++int f[8];
++static int g() {
++  while (a)
++    a >>= 4;
++  return 0;
++}
++static int h(int i) {
++  if (i >= '0')
++    return i - '0';
++  //__builtin_unreachable ();
++}
++void __attribute__((noipa)) j(int i) {
++  for (b = 2; g() <= 7; b++)
++    if (i) {
++      for (; e <= 7; e++)
++        for (c = 1; c <= 7; c++) {
++          d = h(b + '0');
++          f[-d + 4] ^= 3;
++        }
++      return;
++    }
++}
++int main() {
++  j(1);
++  if (f[2] != 0)
++    __builtin_abort ();
 +}
 diff --git a/gcc/testsuite/gcc.dg/tree-ssa/alias-access-path-13.c b/gcc/testsuite/gcc.dg/tree-ssa/alias-access-path-13.c
 new file mode 100644
@@ -16514,6 +16579,19 @@ index 00000000000..4b0f86a75a6
 +  type(t), parameter :: b(4) = reshape(a, [2])                          ! { dg-error "Different shape" }
 +  type(t), parameter :: c(2) = pack(b, [.false.,.true.,.false.,.true.]) ! { dg-error "Different shape" }
 +end
+diff --git a/gcc/testsuite/gfortran.dg/pr106934.f90 b/gcc/testsuite/gfortran.dg/pr106934.f90
+new file mode 100644
+index 00000000000..ac58a3e82e3
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/pr106934.f90
+@@ -0,0 +1,7 @@
++! { dg-do compile }
++! { dg-options "-O" }
++subroutine s
++   logical(1) :: a = .true.
++   logical(2) :: b
++   a = transfer(b, a)
++end
 diff --git a/gcc/testsuite/gfortran.dg/pr106985.f90 b/gcc/testsuite/gfortran.dg/pr106985.f90
 new file mode 100644
 index 00000000000..f4ed92577a3
@@ -16783,6 +16861,37 @@ index 857e57218c1..a09606e4497 100644
      }]
  }
  
+diff --git a/gcc/tree-predcom.c b/gcc/tree-predcom.c
+index 0a7c1a936ba..64ab7ad0a80 100644
+--- a/gcc/tree-predcom.c
++++ b/gcc/tree-predcom.c
+@@ -1651,10 +1651,24 @@ ref_at_iteration (data_reference_p dr, int iter,
+ 	  ref = TREE_OPERAND (ref, 0);
+ 	}
+     }
+-  tree addr = fold_build_pointer_plus (DR_BASE_ADDRESS (dr), off);
++  /* We may not associate the constant offset across the pointer plus
++     expression because that might form a pointer to before the object
++     then.  But for some cases we can retain that to allow tree_could_trap_p
++     to return false - see gcc.dg/tree-ssa/predcom-1.c  */
++  tree addr, alias_ptr;
++  if (integer_zerop  (off))
++    {
++      alias_ptr = fold_convert (reference_alias_ptr_type (ref), coff);
++      addr = DR_BASE_ADDRESS (dr);
++    }
++  else
++    {
++      alias_ptr = build_zero_cst (reference_alias_ptr_type (ref));
++      off = size_binop (PLUS_EXPR, off, coff);
++      addr = fold_build_pointer_plus (DR_BASE_ADDRESS (dr), off);
++    }
+   addr = force_gimple_operand_1 (unshare_expr (addr), stmts,
+ 				 is_gimple_mem_ref_addr, NULL_TREE);
+-  tree alias_ptr = fold_convert (reference_alias_ptr_type (ref), coff);
+   tree type = build_aligned_type (TREE_TYPE (ref),
+ 				  get_object_alignment (ref));
+   ref = build2 (MEM_REF, type, addr, alias_ptr);
 diff --git a/gcc/tree-sra.c b/gcc/tree-sra.c
 index 970ad386873..dea9cf3235c 100644
 --- a/gcc/tree-sra.c
@@ -17138,6 +17247,30 @@ index 3c2ed795f85..b3097531203 100644
  		  /* In case the PHI node post-dominates the current insert
  		     location we can disregard it.  But make sure it is not
  		     dominating it as well as can happen in a CFG cycle.  */
+diff --git a/gcc/tree-ssa.c b/gcc/tree-ssa.c
+index 28a7f4f02c9..41959ca03f8 100644
+--- a/gcc/tree-ssa.c
++++ b/gcc/tree-ssa.c
+@@ -1416,6 +1416,8 @@ maybe_rewrite_mem_ref_base (tree *tp, bitmap suitable_for_renaming)
+ 	       && (! INTEGRAL_TYPE_P (TREE_TYPE (*tp)) 
+ 		   || (wi::to_offset (TYPE_SIZE (TREE_TYPE (*tp)))
+ 		       == TYPE_PRECISION (TREE_TYPE (*tp))))
++	       && (! INTEGRAL_TYPE_P (TREE_TYPE (sym))
++		   || type_has_mode_precision_p (TREE_TYPE (sym)))
+ 	       && wi::umod_trunc (wi::to_offset (TYPE_SIZE (TREE_TYPE (*tp))),
+ 				  BITS_PER_UNIT) == 0)
+ 	{
+@@ -1488,6 +1490,10 @@ non_rewritable_mem_ref_base (tree ref)
+ 	  && (! INTEGRAL_TYPE_P (TREE_TYPE (base))
+ 	      || (wi::to_offset (TYPE_SIZE (TREE_TYPE (base)))
+ 		  == TYPE_PRECISION (TREE_TYPE (base))))
++	  /* ???  Likewise for extracts from bitfields, we'd have
++	     to pun the base object to a size precision mode first.  */
++	  && (! INTEGRAL_TYPE_P (TREE_TYPE (decl))
++	      || type_has_mode_precision_p (TREE_TYPE (decl)))
+ 	  && wi::umod_trunc (wi::to_offset (TYPE_SIZE (TREE_TYPE (base))),
+ 			     BITS_PER_UNIT) == 0)
+ 	return NULL_TREE;
 diff --git a/gcc/tree-vect-slp.c b/gcc/tree-vect-slp.c
 index 7289656db0f..a034abf9628 100644
 --- a/gcc/tree-vect-slp.c
