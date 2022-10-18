@@ -20,7 +20,8 @@ Eric Botcazou (2):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (178):
+GCC Administrator (179):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -550,10 +551,45 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..97173966d06 100644
+index a0587d18824..52addc715b7 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,797 @@
+@@ -1,3 +1,832 @@
++2022-10-17  Pat Haugen  <pthaugen@linux.ibm.com>
++
++	PR target/99685
++	* config/rs6000/rs6000-call.c (rs6000_function_arg_advance_1): Bump
++	register count when not splitting IEEE 128-bit Complex.
++
++2022-10-17  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2022-09-14  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/106934
++	* tree-ssa.c (non_rewritable_mem_ref_base): Avoid BIT_FIELD_REFs
++	of bitfields.
++	(maybe_rewrite_mem_ref_base): Likewise.
++
++2022-10-17  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2022-09-09  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/106892
++	* tree-predcom.c (ref_at_iteration): Do not associate the
++	constant part of the offset into the MEM_REF offset
++	operand, across a non-zero offset.
++
++2022-10-17  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2022-07-26  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/106189
++	* gimple-array-bounds.cc (array_bounds_checker::check_mem_ref):
++	Divide using offset_ints.
++
 +2022-10-14  Andre Vieira  <andre.simoesdiasvieira@arm.com>
 +
 +	Backported from master:
@@ -10848,10 +10884,34 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..1bbd5b56568 100644
+index 5fc23605244..148e2f4fcfc 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,972 @@
+@@ -1,3 +1,996 @@
++2022-10-17  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2022-09-14  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/106934
++	* gfortran.dg/pr106934.f90: New testcase.
++
++2022-10-17  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2022-09-09  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/106892
++	* gcc.dg/torture/pr106892.c: New testcase.
++
++2022-10-17  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2022-07-26  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/106189
++	* gcc.dg/pr106189.c: New testcase.
++
 +2022-10-14  Andre Vieira  <andre.simoesdiasvieira@arm.com>
 +
 +	Backported from master:
