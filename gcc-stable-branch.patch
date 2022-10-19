@@ -20,7 +20,8 @@ Eric Botcazou (2):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (179):
+GCC Administrator (180):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -365,10 +366,11 @@ José Rui Faustino de Sousa (4):
       Fortran: Fix function attributes [PR100132]
       Fortran: Fix ICE and wrong code for assumed-rank arrays [PR100029, PR100040]
 
-Kewen Lin (3):
+Kewen Lin (4):
       testsuite: Skip pr105250.c for powerpc and s390 [PR105266]
       rs6000: Preserve REG_EH_REGION when replacing load/store [PR106091]
       rs6000/test: Fix empty TU in some cases of effective targets [PR106345]
+      rs6000: Fix the condition with frame_pointer_needed_indeed [PR96072]
 
 Kewen.Lin (1):
       rs6000: Adjust mov optabs for opaque modes [PR103353]
@@ -5959,6 +5961,19 @@ index ef20cb30388..1be4797e834 100644
        tree src = create_tmp_reg_or_ssa_name (TREE_TYPE (src_type));
        gimplify_assign (src, build_simple_mem_ref (src_ptr), &new_seq);
  
+diff --git a/gcc/config/rs6000/rs6000-logue.c b/gcc/config/rs6000/rs6000-logue.c
+index 9965a8aa691..bdcb37c72f5 100644
+--- a/gcc/config/rs6000/rs6000-logue.c
++++ b/gcc/config/rs6000/rs6000-logue.c
+@@ -4924,7 +4924,7 @@ rs6000_emit_epilogue (enum epilogue_type epilogue_type)
+ 	 a REG_CFA_DEF_CFA note, but that's OK;  A duplicate is
+ 	 discarded by dwarf2cfi.c/dwarf2out.c, and in any case would
+ 	 be harmless if emitted.  */
+-      if (frame_pointer_needed)
++      if (frame_pointer_needed_indeed)
+ 	{
+ 	  insn = get_last_insn ();
+ 	  add_reg_note (insn, REG_CFA_DEF_CFA,
 diff --git a/gcc/config/rs6000/rs6000-p8swap.c b/gcc/config/rs6000/rs6000-p8swap.c
 index 903002a4576..4741d14d99f 100644
 --- a/gcc/config/rs6000/rs6000-p8swap.c
@@ -15686,6 +15701,26 @@ index 00000000000..61ce8cf4733
 +{
 +  b &= v < b;
 +  return (V){foo (b, w)[3], (V){}[3]};
++}
+diff --git a/gcc/testsuite/gcc.target/powerpc/pr96072.c b/gcc/testsuite/gcc.target/powerpc/pr96072.c
+new file mode 100644
+index 00000000000..10341c91d2f
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/powerpc/pr96072.c
+@@ -0,0 +1,14 @@
++/* { dg-options "-O2" } */
++
++/* This used to ICE with the SYSV ABI (PR96072).  */
++
++void
++he (int jn)
++{
++  {
++    int bh[jn];
++    if (jn != 0)
++      goto wa;
++  }
++wa:;
 +}
 diff --git a/gcc/testsuite/gcc.target/powerpc/test_mffsl.c b/gcc/testsuite/gcc.target/powerpc/test_mffsl.c
 index 41377efba1a..045d0bfa349 100644
