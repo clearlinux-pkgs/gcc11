@@ -484,9 +484,12 @@ Richard Earnshaw (3):
       arm: correctly handle misaligned MEMs on MVE [PR105463]
       cselib: add function to check if SET is redundant [PR106187]
 
-Richard Sandiford (2):
+Richard Sandiford (5):
       rtl-ssa: Fix prev/next_def confusion [PR104869]
       aarch64: Fix GTY markup for arm_sve.h [PR106491]
+      aarch64: Define __ARM_FEATURE_RCPC
+      aarch64: Fix matching of BRKNS
+      aarch64: Prevent generation of /M BRKAS and BRKBS
 
 Sebastian Huber (2):
       RTEMS: Do not define _GNU_SOURCE by default
@@ -1887,11 +1890,42 @@ index acdea2a0601..f9a8c0aa6a0 100644
    gcc_unreachable ();
  }
  
+diff --git a/gcc/config/aarch64/aarch64-c.c b/gcc/config/aarch64/aarch64-c.c
+index 8eeef588559..05869463e4b 100644
+--- a/gcc/config/aarch64/aarch64-c.c
++++ b/gcc/config/aarch64/aarch64-c.c
+@@ -200,6 +200,7 @@ aarch64_update_cpp_builtins (cpp_reader *pfile)
+ 			"__ARM_FEATURE_BF16_VECTOR_ARITHMETIC", pfile);
+   aarch64_def_or_undef (TARGET_BF16_FP,
+ 			"__ARM_FEATURE_BF16_SCALAR_ARITHMETIC", pfile);
++  aarch64_def_or_undef (AARCH64_ISA_RCPC, "__ARM_FEATURE_RCPC", pfile);
+ 
+   /* Not for ACLE, but required to keep "float.h" correct if we switch
+      target between implementations that do or do not support ARMv8.2-A
 diff --git a/gcc/config/aarch64/aarch64-cores.def b/gcc/config/aarch64/aarch64-cores.def
-index 4643e0e2795..911cd1be449 100644
+index 4643e0e2795..306cedffbd2 100644
 --- a/gcc/config/aarch64/aarch64-cores.def
 +++ b/gcc/config/aarch64/aarch64-cores.def
-@@ -147,6 +147,7 @@ AARCH64_CORE("saphira",     saphira,    saphira,    8_4A,  AARCH64_FL_FOR_ARCH8_
+@@ -133,20 +133,21 @@ AARCH64_CORE("tsv110",  tsv110, tsv110, 8_2A,  AARCH64_FL_FOR_ARCH8_2 | AARCH64_
+ /* ARMv8.3-A Architecture Processors.  */
+ 
+ /* Marvell cores (TX3). */
+-AARCH64_CORE("thunderx3t110",  thunderx3t110,  thunderx3t110, 8_3A,  AARCH64_FL_FOR_ARCH8_3 | AARCH64_FL_CRYPTO | AARCH64_FL_RCPC | AARCH64_FL_SM4 | AARCH64_FL_SHA3 | AARCH64_FL_F16FML | AARCH64_FL_RCPC8_4, thunderx3t110, 0x43, 0x0b8, 0x0a)
++AARCH64_CORE("thunderx3t110",  thunderx3t110,  thunderx3t110, 8_3A,  AARCH64_FL_FOR_ARCH8_3 | AARCH64_FL_CRYPTO | AARCH64_FL_SM4 | AARCH64_FL_SHA3 | AARCH64_FL_F16FML | AARCH64_FL_RCPC8_4, thunderx3t110, 0x43, 0x0b8, 0x0a)
+ 
+ /* ARMv8.4-A Architecture Processors.  */
+ 
+ /* Arm ('A') cores.  */
+-AARCH64_CORE("zeus", zeus, cortexa57, 8_4A,  AARCH64_FL_FOR_ARCH8_4 | AARCH64_FL_SVE | AARCH64_FL_RCPC | AARCH64_FL_I8MM | AARCH64_FL_BF16 | AARCH64_FL_F16 | AARCH64_FL_PROFILE | AARCH64_FL_SSBS | AARCH64_FL_RNG, neoversev1, 0x41, 0xd40, -1)
+-AARCH64_CORE("neoverse-v1", neoversev1, cortexa57, 8_4A,  AARCH64_FL_FOR_ARCH8_4 | AARCH64_FL_SVE | AARCH64_FL_RCPC | AARCH64_FL_I8MM | AARCH64_FL_BF16 | AARCH64_FL_F16 | AARCH64_FL_PROFILE | AARCH64_FL_SSBS | AARCH64_FL_RNG, neoversev1, 0x41, 0xd40, -1)
+-AARCH64_CORE("neoverse-512tvb", neoverse512tvb, cortexa57, 8_4A,  AARCH64_FL_FOR_ARCH8_4 | AARCH64_FL_SVE | AARCH64_FL_RCPC | AARCH64_FL_I8MM | AARCH64_FL_BF16 | AARCH64_FL_F16 | AARCH64_FL_PROFILE | AARCH64_FL_SSBS | AARCH64_FL_RNG, neoverse512tvb, INVALID_IMP, INVALID_CORE, -1)
++AARCH64_CORE("zeus", zeus, cortexa57, 8_4A,  AARCH64_FL_FOR_ARCH8_4 | AARCH64_FL_SVE | AARCH64_FL_I8MM | AARCH64_FL_BF16 | AARCH64_FL_F16 | AARCH64_FL_PROFILE | AARCH64_FL_SSBS | AARCH64_FL_RNG, neoversev1, 0x41, 0xd40, -1)
++AARCH64_CORE("neoverse-v1", neoversev1, cortexa57, 8_4A,  AARCH64_FL_FOR_ARCH8_4 | AARCH64_FL_SVE | AARCH64_FL_I8MM | AARCH64_FL_BF16 | AARCH64_FL_F16 | AARCH64_FL_PROFILE | AARCH64_FL_SSBS | AARCH64_FL_RNG, neoversev1, 0x41, 0xd40, -1)
++AARCH64_CORE("neoverse-512tvb", neoverse512tvb, cortexa57, 8_4A,  AARCH64_FL_FOR_ARCH8_4 | AARCH64_FL_SVE | AARCH64_FL_I8MM | AARCH64_FL_BF16 | AARCH64_FL_F16 | AARCH64_FL_PROFILE | AARCH64_FL_SSBS | AARCH64_FL_RNG, neoverse512tvb, INVALID_IMP, INVALID_CORE, -1)
+ 
+ /* Qualcomm ('Q') cores. */
+-AARCH64_CORE("saphira",     saphira,    saphira,    8_4A,  AARCH64_FL_FOR_ARCH8_4 | AARCH64_FL_CRYPTO | AARCH64_FL_RCPC, saphira,   0x51, 0xC01, -1)
++AARCH64_CORE("saphira",     saphira,    saphira,    8_4A,  AARCH64_FL_FOR_ARCH8_4 | AARCH64_FL_CRYPTO, saphira,   0x51, 0xC01, -1)
  
  /* Armv8.5-A Architecture Processors.  */
  AARCH64_CORE("neoverse-n2", neoversen2, cortexa57, 8_5A, AARCH64_FL_FOR_ARCH8_5 | AARCH64_FL_I8MM | AARCH64_FL_BF16 | AARCH64_FL_F16 | AARCH64_FL_SVE | AARCH64_FL_SVE2 | AARCH64_FL_SVE2_BITPERM | AARCH64_FL_RNG | AARCH64_FL_MEMTAG, neoversen2, 0x41, 0xd49, -1)
@@ -1946,6 +1980,167 @@ index f44f81f1375..fcc458af3d6 100644
  
  /* The list of all registered function decls, indexed by code.  */
  static GTY(()) vec<registered_function *, va_gc> *registered_functions;
+diff --git a/gcc/config/aarch64/aarch64-sve.md b/gcc/config/aarch64/aarch64-sve.md
+index 8eb9ec24909..509b7120a1b 100644
+--- a/gcc/config/aarch64/aarch64-sve.md
++++ b/gcc/config/aarch64/aarch64-sve.md
+@@ -9430,45 +9430,41 @@
+ (define_insn "*aarch64_brk<brk_op>_cc"
+   [(set (reg:CC_NZC CC_REGNUM)
+ 	(unspec:CC_NZC
+-	  [(match_operand:VNx16BI 1 "register_operand" "Upa, Upa")
++	  [(match_operand:VNx16BI 1 "register_operand" "Upa")
+ 	   (match_dup 1)
+ 	   (match_operand:SI 4 "aarch64_sve_ptrue_flag")
+ 	   (unspec:VNx16BI
+ 	     [(match_dup 1)
+-	      (match_operand:VNx16BI 2 "register_operand" "Upa, Upa")
+-	      (match_operand:VNx16BI 3 "aarch64_simd_reg_or_zero" "Dz, 0")]
++	      (match_operand:VNx16BI 2 "register_operand" "Upa")
++	      (match_operand:VNx16BI 3 "aarch64_simd_imm_zero")]
+ 	     SVE_BRK_UNARY)]
+ 	  UNSPEC_PTEST))
+-   (set (match_operand:VNx16BI 0 "register_operand" "=Upa, Upa")
++   (set (match_operand:VNx16BI 0 "register_operand" "=Upa")
+ 	(unspec:VNx16BI
+ 	  [(match_dup 1)
+ 	   (match_dup 2)
+ 	   (match_dup 3)]
+ 	  SVE_BRK_UNARY))]
+   "TARGET_SVE"
+-  "@
+-   brk<brk_op>s\t%0.b, %1/z, %2.b
+-   brk<brk_op>s\t%0.b, %1/m, %2.b"
++  "brk<brk_op>s\t%0.b, %1/z, %2.b"
+ )
+ 
+ ;; Same, but with only the flags result being interesting.
+ (define_insn "*aarch64_brk<brk_op>_ptest"
+   [(set (reg:CC_NZC CC_REGNUM)
+ 	(unspec:CC_NZC
+-	  [(match_operand:VNx16BI 1 "register_operand" "Upa, Upa")
++	  [(match_operand:VNx16BI 1 "register_operand" "Upa")
+ 	   (match_dup 1)
+ 	   (match_operand:SI 4 "aarch64_sve_ptrue_flag")
+ 	   (unspec:VNx16BI
+ 	     [(match_dup 1)
+-	      (match_operand:VNx16BI 2 "register_operand" "Upa, Upa")
+-	      (match_operand:VNx16BI 3 "aarch64_simd_reg_or_zero" "Dz, 0")]
++	      (match_operand:VNx16BI 2 "register_operand" "Upa")
++	      (match_operand:VNx16BI 3 "aarch64_simd_imm_zero")]
+ 	     SVE_BRK_UNARY)]
+ 	  UNSPEC_PTEST))
+-   (clobber (match_scratch:VNx16BI 0 "=Upa, Upa"))]
++   (clobber (match_scratch:VNx16BI 0 "=Upa"))]
+   "TARGET_SVE"
+-  "@
+-   brk<brk_op>s\t%0.b, %1/z, %2.b
+-   brk<brk_op>s\t%0.b, %1/m, %2.b"
++  "brk<brk_op>s\t%0.b, %1/z, %2.b"
+ )
+ 
+ ;; -------------------------------------------------------------------------
+@@ -9495,7 +9491,61 @@
+   "brk<brk_op>\t%0.b, %1/z, %2.b, %<brk_reg_opno>.b"
+ )
+ 
+-;; Same, but also producing a flags result.
++;; BRKN, producing both a predicate and a flags result.  Unlike other
++;; flag-setting instructions, these flags are always set wrt a ptrue.
++(define_insn_and_rewrite "*aarch64_brkn_cc"
++  [(set (reg:CC_NZC CC_REGNUM)
++	(unspec:CC_NZC
++	  [(match_operand:VNx16BI 4)
++	   (match_operand:VNx16BI 5)
++	   (const_int SVE_KNOWN_PTRUE)
++	   (unspec:VNx16BI
++	     [(match_operand:VNx16BI 1 "register_operand" "Upa")
++	      (match_operand:VNx16BI 2 "register_operand" "Upa")
++	      (match_operand:VNx16BI 3 "register_operand" "0")]
++	     UNSPEC_BRKN)]
++	  UNSPEC_PTEST))
++   (set (match_operand:VNx16BI 0 "register_operand" "=Upa")
++	(unspec:VNx16BI
++	  [(match_dup 1)
++	   (match_dup 2)
++	   (match_dup 3)]
++	  UNSPEC_BRKN))]
++  "TARGET_SVE"
++  "brkns\t%0.b, %1/z, %2.b, %0.b"
++  "&& (operands[4] != CONST0_RTX (VNx16BImode)
++       || operands[5] != CONST0_RTX (VNx16BImode))"
++  {
++    operands[4] = CONST0_RTX (VNx16BImode);
++    operands[5] = CONST0_RTX (VNx16BImode);
++  }
++)
++
++;; Same, but with only the flags result being interesting.
++(define_insn_and_rewrite "*aarch64_brkn_ptest"
++  [(set (reg:CC_NZC CC_REGNUM)
++	(unspec:CC_NZC
++	  [(match_operand:VNx16BI 4)
++	   (match_operand:VNx16BI 5)
++	   (const_int SVE_KNOWN_PTRUE)
++	   (unspec:VNx16BI
++	     [(match_operand:VNx16BI 1 "register_operand" "Upa")
++	      (match_operand:VNx16BI 2 "register_operand" "Upa")
++	      (match_operand:VNx16BI 3 "register_operand" "0")]
++	     UNSPEC_BRKN)]
++	  UNSPEC_PTEST))
++   (clobber (match_scratch:VNx16BI 0 "=Upa"))]
++  "TARGET_SVE"
++  "brkns\t%0.b, %1/z, %2.b, %0.b"
++  "&& (operands[4] != CONST0_RTX (VNx16BImode)
++       || operands[5] != CONST0_RTX (VNx16BImode))"
++  {
++    operands[4] = CONST0_RTX (VNx16BImode);
++    operands[5] = CONST0_RTX (VNx16BImode);
++  }
++)
++
++;; BRKPA and BRKPB, producing both a predicate and a flags result.
+ (define_insn "*aarch64_brk<brk_op>_cc"
+   [(set (reg:CC_NZC CC_REGNUM)
+ 	(unspec:CC_NZC
+@@ -9505,17 +9555,17 @@
+ 	   (unspec:VNx16BI
+ 	     [(match_dup 1)
+ 	      (match_operand:VNx16BI 2 "register_operand" "Upa")
+-	      (match_operand:VNx16BI 3 "register_operand" "<brk_reg_con>")]
+-	     SVE_BRK_BINARY)]
++	      (match_operand:VNx16BI 3 "register_operand" "Upa")]
++	     SVE_BRKP)]
+ 	  UNSPEC_PTEST))
+    (set (match_operand:VNx16BI 0 "register_operand" "=Upa")
+ 	(unspec:VNx16BI
+ 	  [(match_dup 1)
+ 	   (match_dup 2)
+ 	   (match_dup 3)]
+-	  SVE_BRK_BINARY))]
++	  SVE_BRKP))]
+   "TARGET_SVE"
+-  "brk<brk_op>s\t%0.b, %1/z, %2.b, %<brk_reg_opno>.b"
++  "brk<brk_op>s\t%0.b, %1/z, %2.b, %3.b"
+ )
+ 
+ ;; Same, but with only the flags result being interesting.
+@@ -9528,12 +9578,12 @@
+ 	   (unspec:VNx16BI
+ 	     [(match_dup 1)
+ 	      (match_operand:VNx16BI 2 "register_operand" "Upa")
+-	      (match_operand:VNx16BI 3 "register_operand" "<brk_reg_con>")]
+-	     SVE_BRK_BINARY)]
++	      (match_operand:VNx16BI 3 "register_operand" "Upa")]
++	     SVE_BRKP)]
+ 	  UNSPEC_PTEST))
+    (clobber (match_scratch:VNx16BI 0 "=Upa"))]
+   "TARGET_SVE"
+-  "brk<brk_op>s\t%0.b, %1/z, %2.b, %<brk_reg_opno>.b"
++  "brk<brk_op>s\t%0.b, %1/z, %2.b, %3.b"
+ )
+ 
+ ;; -------------------------------------------------------------------------
 diff --git a/gcc/config/aarch64/aarch64-tune.md b/gcc/config/aarch64/aarch64-tune.md
 index 2beac8c8353..85fb0fdf064 100644
 --- a/gcc/config/aarch64/aarch64-tune.md
@@ -2000,6 +2195,28 @@ index c155f4883cf..7e6f9d08ea3 100644
  
  #define DEF4(B)  DEF0(B, 1), DEF0(B, 2), DEF0(B, 4), DEF0(B, 8), \
  		 { NULL, NULL, NULL, NULL }
+diff --git a/gcc/config/aarch64/aarch64.h b/gcc/config/aarch64/aarch64.h
+index bfffbcd6abf..bb383acfae8 100644
+--- a/gcc/config/aarch64/aarch64.h
++++ b/gcc/config/aarch64/aarch64.h
+@@ -245,7 +245,8 @@ extern unsigned aarch64_architecture_version;
+ #define AARCH64_FL_FOR_ARCH8_2			\
+   (AARCH64_FL_FOR_ARCH8_1 | AARCH64_FL_V8_2)
+ #define AARCH64_FL_FOR_ARCH8_3			\
+-  (AARCH64_FL_FOR_ARCH8_2 | AARCH64_FL_V8_3 | AARCH64_FL_PAUTH)
++  (AARCH64_FL_FOR_ARCH8_2 | AARCH64_FL_V8_3 | AARCH64_FL_PAUTH \
++   | AARCH64_FL_RCPC)
+ #define AARCH64_FL_FOR_ARCH8_4			\
+   (AARCH64_FL_FOR_ARCH8_3 | AARCH64_FL_V8_4 | AARCH64_FL_F16FML \
+    | AARCH64_FL_DOTPROD | AARCH64_FL_RCPC8_4 | AARCH64_FL_FLAGM)
+@@ -282,6 +283,7 @@ extern unsigned aarch64_architecture_version;
+ #define AARCH64_ISA_SM4	           (aarch64_isa_flags & AARCH64_FL_SM4)
+ #define AARCH64_ISA_SHA3	   (aarch64_isa_flags & AARCH64_FL_SHA3)
+ #define AARCH64_ISA_F16FML	   (aarch64_isa_flags & AARCH64_FL_F16FML)
++#define AARCH64_ISA_RCPC	   (aarch64_isa_flags & AARCH64_FL_RCPC)
+ #define AARCH64_ISA_RCPC8_4	   (aarch64_isa_flags & AARCH64_FL_RCPC8_4)
+ #define AARCH64_ISA_RNG		   (aarch64_isa_flags & AARCH64_FL_RNG)
+ #define AARCH64_ISA_V8_5	   (aarch64_isa_flags & AARCH64_FL_V8_5)
 diff --git a/gcc/config/aarch64/aarch64.md b/gcc/config/aarch64/aarch64.md
 index aef6da9732d..06616c66a80 100644
 --- a/gcc/config/aarch64/aarch64.md
@@ -2114,6 +2331,19 @@ index 73b29f4b8dc..2f419351706 100644
  #pragma GCC push_options
  #pragma GCC target ("arch=armv8.3-a")
  __extension__ static __inline int32_t __attribute__ ((__always_inline__))
+diff --git a/gcc/config/aarch64/iterators.md b/gcc/config/aarch64/iterators.md
+index cac33ae812b..c9ec6265e7c 100644
+--- a/gcc/config/aarch64/iterators.md
++++ b/gcc/config/aarch64/iterators.md
+@@ -2764,6 +2764,8 @@
+ 
+ (define_int_iterator SVE_BRK_UNARY [UNSPEC_BRKA UNSPEC_BRKB])
+ 
++(define_int_iterator SVE_BRKP [UNSPEC_BRKPA UNSPEC_BRKPB])
++
+ (define_int_iterator SVE_BRK_BINARY [UNSPEC_BRKN UNSPEC_BRKPA UNSPEC_BRKPB])
+ 
+ (define_int_iterator SVE_PITER [UNSPEC_PFIRST UNSPEC_PNEXT])
 diff --git a/gcc/config/alpha/alpha-protos.h b/gcc/config/alpha/alpha-protos.h
 index b2fa3d2fc11..13faf53fb05 100644
 --- a/gcc/config/alpha/alpha-protos.h
@@ -14788,6 +15018,105 @@ index 00000000000..e067ef20bbd
 +{
 +  *g16 = __revsh (*a);
 +}
+diff --git a/gcc/testsuite/gcc.target/aarch64/pragma_cpp_predefs_1.c b/gcc/testsuite/gcc.target/aarch64/pragma_cpp_predefs_1.c
+index bfb044f5d14..307fa3d67da 100644
+--- a/gcc/testsuite/gcc.target/aarch64/pragma_cpp_predefs_1.c
++++ b/gcc/testsuite/gcc.target/aarch64/pragma_cpp_predefs_1.c
+@@ -248,6 +248,26 @@
+ #error "__ARM_FEATURE_CRC32 is not defined but should be!"
+ #endif
+ 
++#pragma GCC target ("arch=armv8.2-a")
++#ifdef __ARM_FEATURE_RCPC
++#error "__ARM_FEATURE_RCPC is defined but should not be!"
++#endif
++
++#pragma GCC target ("arch=armv8.2-a+rcpc")
++#ifndef __ARM_FEATURE_RCPC
++#error "__ARM_FEATURE_RCPC is not defined but should be!"
++#endif
++
++#pragma GCC target ("+norcpc")
++#ifdef __ARM_FEATURE_RCPC
++#error "__ARM_FEATURE_RCPC is defined but should not be!"
++#endif
++
++#pragma GCC target ("arch=armv8.3-a")
++#ifndef __ARM_FEATURE_RCPC
++#error "__ARM_FEATURE_RCPC is not defined but should be!"
++#endif
++
+ int
+ foo (int a)
+ {
+diff --git a/gcc/testsuite/gcc.target/aarch64/sve/acle/general/brka_1.c b/gcc/testsuite/gcc.target/aarch64/sve/acle/general/brka_1.c
+index 24aa8f317c4..6146ef82849 100644
+--- a/gcc/testsuite/gcc.target/aarch64/sve/acle/general/brka_1.c
++++ b/gcc/testsuite/gcc.target/aarch64/sve/acle/general/brka_1.c
+@@ -18,5 +18,6 @@ test2 (svbool_t pg, svbool_t x, svbool_t y, int *any)
+   return svptest_any (pg, res);
+ }
+ 
+-/* { dg-final { scan-assembler-times {\tbrkas\tp[0-9]+\.b, p[0-9]+/m,} 2 } } */
+-/* { dg-final { scan-assembler-not {\tbrka\t} } } */
++/* { dg-final { scan-assembler-times {\tbrka\t} 2 } } */
++/* { dg-final { scan-assembler-times {\tptest\t} 2 } } */
++/* { dg-final { scan-assembler-not {\tbrkas\t} } } */
+diff --git a/gcc/testsuite/gcc.target/aarch64/sve/acle/general/brkb_1.c b/gcc/testsuite/gcc.target/aarch64/sve/acle/general/brkb_1.c
+index 07e3622ed6a..7f1c75837de 100644
+--- a/gcc/testsuite/gcc.target/aarch64/sve/acle/general/brkb_1.c
++++ b/gcc/testsuite/gcc.target/aarch64/sve/acle/general/brkb_1.c
+@@ -18,5 +18,6 @@ test2 (svbool_t pg, svbool_t x, svbool_t y, int *any)
+   return svptest_any (pg, res);
+ }
+ 
+-/* { dg-final { scan-assembler-times {\tbrkbs\tp[0-9]+\.b, p[0-9]+/m,} 2 } } */
+-/* { dg-final { scan-assembler-not {\tbrkb\t} } } */
++/* { dg-final { scan-assembler-times {\tbrkb\t} 2 } } */
++/* { dg-final { scan-assembler-times {\tptest\t} 2 } } */
++/* { dg-final { scan-assembler-not {\tbrkbs\t} } } */
+diff --git a/gcc/testsuite/gcc.target/aarch64/sve/acle/general/brkn_1.c b/gcc/testsuite/gcc.target/aarch64/sve/acle/general/brkn_1.c
+index 7fd9318c13f..c548810f169 100644
+--- a/gcc/testsuite/gcc.target/aarch64/sve/acle/general/brkn_1.c
++++ b/gcc/testsuite/gcc.target/aarch64/sve/acle/general/brkn_1.c
+@@ -18,5 +18,6 @@ test2 (svbool_t pg, svbool_t x, svbool_t y, int *any)
+   return svptest_any (pg, res);
+ }
+ 
+-/* { dg-final { scan-assembler-times {\tbrkns\t} 2 } } */
+-/* { dg-final { scan-assembler-not {\tbrkn\t} } } */
++/* { dg-final { scan-assembler-times {\tbrkn\t} 2 } } */
++/* { dg-final { scan-assembler-times {\tptest\t} 2 } } */
++/* { dg-final { scan-assembler-not {\tbrkns\t} } } */
+diff --git a/gcc/testsuite/gcc.target/aarch64/sve/acle/general/brkn_2.c b/gcc/testsuite/gcc.target/aarch64/sve/acle/general/brkn_2.c
+new file mode 100644
+index 00000000000..74b6927410a
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/aarch64/sve/acle/general/brkn_2.c
+@@ -0,0 +1,23 @@
++/* { dg-do compile } */
++/* { dg-options "-O2" } */
++
++#include <arm_sve.h>
++
++void
++test1 (svbool_t pg, svbool_t x, svbool_t y, int *any, svbool_t *ptr)
++{
++  svbool_t res = svbrkn_z (pg, x, y);
++  *any = svptest_any (svptrue_b8 (), res);
++  *ptr = res;
++}
++
++int
++test2 (svbool_t pg, svbool_t x, svbool_t y, int *any)
++{
++  svbool_t res = svbrkn_z (pg, x, y);
++  return svptest_any (svptrue_b8 (), res);
++}
++
++/* { dg-final { scan-assembler-times {\tbrkns\t} 2 } } */
++/* { dg-final { scan-assembler-not {\tbrkn\t} } } */
++/* { dg-final { scan-assembler-not {\tptest\t} } } */
 diff --git a/gcc/testsuite/gcc.target/aarch64/sync-comp-swap-ool.c b/gcc/testsuite/gcc.target/aarch64/sync-comp-swap-ool.c
 new file mode 100644
 index 00000000000..372f4aa8746
