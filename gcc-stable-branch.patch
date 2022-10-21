@@ -20,7 +20,8 @@ Eric Botcazou (2):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (181):
+GCC Administrator (182):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -557,10 +558,40 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..3bd1f9c8f2a 100644
+index a0587d18824..a036ead0833 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,842 @@
+@@ -1,3 +1,872 @@
++2022-10-20  Richard Sandiford  <richard.sandiford@arm.com>
++
++	Backported from master:
++	2022-10-20  Richard Sandiford  <richard.sandiford@arm.com>
++
++	* config/aarch64/aarch64-sve.md (*aarch64_brk<brk_op>_cc): Remove
++	merging alternative.
++	(*aarch64_brk<brk_op>_ptest): Likewise.
++
++2022-10-20  Richard Sandiford  <richard.sandiford@arm.com>
++
++	Backported from master:
++	2022-10-20  Richard Sandiford  <richard.sandiford@arm.com>
++
++	* config/aarch64/iterators.md (SVE_BRKP): New iterator.
++	* config/aarch64/aarch64-sve.md (*aarch64_brkn_cc): New pattern.
++	(*aarch64_brkn_ptest): Likewise.
++	(*aarch64_brk<brk_op>_cc): Restrict to SVE_BRKP.
++	(*aarch64_brk<brk_op>_ptest): Likewise.
++
++2022-10-20  Richard Sandiford  <richard.sandiford@arm.com>
++
++	* config/aarch64/aarch64.h (AARCH64_FL_FOR_ARCH8_3): Add
++	AARCH64_FL_RCPC.
++	(AARCH64_ISA_RCPC): New macro.
++	* config/aarch64/aarch64-cores.def (thunderx3t110, zeus, neoverse-v1)
++	(neoverse-512tvb, saphira): Remove RCPC from these Armv8.3-A+ cores.
++	* config/aarch64/aarch64-c.c (aarch64_update_cpp_builtins): Define
++	__ARM_FEATURE_RCPC when appropriate.
++
 +2022-10-19  Kewen Lin  <linkw@linux.ibm.com>
 +
 +	Backported from master:
@@ -11140,10 +11171,32 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..a38e9279450 100644
+index 5fc23605244..9bc97c1d891 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1004 @@
+@@ -1,3 +1,1026 @@
++2022-10-20  Richard Sandiford  <richard.sandiford@arm.com>
++
++	Backported from master:
++	2022-10-20  Richard Sandiford  <richard.sandiford@arm.com>
++
++	* gcc.target/aarch64/sve/acle/general/brka_1.c: Expect a separate
++	PTEST instruction.
++	* gcc.target/aarch64/sve/acle/general/brkb_1.c: Likewise.
++
++2022-10-20  Richard Sandiford  <richard.sandiford@arm.com>
++
++	Backported from master:
++	2022-10-20  Richard Sandiford  <richard.sandiford@arm.com>
++
++	* gcc.target/aarch64/sve/acle/general/brkn_1.c: Expect separate
++	PTEST instructions.
++	* gcc.target/aarch64/sve/acle/general/brkn_2.c: New test.
++
++2022-10-20  Richard Sandiford  <richard.sandiford@arm.com>
++
++	* gcc.target/aarch64/pragma_cpp_predefs_1.c: Add RCPC tests.
++
 +2022-10-19  Kewen Lin  <linkw@linux.ibm.com>
 +
 +	Backported from master:
