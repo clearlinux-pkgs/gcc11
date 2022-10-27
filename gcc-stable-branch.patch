@@ -20,7 +20,10 @@ Eric Botcazou (2):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (185):
+GCC Administrator (188):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -407,9 +410,11 @@ Martin Jambor (2):
       ipa: Release body of clone_of when removing its last clone (PR 100413)
       tree-sra: Fix union handling in build_reconstructed_reference
 
-Martin Liska (2):
+Martin Liska (4):
       ipa-icf: skip variables with body_removed
       libsanitizer: cherry-pick 9cf13067cb5088626ba7 from upstream
+      x86: fix VENDOR_MAX enum value
+      i386: fix pedantic warning
 
 Matthias Kretz (1):
       c++: don't ICE on NAMESPACE_DECL inside FUNCTION_DECL
@@ -450,6 +455,10 @@ Peter Bergner (5):
       c: Handle initializations of opaque types [PR106016]
       rs6000: Allow conversions of MMA pointer types [PR106017]
       rs6000: Don't ICE when we disassemble an MMA variable [PR101322]
+
+Philipp Tomsich (2):
+      aarch64: fix off-by-one in reading cpuinfo
+      aarch64: update Ampere-1 core definition
 
 Qing Zhao (1):
       i386: Adjust -fzero-call-used-regs to always use XOR [PR101891]
@@ -520,6 +529,9 @@ Sergei Trofimovich (2):
 Simon Cook (1):
       RISC-V: Don't unconditionally add m,a,f,d in arch-canonicalize
 
+Stefan Schulze Frielinghaus (1):
+      IBM zSystems: Fix function_ok_for_sibcall [PR106355]
+
 Steve Kargl (1):
       Fortran: do not generate conflicting results under -ff2c [PR104313]
 
@@ -563,10 +575,54 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..a036ead0833 100644
+index a0587d18824..e45d14c1bae 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,872 @@
+@@ -1,3 +1,916 @@
++2022-10-26  Philipp Tomsich  <philipp.tomsich@vrull.eu>
++
++	Backported from master:
++	2022-10-06  Philipp Tomsich  <philipp.tomsich@vrull.eu>
++
++	* config/aarch64/aarch64-cores.def (AARCH64_CORE): Update
++	Ampere-1 core entry.
++
++2022-10-26  Philipp Tomsich  <philipp.tomsich@vrull.eu>
++
++	Backported from master:
++	2022-10-06  Philipp Tomsich  <philipp.tomsich@vrull.eu>
++
++	* config/aarch64/driver-aarch64.c (readline): Fix off-by-one.
++
++2022-10-25  Stefan Schulze Frielinghaus  <stefansf@linux.ibm.com>
++
++	Backported from master:
++	2022-10-19  Stefan Schulze Frielinghaus  <stefansf@linux.ibm.com>
++
++	PR target/106355
++	* config/s390/s390.c (s390_call_saved_register_used): For a
++	parameter with BLKmode fix determining number of consecutive
++	registers.
++
++2022-10-25  Martin Liska  <mliska@suse.cz>
++
++	Backported from master:
++	2022-10-25  Martin Liska  <mliska@suse.cz>
++
++	PR target/107364
++	* common/config/i386/i386-cpuinfo.h (enum processor_vendor):
++	Fix pedantic warning.
++
++2022-10-25  Martin Liska  <mliska@suse.cz>
++
++	Backported from master:
++	2022-10-24  Martin Liska  <mliska@suse.cz>
++
++	PR target/107364
++	* common/config/i386/i386-cpuinfo.h (enum processor_vendor):
++	  Reorder enum values as BUILTIN_VENDOR_MAX should not point
++	  in the middle of the valid enum values.
++
 +2022-10-20  Richard Sandiford  <richard.sandiford@arm.com>
 +
 +	Backported from master:
@@ -1813,6 +1869,23 @@ index 58294b7d7ac..18ff71ac5ad 100644
        if (ecx & bit_GFNI)
  	set_feature (FEATURE_GFNI);
        if (ecx & bit_MOVDIRI)
+diff --git a/gcc/common/config/i386/i386-cpuinfo.h b/gcc/common/config/i386/i386-cpuinfo.h
+index e68dd656046..102ee8a1218 100644
+--- a/gcc/common/config/i386/i386-cpuinfo.h
++++ b/gcc/common/config/i386/i386-cpuinfo.h
+@@ -33,8 +33,10 @@ enum processor_vendor
+   VENDOR_CENTAUR,
+   VENDOR_CYRIX,
+   VENDOR_NSC,
+-  BUILTIN_VENDOR_MAX = VENDOR_OTHER,
+-  VENDOR_MAX
++
++  /* Maximum values must be at the end of this enum.  */
++  VENDOR_MAX,
++  BUILTIN_VENDOR_MAX = VENDOR_OTHER
+ };
+ 
+ /* Any new types or subtypes have to be inserted at the end. */
 diff --git a/gcc/config/aarch64/aarch64-builtins.c b/gcc/config/aarch64/aarch64-builtins.c
 index acdea2a0601..f9a8c0aa6a0 100644
 --- a/gcc/config/aarch64/aarch64-builtins.c
@@ -1939,9 +2012,18 @@ index 8eeef588559..05869463e4b 100644
    /* Not for ACLE, but required to keep "float.h" correct if we switch
       target between implementations that do or do not support ARMv8.2-A
 diff --git a/gcc/config/aarch64/aarch64-cores.def b/gcc/config/aarch64/aarch64-cores.def
-index 4643e0e2795..306cedffbd2 100644
+index 4643e0e2795..d13eaeb15aa 100644
 --- a/gcc/config/aarch64/aarch64-cores.def
 +++ b/gcc/config/aarch64/aarch64-cores.def
+@@ -69,7 +69,7 @@ AARCH64_CORE("thunderxt81",   thunderxt81,   thunderx,  8A,  AARCH64_FL_FOR_ARCH
+ AARCH64_CORE("thunderxt83",   thunderxt83,   thunderx,  8A,  AARCH64_FL_FOR_ARCH8 | AARCH64_FL_CRC | AARCH64_FL_CRYPTO, thunderx,  0x43, 0x0a3, -1)
+ 
+ /* Ampere Computing ('\xC0') cores. */
+-AARCH64_CORE("ampere1", ampere1, cortexa57, 8_6A, AARCH64_FL_FOR_ARCH8_6, ampere1, 0xC0, 0xac3, -1)
++AARCH64_CORE("ampere1", ampere1, cortexa57, 8_6A, AARCH64_FL_FOR_ARCH8_6 | AARCH64_FL_CRYPTO | AARCH64_FL_F16 | AARCH64_FL_RNG | AARCH64_FL_SHA3, ampere1, 0xC0, 0xac3, -1)
+ /* Do not swap around "emag" and "xgene1",
+    this order is required to handle variant correctly. */
+ AARCH64_CORE("emag",        emag,      xgene1,    8A,  AARCH64_FL_FOR_ARCH8 | AARCH64_FL_CRC | AARCH64_FL_CRYPTO, emag, 0x50, 0x000, 3)
 @@ -133,20 +133,21 @@ AARCH64_CORE("tsv110",  tsv110, tsv110, 8_2A,  AARCH64_FL_FOR_ARCH8_2 | AARCH64_
  /* ARMv8.3-A Architecture Processors.  */
  
@@ -2367,6 +2449,22 @@ index 73b29f4b8dc..2f419351706 100644
  #pragma GCC push_options
  #pragma GCC target ("arch=armv8.3-a")
  __extension__ static __inline int32_t __attribute__ ((__always_inline__))
+diff --git a/gcc/config/aarch64/driver-aarch64.c b/gcc/config/aarch64/driver-aarch64.c
+index e2935a11564..5505e117515 100644
+--- a/gcc/config/aarch64/driver-aarch64.c
++++ b/gcc/config/aarch64/driver-aarch64.c
+@@ -200,9 +200,9 @@ readline (FILE *f)
+ 	return std::string ();
+       /* If we're not at the end of the line then override the
+ 	 \0 added by fgets.  */
+-      last = strnlen (buf, size) - 1;
++      last = strnlen (buf, size);
+     }
+-  while (!feof (f) && buf[last] != '\n');
++  while (!feof (f) && last > 0 && buf[last - 1] != '\n');
+ 
+   std::string result (buf);
+   free (buf);
 diff --git a/gcc/config/aarch64/iterators.md b/gcc/config/aarch64/iterators.md
 index cac33ae812b..c9ec6265e7c 100644
 --- a/gcc/config/aarch64/iterators.md
@@ -8183,6 +8281,71 @@ index ae1a33e8d95..ba311cbf2df 100644
  }
  
  extern __inline __m64 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+diff --git a/gcc/config/s390/s390.c b/gcc/config/s390/s390.c
+index 44e48d90beb..5ef92d699c4 100644
+--- a/gcc/config/s390/s390.c
++++ b/gcc/config/s390/s390.c
+@@ -13679,36 +13679,37 @@ s390_call_saved_register_used (tree call_expr)
+       function_arg_info arg (TREE_TYPE (parameter), /*named=*/true);
+       apply_pass_by_reference_rules (&cum_v, arg);
+ 
+-       parm_rtx = s390_function_arg (cum, arg);
++      parm_rtx = s390_function_arg (cum, arg);
+ 
+-       s390_function_arg_advance (cum, arg);
++      s390_function_arg_advance (cum, arg);
+ 
+-       if (!parm_rtx)
+-	 continue;
+-
+-       if (REG_P (parm_rtx))
+-	 {
+-	   for (reg = 0; reg < REG_NREGS (parm_rtx); reg++)
+-	     if (!call_used_or_fixed_reg_p (reg + REGNO (parm_rtx)))
+-	       return true;
+-	 }
++      if (!parm_rtx)
++	continue;
+ 
+-       if (GET_CODE (parm_rtx) == PARALLEL)
+-	 {
+-	   int i;
++      if (REG_P (parm_rtx))
++	{
++	  int size = s390_function_arg_size (arg.mode, arg.type);
++	  int nregs = (size + UNITS_PER_LONG - 1) / UNITS_PER_LONG;
+ 
+-	   for (i = 0; i < XVECLEN (parm_rtx, 0); i++)
+-	     {
+-	       rtx r = XEXP (XVECEXP (parm_rtx, 0, i), 0);
++	  for (reg = 0; reg < nregs; reg++)
++	    if (!call_used_or_fixed_reg_p (reg + REGNO (parm_rtx)))
++	      return true;
++	}
++      else if (GET_CODE (parm_rtx) == PARALLEL)
++	{
++	  int i;
+ 
+-	       gcc_assert (REG_P (r));
++	  for (i = 0; i < XVECLEN (parm_rtx, 0); i++)
++	    {
++	      rtx r = XEXP (XVECEXP (parm_rtx, 0, i), 0);
+ 
+-	       for (reg = 0; reg < REG_NREGS (r); reg++)
+-		 if (!call_used_or_fixed_reg_p (reg + REGNO (r)))
+-		   return true;
+-	     }
+-	 }
++	      gcc_assert (REG_P (r));
++	      gcc_assert (REG_NREGS (r) == 1);
+ 
++	      if (!call_used_or_fixed_reg_p (REGNO (r)))
++		return true;
++	    }
++	}
+     }
+   return false;
+ }
 diff --git a/gcc/config/sparc/sparc.c b/gcc/config/sparc/sparc.c
 index 7c8a1f18c39..a9196d68863 100644
 --- a/gcc/config/sparc/sparc.c
@@ -8330,10 +8493,18 @@ index cdf22f14b94..fabc313197a 100644
  	}
  
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..92eb8fc1672 100644
+index 85c8fdd38cd..476ad3737e9 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,207 @@
+@@ -1,3 +1,215 @@
++2022-10-24  Marek Polacek  <polacek@redhat.com>
++
++	Backported from master:
++	2022-05-27  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/105725
++	* parser.c (class_decl_loc_t::add): Check CLASS_TYPE_P.
++
 +2022-07-22  Jason Merrill  <jason@redhat.com>
 +
 +	PR c++/106361
@@ -11207,10 +11378,36 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..eb24df5abc5 100644
+index 5fc23605244..9fc0742da9e 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1035 @@
+@@ -1,3 +1,1061 @@
++2022-10-26  Philipp Tomsich  <philipp.tomsich@vrull.eu>
++
++	Backported from master:
++	2022-10-06  Philipp Tomsich  <philipp.tomsich@vrull.eu>
++
++	* gcc.target/aarch64/cpunative/info_18: New test.
++	* gcc.target/aarch64/cpunative/native_cpu_18.c: New test.
++
++2022-10-25  Stefan Schulze Frielinghaus  <stefansf@linux.ibm.com>
++
++	Backported from master:
++	2022-10-19  Stefan Schulze Frielinghaus  <stefansf@linux.ibm.com>
++
++	* gcc.target/s390/pr106355.h: Common code for new tests.
++	* gcc.target/s390/pr106355-1.c: New test.
++	* gcc.target/s390/pr106355-2.c: New test.
++	* gcc.target/s390/pr106355-3.c: New test.
++
++2022-10-24  Marek Polacek  <polacek@redhat.com>
++
++	Backported from master:
++	2022-05-27  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/105725
++	* g++.dg/warn/Wmismatched-tags-10.C: New test.
++
 +2022-10-23  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -15132,6 +15329,41 @@ index 00000000000..e067ef20bbd
 +{
 +  *g16 = __revsh (*a);
 +}
+diff --git a/gcc/testsuite/gcc.target/aarch64/cpunative/info_18 b/gcc/testsuite/gcc.target/aarch64/cpunative/info_18
+new file mode 100644
+index 00000000000..25061a4abe8
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/aarch64/cpunative/info_18
+@@ -0,0 +1,8 @@
++processor	: 0
++BogoMIPS	: 2000.00
++Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 asimddp sha512 asimdfhm dit uscat ilrcpc flagm ssbs sb dcpodp flagm2 frint i8mm bf16 rng ecv
++CPU implementer	: 0xc0
++CPU architecture: 8
++CPU variant	: 0x0
++CPU part	: 0xac3
++CPU revision	: 0
+diff --git a/gcc/testsuite/gcc.target/aarch64/cpunative/native_cpu_18.c b/gcc/testsuite/gcc.target/aarch64/cpunative/native_cpu_18.c
+new file mode 100644
+index 00000000000..b5f0a3005f5
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/aarch64/cpunative/native_cpu_18.c
+@@ -0,0 +1,15 @@
++/* { dg-do compile { target { { aarch64*-*-linux*} && native } } } */
++/* { dg-set-compiler-env-var GCC_CPUINFO "$srcdir/gcc.target/aarch64/cpunative/info_18" } */
++/* { dg-additional-options "-mcpu=native" } */
++
++int main()
++{
++  return 0;
++}
++
++/* { dg-final { scan-assembler {\.arch armv8.6-a\+crc\+fp16\+aes\+sha3\+rng} } } */
++
++/* Test one where the boundary of buffer size would overwrite the last
++   character read when stitching the fgets-calls together.  With the
++   test data provided, this would truncate the 'sha512' into 'ha512'
++   (dropping the 'sha3' feature). */
 diff --git a/gcc/testsuite/gcc.target/aarch64/pragma_cpp_predefs_1.c b/gcc/testsuite/gcc.target/aarch64/pragma_cpp_predefs_1.c
 index bfb044f5d14..307fa3d67da 100644
 --- a/gcc/testsuite/gcc.target/aarch64/pragma_cpp_predefs_1.c
@@ -16196,6 +16428,106 @@ index 41377efba1a..045d0bfa349 100644
  
  #ifdef DEBUG
  #include <stdio.h>
+diff --git a/gcc/testsuite/gcc.target/s390/pr106355-1.c b/gcc/testsuite/gcc.target/s390/pr106355-1.c
+new file mode 100644
+index 00000000000..1ec0f6b25ac
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/s390/pr106355-1.c
+@@ -0,0 +1,42 @@
++/* { dg-do compile } */
++/* { dg-options "-foptimize-sibling-calls" } */
++/* { dg-final { scan-assembler {brasl\t%r\d+,bar4} } } */
++/* { dg-final { scan-assembler {brasl\t%r\d+,bar8} } } */
++
++/* Parameter E is passed in GPR 6 which is call-saved which prohibits
++   sibling call optimization.  This must hold true also if the mode of the
++   parameter is BLKmode.  */
++
++/* 4 byte */
++
++typedef struct
++{
++  char x;
++  char y[3];
++} t4;
++
++extern t4 e4;
++
++extern void bar4 (int a, int b, int c, int d, t4 e4);
++
++void foo4 (int a, int b, int c, int d)
++{
++  bar4 (a, b, c, d, e4);
++}
++
++/* 8 byte */
++
++typedef struct
++{
++  short x;
++  char y[6];
++} t8;
++
++extern t8 e8;
++
++extern void bar8 (int a, int b, int c, int d, t8 e8);
++
++void foo8 (int a, int b, int c, int d)
++{
++  bar8 (a, b, c, d, e8);
++}
+diff --git a/gcc/testsuite/gcc.target/s390/pr106355-2.c b/gcc/testsuite/gcc.target/s390/pr106355-2.c
+new file mode 100644
+index 00000000000..ddbdba5d278
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/s390/pr106355-2.c
+@@ -0,0 +1,8 @@
++/* { dg-do compile { target { s390-*-* } } } */
++/* { dg-options "-foptimize-sibling-calls -mzarch" } */
++/* { dg-final { scan-assembler {brasl\t%r\d+,bar} } } */
++
++/* This tests function s390_call_saved_register_used where
++   GET_CODE (parm_rtx) == PARALLEL holds.  */
++
++#include "pr106355.h"
+diff --git a/gcc/testsuite/gcc.target/s390/pr106355-3.c b/gcc/testsuite/gcc.target/s390/pr106355-3.c
+new file mode 100644
+index 00000000000..39daea44fc4
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/s390/pr106355-3.c
+@@ -0,0 +1,8 @@
++/* { dg-do compile { target { s390-*-* } } } */
++/* { dg-options "-foptimize-sibling-calls -mesa" } */
++/* { dg-final { scan-assembler {brasl\t%r\d+,bar} } } */
++
++/* This tests function s390_call_saved_register_used where
++   REG_P (parm_rtx) and nregs == 2 holds.  */
++
++#include "pr106355.h"
+diff --git a/gcc/testsuite/gcc.target/s390/pr106355.h b/gcc/testsuite/gcc.target/s390/pr106355.h
+new file mode 100644
+index 00000000000..362908e5913
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/s390/pr106355.h
+@@ -0,0 +1,18 @@
++/* For the S/390 ABI parameter D is passed in GPR 5 and 6 and the latter is
++   call-saved which prohibits sibling call optimization.  This must hold true
++   also if the mode of the parameter is BLKmode.  */
++
++typedef struct
++{
++  short x;
++  char y[6];
++} t;
++
++extern t d;
++
++extern void bar (int a, int b, int c, t d);
++
++void foo (int a, int b, int c)
++{
++  bar (a, b, c, d);
++}
 diff --git a/gcc/testsuite/gcc.target/sparc/20220510-1.c b/gcc/testsuite/gcc.target/sparc/20220510-1.c
 new file mode 100644
 index 00000000000..f321cab8482
