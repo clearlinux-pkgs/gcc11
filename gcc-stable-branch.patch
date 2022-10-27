@@ -557,6 +557,9 @@ Tom de Vries (2):
       [nvptx] Add bar.warp.sync
       [nvptx] Add uniform_warp_check insn
 
+Torbjörn SVENSSON (1):
+      IRA: Make sure array is big enough
+
 Uros Bizjak (2):
       i386: Fix assert in ix86_function_arg [PR105970]
       alpha: Introduce target specific store_data_bypass_p function [PR105209]
@@ -10966,6 +10969,18 @@ index b6c6b51612d..c1ddf8ba11e 100644
    if (DECL_P (base))
      {
        int index = ipa_get_param_decl_index_1 (descriptors, base);
+diff --git a/gcc/ira.c b/gcc/ira.c
+index b93588d8a9f..ad40506d2a9 100644
+--- a/gcc/ira.c
++++ b/gcc/ira.c
+@@ -5613,6 +5613,7 @@ ira (FILE *f)
+     regstat_free_ri ();
+     regstat_init_n_sets_and_refs ();
+     regstat_compute_ri ();
++    resize_reg_info ();
+   };
+ 
+   int max_regno_before_rm = max_reg_num ();
 diff --git a/gcc/lra-assigns.c b/gcc/lra-assigns.c
 index b406096a39c..0ec0a79080a 100644
 --- a/gcc/lra-assigns.c
