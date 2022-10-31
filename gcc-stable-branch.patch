@@ -20,7 +20,10 @@ Eric Botcazou (2):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (189):
+GCC Administrator (192):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -220,7 +223,7 @@ H.J. Lu (4):
       x86: Require AVX for F16C and VAES
       i386: Mark XMM4-XMM6 as clobbered by encodekey128/encodekey256
 
-Harald Anlauf (15):
+Harald Anlauf (16):
       Fortran: improve error recovery on invalid array section
       Fortran: fix error recovery on invalid array section
       Fortran: fix checking of arguments to UNPACK when MASK is a variable [PR105813]
@@ -236,6 +239,7 @@ Harald Anlauf (15):
       Fortran: fix ICE in generate_coarray_sym_init [PR82868]
       Fortran: error recovery while simplifying intrinsic UNPACK [PR107054]
       Fortran: error recovery with references of bad array constructors [PR105633]
+      Fortran: BOZ literal constants are not compatible to any type [PR103413]
 
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
@@ -370,11 +374,12 @@ Jonathan Wakely (74):
       libstdc++: Check for overflow in regex back-reference [PR106607]
       libstdc++: Fix feature test macros in <version> for freestanding
 
-José Rui Faustino de Sousa (4):
+José Rui Faustino de Sousa (5):
       Fortran: Fix ICE with -fcheck=pointer [PR100136]
       Fortran: Fix ICE with automatic reallocation [PR100245]
       Fortran: Fix function attributes [PR100132]
       Fortran: Fix ICE and wrong code for assumed-rank arrays [PR100029, PR100040]
+      Fortran: Add missing TKR initialization to class variables [PR100097, PR100098]
 
 Kewen Lin (4):
       testsuite: Skip pr105250.c for powerpc and s390 [PR105266]
@@ -9941,10 +9946,32 @@ index 70c5b3886ef..901255a18d6 100644
  
        if ((tem = fold_truth_andor (loc, code, type, arg0, arg1, op0, op1))
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..b0000a0dc47 100644
+index ee1c7bb4b31..420f4afe63b 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,238 @@
+@@ -1,3 +1,260 @@
++2022-10-29  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
++
++	Backported from master:
++	2022-10-21  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
++
++	PR fortran/100097
++	PR fortran/100098
++	* trans-array.c (gfc_trans_class_array): New function to
++	initialize class descriptor's TKR information.
++	* trans-array.h (gfc_trans_class_array): Add function prototype.
++	* trans-decl.c (gfc_trans_deferred_vars): Add calls to the new
++	function for both pointers and allocatables.
++
++2022-10-28  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-10-26  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/103413
++	* symbol.c (gfc_type_compatible): A boz-literal-constant has no type
++	and thus is not considered compatible to any type.
++
 +2022-10-23  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -10509,11 +10536,116 @@ index 3599e1b3194..f13a8e57c83 100644
  	}
        else if (field->expr_type == EXPR_ARRAY)
  	e = gfc_copy_expr (field_ctor->expr);
+diff --git a/gcc/fortran/symbol.c b/gcc/fortran/symbol.c
+index c2dad08d878..c164e94bec0 100644
+--- a/gcc/fortran/symbol.c
++++ b/gcc/fortran/symbol.c
+@@ -5146,6 +5146,10 @@ gfc_type_compatible (gfc_typespec *ts1, gfc_typespec *ts2)
+   bool is_union1 = (ts1->type == BT_UNION);
+   bool is_union2 = (ts2->type == BT_UNION);
+ 
++  /* A boz-literal-constant has no type.  */
++  if (ts1->type == BT_BOZ || ts2->type == BT_BOZ)
++    return false;
++
+   if (is_class1
+       && ts1->u.derived->components
+       && ((ts1->u.derived->attr.is_class
+diff --git a/gcc/fortran/trans-array.c b/gcc/fortran/trans-array.c
+index ad6a30a47ca..abdecc7df7a 100644
+--- a/gcc/fortran/trans-array.c
++++ b/gcc/fortran/trans-array.c
+@@ -10795,6 +10795,52 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
+ }
+ 
+ 
++/* Initialize class descriptor's TKR infomation.  */
++
++void
++gfc_trans_class_array (gfc_symbol * sym, gfc_wrapped_block * block)
++{
++  tree type, etype;
++  tree tmp;
++  tree descriptor;
++  stmtblock_t init;
++  locus loc;
++  int rank;
++
++  /* Make sure the frontend gets these right.  */
++  gcc_assert (sym->ts.type == BT_CLASS && CLASS_DATA (sym)
++	      && (CLASS_DATA (sym)->attr.class_pointer
++		  || CLASS_DATA (sym)->attr.allocatable));
++
++  gcc_assert (VAR_P (sym->backend_decl)
++	      || TREE_CODE (sym->backend_decl) == PARM_DECL);
++
++  if (sym->attr.dummy)
++    return;
++
++  descriptor = gfc_class_data_get (sym->backend_decl);
++  type = TREE_TYPE (descriptor);
++
++  if (type == NULL || !GFC_DESCRIPTOR_TYPE_P (type))
++    return;
++
++  gfc_save_backend_locus (&loc);
++  gfc_set_backend_locus (&sym->declared_at);
++  gfc_init_block (&init);
++
++  rank = CLASS_DATA (sym)->as ? (CLASS_DATA (sym)->as->rank) : (0);
++  gcc_assert (rank>=0);
++  tmp = gfc_conv_descriptor_dtype (descriptor);
++  etype = gfc_get_element_type (type);
++  tmp = fold_build2_loc (input_location, MODIFY_EXPR, TREE_TYPE (tmp), tmp,
++			 gfc_get_dtype_rank_type (rank, etype));
++  gfc_add_expr_to_block (&init, tmp);
++
++  gfc_add_init_cleanup (block, gfc_finish_block (&init), NULL_TREE);
++  gfc_restore_backend_locus (&loc);
++}
++
++
+ /* NULLIFY an allocatable/pointer array on function entry, free it on exit.
+    Do likewise, recursively if necessary, with the allocatable components of
+    derived types.  This function is also called for assumed-rank arrays, which
+diff --git a/gcc/fortran/trans-array.h b/gcc/fortran/trans-array.h
+index def6f8a43a0..0ec77cf27e1 100644
+--- a/gcc/fortran/trans-array.h
++++ b/gcc/fortran/trans-array.h
+@@ -67,6 +67,8 @@ tree gfc_check_pdt_dummy (gfc_symbol *, tree, int, gfc_actual_arglist *);
+ 
+ tree gfc_alloc_allocatable_for_assignment (gfc_loopinfo*, gfc_expr*, gfc_expr*);
+ 
++/* Add initialization for class descriptors  */
++void gfc_trans_class_array (gfc_symbol *, gfc_wrapped_block *);
+ /* Add initialization for deferred arrays.  */
+ void gfc_trans_deferred_array (gfc_symbol *, gfc_wrapped_block *);
+ /* Generate an initializer for a static pointer or allocatable array.  */
 diff --git a/gcc/fortran/trans-decl.c b/gcc/fortran/trans-decl.c
-index 95af7d93162..68fb19e6f2b 100644
+index 95af7d93162..85382e6d6f7 100644
 --- a/gcc/fortran/trans-decl.c
 +++ b/gcc/fortran/trans-decl.c
-@@ -5624,6 +5624,7 @@ generate_coarray_sym_init (gfc_symbol *sym)
+@@ -4923,7 +4923,7 @@ gfc_trans_deferred_vars (gfc_symbol * proc_sym, gfc_wrapped_block * block)
+       else if ((!sym->attr.dummy || sym->ts.deferred)
+ 		&& (sym->ts.type == BT_CLASS
+ 		&& CLASS_DATA (sym)->attr.class_pointer))
+-	continue;
++	gfc_trans_class_array (sym, block);
+       else if ((!sym->attr.dummy || sym->ts.deferred)
+ 		&& (sym->attr.allocatable
+ 		    || (sym->attr.pointer && sym->attr.result)
+@@ -5007,6 +5007,10 @@ gfc_trans_deferred_vars (gfc_symbol * proc_sym, gfc_wrapped_block * block)
+ 		  tmp = NULL_TREE;
+ 		}
+ 
++	      /* Initialize descriptor's TKR information.  */
++	      if (sym->ts.type == BT_CLASS)
++		gfc_trans_class_array (sym, block);
++
+ 	      /* Deallocate when leaving the scope. Nullifying is not
+ 		 needed.  */
+ 	      if (!sym->attr.result && !sym->attr.dummy && !sym->attr.pointer
+@@ -5624,6 +5628,7 @@ generate_coarray_sym_init (gfc_symbol *sym)
  
    if (sym->attr.dummy || sym->attr.allocatable || !sym->attr.codimension
        || sym->attr.use_assoc || !sym->attr.referenced
@@ -10521,7 +10653,7 @@ index 95af7d93162..68fb19e6f2b 100644
        || sym->attr.select_type_temporary)
      return;
  
-@@ -6564,7 +6565,7 @@ gfc_generate_return (void)
+@@ -6564,7 +6569,7 @@ gfc_generate_return (void)
  	     NULL_TREE, and a 'return' is generated without a variable.
  	     The following generates a 'return __result_XXX' where XXX is
  	     the function name.  */
@@ -11402,10 +11534,28 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..9fc0742da9e 100644
+index 5fc23605244..d8569827f91 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1061 @@
+@@ -1,3 +1,1079 @@
++2022-10-29  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
++
++	Backported from master:
++	2022-10-21  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
++
++	PR fortran/100097
++	PR fortran/100098
++	* gfortran.dg/PR100097.f90: New test.
++	* gfortran.dg/PR100098.f90: New test.
++
++2022-10-28  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-10-26  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/103413
++	* gfortran.dg/illegal_boz_arg_4.f90: New test.
++
 +2022-10-26  Philipp Tomsich  <philipp.tomsich@vrull.eu>
 +
 +	Backported from master:
@@ -16885,6 +17035,104 @@ index 00000000000..0a135ff30a3
 +  end subroutine foo_s
 +
 +end program foo_p
+diff --git a/gcc/testsuite/gfortran.dg/PR100097.f90 b/gcc/testsuite/gfortran.dg/PR100097.f90
+new file mode 100644
+index 00000000000..f927d293e2c
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/PR100097.f90
+@@ -0,0 +1,41 @@
++! { dg-do run }
++! { dg-options "-fdump-tree-original" }
++!
++! Test the fix for PR100097
++!
++
++program main_p
++  implicit none
++
++  class(*), pointer     :: bar_p(:)
++  class(*), allocatable :: bar_a(:)
++
++  call foo_p(bar_p)
++  call foo_a(bar_a)
++
++contains
++
++  subroutine foo_p(that)
++    class(*), pointer, intent(out) :: that(..)
++
++    select rank(that)
++    rank(1)
++    rank default
++      stop 1
++    end select
++  end subroutine foo_p
++
++  subroutine foo_a(that)
++    class(*), allocatable, intent(out) :: that(..)
++
++    select rank(that)
++    rank(1)
++    rank default
++      stop 2
++    end select
++  end subroutine foo_a
++
++end program main_p
++
++! { dg-final { scan-tree-dump "bar_a._data.dtype = \\{.* .rank=1,.*\\}" "original" } }
++! { dg-final { scan-tree-dump "bar_p._data.dtype = \\{.* .rank=1,.*\\}" "original" } }
+diff --git a/gcc/testsuite/gfortran.dg/PR100098.f90 b/gcc/testsuite/gfortran.dg/PR100098.f90
+new file mode 100644
+index 00000000000..26ac0c88425
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/PR100098.f90
+@@ -0,0 +1,45 @@
++! { dg-do run }
++! { dg-options "-fdump-tree-original" }
++!
++! Test the fix for PR100098
++!
++
++program main_p
++  implicit none
++
++  type :: foo_t
++    integer :: i
++  end type foo_t
++
++  class(foo_t), pointer     :: bar_p(:)
++  class(foo_t), allocatable :: bar_a(:)
++
++  call foo_p(bar_p)
++  call foo_a(bar_a)
++
++contains
++
++  subroutine foo_p(that)
++    class(foo_t), pointer, intent(out) :: that(..)
++
++    select rank(that)
++    rank(1)
++    rank default
++      stop 1
++    end select
++  end subroutine foo_p
++
++  subroutine foo_a(that)
++    class(foo_t), allocatable, intent(out) :: that(..)
++
++    select rank(that)
++    rank(1)
++    rank default
++      stop 2
++    end select
++  end subroutine foo_a
++
++end program main_p
++
++! { dg-final { scan-tree-dump "bar_a._data.dtype = \\{.* .rank=1,.*\\}" "original" } }
++! { dg-final { scan-tree-dump "bar_p._data.dtype = \\{.* .rank=1,.*\\}" "original" } }
 diff --git a/gcc/testsuite/gfortran.dg/PR100132.f90 b/gcc/testsuite/gfortran.dg/PR100132.f90
 new file mode 100644
 index 00000000000..78ae6702810
@@ -17201,6 +17449,25 @@ index 00000000000..3b47210fb40
 +  30  ASSIGN 10 TO M
 +  40  GOTO M,(10,20,30)
 +      END
+diff --git a/gcc/testsuite/gfortran.dg/illegal_boz_arg_4.f90 b/gcc/testsuite/gfortran.dg/illegal_boz_arg_4.f90
+new file mode 100644
+index 00000000000..856cfa9211f
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/illegal_boz_arg_4.f90
+@@ -0,0 +1,13 @@
++! { dg-do compile }
++! { dg-options "-std=f2018" }
++! PR fortran/103413
++! Contributed by G.Steinmetz
++
++program p
++  type t
++     class(*), allocatable :: a
++  end type
++  type(t) :: x
++  allocate (x%a, source=z'1') ! { dg-error "type incompatible" }
++  allocate (x%a, mold=z'1')   ! { dg-error "type incompatible" }
++end
 diff --git a/gcc/testsuite/gfortran.dg/index_6.f90 b/gcc/testsuite/gfortran.dg/index_6.f90
 new file mode 100644
 index 00000000000..61d492985ad
