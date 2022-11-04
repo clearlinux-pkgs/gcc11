@@ -20,7 +20,11 @@ Eric Botcazou (2):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (192):
+GCC Administrator (196):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -256,7 +260,7 @@ Iain Buclaw (7):
 Ian Lance Taylor (1):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
 
-Jakub Jelinek (12):
+Jakub Jelinek (24):
       emit-rtl: Fix -fcompare-debug bug with label references in debug insns [PR105203]
       sparc: Preserve ORIGINAL_REGNO in epilogue_renumber [PR105257]
       rtlanal: Fix up replace_rtx [PR105333]
@@ -269,6 +273,18 @@ Jakub Jelinek (12):
       fold-const: Fix up -fsanitize=null in C++ [PR105729]
       varasm: Fix up ICE in narrowing_initializer_constant_valid_p [PR105998]
       libstdc++: Tweak source_location for clang trunk [PR105128]
+      libgomp: Fix up target-31.c test [PR106045]
+      expand: Fix up expand_cond_expr_using_cmove [PR106030]
+      ifcvt: Don't introduce trapping or faulting reads in noce_try_sign_mask [PR106032]
+      wide-int: Fix up wi::shifted_mask [PR106144]
+      cgraphunit: Don't emit asm thunks for -dx [PR106261]
+      c++: Implement P2327R1 - De-deprecating volatile compound operations
+      i386: Fix up mode iterators that weren't expanded [PR106721]
+      openmp, c: Tighten up c_tree_equal [PR106981]
+      openmp: Fix ICE with taskgroup at -O0 -fexceptions [PR107001]
+      libgomp: Fix up creation of artificial teams
+      c++: Fix up constexpr handling of char/signed char/short pre/post inc/decrement [PR105774]
+      c, c++: Fix up excess precision handling of scalar_to_vector conversion [PR107358]
 
 Jan Hubicka (2):
       Fix modref_tree::remap_params
@@ -1788,6 +1804,60 @@ index 7690977f6b8..407c22afa6f 100644
    id = c_parser_peek_token (parser)->pragma_kind;
    gcc_assert (id != PRAGMA_NONE);
  
+diff --git a/gcc/c/c-typeck.c b/gcc/c/c-typeck.c
+index a0fbe47d87f..84b44081f0e 100644
+--- a/gcc/c/c-typeck.c
++++ b/gcc/c/c-typeck.c
+@@ -11764,8 +11764,8 @@ build_binary_op (location_t location, enum tree_code code,
+   if ((gnu_vector_type_p (type0) && code1 != VECTOR_TYPE)
+       || (gnu_vector_type_p (type1) && code0 != VECTOR_TYPE))
+     {
+-      enum stv_conv convert_flag = scalar_to_vector (location, code, op0, op1,
+-						     true);
++      enum stv_conv convert_flag = scalar_to_vector (location, code, orig_op0,
++						     orig_op1, true);
+ 
+       switch (convert_flag)
+ 	{
+@@ -15562,14 +15562,10 @@ c_tree_equal (tree t1, tree t2)
+   if (!t1 || !t2)
+     return false;
+ 
+-  for (code1 = TREE_CODE (t1);
+-       CONVERT_EXPR_CODE_P (code1)
+-	 || code1 == NON_LVALUE_EXPR;
++  for (code1 = TREE_CODE (t1); code1 == NON_LVALUE_EXPR;
+        code1 = TREE_CODE (t1))
+     t1 = TREE_OPERAND (t1, 0);
+-  for (code2 = TREE_CODE (t2);
+-       CONVERT_EXPR_CODE_P (code2)
+-	 || code2 == NON_LVALUE_EXPR;
++  for (code2 = TREE_CODE (t2); code2 == NON_LVALUE_EXPR;
+        code2 = TREE_CODE (t2))
+     t2 = TREE_OPERAND (t2, 0);
+ 
+@@ -15580,6 +15576,9 @@ c_tree_equal (tree t1, tree t2)
+   if (code1 != code2)
+     return false;
+ 
++  if (CONSTANT_CLASS_P (t1) && !comptypes (TREE_TYPE (t1), TREE_TYPE (t2)))
++    return false;
++
+   switch (code1)
+     {
+     case INTEGER_CST:
+@@ -15699,6 +15698,11 @@ c_tree_equal (tree t1, tree t2)
+ 	return true;
+       }
+ 
++    CASE_CONVERT:
++      if (!comptypes (TREE_TYPE (t1), TREE_TYPE (t2)))
++	return false;
++      break;
++
+     default:
+       break;
+     }
 diff --git a/gcc/cfgcleanup.c b/gcc/cfgcleanup.c
 index 4086b647585..06586ddf083 100644
 --- a/gcc/cfgcleanup.c
@@ -1831,6 +1901,19 @@ index d7c78d518bc..4e3e348513b 100644
    if (next_sibling_clone)
      next_sibling_clone->prev_sibling_clone = prev_sibling_clone;
    if (clones)
+diff --git a/gcc/cgraphunit.c b/gcc/cgraphunit.c
+index 0b70e4d4fde..802b01d3b97 100644
+--- a/gcc/cgraphunit.c
++++ b/gcc/cgraphunit.c
+@@ -1749,7 +1749,7 @@ cgraph_node::assemble_thunks_and_aliases (void)
+ 	cgraph_node *thunk = e->caller;
+ 
+ 	e = e->next_caller;
+-	expand_thunk (thunk, true, false);
++	expand_thunk (thunk, !rtl_dump_and_exit, false);
+ 	thunk->assemble_thunks_and_aliases ();
+       }
+     else
 diff --git a/gcc/common.opt b/gcc/common.opt
 index a75b44ee47e..4a3f09d9e1f 100644
 --- a/gcc/common.opt
@@ -3108,7 +3191,7 @@ index b815aca0da7..58aebd416f4 100644
      }
  
 diff --git a/gcc/config/i386/sse.md b/gcc/config/i386/sse.md
-index fcfcba0134d..2334d0e7c63 100644
+index fcfcba0134d..95619944c87 100644
 --- a/gcc/config/i386/sse.md
 +++ b/gcc/config/i386/sse.md
 @@ -17256,9 +17256,9 @@
@@ -3124,6 +3207,15 @@ index fcfcba0134d..2334d0e7c63 100644
  		    (match_operand:SI 3 "const_0_to_255_mul_8_operand" "n,n,n")]
  		   UNSPEC_PALIGNR))]
    "(TARGET_MMX || TARGET_MMX_WITH_SSE) && TARGET_SSSE3"
+@@ -19495,7 +19495,7 @@
+ 	  (match_operand:VF_128 2 "register_operand" "v")
+ 	  (const_int 1)))]
+   "TARGET_AVX512ER"
+-  "vrcp28<ssescalarmodesuffix>\t{<round_saeonly_mask_op3>%1, %2, %0<mask_operand3>|<mask_opernad3>%0, %2, %<iptr>1<round_saeonly_mask_op3>}"
++  "vrcp28<ssescalarmodesuffix>\t{<round_saeonly_mask_op3>%1, %2, %0<mask_operand3>|<mask_operand3>%0, %2, %<iptr>1<round_saeonly_mask_op3>}"
+   [(set_attr "length_immediate" "1")
+    (set_attr "prefix" "evex")
+    (set_attr "type" "sse")
 @@ -24127,7 +24127,7 @@
  
    for (i = 4; i < 7; i++)
@@ -8781,7 +8873,7 @@ index 55bb9c45f8c..46c2a066499 100644
      return error_mark_node;
  
 diff --git a/gcc/cp/constexpr.c b/gcc/cp/constexpr.c
-index c13c920ade3..7be5f25b10f 100644
+index c13c920ade3..d7bea558bfb 100644
 --- a/gcc/cp/constexpr.c
 +++ b/gcc/cp/constexpr.c
 @@ -890,7 +890,7 @@ maybe_save_constexpr_fundef (tree fun)
@@ -8845,6 +8937,25 @@ index c13c920ade3..7be5f25b10f 100644
        return init;
      }
    else
+@@ -5672,6 +5674,18 @@ cxx_eval_increment_expression (const constexpr_ctx *ctx, tree t,
+ 	offset = fold_build1 (NEGATE_EXPR, TREE_TYPE (offset), offset);
+       mod = fold_build2 (POINTER_PLUS_EXPR, type, val, offset);
+     }
++  else if (c_promoting_integer_type_p (type)
++	   && !TYPE_UNSIGNED (type)
++	   && TYPE_PRECISION (type) < TYPE_PRECISION (integer_type_node))
++    {
++      offset = fold_convert (integer_type_node, offset);
++      mod = fold_convert (integer_type_node, val);
++      tree t = fold_build2 (inc ? PLUS_EXPR : MINUS_EXPR, integer_type_node,
++			    mod, offset);
++      mod = fold_convert (type, t);
++      if (TREE_OVERFLOW_P (mod) && !TREE_OVERFLOW_P (t))
++	TREE_OVERFLOW (mod) = false;
++    }
+   else
+     mod = fold_build2 (inc ? PLUS_EXPR : MINUS_EXPR, type, val, offset);
+   if (!ptr)
 diff --git a/gcc/cp/cp-tree.h b/gcc/cp/cp-tree.h
 index a2d8c1c77b3..fded2527e5e 100644
 --- a/gcc/cp/cp-tree.h
@@ -9013,6 +9124,28 @@ index 885c4749989..c00508103e9 100644
  	}
        return NULL_TREE;
      }
+diff --git a/gcc/cp/expr.c b/gcc/cp/expr.c
+index d16d1896f2d..6b7ead2adc8 100644
+--- a/gcc/cp/expr.c
++++ b/gcc/cp/expr.c
+@@ -220,7 +220,7 @@ mark_use (tree expr, bool rvalue_p, bool read_p,
+     case MODIFY_EXPR:
+ 	{
+ 	  tree lhs = TREE_OPERAND (expr, 0);
+-	  /* [expr.ass] "A simple assignment whose left operand is of
++	  /* [expr.ass] "An assignment whose left operand is of
+ 	     a volatile-qualified type is deprecated unless the assignment
+ 	     is either a discarded-value expression or appears in an
+ 	     unevaluated context."  */
+@@ -230,7 +230,7 @@ mark_use (tree expr, bool rvalue_p, bool read_p,
+ 	      && !TREE_THIS_VOLATILE (expr))
+ 	    {
+ 	      if (warning_at (location_of (expr), OPT_Wvolatile,
+-			      "using value of simple assignment with "
++			      "using value of assignment with "
+ 			      "%<volatile%>-qualified left operand is "
+ 			      "deprecated"))
+ 		/* Make sure not to warn about this assignment again.  */
 diff --git a/gcc/cp/init.c b/gcc/cp/init.c
 index bd27c92324b..f694c9a5776 100644
 --- a/gcc/cp/init.c
@@ -9455,6 +9588,27 @@ index d447ce80174..baae5a0f1e4 100644
        if (expr == error_mark_node)
  	return error_mark_node;
      }
+diff --git a/gcc/cp/typeck.c b/gcc/cp/typeck.c
+index 93ad497d531..e61d67727f0 100644
+--- a/gcc/cp/typeck.c
++++ b/gcc/cp/typeck.c
+@@ -8769,10 +8769,14 @@ cp_build_modify_expr (location_t loc, tree lhs, enum tree_code modifycode,
+ 
+ 	  /* An expression of the form E1 op= E2.  [expr.ass] says:
+ 	     "Such expressions are deprecated if E1 has volatile-qualified
+-	     type."  We warn here rather than in cp_genericize_r because
++	     type and op is not one of the bitwise operators |, &, ^."
++	     We warn here rather than in cp_genericize_r because
+ 	     for compound assignments we are supposed to warn even if the
+ 	     assignment is a discarded-value expression.  */
+-	  if (TREE_THIS_VOLATILE (lhs) || CP_TYPE_VOLATILE_P (lhstype))
++	  if (modifycode != BIT_AND_EXPR
++	      && modifycode != BIT_IOR_EXPR
++	      && modifycode != BIT_XOR_EXPR
++	      && (TREE_THIS_VOLATILE (lhs) || CP_TYPE_VOLATILE_P (lhstype)))
+ 	    warning_at (loc, OPT_Wvolatile,
+ 			"compound assignment with %<volatile%>-qualified left "
+ 			"operand is deprecated");
 diff --git a/gcc/cselib.c b/gcc/cselib.c
 index 779874eeb2d..342c3cfdda8 100644
 --- a/gcc/cselib.c
@@ -9861,7 +10015,7 @@ index 07e908624a0..0dc51220682 100644
    INSN_LOCATION (new_rtx) = INSN_LOCATION (insn);
  
 diff --git a/gcc/expr.c b/gcc/expr.c
-index 14a25c25450..baf48ea7148 100644
+index 14a25c25450..9a2bb29abba 100644
 --- a/gcc/expr.c
 +++ b/gcc/expr.c
 @@ -6192,13 +6192,13 @@ count_type_elements (const_tree type, bool for_ctor_p)
@@ -9879,6 +10033,16 @@ index 14a25c25450..baf48ea7148 100644
      case METHOD_TYPE:
      case FUNCTION_TYPE:
      case LANG_TYPE:
+@@ -8566,7 +8566,8 @@ expand_cond_expr_using_cmove (tree treeop0 ATTRIBUTE_UNUSED,
+   expanding_cond_expr_using_cmove = true;
+   start_sequence ();
+   expand_operands (treeop1, treeop2,
+-		   temp, &op1, &op2, EXPAND_NORMAL);
++		   mode == orig_mode ? temp : NULL_RTX, &op1, &op2,
++		   EXPAND_NORMAL);
+ 
+   if (TREE_CODE (treeop0) == SSA_NAME
+       && (srcstmt = get_def_for_expr_class (treeop0, tcc_comparison)))
 diff --git a/gcc/fold-const.c b/gcc/fold-const.c
 index 70c5b3886ef..901255a18d6 100644
 --- a/gcc/fold-const.c
@@ -11063,6 +11227,37 @@ index ad37f20afaa..cfaa2179bb6 100644
      }
  
    if (TREE_CODE (ref) == COMPONENT_REF)
+diff --git a/gcc/ifcvt.c b/gcc/ifcvt.c
+index 0439a8aacff..367d5c25c56 100644
+--- a/gcc/ifcvt.c
++++ b/gcc/ifcvt.c
+@@ -2814,18 +2814,19 @@ noce_try_sign_mask (struct noce_if_info *if_info)
+     return FALSE;
+ 
+   /* This is only profitable if T is unconditionally executed/evaluated in the
+-     original insn sequence or T is cheap.  The former happens if B is the
+-     non-zero (T) value and if INSN_B was taken from TEST_BB, or there was no
+-     INSN_B which can happen for e.g. conditional stores to memory.  For the
+-     cost computation use the block TEST_BB where the evaluation will end up
+-     after the transformation.  */
++     original insn sequence or T is cheap and can't trap or fault.  The former
++     happens if B is the non-zero (T) value and if INSN_B was taken from
++     TEST_BB, or there was no INSN_B which can happen for e.g. conditional
++     stores to memory.  For the cost computation use the block TEST_BB where
++     the evaluation will end up after the transformation.  */
+   t_unconditional
+     = (t == if_info->b
+        && (if_info->insn_b == NULL_RTX
+ 	   || BLOCK_FOR_INSN (if_info->insn_b) == if_info->test_bb));
+   if (!(t_unconditional
+-	|| (set_src_cost (t, mode, if_info->speed_p)
+-	    < COSTS_N_INSNS (2))))
++	|| ((set_src_cost (t, mode, if_info->speed_p)
++	     < COSTS_N_INSNS (2))
++	    && !may_trap_or_fault_p (t))))
+     return FALSE;
+ 
+   if (!noce_can_force_operand (t))
 diff --git a/gcc/ipa-icf.c b/gcc/ipa-icf.c
 index 5dd33a75c3a..44407e1b5cd 100644
 --- a/gcc/ipa-icf.c
@@ -11229,8 +11424,56 @@ index e89601c0c14..8126f90ee75 100644
      (eq @0 @0)))))
  (for cmp (ne gt lt)
   (simplify
+diff --git a/gcc/omp-expand.c b/gcc/omp-expand.c
+index dc797f95154..c151ce63e8a 100644
+--- a/gcc/omp-expand.c
++++ b/gcc/omp-expand.c
+@@ -10043,7 +10043,10 @@ build_omp_regions_1 (basic_block bb, struct omp_region *parent,
+ 		case GF_OMP_TARGET_KIND_OACC_UPDATE:
+ 		case GF_OMP_TARGET_KIND_OACC_ENTER_EXIT_DATA:
+ 		case GF_OMP_TARGET_KIND_OACC_DECLARE:
+-		  /* ..., other than for those stand-alone directives...  */
++		  /* ..., other than for those stand-alone directives...
++		     To be precise, target data isn't stand-alone, but
++		     gimplifier put the end API call into try finally block
++		     for it, so omp expansion can treat it as such.  */
+ 		  region = NULL;
+ 		  break;
+ 		default:
+@@ -10061,6 +10064,11 @@ build_omp_regions_1 (basic_block bb, struct omp_region *parent,
+ 		   && gimple_omp_task_taskwait_p (stmt))
+ 	    /* #pragma omp taskwait depend(...) is a stand-alone directive.  */
+ 	    region = NULL;
++	  else if (code == GIMPLE_OMP_TASKGROUP)
++	    /* #pragma omp taskgroup isn't a stand-alone directive, but
++	       gimplifier put the end API call into try finall block
++	       for it, so omp expansion can treat it as such.  */
++	    region = NULL;
+ 	  /* ..., this directive becomes the parent for a new region.  */
+ 	  if (region)
+ 	    parent = region;
+@@ -10255,13 +10263,18 @@ omp_make_gimple_edges (basic_block bb, struct omp_region **region,
+     case GIMPLE_OMP_SINGLE:
+     case GIMPLE_OMP_TEAMS:
+     case GIMPLE_OMP_MASTER:
+-    case GIMPLE_OMP_TASKGROUP:
+     case GIMPLE_OMP_CRITICAL:
+     case GIMPLE_OMP_SECTION:
+       cur_region = new_omp_region (bb, code, cur_region);
+       fallthru = true;
+       break;
+ 
++    case GIMPLE_OMP_TASKGROUP:
++      cur_region = new_omp_region (bb, code, cur_region);
++      fallthru = true;
++      cur_region = cur_region->outer;
++      break;
++
+     case GIMPLE_OMP_TASK:
+       cur_region = new_omp_region (bb, code, cur_region);
+       fallthru = true;
 diff --git a/gcc/omp-low.c b/gcc/omp-low.c
-index 962cf886710..a8cabbf8bb3 100644
+index 962cf886710..91330a92b30 100644
 --- a/gcc/omp-low.c
 +++ b/gcc/omp-low.c
 @@ -5903,10 +5903,10 @@ lower_rec_input_clauses (tree clauses, gimple_seq *ilist, gimple_seq *dlist,
@@ -11247,6 +11490,14 @@ index 962cf886710..a8cabbf8bb3 100644
  		    }
  
  		  if ((OMP_CLAUSE_CODE (c) != OMP_CLAUSE_LINEAR
+@@ -9217,7 +9217,6 @@ lower_omp_taskgroup (gimple_stmt_iterator *gsi_p, omp_context *ctx)
+   gimple_bind_add_seq (bind, gimple_omp_body (stmt));
+   gimple_omp_set_body (stmt, NULL);
+ 
+-  gimple_bind_add_stmt (bind, gimple_build_omp_return (true));
+   gimple_bind_add_seq (bind, dseq);
+ 
+   pop_gimplify_context (bind);
 diff --git a/gcc/postreload.c b/gcc/postreload.c
 index 60a622dbaf3..ed5f54aaeb0 100644
 --- a/gcc/postreload.c
@@ -12641,6 +12892,41 @@ index 00000000000..f810b429dd6
 +#else
 +#error
 +#endif
+diff --git a/gcc/testsuite/c-c++-common/gomp/pr106981.c b/gcc/testsuite/c-c++-common/gomp/pr106981.c
+new file mode 100644
+index 00000000000..a21d3c2029d
+--- /dev/null
++++ b/gcc/testsuite/c-c++-common/gomp/pr106981.c
+@@ -0,0 +1,9 @@
++/* PR c/106981 */
++/* { dg-do compile } */
++
++void
++foo (int a, double *b, double *c, double *d, long long e)
++{
++#pragma omp atomic capture
++  c[a] = d[((int) (e / 10 + 1))] = b[a] + d[((int) e / 10 + 1)];	/* { dg-error "invalid form" } */
++}
+diff --git a/gcc/testsuite/c-c++-common/gomp/pr107001.c b/gcc/testsuite/c-c++-common/gomp/pr107001.c
+new file mode 100644
+index 00000000000..9c19d9b8745
+--- /dev/null
++++ b/gcc/testsuite/c-c++-common/gomp/pr107001.c
+@@ -0,0 +1,14 @@
++/* PR c/107001 */
++/* { dg-do compile } */
++/* { dg-options "-O0 -fopenmp -fexceptions" } */
++/* { dg-require-effective-target exceptions } */
++
++void bar (void);
++void foo (void)
++{
++  #pragma omp taskgroup
++  {
++    #pragma omp taskgroup
++    bar ();
++  }
++}
 diff --git a/gcc/testsuite/c-c++-common/pr105998.c b/gcc/testsuite/c-c++-common/pr105998.c
 new file mode 100644
 index 00000000000..85277b97007
@@ -12658,6 +12944,42 @@ index 00000000000..85277b97007
 +{
 +  long long l = (long long) ((0 | v) - ((V) { } == 0));
 +  return l;
++}
+diff --git a/gcc/testsuite/c-c++-common/pr107358.c b/gcc/testsuite/c-c++-common/pr107358.c
+new file mode 100644
+index 00000000000..d976da7393a
+--- /dev/null
++++ b/gcc/testsuite/c-c++-common/pr107358.c
+@@ -0,0 +1,30 @@
++/* PR c++/107358 */
++/* { dg-do compile { target c } } */
++/* { dg-options "-O2 -fexcess-precision=standard" } */
++
++typedef float __attribute__((vector_size (4 * sizeof (float)))) A;
++typedef double __attribute__((vector_size (2 * sizeof (double)))) B;
++
++void
++foo (A *x)
++{
++  *x = *x - 124.225514990f;
++}
++
++void
++bar (A *x, float y)
++{
++  *x = *x - y;
++}
++
++void
++baz (B *x)
++{
++  *x = *x + 124.225514990f;
++}
++
++void
++qux (B *x, double y)
++{
++  *x = *x + y;
 +}
 diff --git a/gcc/testsuite/c-c++-common/pr97498.c b/gcc/testsuite/c-c++-common/pr97498.c
 new file mode 100644
@@ -12964,6 +13286,27 @@ index 00000000000..13f3175da45
 +struct Y : X<long> {
 +  friend auto f(X) { return 0L; }
 +};
+diff --git a/gcc/testsuite/g++.dg/cpp1y/constexpr-105774.C b/gcc/testsuite/g++.dg/cpp1y/constexpr-105774.C
+new file mode 100644
+index 00000000000..8ca6fce7570
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp1y/constexpr-105774.C
+@@ -0,0 +1,15 @@
++// PR c++/105774
++// { dg-do compile { target c++14 } }
++
++constexpr signed char
++foo ()
++{
++#if __SCHAR_MAX__ < __INT_MAX__
++  signed char x = __SCHAR_MAX__;
++#else
++  signed char x = 0;
++#endif
++  return ++x;
++}
++
++constexpr auto a = foo ();
 diff --git a/gcc/testsuite/g++.dg/cpp1y/constexpr-empty2.C b/gcc/testsuite/g++.dg/cpp1y/constexpr-empty2.C
 index 2acfa98364b..9768b89904e 100644
 --- a/gcc/testsuite/g++.dg/cpp1y/constexpr-empty2.C
@@ -13283,6 +13626,137 @@ index 00000000000..896e5232bf6
 +int main() {
 +  return bar{} == bar{};	// { dg-error "deleted" }
 +}
+diff --git a/gcc/testsuite/g++.dg/cpp2a/volatile1.C b/gcc/testsuite/g++.dg/cpp2a/volatile1.C
+index 7ea6b477ca2..a0264a47bc7 100644
+--- a/gcc/testsuite/g++.dg/cpp2a/volatile1.C
++++ b/gcc/testsuite/g++.dg/cpp2a/volatile1.C
+@@ -56,6 +56,9 @@ fn2 ()
+   vi = i;
+   vi = i = 42;
+   i = vi = 42; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" "" { target c++20 } }
++  i = vi |= 42; // { dg-warning "using value of assignment with .volatile.-qualified left operand is deprecated" "" { target c++20 } }
++  i = vi &= 42; // { dg-warning "using value of assignment with .volatile.-qualified left operand is deprecated" "" { target c++20 } }
++  i = vi ^= 42; // { dg-warning "using value of assignment with .volatile.-qualified left operand is deprecated" "" { target c++20 } }
+   &(vi = i); // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" "" { target c++20 } }
+   (vi = 42, 45);
+   (i = vi = 42, 10); // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" "" { target c++20 } }
+@@ -74,8 +77,9 @@ fn2 ()
+   vi += i; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" "" { target c++20 } }
+   vi -= i; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" "" { target c++20 } }
+   vi %= i; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" "" { target c++20 } }
+-  vi ^= i; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" "" { target c++20 } }
+-  vi |= i; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" "" { target c++20 } }
++  vi ^= i; // { dg-bogus "assignment with .volatile.-qualified left operand is deprecated" }
++  vi |= i; // { dg-bogus "assignment with .volatile.-qualified left operand is deprecated" }
++  vi &= i; // { dg-bogus "assignment with .volatile.-qualified left operand is deprecated" }
+   vi /= i; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" "" { target c++20 } }
+   vi = vi += 42; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" "" { target c++20 } }
+   vi += vi = 42; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" "" { target c++20 } }
+@@ -131,7 +135,8 @@ void raccoon ()
+   volatile T t, u;
+   t = 42;
+   u = t = 42; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" "" { target c++20 } }
+-  t &= 42; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" "" { target c++20 } }
++  t += 42; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" "" { target c++20 } }
++  t &= 42; // { dg-bogus "assignment with .volatile.-qualified left operand is deprecated" }
+ }
+ 
+ void
+diff --git a/gcc/testsuite/g++.dg/cpp2a/volatile3.C b/gcc/testsuite/g++.dg/cpp2a/volatile3.C
+index f10a29756a9..58816dc3084 100644
+--- a/gcc/testsuite/g++.dg/cpp2a/volatile3.C
++++ b/gcc/testsuite/g++.dg/cpp2a/volatile3.C
+@@ -57,6 +57,9 @@ fn2 ()
+   vi = i;
+   vi = i = 42;
+   i = vi = 42; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" }
++  i = vi |= 42; // { dg-warning "using value of assignment with .volatile.-qualified left operand is deprecated" }
++  i = vi &= 42; // { dg-warning "using value of assignment with .volatile.-qualified left operand is deprecated" }
++  i = vi ^= 42; // { dg-warning "using value of assignment with .volatile.-qualified left operand is deprecated" }
+   &(vi = i); // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" }
+   (vi = 42, 45);
+   (i = vi = 42, 10); // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" }
+@@ -75,8 +78,9 @@ fn2 ()
+   vi += i; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" }
+   vi -= i; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" }
+   vi %= i; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" }
+-  vi ^= i; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" }
+-  vi |= i; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" }
++  vi ^= i; // { dg-bogus "assignment with .volatile.-qualified left operand is deprecated" }
++  vi |= i; // { dg-bogus "assignment with .volatile.-qualified left operand is deprecated" }
++  vi &= i; // { dg-bogus "assignment with .volatile.-qualified left operand is deprecated" }
+   vi /= i; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" }
+   vi = vi += 42; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" }
+   vi += vi = 42; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" }
+@@ -132,7 +136,8 @@ void raccoon ()
+   volatile T t, u;
+   t = 42;
+   u = t = 42; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" }
+-  t &= 42; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" }
++  t += 42; // { dg-warning "assignment with .volatile.-qualified left operand is deprecated" }
++  t &= 42; // { dg-bogus "assignment with .volatile.-qualified left operand is deprecated" }
+ }
+ 
+ void
+diff --git a/gcc/testsuite/g++.dg/cpp2a/volatile5.C b/gcc/testsuite/g++.dg/cpp2a/volatile5.C
+index 1f9d23845b4..3684be9837e 100644
+--- a/gcc/testsuite/g++.dg/cpp2a/volatile5.C
++++ b/gcc/testsuite/g++.dg/cpp2a/volatile5.C
+@@ -8,8 +8,8 @@ f (bool b)
+ {
+   (b ? x : y) = 1;
+   (b ? x : y) += 1; // { dg-warning "compound assignment" "" { target c++20 } }
+-  z = (b ? x : y) = 1; // { dg-warning "using value of simple assignment" "" { target c++20 } }
+-  ((z = 2) ? x : y) = 1; // { dg-warning "using value of simple assignment" "" { target c++20 } }
+-  (b ? (x = 2) : y) = 1; // { dg-warning "using value of simple assignment" "" { target c++20 } }
+-  (b ? x : (y = 5)) = 1; // { dg-warning "using value of simple assignment" "" { target c++20 } }
++  z = (b ? x : y) = 1; // { dg-warning "using value of assignment" "" { target c++20 } }
++  ((z = 2) ? x : y) = 1; // { dg-warning "using value of assignment" "" { target c++20 } }
++  (b ? (x = 2) : y) = 1; // { dg-warning "using value of assignment" "" { target c++20 } }
++  (b ? x : (y = 5)) = 1; // { dg-warning "using value of assignment" "" { target c++20 } }
+ }
+diff --git a/gcc/testsuite/g++.dg/debug/pr106261.C b/gcc/testsuite/g++.dg/debug/pr106261.C
+new file mode 100644
+index 00000000000..6dee7e68ff5
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/debug/pr106261.C
+@@ -0,0 +1,36 @@
++// PR debug/106261
++// { dg-do compile }
++// { dg-options "-dx -fno-dwarf2-cfi-asm" }
++
++struct A
++{
++  virtual void foo ();
++  int a;
++};
++class C : virtual public A
++{
++};
++struct B
++{
++  A *b;
++
++  B (A *x) : b (x) { b->foo (); }
++};
++struct E
++{
++  virtual ~E ();
++};
++class D : public C, E
++{
++};
++struct F : D
++{
++  F (int);
++
++  static void bar ()
++  {
++    F a (0);
++    B b (&a);
++  }
++};
++void baz () { F::bar (); }
 diff --git a/gcc/testsuite/g++.dg/gomp/pr106492.C b/gcc/testsuite/g++.dg/gomp/pr106492.C
 new file mode 100644
 index 00000000000..f263bb42710
@@ -13992,6 +14466,55 @@ index 00000000000..43eaf3afcd4
 +bar (char *resp, char *vpp)
 +{
 +  __builtin_mma_disassemble_acc (resp, (__vector_quad *)vpp);
++}
+diff --git a/gcc/testsuite/gcc.c-torture/compile/pr106030.c b/gcc/testsuite/gcc.c-torture/compile/pr106030.c
+new file mode 100644
+index 00000000000..7514b348ff9
+--- /dev/null
++++ b/gcc/testsuite/gcc.c-torture/compile/pr106030.c
+@@ -0,0 +1,16 @@
++/* PR middle-end/106030 */
++
++int a, b, c;
++
++char
++foo (int x, int y)
++{
++  return x * y;
++}
++
++void
++bar (void)
++{
++  char d = (foo <= b) * a;
++  c = foo (2 != bar, d);
++}
+diff --git a/gcc/testsuite/gcc.c-torture/execute/pr106032.c b/gcc/testsuite/gcc.c-torture/execute/pr106032.c
+new file mode 100644
+index 00000000000..d2ccf6a5b52
+--- /dev/null
++++ b/gcc/testsuite/gcc.c-torture/execute/pr106032.c
+@@ -0,0 +1,21 @@
++/* PR rtl-optimization/106032 */
++
++__attribute__((noipa)) int
++foo (int x, int *y)
++{
++  int a = 0;
++  if (x < 0)
++    a = *y;
++  return a;  
++}
++
++int
++main ()
++{
++  int a = 42;
++  if (foo (0, 0) != 0 || foo (1, 0) != 0)
++    __builtin_abort ();
++  if (foo (-1, &a) != 42 || foo (-42, &a) != 42)
++    __builtin_abort ();
++  return 0;
 +}
 diff --git a/gcc/testsuite/gcc.dg/analyzer/pr105252.c b/gcc/testsuite/gcc.dg/analyzer/pr105252.c
 new file mode 100644
@@ -18584,6 +19107,44 @@ index a7ef9b8d9fe..93b9c8ef0ee 100644
  	  || (GET_MODE_SIZE (SCALAR_INT_TYPE_MODE (TREE_TYPE (op1)))
  	      > GET_MODE_SIZE (SCALAR_INT_TYPE_MODE (TREE_TYPE (inner)))))
  	break;
+diff --git a/gcc/wide-int.cc b/gcc/wide-int.cc
+index 906f4ea9dfc..c90fd99acbc 100644
+--- a/gcc/wide-int.cc
++++ b/gcc/wide-int.cc
+@@ -842,6 +842,13 @@ wi::shifted_mask (HOST_WIDE_INT *val, unsigned int start, unsigned int width,
+ 	val[i++] = negate ? block : ~block;
+     }
+ 
++  if (end >= prec)
++    {
++      if (!shift)
++	val[i++] = negate ? 0 : -1;
++      return i;
++    }
++
+   while (i < end / HOST_BITS_PER_WIDE_INT)
+     /* 1111111 */
+     val[i++] = negate ? 0 : -1;
+@@ -853,7 +860,7 @@ wi::shifted_mask (HOST_WIDE_INT *val, unsigned int start, unsigned int width,
+       HOST_WIDE_INT block = (HOST_WIDE_INT_1U << shift) - 1;
+       val[i++] = negate ? ~block : block;
+     }
+-  else if (end < prec)
++  else
+     val[i++] = negate ? -1 : 0;
+ 
+   return i;
+@@ -2582,6 +2589,10 @@ wide_int_cc_tests ()
+   run_all_wide_int_tests <widest_int> ();
+   test_overflow ();
+   test_round_for_mask ();
++  ASSERT_EQ (wi::mask (128, false, 128),
++	     wi::shifted_mask (0, 128, false, 128));
++  ASSERT_EQ (wi::mask (128, true, 128),
++	     wi::shifted_mask (0, 128, true, 128));
+ }
+ 
+ } // namespace selftest
 diff --git a/libcpp/ChangeLog b/libcpp/ChangeLog
 index 3f63896333e..b7feb1f443c 100644
 --- a/libcpp/ChangeLog
@@ -18888,6 +19449,241 @@ index 8ce061e2f5f..336a5983750 100644
  #if defined(HAVE_LINUX_REBOOT_H)
  #include <linux/reboot.h>
  #endif
+diff --git a/libgomp/target.c b/libgomp/target.c
+index 4a4e1f80745..98a791770e7 100644
+--- a/libgomp/target.c
++++ b/libgomp/target.c
+@@ -2192,6 +2192,7 @@ GOMP_target_ext (int device, void (*fn) (void *), size_t mapnum,
+ 	{
+ 	  struct gomp_team *team = gomp_new_team (1);
+ 	  struct gomp_task *task = thr->task;
++	  struct gomp_task **implicit_task = &task;
+ 	  struct gomp_task_icv *icv = task ? &task->icv : &gomp_global_icv;
+ 	  team->prev_ts = thr->ts;
+ 	  thr->ts.team = team;
+@@ -2204,15 +2205,23 @@ GOMP_target_ext (int device, void (*fn) (void *), size_t mapnum,
+ 	  thr->ts.static_trip = 0;
+ 	  thr->task = &team->implicit_task[0];
+ 	  gomp_init_task (thr->task, NULL, icv);
+-	  if (task)
++	  while (*implicit_task
++		 && (*implicit_task)->kind != GOMP_TASK_IMPLICIT)
++	    implicit_task = &(*implicit_task)->parent;
++	  if (*implicit_task)
+ 	    {
+-	      thr->task = task;
++	      thr->task = *implicit_task;
+ 	      gomp_end_task ();
+-	      free (task);
++	      free (*implicit_task);
+ 	      thr->task = &team->implicit_task[0];
+ 	    }
+ 	  else
+ 	    pthread_setspecific (gomp_thread_destructor, thr);
++	  if (implicit_task != &task)
++	    {
++	      *implicit_task = thr->task;
++	      thr->task = task;
++	    }
+ 	}
+       if (thr->ts.team
+ 	  && !thr->task->final_task)
+diff --git a/libgomp/task.c b/libgomp/task.c
+index f5d26873d5b..80274e950be 100644
+--- a/libgomp/task.c
++++ b/libgomp/task.c
+@@ -2202,6 +2202,7 @@ gomp_create_artificial_team (void)
+   struct gomp_task_icv *icv;
+   struct gomp_team *team = gomp_new_team (1);
+   struct gomp_task *task = thr->task;
++  struct gomp_task **implicit_task = &task;
+   icv = task ? &task->icv : &gomp_global_icv;
+   team->prev_ts = thr->ts;
+   thr->ts.team = team;
+@@ -2214,17 +2215,25 @@ gomp_create_artificial_team (void)
+   thr->ts.static_trip = 0;
+   thr->task = &team->implicit_task[0];
+   gomp_init_task (thr->task, NULL, icv);
+-  if (task)
++  while (*implicit_task
++	 && (*implicit_task)->kind != GOMP_TASK_IMPLICIT)
++    implicit_task = &(*implicit_task)->parent;
++  if (*implicit_task)
+     {
+-      thr->task = task;
++      thr->task = *implicit_task;
+       gomp_end_task ();
+-      free (task);
++      free (*implicit_task);
+       thr->task = &team->implicit_task[0];
+     }
+ #ifdef LIBGOMP_USE_PTHREADS
+   else
+     pthread_setspecific (gomp_thread_destructor, thr);
+ #endif
++  if (implicit_task != &task)
++    {
++      *implicit_task = thr->task;
++      thr->task = task;
++    }
+ }
+ 
+ /* The format of data is:
+diff --git a/libgomp/testsuite/libgomp.c-c++-common/pr106981.c b/libgomp/testsuite/libgomp.c-c++-common/pr106981.c
+new file mode 100644
+index 00000000000..ed48d2774f2
+--- /dev/null
++++ b/libgomp/testsuite/libgomp.c-c++-common/pr106981.c
+@@ -0,0 +1,19 @@
++/* PR c/106981 */
++
++int
++main ()
++{
++  int a[0x101];
++  unsigned int b = 0x100;
++  if ((unsigned char) b || (unsigned short) b != 0x100)
++    return 0;
++  a[0] = 0;
++  a[0x100] = 42;
++  #pragma omp atomic update
++  a[(unsigned char) b] = a[(unsigned short) b] + a[(unsigned char) b];
++  #pragma omp atomic update
++  a[(unsigned char) b] = a[(unsigned char) b] + a[(unsigned short) b];
++  if (a[0] != 84 || a[0x100] != 42)
++    __builtin_abort ();
++  return 0;
++}
+diff --git a/libgomp/testsuite/libgomp.c-c++-common/task-reduction-17.c b/libgomp/testsuite/libgomp.c-c++-common/task-reduction-17.c
+new file mode 100644
+index 00000000000..4a8d1e8bb73
+--- /dev/null
++++ b/libgomp/testsuite/libgomp.c-c++-common/task-reduction-17.c
+@@ -0,0 +1,36 @@
++/* { dg-do run } */
++
++#include <omp.h>
++#include <stdlib.h>
++
++int a;
++
++int
++main ()
++{
++  #pragma omp task final (1)
++  {
++    if (!omp_in_final ())
++      abort ();
++    #pragma omp task
++    {
++      if (!omp_in_final ())
++	abort ();
++      #pragma omp taskgroup task_reduction (+: a)
++      {
++	if (!omp_in_final ())
++	  abort ();
++	#pragma omp task in_reduction (+: a)
++	{
++	  ++a;
++	  if (!omp_in_final ())
++	    abort ();
++	}
++      }
++      if (!omp_in_final ())
++	abort ();
++      #pragma omp taskwait
++    }
++  }
++  return 0;
++}
+diff --git a/libgomp/testsuite/libgomp.c-c++-common/task-reduction-18.c b/libgomp/testsuite/libgomp.c-c++-common/task-reduction-18.c
+new file mode 100644
+index 00000000000..483f4406f6f
+--- /dev/null
++++ b/libgomp/testsuite/libgomp.c-c++-common/task-reduction-18.c
+@@ -0,0 +1,17 @@
++/* { dg-do run } */
++
++int a;
++
++int
++main ()
++{
++  #pragma omp task
++  {
++    #pragma omp taskgroup task_reduction (+: a)
++    {
++      #pragma omp task in_reduction (+: a)
++      ++a;
++    }
++  }
++  return 0;
++}
+diff --git a/libgomp/testsuite/libgomp.c/target-31.c b/libgomp/testsuite/libgomp.c/target-31.c
+index 8e63d286b43..1123b7ea561 100644
+--- a/libgomp/testsuite/libgomp.c/target-31.c
++++ b/libgomp/testsuite/libgomp.c/target-31.c
+@@ -76,7 +76,7 @@ main ()
+       m[1] += 3 * b;
+     }
+     use (&a, &b, &c, &d, e, f, g, h);
+-    #pragma omp parallel firstprivate (u1, u2)
++    #pragma omp parallel firstprivate (u1, u2) private (i)
+     {
+       int w = omp_get_thread_num ();
+       int x = 19;
+diff --git a/libgomp/testsuite/libgomp.c/task-7.c b/libgomp/testsuite/libgomp.c/task-7.c
+new file mode 100644
+index 00000000000..0307575f978
+--- /dev/null
++++ b/libgomp/testsuite/libgomp.c/task-7.c
+@@ -0,0 +1,26 @@
++/* { dg-do run } */
++
++#include <omp.h>
++#include <stdlib.h>
++
++int
++main ()
++{
++  #pragma omp task final (1)
++  {
++    if (!omp_in_final ())
++      abort ();
++    #pragma omp task
++    {
++      if (!omp_in_final ())
++	abort ();
++      #pragma omp target nowait
++      if (omp_in_final ())
++	abort ();
++      if (!omp_in_final ())
++	abort ();
++      #pragma omp taskwait
++    }
++  }
++  return 0;
++}
+diff --git a/libgomp/testsuite/libgomp.c/task-8.c b/libgomp/testsuite/libgomp.c/task-8.c
+new file mode 100644
+index 00000000000..f03aef6a030
+--- /dev/null
++++ b/libgomp/testsuite/libgomp.c/task-8.c
+@@ -0,0 +1,14 @@
++/* { dg-do run } */
++
++int
++main ()
++{
++  int i = 0;
++  #pragma omp task
++  {
++    #pragma omp target nowait private (i)
++    i = 1;
++    #pragma omp taskwait
++  }
++  return 0;
++}
 diff --git a/libphobos/ChangeLog b/libphobos/ChangeLog
 index acd0b312ef2..f3d44133243 100644
 --- a/libphobos/ChangeLog
