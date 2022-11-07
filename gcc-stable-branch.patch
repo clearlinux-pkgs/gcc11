@@ -13,14 +13,17 @@ David Malcolm (2):
       analyzer: fix ICE comparing VECTOR_CSTs [PR105252]
       analyzer: fix ICEs on complex constants [PR105365,105366]
 
-Eric Botcazou (2):
+Eric Botcazou (3):
       Fix internal error with vectorization on SPARC
       Fix PR target/107248
+      Fix recent thinko in operand_equal_p
 
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (196):
+GCC Administrator (198):
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -314,7 +317,7 @@ Jason Merrill (19):
 Jeff Law (1):
       [committed] Fix more problems with new linker warnings
 
-Jonathan Wakely (74):
+Jonathan Wakely (75):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -389,6 +392,7 @@ Jonathan Wakely (74):
       libstdc++: Fix for explicit copy ctors in <thread> and <future> [PR106695]
       libstdc++: Check for overflow in regex back-reference [PR106607]
       libstdc++: Fix feature test macros in <version> for freestanding
+      doc: Document correct -fwide-exec-charset defaults [PR41041]
 
 José Rui Faustino de Sousa (5):
       Fortran: Fix ICE with -fcheck=pointer [PR100136]
@@ -600,10 +604,87 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..33cfaf820a8 100644
+index a0587d18824..077608119a5 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,924 @@
+@@ -1,3 +1,1001 @@
++2022-11-05  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-11-05  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR c/41041
++	* doc/cppopts.texi: Document -fwide-exec-charset defaults
++	correctly.
++
++2022-11-04  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* fold-const.c (operand_compare::operand_equal_p) <COMPONENT_REF>:
++	Do not take into account operand 2.
++	(operand_compare::hash_operand) <COMPONENT_REF>: Likewise.
++
++2022-11-04  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-09-24  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c/107001
++	* omp-low.c (lower_omp_taskgroup): Don't add GOMP_RETURN statement
++	at the end.
++	* omp-expand.c (build_omp_regions_1): Clarify GF_OMP_TARGET_KIND_DATA
++	is not stand-alone directive.  For GIMPLE_OMP_TASKGROUP, also don't
++	update parent.
++	(omp_make_gimple_edges) <case GIMPLE_OMP_TASKGROUP>: Reset
++	cur_region back after new_omp_region.
++
++2022-11-04  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-08-24  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/106721
++	* config/i386/sse.md
++	(avx512er_vmrcp28<mode><mask_name><round_saeonly_name>): Fix typo,
++	mask_opernad3 -> mask_operand3.
++
++2022-11-04  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-07-27  Jakub Jelinek  <jakub@redhat.com>
++
++	PR debug/106261
++	* cgraphunit.c (cgraph_node::assemble_thunks_and_aliases): Don't
++	output asm thunks for -dx.
++
++2022-11-04  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-07-01  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/106144
++	* wide-int.cc (wi::shifted_mask): If end >= prec, return right after
++	emitting element for shift or if shift is 0 first element after start.
++	(wide_int_cc_tests): Add tests for equivalency of wi::mask and
++	wi::shifted_mask with 0 start.
++
++2022-11-04  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-06-21  Jakub Jelinek  <jakub@redhat.com>
++
++	PR rtl-optimization/106032
++	* ifcvt.c (noce_try_sign_mask): Punt if !t_unconditional, and
++	t may_trap_or_fault_p, even if it is cheap.
++
++2022-11-04  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-06-21  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/106030
++	* expr.c (expand_cond_expr_using_cmove): Pass NULL_RTX instead of
++	temp to expand_operands if mode has been promoted.
++
 +2022-10-27  Torbjörn SVENSSON  <torbjorn.svensson@foss.st.com>
 +
 +	Backported from master:
@@ -1776,10 +1857,29 @@ index 7b8f49d78dc..16fc52302e5 100644
    cl = TREE_CODE_CLASS (code);
  
 diff --git a/gcc/c/ChangeLog b/gcc/c/ChangeLog
-index 8d0dffcaa10..b64ceda32ef 100644
+index 8d0dffcaa10..2e238018890 100644
 --- a/gcc/c/ChangeLog
 +++ b/gcc/c/ChangeLog
-@@ -1,3 +1,12 @@
+@@ -1,3 +1,31 @@
++2022-11-04  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-10-24  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/107358
++	* c-typeck.c (build_binary_op): Pass operands before excess precision
++	promotions to scalar_to_vector call.
++
++2022-11-04  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-09-24  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c/106981
++	* c-typeck.c (c_tree_equal): Only strip NON_LVALUE_EXPRs at the
++	start.  For CONSTANT_CLASS_P or CASE_CONVERT: return false if t1 and
++	t2 have different types.
++
 +2022-08-02  Lewis Hyatt  <lhyatt@gmail.com>
 +
 +	Backported from master:
@@ -8602,10 +8702,30 @@ index cdf22f14b94..fabc313197a 100644
  	}
  
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..476ad3737e9 100644
+index 85c8fdd38cd..fa81128d0f6 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,215 @@
+@@ -1,3 +1,235 @@
++2022-11-04  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-10-24  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/105774
++	* constexpr.c (cxx_eval_increment_expression): For signed types
++	that promote to int, evaluate PLUS_EXPR or MINUS_EXPR in int type.
++
++2022-11-04  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-08-16  Jakub Jelinek  <jakub@redhat.com>
++
++	* typeck.c (cp_build_modify_expr): Implement
++	P2327R1 - De-deprecating volatile compound operations.  Don't warn
++	for |=, &= or ^= with volatile lhs.
++	* expr.c (mark_use) <case MODIFY_EXPR>: Adjust warning wording,
++	leave out simple.
++
 +2022-10-24  Marek Polacek  <polacek@redhat.com>
 +
 +	Backported from master:
@@ -9969,6 +10089,24 @@ index 9d6464deb07..a10d21e355e 100644
    finish_builtin_struct (type, ident->toChars (), fields, NULL_TREE);
  
    tinfo_types[tk] = type;
+diff --git a/gcc/doc/cppopts.texi b/gcc/doc/cppopts.texi
+index b941de6df1b..03fd8084619 100644
+--- a/gcc/doc/cppopts.texi
++++ b/gcc/doc/cppopts.texi
+@@ -318,9 +318,10 @@ supported by the system's @code{iconv} library routine.
+ @opindex fwide-exec-charset
+ @cindex character set, wide execution
+ Set the wide execution character set, used for wide string and
+-character constants.  The default is UTF-32 or UTF-16, whichever
+-corresponds to the width of @code{wchar_t}.  As with
+-@option{-fexec-charset}, @var{charset} can be any encoding supported
++character constants.  The default is one of UTF-32BE, UTF-32LE, UTF-16BE,
++or UTF-16LE, whichever corresponds to the width of @code{wchar_t} and the
++big-endian or little-endian byte order being used for code generation.  As
++with @option{-fexec-charset}, @var{charset} can be any encoding supported
+ by the system's @code{iconv} library routine; however, you will have
+ problems with encodings that do not fit exactly in @code{wchar_t}.
+ 
 diff --git a/gcc/doc/invoke.texi b/gcc/doc/invoke.texi
 index 35508efb4ef..49b78ef4522 100644
 --- a/gcc/doc/invoke.texi
@@ -10044,7 +10182,7 @@ index 14a25c25450..9a2bb29abba 100644
    if (TREE_CODE (treeop0) == SSA_NAME
        && (srcstmt = get_def_for_expr_class (treeop0, tcc_comparison)))
 diff --git a/gcc/fold-const.c b/gcc/fold-const.c
-index 70c5b3886ef..901255a18d6 100644
+index 70c5b3886ef..5b4053df520 100644
 --- a/gcc/fold-const.c
 +++ b/gcc/fold-const.c
 @@ -2355,7 +2355,7 @@ build_zero_vector (tree type)
@@ -10065,7 +10203,39 @@ index 70c5b3886ef..901255a18d6 100644
  
      default:
        return false;
-@@ -7508,7 +7508,7 @@ tree_swap_operands_p (const_tree arg0, const_tree arg1)
+@@ -3331,9 +3331,6 @@ operand_compare::operand_equal_p (const_tree arg0, const_tree arg1,
+ 		if (compare_address
+ 		    && (flags & OEP_ADDRESS_OF_SAME_FIELD) == 0)
+ 		  {
+-		    if (TREE_OPERAND (arg0, 2)
+-			|| TREE_OPERAND (arg1, 2))
+-		      return OP_SAME_WITH_NULL (2);
+ 		    tree field0 = TREE_OPERAND (arg0, 1);
+ 		    tree field1 = TREE_OPERAND (arg1, 1);
+ 
+@@ -3844,17 +3841,10 @@ operand_compare::hash_operand (const_tree t, inchash::hash &hstate,
+ 	      if (sflags & OEP_ADDRESS_OF)
+ 		{
+ 		  hash_operand (TREE_OPERAND (t, 0), hstate, flags);
+-		  if (TREE_OPERAND (t, 2))
+-		    hash_operand (TREE_OPERAND (t, 2), hstate,
+-				  flags & ~OEP_ADDRESS_OF);
+-		  else
+-		    {
+-		      tree field = TREE_OPERAND (t, 1);
+-		      hash_operand (DECL_FIELD_OFFSET (field),
+-				    hstate, flags & ~OEP_ADDRESS_OF);
+-		      hash_operand (DECL_FIELD_BIT_OFFSET (field),
+-				    hstate, flags & ~OEP_ADDRESS_OF);
+-		    }
++		  hash_operand (DECL_FIELD_OFFSET (TREE_OPERAND (t, 1)),
++				hstate, flags & ~OEP_ADDRESS_OF);
++		  hash_operand (DECL_FIELD_BIT_OFFSET (TREE_OPERAND (t, 1)),
++				hstate, flags & ~OEP_ADDRESS_OF);
+ 		  return;
+ 		}
+ 	      break;
+@@ -7508,7 +7498,7 @@ tree_swap_operands_p (const_tree arg0, const_tree arg1)
  static tree
  fold_to_nonsharp_ineq_using_bound (location_t loc, tree ineq, tree bound)
  {
@@ -10074,7 +10244,7 @@ index 70c5b3886ef..901255a18d6 100644
  
    if (TREE_CODE (bound) == LT_EXPR)
      a = TREE_OPERAND (bound, 0);
-@@ -9488,6 +9488,16 @@ fold_unary_loc (location_t loc, enum tree_code code, tree type, tree op0)
+@@ -9488,6 +9478,16 @@ fold_unary_loc (location_t loc, enum tree_code code, tree type, tree op0)
  		  > min_align_of_type (TREE_TYPE (TREE_TYPE (arg00)))))
  	    return NULL_TREE;
  
@@ -10091,7 +10261,7 @@ index 70c5b3886ef..901255a18d6 100644
  	  arg00 = fold_convert_loc (loc, type, arg00);
  	  return fold_build_pointer_plus_loc (loc, arg00, arg01);
  	}
-@@ -11987,11 +11997,15 @@ fold_binary_loc (location_t loc, enum tree_code code, tree type,
+@@ -11987,11 +11987,15 @@ fold_binary_loc (location_t loc, enum tree_code code, tree type,
  	{
  	  tem = fold_to_nonsharp_ineq_using_bound (loc, arg0, arg1);
  	  if (tem && !operand_equal_p (tem, arg0, 0))
@@ -11785,10 +11955,82 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..d8569827f91 100644
+index 5fc23605244..01378db1a5b 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1079 @@
+@@ -1,3 +1,1151 @@
++2022-11-04  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gnat.dg/opt99.adb: New test.
++	* gnat.dg/opt99_pkg1.ads, gnat.dg/opt99_pkg1.adb: New helper.
++	* gnat.dg/opt99_pkg2.ads: Likewise.
++
++2022-11-04  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-10-24  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/107358
++	* c-c++-common/pr107358.c: New test.
++
++2022-11-04  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-10-24  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/105774
++	* g++.dg/cpp1y/constexpr-105774.C: New test.
++
++2022-11-04  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-09-24  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c/107001
++	* c-c++-common/gomp/pr107001.c: New test.
++
++2022-11-04  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-09-24  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c/106981
++	* c-c++-common/gomp/pr106981.c: New test.
++
++2022-11-04  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-08-16  Jakub Jelinek  <jakub@redhat.com>
++
++	* g++.dg/cpp2a/volatile1.C: Adjust for de-deprecation of volatile
++	compound |=, &= and ^= operations.
++	* g++.dg/cpp2a/volatile3.C: Likewise.
++	* g++.dg/cpp2a/volatile5.C: Likewise.
++
++2022-11-04  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-07-27  Jakub Jelinek  <jakub@redhat.com>
++
++	PR debug/106261
++	* g++.dg/debug/pr106261.C: New test.
++
++2022-11-04  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-06-21  Jakub Jelinek  <jakub@redhat.com>
++
++	PR rtl-optimization/106032
++	* gcc.c-torture/execute/pr106032.c: New test.
++
++2022-11-04  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-06-21  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/106030
++	* gcc.c-torture/compile/pr106030.c: New test.
++
 +2022-10-29  José Rui Faustino de Sousa  <jrfsousa@gmail.com>
 +
 +	Backported from master:
@@ -18415,6 +18657,87 @@ index 00000000000..5347c111e8f
 +  print *, unpack ([1,2,3], mask, 0) ! OK
 +  print *, unpack ([1,2],   mask, 0) ! { dg-error "must provide at least" }
 +end
+diff --git a/gcc/testsuite/gnat.dg/opt99.adb b/gcc/testsuite/gnat.dg/opt99.adb
+new file mode 100644
+index 00000000000..8805d47c122
+--- /dev/null
++++ b/gcc/testsuite/gnat.dg/opt99.adb
+@@ -0,0 +1,15 @@
++-- { dg-do run }
++-- { dg-options "-O" }
++
++with Opt99_Pkg1; use Opt99_Pkg1;
++
++procedure Opt99 is
++  C : constant My_Character := (D => True, C => ' ');
++  D : Derived;
++
++begin
++  Set (D, C, C);
++  if not D.C2.D then
++    raise Program_Error;
++  end if;
++end;
+diff --git a/gcc/testsuite/gnat.dg/opt99_pkg1.adb b/gcc/testsuite/gnat.dg/opt99_pkg1.adb
+new file mode 100644
+index 00000000000..476b09c9524
+--- /dev/null
++++ b/gcc/testsuite/gnat.dg/opt99_pkg1.adb
+@@ -0,0 +1,10 @@
++package body Opt99_Pkg1 is
++
++  procedure Set (D: in out Derived; C1, C2 : My_Character) is
++  begin
++    D.I  := 0;
++    D.C1 := C1;
++    D.C2 := C2;
++  end;
++
++end Opt99_Pkg1;
+diff --git a/gcc/testsuite/gnat.dg/opt99_pkg1.ads b/gcc/testsuite/gnat.dg/opt99_pkg1.ads
+new file mode 100644
+index 00000000000..3e265616d14
+--- /dev/null
++++ b/gcc/testsuite/gnat.dg/opt99_pkg1.ads
+@@ -0,0 +1,19 @@
++with Opt99_Pkg2;
++
++package Opt99_Pkg1 is
++
++  type My_Character (D : Boolean := False) is record
++    case D is
++      when False => null;
++      when True  => C : Character;
++    end case;
++  end record;
++
++  type Derived is new Opt99_Pkg2.Root with record
++    I : Integer;
++    C1, C2 : My_Character;
++  end record;
++
++  procedure Set (D: in out Derived; C1, C2 : My_Character);
++
++end Opt99_Pkg1;
+diff --git a/gcc/testsuite/gnat.dg/opt99_pkg2.ads b/gcc/testsuite/gnat.dg/opt99_pkg2.ads
+new file mode 100644
+index 00000000000..09aaff14e01
+--- /dev/null
++++ b/gcc/testsuite/gnat.dg/opt99_pkg2.ads
+@@ -0,0 +1,13 @@
++package Opt99_Pkg2 is
++
++  function Get_Max return Positive is (4);
++
++  C : constant Positive := Get_Max;
++
++  type Arr is array (1 .. C) of Integer;
++
++  type Root is tagged record
++    Data : Arr;
++  end record;
++
++end Opt99_Pkg2;
 diff --git a/gcc/testsuite/lib/prune.exp b/gcc/testsuite/lib/prune.exp
 index 2809f88b16f..25fb98c6bed 100644
 --- a/gcc/testsuite/lib/prune.exp
@@ -19449,6 +19772,44 @@ index 8ce061e2f5f..336a5983750 100644
  #if defined(HAVE_LINUX_REBOOT_H)
  #include <linux/reboot.h>
  #endif
+diff --git a/libgomp/ChangeLog b/libgomp/ChangeLog
+index 0fa2757d939..9f557f42b6f 100644
+--- a/libgomp/ChangeLog
++++ b/libgomp/ChangeLog
+@@ -1,3 +1,33 @@
++2022-11-04  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-10-12  Jakub Jelinek  <jakub@redhat.com>
++
++	* task.c (gomp_create_artificial_team): Fix up handling of invocations
++	from within explicit task.
++	* target.c (GOMP_target_ext): Likewise.
++	* testsuite/libgomp.c/task-7.c: New test.
++	* testsuite/libgomp.c/task-8.c: New test.
++	* testsuite/libgomp.c-c++-common/task-reduction-17.c: New test.
++	* testsuite/libgomp.c-c++-common/task-reduction-18.c: New test.
++
++2022-11-04  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-09-24  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c/106981
++	* testsuite/libgomp.c-c++-common/pr106981.c: New test.
++
++2022-11-04  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-06-21  Jakub Jelinek  <jakub@redhat.com>
++		    Paul Iannetta  <piannetta@kalrayinc.com>
++
++	PR libgomp/106045
++	* testsuite/libgomp.c/target-31.c: Add private (i) clause.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/libgomp/target.c b/libgomp/target.c
 index 4a4e1f80745..98a791770e7 100644
 --- a/libgomp/target.c
