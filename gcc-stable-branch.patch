@@ -21,7 +21,8 @@ Eric Botcazou (3):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (198):
+GCC Administrator (199):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -224,11 +225,12 @@ GCC Administrator (198):
 Georg-Johann Lay (1):
       Fix PR target/99184: Wrong cast from double to 16-bit and 32-bit ints
 
-H.J. Lu (4):
+H.J. Lu (5):
       x86: Add missing .note.GNU-stack to assembly source
       x86: Add .note.GNU-stack section only for Linux
       x86: Require AVX for F16C and VAES
       i386: Mark XMM4-XMM6 as clobbered by encodekey128/encodekey256
+      Always use TYPE_MODE instead of DECL_MODE for vector field
 
 Harald Anlauf (16):
       Fortran: improve error recovery on invalid array section
@@ -317,7 +319,7 @@ Jason Merrill (19):
 Jeff Law (1):
       [committed] Fix more problems with new linker warnings
 
-Jonathan Wakely (75):
+Jonathan Wakely (76):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -393,6 +395,7 @@ Jonathan Wakely (75):
       libstdc++: Check for overflow in regex back-reference [PR106607]
       libstdc++: Fix feature test macros in <version> for freestanding
       doc: Document correct -fwide-exec-charset defaults [PR41041]
+      libstdc++: Remove empty <author> elements in manual
 
 José Rui Faustino de Sousa (5):
       Fortran: Fix ICE with -fcheck=pointer [PR100136]
@@ -10153,7 +10156,7 @@ index 07e908624a0..0dc51220682 100644
    INSN_LOCATION (new_rtx) = INSN_LOCATION (insn);
  
 diff --git a/gcc/expr.c b/gcc/expr.c
-index 14a25c25450..9a2bb29abba 100644
+index 14a25c25450..27285f93fe4 100644
 --- a/gcc/expr.c
 +++ b/gcc/expr.c
 @@ -6192,13 +6192,13 @@ count_type_elements (const_tree type, bool for_ctor_p)
@@ -10171,7 +10174,17 @@ index 14a25c25450..9a2bb29abba 100644
      case METHOD_TYPE:
      case FUNCTION_TYPE:
      case LANG_TYPE:
-@@ -8566,7 +8566,8 @@ expand_cond_expr_using_cmove (tree treeop0 ATTRIBUTE_UNUSED,
+@@ -7436,8 +7436,7 @@ get_inner_reference (tree exp, poly_int64_pod *pbitsize,
+ 	  /* For vector fields re-check the target flags, as DECL_MODE
+ 	     could have been set with different target flags than
+ 	     the current function has.  */
+-	  if (mode == BLKmode
+-	      && VECTOR_TYPE_P (TREE_TYPE (field))
++	  if (VECTOR_TYPE_P (TREE_TYPE (field))
+ 	      && VECTOR_MODE_P (TYPE_MODE_RAW (TREE_TYPE (field))))
+ 	    mode = TYPE_MODE (TREE_TYPE (field));
+ 	}
+@@ -8566,7 +8565,8 @@ expand_cond_expr_using_cmove (tree treeop0 ATTRIBUTE_UNUSED,
    expanding_cond_expr_using_cmove = true;
    start_sequence ();
    expand_operands (treeop1, treeop2,
@@ -16597,6 +16610,51 @@ index 00000000000..326486faebf
 +/* { dg-options "-mx32 -mgeneral-regs-only -maddress-mode=long" } */
 +
 +#include "../../gcc.dg/torture/pr68037-1.c"
+diff --git a/gcc/testsuite/gcc.target/i386/pr107304.c b/gcc/testsuite/gcc.target/i386/pr107304.c
+new file mode 100644
+index 00000000000..24d68795e7f
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/i386/pr107304.c
+@@ -0,0 +1,39 @@
++/* { dg-do compile } */
++/* { dg-options "-O0 -march=tigerlake" } */
++
++#include <stdint.h>
++
++typedef union {
++  uint8_t v __attribute__((aligned(256))) __attribute__ ((vector_size(64 * sizeof(uint8_t))));
++  uint8_t i[64] __attribute__((aligned(256)));
++} stress_vec_u8_64_t;
++
++typedef struct {
++ struct {
++  stress_vec_u8_64_t s;
++  stress_vec_u8_64_t o;
++  stress_vec_u8_64_t mask1;
++  stress_vec_u8_64_t mask2;
++ } u8_64;
++} stress_vec_data_t;
++
++__attribute__((target_clones("arch=alderlake", "default"))) 
++void
++stress_vecshuf_u8_64(stress_vec_data_t *data)
++{
++  stress_vec_u8_64_t *__restrict s;
++  stress_vec_u8_64_t *__restrict mask1;
++  stress_vec_u8_64_t *__restrict mask2;
++  register int i;
++
++  s = &data->u8_64.s;
++  mask1 = &data->u8_64.mask1;
++  mask2 = &data->u8_64.mask2;
++
++  for (i = 0; i < 256; i++) {	/* was i < 65536 */
++      stress_vec_u8_64_t tmp;
++
++      tmp.v = __builtin_shuffle(s->v, mask1->v);
++      s->v = __builtin_shuffle(tmp.v, mask2->v);
++  }
++}
 diff --git a/gcc/testsuite/gcc.target/i386/sse-14.c b/gcc/testsuite/gcc.target/i386/sse-14.c
 index 4ce0ffffaf3..4c728f230f7 100644
 --- a/gcc/testsuite/gcc.target/i386/sse-14.c
@@ -21149,6 +21207,16 @@ index fb256bb0287..4d16b094d7f 100644
  
    # C11 functions for C++17 library
    AC_CHECK_FUNCS(timespec_get)
+diff --git a/libstdc++-v3/doc/html/bk02.html b/libstdc++-v3/doc/html/bk02.html
+index 7c47759f223..182c94b59a6 100644
+--- a/libstdc++-v3/doc/html/bk02.html
++++ b/libstdc++-v3/doc/html/bk02.html
+@@ -1,2 +1,2 @@
+ <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title></title><meta name="generator" content="DocBook XSL Stylesheets Vsnapshot" /><meta name="keywords" content="ISO C++, runtime, library" /><link rel="home" href="index.html" title="The GNU C++ Library" /><link rel="up" href="index.html" title="The GNU C++ Library" /><link rel="prev" href="manual/backwards.html" title="Backwards Compatibility" /><link rel="next" href="api.html" title="The GNU C++ Library API Reference" /></head><body><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center"></th></tr><tr><td width="20%" align="left"><a accesskey="p" href="manual/backwards.html">Prev</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="api.html">Next</a></td></tr></table><hr /></div><div class="book"><div class="titlepage"><hr /></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="article"><a href="api.html">The GNU C++ Library API Reference</a></span></dt></dl></div></div><div class="navfooter"><hr /><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="manual/backwards.html">Prev</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="api.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Backwards Compatibility </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> The GNU C++ Library API Reference</td></tr></table></div></body></html>
+\ No newline at end of file
++<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title></title><meta name="generator" content="DocBook XSL Stylesheets Vsnapshot" /><meta name="keywords" content="ISO C++, runtime, library" /><link rel="home" href="index.html" title="The GNU C++ Library" /><link rel="up" href="index.html" title="The GNU C++ Library" /><link rel="prev" href="manual/appendix_gfdl.html" title="Appendix E. GNU Free Documentation License" /><link rel="next" href="api.html" title="The GNU C++ Library API Reference" /></head><body><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center"></th></tr><tr><td width="20%" align="left"><a accesskey="p" href="manual/appendix_gfdl.html">Prev</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="api.html">Next</a></td></tr></table><hr /></div><div class="book"><div class="titlepage"><hr /></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="article"><a href="api.html">The GNU C++ Library API Reference</a></span></dt></dl></div></div><div class="navfooter"><hr /><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="manual/appendix_gfdl.html">Prev</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="api.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Appendix E. GNU Free Documentation License </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> The GNU C++ Library API Reference</td></tr></table></div></body></html>
+\ No newline at end of file
 diff --git a/libstdc++-v3/doc/html/index.html b/libstdc++-v3/doc/html/index.html
 index ed1a05f36f7..b118c214b47 100644
 --- a/libstdc++-v3/doc/html/index.html
@@ -21162,11 +21230,41 @@ index ed1a05f36f7..b118c214b47 100644
      Standard Contents
    </a></span></dt><dd><dl><dt><span class="chapter"><a href="manual/support.html">4. 
    Support
+diff --git a/libstdc++-v3/doc/html/manual/extensions.html b/libstdc++-v3/doc/html/manual/extensions.html
+index 82bf42e54b0..1b13d711714 100644
+--- a/libstdc++-v3/doc/html/manual/extensions.html
++++ b/libstdc++-v3/doc/html/manual/extensions.html
+@@ -1,8 +1,8 @@
+ <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>Part III.  Extensions</title><meta name="generator" content="DocBook XSL Stylesheets Vsnapshot" /><meta name="keywords" content="ISO C++, library" /><meta name="keywords" content="ISO C++, runtime, library" /><link rel="home" href="../index.html" title="The GNU C++ Library" /><link rel="up" href="index.html" title="The GNU C++ Library Manual" /><link rel="prev" href="io_and_c.html" title="Interacting with C" /><link rel="next" href="ext_preface.html" title="" /></head><body><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Part III. 
++<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>Part III.  Extensions</title><meta name="generator" content="DocBook XSL Stylesheets Vsnapshot" /><meta name="keywords" content="ISO C++, library" /><meta name="keywords" content="ISO C++, runtime, library" /><link rel="home" href="../index.html" title="The GNU C++ Library" /><link rel="up" href="index.html" title="The GNU C++ Library Manual" /><link rel="prev" href="concurrency.html" title="Chapter 15.  Concurrency" /><link rel="next" href="ext_preface.html" title="" /></head><body><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Part III. 
+   Extensions
+   
+-</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="io_and_c.html">Prev</a> </td><th width="60%" align="center">The GNU C++ Library Manual</th><td width="20%" align="right"> <a accesskey="n" href="ext_preface.html">Next</a></td></tr></table><hr /></div><div class="part"><div class="titlepage"><div><div><h1 class="title"><a id="manual.ext"></a>Part III. 
++</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="concurrency.html">Prev</a> </td><th width="60%" align="center">The GNU C++ Library Manual</th><td width="20%" align="right"> <a accesskey="n" href="ext_preface.html">Next</a></td></tr></table><hr /></div><div class="part"><div class="titlepage"><div><div><h1 class="title"><a id="manual.ext"></a>Part III. 
+   Extensions
+   <a id="id-1.3.5.1.1.1" class="indexterm"></a>
+ </h1></div></div></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="preface"><a href="ext_preface.html"></a></span></dt><dt><span class="chapter"><a href="ext_compile_checks.html">16. Compile Time Checks</a></span></dt><dt><span class="chapter"><a href="debug_mode.html">17. Debug Mode</a></span></dt><dd><dl><dt><span class="section"><a href="debug_mode.html#manual.ext.debug_mode.intro">Intro</a></span></dt><dt><span class="section"><a href="debug_mode_semantics.html">Semantics</a></span></dt><dt><span class="section"><a href="debug_mode_using.html">Using</a></span></dt><dd><dl><dt><span class="section"><a href="debug_mode_using.html#debug_mode.using.mode">Using the Debug Mode</a></span></dt><dt><span class="section"><a href="debug_mode_using.html#debug_mode.using.specific">Using a Specific Debug Container</a></span></dt></dl></dd><dt><span class="section"><a href="debug_mode_design.html">Design</a></span></dt><dd><dl><dt><span class="section"><a href="debug_mode_design.html#debug_mode.design.goals">Goals</a></span></dt><dt><span class="section"><a href="debug_mode_design.html#debug_mode.design.methods">Methods</a></span></dt><dd><dl><dt><span class="section"><a href="debug_mode_design.html#debug_mode.design.methods.wrappers">The Wrapper Model</a></span></dt><dd><dl><dt><span class="section"><a href="debug_mode_design.html#debug_mode.design.methods.safe_iter">Safe Iterators</a></span></dt><dt><span class="section"><a href="debug_mode_design.html#debug_mode.design.methods.safe_seq">Safe Sequences (Containers)</a></span></dt></dl></dd><dt><span class="section"><a href="debug_mode_design.html#debug_mode.design.methods.precond">Precondition Checking</a></span></dt><dt><span class="section"><a href="debug_mode_design.html#debug_mode.design.methods.coexistence">Release- and debug-mode coexistence</a></span></dt><dd><dl><dt><span class="section"><a href="debug_mode_design.html#methods.coexistence.compile">Compile-time coexistence of release- and debug-mode components</a></span></dt><dt><span class="section"><a href="debug_mode_design.html#methods.coexistence.link">Link- and run-time coexistence of release- and
+@@ -68,4 +68,7 @@
+ 	  Text <code class="function">modify</code> Up
+ 	</a></span></dt><dt><span class="section"><a href="policy_based_data_structures_test.html#performance.priority_queue.text_modify_down">
+ 	  Text <code class="function">modify</code> Down
+-	</a></span></dt></dl></dd><dt><span class="section"><a href="policy_based_data_structures_test.html#pbds.test.performance.observations">Observations</a></span></dt><dd><dl><dt><span class="section"><a href="policy_based_data_structures_test.html#observations.associative">Associative</a></span></dt><dt><span class="section"><a href="policy_based_data_structures_test.html#observations.priority_queue">Priority_Queue</a></span></dt></dl></dd></dl></dd></dl></dd><dt><span class="section"><a href="policy_data_structures_ack.html">Acknowledgments</a></span></dt><dt><span class="bibliography"><a href="policy_data_structures.html#pbds.biblio">Bibliography</a></span></dt></dl></dd><dt><span class="chapter"><a href="ext_containers.html">22. HP/SGI Extensions</a></span></dt><dd><dl><dt><span class="section"><a href="ext_containers.html#manual.ext.containers.sgi">Backwards Compatibility</a></span></dt><dt><span class="section"><a href="ext_sgi.html">Deprecated</a></span></dt></dl></dd><dt><span class="chapter"><a href="ext_utilities.html">23. Utilities</a></span></dt><dt><span class="chapter"><a href="ext_algorithms.html">24. Algorithms</a></span></dt><dt><span class="chapter"><a href="ext_numerics.html">25. Numerics</a></span></dt><dt><span class="chapter"><a href="ext_iterators.html">26. Iterators</a></span></dt><dt><span class="chapter"><a href="ext_io.html">27. Input and Output</a></span></dt><dd><dl><dt><span class="section"><a href="ext_io.html#manual.ext.io.filebuf_derived">Derived filebufs</a></span></dt></dl></dd><dt><span class="chapter"><a href="ext_demangling.html">28. Demangling</a></span></dt><dt><span class="chapter"><a href="ext_concurrency.html">29. Concurrency</a></span></dt><dd><dl><dt><span class="section"><a href="ext_concurrency.html#manual.ext.concurrency.design">Design</a></span></dt><dd><dl><dt><span class="section"><a href="ext_concurrency.html#manual.ext.concurrency.design.threads">Interface to Locks and Mutexes</a></span></dt><dt><span class="section"><a href="ext_concurrency.html#manual.ext.concurrency.design.atomics">Interface to Atomic Functions</a></span></dt></dl></dd><dt><span class="section"><a href="ext_concurrency_impl.html">Implementation</a></span></dt><dd><dl><dt><span class="section"><a href="ext_concurrency_impl.html#manual.ext.concurrency.impl.atomic_fallbacks">Using Built-in Atomic Functions</a></span></dt><dt><span class="section"><a href="ext_concurrency_impl.html#manual.ext.concurrency.impl.thread">Thread Abstraction</a></span></dt></dl></dd><dt><span class="section"><a href="ext_concurrency_use.html">Use</a></span></dt></dl></dd></dl></div></div><div class="navfooter"><hr /><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="io_and_c.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="index.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="ext_preface.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Interacting with C </td><td width="20%" align="center"><a accesskey="h" href="../index.html">Home</a></td><td width="40%" align="right" valign="top"> </td></tr></table></div></body></html>
+\ No newline at end of file
++	</a></span></dt></dl></dd><dt><span class="section"><a href="policy_based_data_structures_test.html#pbds.test.performance.observations">Observations</a></span></dt><dd><dl><dt><span class="section"><a href="policy_based_data_structures_test.html#observations.associative">Associative</a></span></dt><dt><span class="section"><a href="policy_based_data_structures_test.html#observations.priority_queue">Priority_Queue</a></span></dt></dl></dd></dl></dd></dl></dd><dt><span class="section"><a href="policy_data_structures_ack.html">Acknowledgments</a></span></dt><dt><span class="bibliography"><a href="policy_data_structures.html#pbds.biblio">Bibliography</a></span></dt></dl></dd><dt><span class="chapter"><a href="ext_containers.html">22. HP/SGI Extensions</a></span></dt><dd><dl><dt><span class="section"><a href="ext_containers.html#manual.ext.containers.sgi">Backwards Compatibility</a></span></dt><dt><span class="section"><a href="ext_sgi.html">Deprecated</a></span></dt></dl></dd><dt><span class="chapter"><a href="ext_utilities.html">23. Utilities</a></span></dt><dt><span class="chapter"><a href="ext_algorithms.html">24. Algorithms</a></span></dt><dt><span class="chapter"><a href="ext_numerics.html">25. Numerics</a></span></dt><dt><span class="chapter"><a href="ext_iterators.html">26. Iterators</a></span></dt><dt><span class="chapter"><a href="ext_io.html">27. Input and Output</a></span></dt><dd><dl><dt><span class="section"><a href="ext_io.html#manual.ext.io.filebuf_derived">Derived filebufs</a></span></dt></dl></dd><dt><span class="chapter"><a href="ext_demangling.html">28. Demangling</a></span></dt><dt><span class="chapter"><a href="ext_concurrency.html">29. Concurrency</a></span></dt><dd><dl><dt><span class="section"><a href="ext_concurrency.html#manual.ext.concurrency.design">Design</a></span></dt><dd><dl><dt><span class="section"><a href="ext_concurrency.html#manual.ext.concurrency.design.threads">Interface to Locks and Mutexes</a></span></dt><dt><span class="section"><a href="ext_concurrency.html#manual.ext.concurrency.design.atomics">Interface to Atomic Functions</a></span></dt></dl></dd><dt><span class="section"><a href="ext_concurrency_impl.html">Implementation</a></span></dt><dd><dl><dt><span class="section"><a href="ext_concurrency_impl.html#manual.ext.concurrency.impl.atomic_fallbacks">Using Built-in Atomic Functions</a></span></dt><dt><span class="section"><a href="ext_concurrency_impl.html#manual.ext.concurrency.impl.thread">Thread Abstraction</a></span></dt></dl></dd><dt><span class="section"><a href="ext_concurrency_use.html">Use</a></span></dt></dl></dd></dl></div></div><div class="navfooter"><hr /><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="concurrency.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="index.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="ext_preface.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Chapter 15. 
++  Concurrency
++  
++ </td><td width="20%" align="center"><a accesskey="h" href="../index.html">Home</a></td><td width="40%" align="right" valign="top"> </td></tr></table></div></body></html>
+\ No newline at end of file
 diff --git a/libstdc++-v3/doc/html/manual/index.html b/libstdc++-v3/doc/html/manual/index.html
-index e34210ee5d9..392e416b954 100644
+index e34210ee5d9..e62de964384 100644
 --- a/libstdc++-v3/doc/html/manual/index.html
 +++ b/libstdc++-v3/doc/html/manual/index.html
-@@ -4,7 +4,7 @@
+@@ -1,10 +1,10 @@
+ <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>The GNU C++ Library Manual</title><meta name="generator" content="DocBook XSL Stylesheets Vsnapshot" /><meta name="keywords" content="ISO C++, runtime, library" /><link rel="home" href="../index.html" title="The GNU C++ Library" /><link rel="up" href="../index.html" title="The GNU C++ Library" /><link rel="prev" href="../index.html" title="The GNU C++ Library" /><link rel="next" href="intro.html" title="Part I.  Introduction" /></head><body><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">The GNU C++ Library Manual</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="../index.html">Prev</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="intro.html">Next</a></td></tr></table><hr /></div><div class="book"><div class="titlepage"><div><div><h1 class="title"><a id="manual"></a>The GNU C++ Library Manual</h1></div><div><div class="authorgroup"><div class="author"><h3 class="author"><span class="firstname"></span> <span class="surname"></span></h3></div><div class="author"><h3 class="author"><span class="firstname">Paolo</span> <span class="surname">Carlini</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Phil</span> <span class="surname">Edwards</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Doug</span> <span class="surname">Gregor</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Benjamin</span> <span class="surname">Kosnik</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Dhruv</span> <span class="surname">Matani</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Jason</span> <span class="surname">Merrill</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Mark</span> <span class="surname">Mitchell</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Nathan</span> <span class="surname">Myers</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Felix</span> <span class="surname">Natter</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Stefan</span> <span class="surname">Olsson</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Johannes</span> <span class="surname">Singler</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Ami</span> <span class="surname">Tavory</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Jonathan</span> <span class="surname">Wakely</span></h3></div></div></div><div><p class="copyright">Copyright © 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020 
++<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>The GNU C++ Library Manual</title><meta name="generator" content="DocBook XSL Stylesheets Vsnapshot" /><meta name="keywords" content="ISO C++, runtime, library" /><link rel="home" href="../index.html" title="The GNU C++ Library" /><link rel="up" href="../index.html" title="The GNU C++ Library" /><link rel="prev" href="../index.html" title="The GNU C++ Library" /><link rel="next" href="intro.html" title="Part I.  Introduction" /></head><body><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">The GNU C++ Library Manual</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="../index.html">Prev</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="intro.html">Next</a></td></tr></table><hr /></div><div class="book"><div class="titlepage"><div><div><h1 class="title"><a id="manual"></a>The GNU C++ Library Manual</h1></div><div><div class="authorgroup"><div class="author"><h3 class="author"><span class="firstname">Paolo</span> <span class="surname">Carlini</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Phil</span> <span class="surname">Edwards</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Doug</span> <span class="surname">Gregor</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Benjamin</span> <span class="surname">Kosnik</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Dhruv</span> <span class="surname">Matani</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Jason</span> <span class="surname">Merrill</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Mark</span> <span class="surname">Mitchell</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Nathan</span> <span class="surname">Myers</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Felix</span> <span class="surname">Natter</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Stefan</span> <span class="surname">Olsson</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Johannes</span> <span class="surname">Singler</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Ami</span> <span class="surname">Tavory</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Jonathan</span> <span class="surname">Wakely</span></h3></div></div></div><div><p class="copyright">Copyright © 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020 
+       <a class="link" href="https://www.fsf.org" target="_top">FSF</a>
      </p></div></div><hr /></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="part"><a href="intro.html">I. 
    Introduction
    
@@ -21440,6 +21538,31 @@ index 25c676d2892..3805e9e24f0 100644
               <code class="code">__STDCPP_WANT_MATH_SPEC_FUNCS__</code></td></tr><tr><td align="left">8</td><td align="left">Mathematical special functions</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1</td><td align="left">Additions to header <code class="code">&lt;cmath&gt;</code> synopsis</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.1</td><td align="left">associated Laguerre polynomials</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.2</td><td align="left">associated Legendre functions</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.3</td><td align="left">beta function</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.4</td><td align="left">(complete) elliptic integral of the first kind</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.5</td><td align="left">(complete) elliptic integral of the second kind</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.6</td><td align="left">(complete) elliptic integral of the third kind</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.7</td><td align="left">regular modified cylindrical Bessel functions</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.8</td><td align="left">cylindrical Bessel functions (of the first kind)</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.9</td><td align="left">irregular modified cylindrical Bessel functions</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.10</td><td align="left">cylindrical Neumann functions</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.11</td><td align="left">(incomplete) elliptic integral of the first kind</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.12</td><td align="left">(incomplete) elliptic integral of the second kind</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.13</td><td align="left">(incomplete) elliptic integral of the third kind</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.14</td><td align="left">exponential integral</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.15</td><td align="left">Hermite polynomials</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.16</td><td align="left">Laguerre polynomials</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.17</td><td align="left">Legendre polynomials</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.18</td><td align="left">Riemann zeta function</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.19</td><td align="left">spherical Bessel functions (of the first kind)</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.20</td><td align="left">spherical associated Legendre functions</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.21</td><td align="left">spherical Neumann functions</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.2</td><td align="left">Additions to header <code class="code">&lt;math.h&gt;</code></td><td align="left">Y</td><td align="left"> </td></tr><tr bgcolor="#B0B0B0"><td align="left">8.3</td><td align="left">The header <code class="code">&lt;ctgmath&gt;</code></td><td align="left">Partial</td><td align="left">Conflicts with C++ 2011 requirements.</td></tr><tr bgcolor="#C8B0B0"><td align="left">8.4</td><td align="left">The header <code class="code">&lt;tgmath.h&gt;</code></td><td align="left">N</td><td align="left">Conflicts with C++ 2011 requirements.</td></tr></tbody></table></div></div><br class="table-break" /><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="iso.specfun.specific"></a>Implementation Specific Behavior</h4></div></div></div><p>For behaviour which is specified by the 2011 standard,
        see <a class="link" href="status.html#iso.2011.specific" title="Implementation Specific Behavior">C++ 2011 Implementation
        Specific Behavior</a>. This section documents behaviour which
+diff --git a/libstdc++-v3/doc/xml/authors.xml b/libstdc++-v3/doc/xml/authors.xml
+index 0a120b508e9..95626d46cba 100644
+--- a/libstdc++-v3/doc/xml/authors.xml
++++ b/libstdc++-v3/doc/xml/authors.xml
+@@ -13,18 +13,13 @@
+       </address>
+     </affiliation>
+ 
+-    <authorblurb>
++    <personblurb>
+       <para>
+       </para>
+-    </authorblurb>
++    </personblurb>
+   </author>
+ -->
+ 
+-  <author><personname><firstname/><surname/></personname><personblurb>
+-      <para>
+-      </para>
+-    </personblurb></author>
+-
+   <author><personname><firstname>Paolo</firstname><surname>Carlini</surname></personname><personblurb>
+       <para>
+ 	TR1, LWG Active, Closed, Defects lists.
 diff --git a/libstdc++-v3/doc/xml/manual/intro.xml b/libstdc++-v3/doc/xml/manual/intro.xml
 index 3e7843f58c1..62cab81651e 100644
 --- a/libstdc++-v3/doc/xml/manual/intro.xml
@@ -21529,6 +21652,31 @@ index 22e90a7e79d..f00979a1afa 100644
  	<listitem>
  	<para>
  	  If GCC 3.1.0 or later on is being used on GNU/Linux, an attempt
+diff --git a/libstdc++-v3/doc/xml/manual/spine.xml b/libstdc++-v3/doc/xml/manual/spine.xml
+index 34daa33344c..eff72bc13d7 100644
+--- a/libstdc++-v3/doc/xml/manual/spine.xml
++++ b/libstdc++-v3/doc/xml/manual/spine.xml
+@@ -48,18 +48,13 @@
+       </address>
+     </affiliation>
+ 
+-    <authorblurb>
++    <personblurb>
+       <para>
+       </para>
+-    </authorblurb>
++    </personblurb>
+   </author>
+ -->
+ 
+-  <author><personname><firstname/><surname/></personname><personblurb>
+-      <para>
+-      </para>
+-    </personblurb></author>
+-
+   <author><personname><firstname>Paolo</firstname><surname>Carlini</surname></personname><personblurb>
+       <para>
+ 	TR1, LWG Active, Closed, Defects lists.
 diff --git a/libstdc++-v3/doc/xml/manual/status_cxx2020.xml b/libstdc++-v3/doc/xml/manual/status_cxx2020.xml
 index 411a337c534..67aac7d64b8 100644
 --- a/libstdc++-v3/doc/xml/manual/status_cxx2020.xml
