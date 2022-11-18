@@ -434,12 +434,13 @@ Lewis Hyatt (1):
 Maciej W. Rozycki (1):
       RISC-V: Remove duplicate backslashes from `stack_protect_set_<mode>'
 
-Marek Polacek (5):
+Marek Polacek (6):
       c++: ambiguous call not diagnosed after DR2352 [PR97296]
       c++: wrong error with constexpr COMPOUND_EXPR [PR105321]
       c++: enum in generic lambda at global scope [PR105398]
       c++: global-namespace-qualified var after class def [PR90107]
       c++: Fix ICE with -Wmismatched-tags [PR105725]
+      c++: constinit on pointer to function [PR104066]
 
 Mark Mentovai (1):
       libstdc++: Rename __null_terminated to avoid collision with Apple SDK
@@ -9323,7 +9324,7 @@ index a2d8c1c77b3..fded2527e5e 100644
  extern void print_template_statistics		(void);
  bool template_template_parameter_p		(const_tree);
 diff --git a/gcc/cp/decl.c b/gcc/cp/decl.c
-index bffbd004167..514d4c1bc20 100644
+index bffbd004167..6c07cc2ad61 100644
 --- a/gcc/cp/decl.c
 +++ b/gcc/cp/decl.c
 @@ -1059,11 +1059,14 @@ decls_match (tree newdecl, tree olddecl, bool record_versions /* = true */)
@@ -9446,6 +9447,15 @@ index bffbd004167..514d4c1bc20 100644
        release_tree_vector (cleanups);
      }
  
+@@ -12656,7 +12682,7 @@ grokdeclarator (const cp_declarator *declarator,
+ 			  "an array", name);
+ 		return error_mark_node;
+ 	      }
+-	    if (constinit_p)
++	    if (constinit_p && funcdecl_p)
+ 	      {
+ 		error_at (declspecs->locations[ds_constinit],
+ 			  "%<constinit%> on function return type is not "
 @@ -14663,8 +14689,6 @@ copy_fn_p (const_tree d)
  bool
  move_fn_p (const_tree d)
@@ -14035,6 +14045,24 @@ index 00000000000..f500af3f616
 +  if (requires { A(); })
 +    ;
 +}
+diff --git a/gcc/testsuite/g++.dg/cpp2a/constinit18.C b/gcc/testsuite/g++.dg/cpp2a/constinit18.C
+new file mode 100644
+index 00000000000..51b4f0273be
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp2a/constinit18.C
+@@ -0,0 +1,12 @@
++// PR c++/104066
++// { dg-do compile { target c++20 } }
++
++constinit void (*p)() = nullptr;
++constinit void (*pp)() = nullptr;
++void fn();
++constinit void (&r)() = fn;
++
++extern constinit long (* const syscall_reexported) (long, ...);
++
++constinit void bad (); // { dg-error ".constinit. on function return type is not allowed" }
++constinit void bad () { } // { dg-error ".constinit. on function return type is not allowed" }
 diff --git a/gcc/testsuite/g++.dg/cpp2a/desig26.C b/gcc/testsuite/g++.dg/cpp2a/desig26.C
 new file mode 100644
 index 00000000000..443fa3d089d
