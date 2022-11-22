@@ -21,7 +21,8 @@ Eric Botcazou (3):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (210):
+GCC Administrator (211):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -624,10 +625,36 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..4a2cf2c230f 100644
+index a0587d18824..cbb726f2664 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,1033 @@
+@@ -1,3 +1,1059 @@
++2022-11-21  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-11-21  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/107748
++	* config/i386/smmintrin.h (_mm_extract_ps): Uglify names of local
++	variables and union members.
++
++2022-11-21  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-11-20  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/107183
++	* reg-stack.c (next_flags_user): Add DEBUG_SEEN argument.
++	If >= 0 and a DEBUG_INSN would be otherwise returned, set
++	DEBUG_SEEN to 1 and ignore it.
++	(swap_rtx_condition): Add DEBUG_SEEN argument.  In >= 0
++	mode only set DEBUG_SEEN to 1 if problematic DEBUG_ISNSs
++	were seen and revert all changes on success in that case.
++	Don't try to recog_memoized DEBUG_INSNs.
++	(compare_for_stack_reg): Adjust swap_rtx_condition caller.
++	If it returns true and debug_seen is 1, call swap_rtx_condition
++	again with debug_seen -1.
++
 +2022-11-19  Thomas Schwinge  <thomas@codesourcery.com>
 +
 +	Backported from master:
@@ -12453,10 +12480,18 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..e894ec8f2c8 100644
+index 5fc23605244..36f2e10fde5 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1167 @@
+@@ -1,3 +1,1175 @@
++2022-11-21  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-11-20  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/107183
++	* gcc.dg/ubsan/pr107183.c: New test.
++
 +2022-11-18  Marek Polacek  <polacek@redhat.com>
 +
 +	Backported from master:
@@ -20063,6 +20098,23 @@ index 906f4ea9dfc..c90fd99acbc 100644
  }
  
  } // namespace selftest
+diff --git a/libatomic/ChangeLog b/libatomic/ChangeLog
+index ae629bf4079..22d4396db06 100644
+--- a/libatomic/ChangeLog
++++ b/libatomic/ChangeLog
+@@ -1,3 +1,12 @@
++2022-11-21  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-11-15  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/104688
++	* config/x86/init.c (__libat_feat1_init): Don't clear
++	bit_AVX on AMD CPUs.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/libatomic/config/x86/init.c b/libatomic/config/x86/init.c
 index 36e231c68cc..c9b474bda79 100644
 --- a/libatomic/config/x86/init.c
