@@ -23,7 +23,8 @@ Eric Botcazou (5):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (219):
+GCC Administrator (220):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -276,7 +277,7 @@ Harald Anlauf (17):
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
 
-Iain Buclaw (7):
+Iain Buclaw (8):
       libphobos: Don't call free on the TLS array in the emutls destroy function.
       libphobos: Give _Unwind_Exception an alignment that best resembles __attribute__((aligned))
       darwin, d: Support outfile substitution for libphobos
@@ -284,6 +285,7 @@ Iain Buclaw (7):
       tilegx: Fix infinite loop in gen-mul-tables generator
       d: Fix error: aggregate value used where floating point was expected
       d: Update DIP links in gdc documentation to point at upstream repository
+      d: Fix ICE on named continue label in an unrolled loop [PR107592]
 
 Ian Lance Taylor (1):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
@@ -344,6 +346,9 @@ Jason Merrill (19):
 
 Jeff Law (1):
       [committed] Fix more problems with new linker warnings
+
+John David Anglin (1):
+      Fix addvdi3 and subvdi3 patterns
 
 Jonathan Wakely (76):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
@@ -626,8 +631,9 @@ Uros Bizjak (2):
 Vladimir N. Makarov (1):
       [PR104637] LRA: Split hard regs as many as possible on one subpass
 
-liuhongt (1):
+liuhongt (2):
       Fix insn does not satisfy its constraints: sse2_lshrv1ti3
+      Fix unrecognizable insn due to illegal immediate_operand (const_int 255) of QImode.
 
 diff --git a/gcc/BASE-VER b/gcc/BASE-VER
 index f628d2eafc5..0a47c95bb14 100644
@@ -637,10 +643,17 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..5093ea0f1ce 100644
+index a0587d18824..d93a5f28d94 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,1077 @@
+@@ -1,3 +1,1084 @@
++2022-11-30  John David Anglin  <danglin@gcc.gnu.org>
++
++	* config/pa/pa.md (addvdi3): Force operand 2 to a register.
++	Remove "addi,tsv,*" instruction from unamed pattern.
++	(subvdi3): Force operand 1 to a register.
++	Remove "subi,tsv" instruction from from unamed pattern.
++
 +2022-11-29  Max Filippov  <jcmvbkbc@gmail.com>
 +
 +	Backported from master:
@@ -3409,6 +3422,19 @@ index 515ee0c1728..1ce6bade1b4 100644
  #endif
  
  #define _mm_mask_scalef_sd(W, U, A, B) \
+diff --git a/gcc/config/i386/i386-expand.c b/gcc/config/i386/i386-expand.c
+index 31eae75d277..d95adaf962b 100644
+--- a/gcc/config/i386/i386-expand.c
++++ b/gcc/config/i386/i386-expand.c
+@@ -11028,7 +11028,7 @@ ix86_expand_vec_set_builtin (tree exp)
+   op1 = expand_expr (arg1, NULL_RTX, mode1, EXPAND_NORMAL);
+   elt = get_element_number (TREE_TYPE (arg0), arg2);
+ 
+-  if (GET_MODE (op1) != mode1 && GET_MODE (op1) != VOIDmode)
++  if (GET_MODE (op1) != mode1)
+     op1 = convert_modes (mode1, GET_MODE (op1), op1, true);
+ 
+   op0 = force_reg (tmode, op0);
 diff --git a/gcc/config/i386/i386.c b/gcc/config/i386/i386.c
 index 48300af9a09..1623bbcbd2d 100644
 --- a/gcc/config/i386/i386.c
@@ -3803,6 +3829,80 @@ index 0f15609ee4b..f1b32e285d7 100644
  (define_expand "memory_barrier"
    [(set (match_dup 0)
  	(unspec_volatile:BLK [(match_dup 0)] UNSPECV_MEMBAR))]
+diff --git a/gcc/config/pa/pa.md b/gcc/config/pa/pa.md
+index 31e3b1bff80..3e0bfb09da2 100644
+--- a/gcc/config/pa/pa.md
++++ b/gcc/config/pa/pa.md
+@@ -5071,23 +5071,25 @@
+ 						    (match_dup 2))))
+ 		       (const_int 0))])]
+   ""
+-  "")
++  "
++{
++  if (TARGET_64BIT)
++    operands[2] = force_reg (DImode, operands[2]);
++}")
+ 
+ (define_insn ""
+-  [(set (match_operand:DI 0 "register_operand" "=r,r")
+-	(plus:DI (match_operand:DI 1 "reg_or_0_operand" "%rM,rM")
+-		 (match_operand:DI 2 "arith11_operand" "r,I")))
++  [(set (match_operand:DI 0 "register_operand" "=r")
++	(plus:DI (match_operand:DI 1 "reg_or_0_operand" "%rM")
++		 (match_operand:DI 2 "register_operand" "r")))
+    (trap_if (ne (plus:TI (sign_extend:TI (match_dup 1))
+ 			 (sign_extend:TI (match_dup 2)))
+ 		(sign_extend:TI (plus:DI (match_dup 1)
+ 					 (match_dup 2))))
+ 	    (const_int 0))]
+   "TARGET_64BIT"
+-  "@
+-  add,tsv,* %2,%1,%0
+-  addi,tsv,* %2,%1,%0"
+-  [(set_attr "type" "binary,binary")
+-   (set_attr "length" "4,4")])
++  "add,tsv,* %2,%1,%0"
++  [(set_attr "type" "binary")
++   (set_attr "length" "4")])
+ 
+ (define_insn ""
+   [(set (match_operand:DI 0 "register_operand" "=r")
+@@ -5262,23 +5264,25 @@
+ 						     (match_dup 2))))
+ 		       (const_int 0))])]
+   ""
+-  "")
++  "
++{
++  if (TARGET_64BIT)
++    operands[1] = force_reg (DImode, operands[1]);
++}")
+ 
+ (define_insn ""
+-  [(set (match_operand:DI 0 "register_operand" "=r,r")
+-	(minus:DI (match_operand:DI 1 "arith11_operand" "r,I")
+-		  (match_operand:DI 2 "reg_or_0_operand" "rM,rM")))
++  [(set (match_operand:DI 0 "register_operand" "=r")
++	(minus:DI (match_operand:DI 1 "register_operand" "r")
++		  (match_operand:DI 2 "reg_or_0_operand" "rM")))
+    (trap_if (ne (minus:TI (sign_extend:TI (match_dup 1))
+ 			  (sign_extend:TI (match_dup 2)))
+ 		(sign_extend:TI (minus:DI (match_dup 1)
+ 					  (match_dup 2))))
+ 	    (const_int 0))]
+   "TARGET_64BIT"
+-  "@
+-  {subo|sub,tsv} %1,%2,%0
+-  {subio|subi,tsv} %1,%2,%0"
+-  [(set_attr "type" "binary,binary")
+-   (set_attr "length" "4,4")])
++  "sub,tsv,* %1,%2,%0"
++  [(set_attr "type" "binary")
++   (set_attr "length" "4")])
+ 
+ (define_insn ""
+   [(set (match_operand:DI 0 "register_operand" "=r,&r")
 diff --git a/gcc/config/riscv/arch-canonicalize b/gcc/config/riscv/arch-canonicalize
 index 3a91cfe687f..0bdf6aafe35 100755
 --- a/gcc/config/riscv/arch-canonicalize
@@ -10192,10 +10292,21 @@ index af112fd0985..14478eec238 100644
  extern rtx cselib_expand_value_rtx (rtx, bitmap, int);
  typedef rtx (*cselib_expand_callback)(rtx, bitmap, int, void *);
 diff --git a/gcc/d/ChangeLog b/gcc/d/ChangeLog
-index 6021ffdbf78..a32a7f3ea2a 100644
+index 6021ffdbf78..c132e06232f 100644
 --- a/gcc/d/ChangeLog
 +++ b/gcc/d/ChangeLog
-@@ -1,3 +1,45 @@
+@@ -1,3 +1,56 @@
++2022-11-30  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2022-11-30  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	PR d/107592
++	* toir.cc (IRVisitor::push_unrolled_continue_label): New method.
++	(IRVisitor::pop_unrolled_continue_label): New method.
++	(IRVisitor::visit (UnrolledLoopStatement *)): Use them instead of
++	push_continue_label and pop_continue_label.
++
 +2022-08-16  Iain Buclaw  <ibuclaw@gdcproject.org>
 +
 +	Backported from master:
@@ -10428,10 +10539,39 @@ index 095f7ecca41..0976aebd7d4 100644
  List all non-mutable fields which occupy an object instance.
  @item nogc
 diff --git a/gcc/d/toir.cc b/gcc/d/toir.cc
-index eaee6f7e803..460edc15143 100644
+index eaee6f7e803..1db50b8cfbe 100644
 --- a/gcc/d/toir.cc
 +++ b/gcc/d/toir.cc
-@@ -1090,6 +1090,7 @@ public:
+@@ -541,6 +541,28 @@ public:
+     this->do_label (label);
+   }
+ 
++  /* Generate and set a new continue label for the current unrolled loop.  */
++
++  void push_unrolled_continue_label (UnrolledLoopStatement *s)
++  {
++    this->push_continue_label (s);
++  }
++
++  /* Finish with the continue label for the unrolled loop.  */
++
++  void pop_unrolled_continue_label (UnrolledLoopStatement *s)
++  {
++    Statement *stmt = s->getRelatedLabeled ();
++    d_label_entry *ent = d_function_chain->labels->get (stmt);
++    gcc_assert (ent != NULL && ent->bc_label == true);
++
++    this->pop_continue_label (TREE_VEC_ELT (ent->label, bc_continue));
++
++    /* Remove the continue label from the label htab, as a new one must be
++       inserted at the end of every unrolled loop.  */
++    ent->label = TREE_VEC_ELT (ent->label, bc_break);
++  }
++
+   /* Visitor interfaces.  */
+ 
+ 
+@@ -1090,6 +1112,7 @@ public:
  	    /* Generate: (<retval> = expr, return <retval>);  */
  	    tree expr = build_expr_dtor (s->exp);
  	    tree init = stabilize_expr (&expr);
@@ -10439,6 +10579,18 @@ index eaee6f7e803..460edc15143 100644
  	    expr = build_assign (INIT_EXPR, this->func_->shidden, expr);
  	    add_stmt (compound_expr (init, expr));
  	  }
+@@ -1156,9 +1179,9 @@ public:
+ 
+ 	if (statement != NULL)
+ 	  {
+-	    tree lcontinue = this->push_continue_label (statement);
++	    this->push_unrolled_continue_label (s);
+ 	    this->build_stmt (statement);
+-	    this->pop_continue_label (lcontinue);
++	    this->pop_unrolled_continue_label (s);
+ 	  }
+       }
+ 
 diff --git a/gcc/d/typeinfo.cc b/gcc/d/typeinfo.cc
 index 9d6464deb07..a10d21e355e 100644
 --- a/gcc/d/typeinfo.cc
@@ -12563,10 +12715,18 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..c52416f089a 100644
+index 5fc23605244..2d6bddb5c29 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1192 @@
+@@ -1,3 +1,1200 @@
++2022-11-30  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2022-11-30  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	PR d/107592
++	* gdc.dg/pr107592.d: New test.
++
 +2022-11-25  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -17327,6 +17487,20 @@ index 00000000000..24d68795e7f
 +      s->v = __builtin_shuffle(tmp.v, mask2->v);
 +  }
 +}
+diff --git a/gcc/testsuite/gcc.target/i386/pr107863.c b/gcc/testsuite/gcc.target/i386/pr107863.c
+new file mode 100644
+index 00000000000..99fd85d9765
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/i386/pr107863.c
+@@ -0,0 +1,8 @@
++/* { dg-do compile } */
++/* { dg-options "-mavx2 -O" } */
++
++typedef char v16qi __attribute__((vector_size(16)));
++
++v16qi foo(v16qi a){
++  return __builtin_ia32_vec_set_v16qi (a, -1, 2);
++}
 diff --git a/gcc/testsuite/gcc.target/i386/sse-14.c b/gcc/testsuite/gcc.target/i386/sse-14.c
 index 4ce0ffffaf3..4c728f230f7 100644
 --- a/gcc/testsuite/gcc.target/i386/sse-14.c
@@ -18441,6 +18615,25 @@ index 00000000000..4c6f0ef3a3a
 +{
 +    v = cast(__vector(V))a;
 +}
+diff --git a/gcc/testsuite/gdc.dg/pr107592.d b/gcc/testsuite/gdc.dg/pr107592.d
+new file mode 100644
+index 00000000000..59f34477356
+--- /dev/null
++++ b/gcc/testsuite/gdc.dg/pr107592.d
+@@ -0,0 +1,13 @@
++// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=107592
++// { dg-do compile }
++
++void test107592(Things...)(Things things)
++{
++    label:
++    foreach (thing; things)
++    {
++        continue label;
++    }
++}
++
++alias a107592 = test107592!(string);
 diff --git a/gcc/testsuite/gdc.test/fail_compilation/ice20264.d b/gcc/testsuite/gdc.test/fail_compilation/ice20264.d
 new file mode 100644
 index 00000000000..0d697e22c9f
