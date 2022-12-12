@@ -23,7 +23,11 @@ Eric Botcazou (5):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (227):
+GCC Administrator (231):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -284,7 +288,7 @@ Harald Anlauf (17):
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
 
-Iain Buclaw (8):
+Iain Buclaw (9):
       libphobos: Don't call free on the TLS array in the emutls destroy function.
       libphobos: Give _Unwind_Exception an alignment that best resembles __attribute__((aligned))
       darwin, d: Support outfile substitution for libphobos
@@ -293,6 +297,7 @@ Iain Buclaw (8):
       d: Fix error: aggregate value used where floating point was expected
       d: Update DIP links in gdc documentation to point at upstream repository
       d: Fix ICE on named continue label in an unrolled loop [PR107592]
+      d: Fix internal compiler error: in visit, at d/imports.cc:72 (PR108050)
 
 Ian Lance Taylor (1):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
@@ -536,7 +541,7 @@ Qing Zhao (1):
 Rainer Orth (1):
       libstdc++: Fix 28_regex/basic_regex/84110.cc on Solaris
 
-Richard Biener (26):
+Richard Biener (27):
       Update BASE-VER to 11.3.1
       ipa/105598 - testcase for PR105598
       middle-end/105140 - fix bogus recursion in fold_convertible_p
@@ -563,6 +568,7 @@ Richard Biener (26):
       tree-optimization/106189 - avoid division by zero exception
       tree-optimization/106892 - avoid invalid pointer association in predcom
       tree-optimization/106934 - avoid BIT_FIELD_REF of bitfields
+      tree-optimization/107107 - tail-merging VN wrong-code
 
 Richard Earnshaw (3):
       arm: big-endian issue in gen_cpymem_ldrd_strd [PR105981]
@@ -10305,10 +10311,20 @@ index af112fd0985..14478eec238 100644
  extern rtx cselib_expand_value_rtx (rtx, bitmap, int);
  typedef rtx (*cselib_expand_callback)(rtx, bitmap, int, void *);
 diff --git a/gcc/d/ChangeLog b/gcc/d/ChangeLog
-index 6021ffdbf78..c132e06232f 100644
+index 6021ffdbf78..791007eeaa5 100644
 --- a/gcc/d/ChangeLog
 +++ b/gcc/d/ChangeLog
-@@ -1,3 +1,56 @@
+@@ -1,3 +1,66 @@
++2022-12-11  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2022-12-11  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	PR d/108050
++	* decl.cc (DeclVisitor::visit (Import *)): Handle build_import_decl
++	returning a TREE_LIST.
++	* imports.cc (ImportVisitor::visit (OverloadSet *)): New override.
++
 +2022-11-30  Iain Buclaw  <ibuclaw@gdcproject.org>
 +
 +	Backported from master:
@@ -10484,6 +10500,29 @@ index b12d28f1047..1304126a675 100644
  #endif
        if (saw_libcxx)
  	new_decoded_options[j++] = *saw_libcxx;
+diff --git a/gcc/d/decl.cc b/gcc/d/decl.cc
+index a30549ce8e0..fff7a7c2a74 100644
+--- a/gcc/d/decl.cc
++++ b/gcc/d/decl.cc
+@@ -197,8 +197,16 @@ public:
+ 	    tree name = (alias != NULL)
+ 	      ? get_identifier (alias->toChars ()) : NULL_TREE;
+ 
+-	    debug_hooks->imported_module_or_decl (decl, name, context,
+-						  false, false);
++	    if (TREE_CODE (decl) != TREE_LIST)
++	      debug_hooks->imported_module_or_decl (decl, name, context,
++						    false, false);
++	    else
++	      {
++		/* Overload sets return a list of imported decls.  */
++		for (; decl != NULL_TREE; decl = TREE_CHAIN (decl))
++		  debug_hooks->imported_module_or_decl (TREE_VALUE (decl), name,
++							context, false, false);
++	      }
+ 	  }
+       }
+     else
 diff --git a/gcc/d/dmd/expressionsem.c b/gcc/d/dmd/expressionsem.c
 index 5ae5fe6a717..fe90039d6f0 100644
 --- a/gcc/d/dmd/expressionsem.c
@@ -10551,6 +10590,31 @@ index 095f7ecca41..0976aebd7d4 100644
  @item field
  List all non-mutable fields which occupy an object instance.
  @item nogc
+diff --git a/gcc/d/imports.cc b/gcc/d/imports.cc
+index 2288843c61a..399c3ee3d25 100644
+--- a/gcc/d/imports.cc
++++ b/gcc/d/imports.cc
+@@ -157,6 +157,20 @@ public:
+       }
+   }
+ 
++  /* Build IMPORTED_DECLs for all overloads in a set.  */
++  void visit (OverloadSet *d)
++  {
++    vec<tree, va_gc> *tset = NULL;
++
++    vec_alloc (tset, d->a.length);
++
++    for (size_t i = 0; i < d->a.length; i++)
++      vec_safe_push (tset, build_import_decl (d->a[i]));
++
++    d->isym = build_tree_list_vec (tset);
++    tset->truncate (0);
++  }
++
+   /* Function aliases are the same as alias symbols.  */
+   void visit (FuncAliasDeclaration *d)
+   {
 diff --git a/gcc/d/toir.cc b/gcc/d/toir.cc
 index eaee6f7e803..1db50b8cfbe 100644
 --- a/gcc/d/toir.cc
@@ -12728,10 +12792,21 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..d870c4b3746 100644
+index 5fc23605244..31b2c1f9681 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1204 @@
+@@ -1,3 +1,1215 @@
++2022-12-11  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2022-12-11  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	PR d/108050
++	* gdc.dg/imports/pr108050/mod1.d: New.
++	* gdc.dg/imports/pr108050/mod2.d: New.
++	* gdc.dg/imports/pr108050/package.d: New.
++	* gdc.dg/pr108050.d: New test.
++
 +2022-12-01  liuhongt  <hongtao.liu@intel.com>
 +
 +	* gcc.target/i386/pr107863.c: New test.
@@ -15956,6 +16031,37 @@ index 00000000000..0eca8343c56
 +
 +int a_n_0_0_a[][0];
 +void a_n_0_0() { T(((char *)a_n_0_0_a)[1]); }
+diff --git a/gcc/testsuite/gcc.dg/pr107107.c b/gcc/testsuite/gcc.dg/pr107107.c
+new file mode 100644
+index 00000000000..5ad6a63159e
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/pr107107.c
+@@ -0,0 +1,25 @@
++/* { dg-do run } */
++/* { dg-options "-O2 -ftree-tail-merge" } */
++
++static inline void set_longish(int is_long_long, void *p, long x)
++{
++  if (is_long_long)
++    *(long long*)p = x;
++  else
++    *(long*)p = x;
++}
++static long test(long long *p, int index, int mode)
++{
++  *p = 1;
++  set_longish(mode, p+index, 2);
++  return *p;
++}
++long (*volatile vtest)(long long*, int, int) = test;
++int main(void)
++{
++  long long x;
++  long result = vtest(&x, 0, 1);
++  if (result != 2 || x != 2)
++    __builtin_abort ();
++  return 0;
++}
 diff --git a/gcc/testsuite/gcc.dg/pragma-message.c b/gcc/testsuite/gcc.dg/pragma-message.c
 index 2f44b617710..1b7cf09de0a 100644
 --- a/gcc/testsuite/gcc.dg/pragma-message.c
@@ -18482,6 +18588,30 @@ index 00000000000..8a9cca7e225
 +// { dg-options "-Wpadded" }
 +
 +class EmptyClass { }
+diff --git a/gcc/testsuite/gdc.dg/imports/pr108050/mod1.d b/gcc/testsuite/gdc.dg/imports/pr108050/mod1.d
+new file mode 100644
+index 00000000000..f27a13dc051
+--- /dev/null
++++ b/gcc/testsuite/gdc.dg/imports/pr108050/mod1.d
+@@ -0,0 +1,2 @@
++module imports.pr108050.mod1;
++string[] split() { return null; }
+diff --git a/gcc/testsuite/gdc.dg/imports/pr108050/mod2.d b/gcc/testsuite/gdc.dg/imports/pr108050/mod2.d
+new file mode 100644
+index 00000000000..29d8aa8f53e
+--- /dev/null
++++ b/gcc/testsuite/gdc.dg/imports/pr108050/mod2.d
+@@ -0,0 +1,2 @@
++module imports.pr108050.mod2;
++string[] split() { return null; }
+diff --git a/gcc/testsuite/gdc.dg/imports/pr108050/package.d b/gcc/testsuite/gdc.dg/imports/pr108050/package.d
+new file mode 100644
+index 00000000000..b8b03b832af
+--- /dev/null
++++ b/gcc/testsuite/gdc.dg/imports/pr108050/package.d
+@@ -0,0 +1,2 @@
++module imports.pr108050;
++public import imports.pr108050.mod1, imports.pr108050.mod2;
 diff --git a/gcc/testsuite/gdc.dg/pr106139a.d b/gcc/testsuite/gdc.dg/pr106139a.d
 new file mode 100644
 index 00000000000..f635eabc745
@@ -18651,6 +18781,16 @@ index 00000000000..59f34477356
 +}
 +
 +alias a107592 = test107592!(string);
+diff --git a/gcc/testsuite/gdc.dg/pr108050.d b/gcc/testsuite/gdc.dg/pr108050.d
+new file mode 100644
+index 00000000000..69134e73137
+--- /dev/null
++++ b/gcc/testsuite/gdc.dg/pr108050.d
+@@ -0,0 +1,4 @@
++// { dg-do compile }
++// { dg-additional-sources "imports/pr108050/package.d imports/pr108050/mod1.d imports/pr108050/mod2.d" }
++// { dg-options "-g" }
++import imports.pr108050 : split;
 diff --git a/gcc/testsuite/gdc.test/fail_compilation/ice20264.d b/gcc/testsuite/gdc.test/fail_compilation/ice20264.d
 new file mode 100644
 index 00000000000..0d697e22c9f
@@ -20312,7 +20452,7 @@ index 32e1632705b..c8cb7328a63 100644
  	    }
  	}
 diff --git a/gcc/tree-ssa-sccvn.c b/gcc/tree-ssa-sccvn.c
-index eaa97566d35..b4c9fac198b 100644
+index eaa97566d35..62d713bab26 100644
 --- a/gcc/tree-ssa-sccvn.c
 +++ b/gcc/tree-ssa-sccvn.c
 @@ -3197,12 +3197,12 @@ vn_reference_lookup_3 (ao_ref *ref, tree vuse, void *data_,
@@ -20372,6 +20512,37 @@ index eaa97566d35..b4c9fac198b 100644
  
    return NULL_TREE;
  }
+@@ -5239,19 +5247,6 @@ visit_reference_op_store (tree lhs, tree op, gimple *stmt)
+ 
+   if (!resultsame)
+     {
+-      /* Only perform the following when being called from PRE
+-	 which embeds tail merging.  */
+-      if (default_vn_walk_kind == VN_WALK)
+-	{
+-	  assign = build2 (MODIFY_EXPR, TREE_TYPE (lhs), lhs, op);
+-	  vn_reference_lookup (assign, vuse, VN_NOWALK, &vnresult, false);
+-	  if (vnresult)
+-	    {
+-	      VN_INFO (vdef)->visited = true;
+-	      return set_ssa_val_to (vdef, vnresult->result_vdef);
+-	    }
+-	}
+-
+       if (dump_file && (dump_flags & TDF_DETAILS))
+ 	{
+ 	  fprintf (dump_file, "No store match\n");
+@@ -5276,7 +5271,9 @@ visit_reference_op_store (tree lhs, tree op, gimple *stmt)
+       if (default_vn_walk_kind == VN_WALK)
+ 	{
+ 	  assign = build2 (MODIFY_EXPR, TREE_TYPE (lhs), lhs, op);
+-	  vn_reference_insert (assign, lhs, vuse, vdef);
++	  vn_reference_lookup (assign, vuse, VN_NOWALK, &vnresult, false);
++	  if (!vnresult)
++	    vn_reference_insert (assign, lhs, vuse, vdef);
+ 	}
+     }
+   else
 diff --git a/gcc/tree-ssa-sink.c b/gcc/tree-ssa-sink.c
 index 3c2ed795f85..b3097531203 100644
 --- a/gcc/tree-ssa-sink.c
