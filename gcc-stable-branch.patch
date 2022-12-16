@@ -23,7 +23,8 @@ Eric Botcazou (5):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (234):
+GCC Administrator (235):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -661,10 +662,21 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..cf1de8ba9be 100644
+index a0587d18824..6d38ed30fd4 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,1100 @@
+@@ -1,3 +1,1111 @@
++2022-12-15  Sebastian Pop  <spop@amazon.com>
++
++	PR target/98776
++	* config/aarch64/aarch64-protos.h (aarch64_output_patchable_area):
++	Declared.
++	* config/aarch64/aarch64.c (aarch64_print_patchable_function_entry):
++	Emit an UNSPECV_PATCHABLE_AREA pseudo instruction.
++	(aarch64_output_patchable_area): New.
++	* config/aarch64/aarch64.md (UNSPECV_PATCHABLE_AREA): New.
++	(patchable_area): Define.
++
 +2022-12-12  Richard Biener  <rguenther@suse.de>
 +
 +	Backported from master:
@@ -12914,10 +12926,17 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..b32d4b85576 100644
+index 5fc23605244..d9a760fd254 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1223 @@
+@@ -1,3 +1,1230 @@
++2022-12-15  Sebastian Pop  <spop@amazon.com>
++
++	PR target/98776
++	* gcc.target/aarch64/pr98776.c: New.
++	* gcc.target/aarch64/pr92424-2.c: Adjust pattern.
++	* gcc.target/aarch64/pr92424-3.c: Adjust pattern.
++
 +2022-12-12  Richard Biener  <rguenther@suse.de>
 +
 +	Backported from master:
