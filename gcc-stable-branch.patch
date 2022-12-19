@@ -23,7 +23,10 @@ Eric Botcazou (5):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (235):
+GCC Administrator (238):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -525,6 +528,9 @@ Patrick Palka (7):
 
 Paul A. Clarke (1):
       rs6000: __Uglify non-uglified local variables in headers
+
+Paul Thomas (1):
+      Fortran: ICE on recursive derived types with allocatable components [PR107872]
 
 Pavel I. Kryukov (1):
       libstdc++: Add self-merge check to std::forward_list::merge [PR103853]
@@ -9300,10 +9306,25 @@ index cdf22f14b94..fabc313197a 100644
  	}
  
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..b76ffb0806c 100644
+index 85c8fdd38cd..850dfaeb3bc 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,244 @@
+@@ -1,3 +1,259 @@
++2022-12-16  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2021-10-28  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/102780
++	PR c++/108138
++	* constexpr.c (potential_constant_expression_1) <case TRUTH_*_EXPR>:
++	When tf_error isn't set, preemptively check potentiality of the
++	second operand before performing trial evaluation of the first
++	operand.
++	(potential_constant_expression_1): When tf_error is set, first check
++	potentiality quietly and return true if successful, otherwise
++	proceed noisily to give errors.
++
 +2022-11-18  Marek Polacek  <polacek@redhat.com>
 +
 +	Backported from master:
@@ -11068,10 +11089,19 @@ index 70c5b3886ef..5b4053df520 100644
  
        if ((tem = fold_truth_andor (loc, code, type, arg0, arg1, op0, op1))
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..b36bd8e1a0b 100644
+index ee1c7bb4b31..4edfc801749 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,269 @@
+@@ -1,3 +1,278 @@
++2022-12-18  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backported from master:
++	2022-12-09  Paul Thomas  <pault@gcc.gnu.org>
++
++	PR fortran/107872
++	* resolve.c (derived_inaccessible): Skip over allocatable components
++	to prevent an infinite loop.
++
 +2022-11-25  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -11459,6 +11489,20 @@ index 9e3e8aa9da9..bcc835513d4 100644
  	  /* TS 29113, C407b.  */
  	  if (a->expr && a->expr->expr_type == EXPR_VARIABLE
  	      && symbol_rank (a->expr->symtree->n.sym) == -1)
+diff --git a/gcc/fortran/resolve.c b/gcc/fortran/resolve.c
+index a26a90993a7..cb7a755b693 100644
+--- a/gcc/fortran/resolve.c
++++ b/gcc/fortran/resolve.c
+@@ -7497,7 +7497,8 @@ derived_inaccessible (gfc_symbol *sym)
+   for (c = sym->components; c; c = c->next)
+     {
+ 	/* Prevent an infinite loop through this function.  */
+-	if (c->ts.type == BT_DERIVED && c->attr.pointer
++	if (c->ts.type == BT_DERIVED
++	    && (c->attr.pointer || c->attr.allocatable)
+ 	    && sym == c->ts.u.derived)
+ 	  continue;
+ 
 diff --git a/gcc/fortran/simplify.c b/gcc/fortran/simplify.c
 index 3599e1b3194..f13a8e57c83 100644
 --- a/gcc/fortran/simplify.c
@@ -12969,10 +13013,27 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..d9a760fd254 100644
+index 5fc23605244..f44377df5c5 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1230 @@
+@@ -1,3 +1,1247 @@
++2022-12-18  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backported from master:
++	2022-12-09  Paul Thomas  <pault@gcc.gnu.org>
++
++	PR fortran/107872
++	* gfortran.dg/pr107872.f90: New test.
++
++2022-12-16  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2021-10-28  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/102780
++	PR c++/108138
++	* g++.dg/cpp1z/fold13.C: New test.
++
 +2022-12-15  Sebastian Pop  <spop@amazon.com>
 +
 +	PR target/98776
@@ -19981,6 +20042,52 @@ index 00000000000..bbfe646beba
 +  type(t), parameter :: b(4) = reshape(a,[2]) ! { dg-error "Different shape" }
 +  type(t), parameter :: c(2) = pack(b,[.false.,.true.,.false.,.true.]) ! { dg-error "Different shape" }
 +  type(t), parameter :: d(4) = unpack(c,[.false.,.true.,.false.,.true.],a)
++end
+diff --git a/gcc/testsuite/gfortran.dg/pr107872.f90 b/gcc/testsuite/gfortran.dg/pr107872.f90
+new file mode 100644
+index 00000000000..09838479e92
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/pr107872.f90
+@@ -0,0 +1,40 @@
++! { dg-do run }
++!
++! Test the fix for PR107872, where an ICE occurred in
++! resolve.cc(derived_inaccessible) because derived types with
++! recursive allocatable components were not catered for.
++!
++module mod1
++  type t
++     integer :: data
++     type(t), allocatable :: next
++   contains
++     procedure, private :: write_t
++     generic :: write(formatted) => write_t
++  end type
++contains
++  recursive subroutine write_t(this, unit, iotype, v_list, iostat, iomsg)
++    class(t), intent(in) :: this
++    integer, intent(in) :: unit
++    character(*), intent(in) :: iotype
++    integer, intent(in) :: v_list(:)
++    integer, intent(out) :: iostat
++    character(*), intent(inout) :: iomsg
++    if (ALLOCATED(this%next)) &
++         write (unit, '(dt)') this%next
++    write (unit, '(i2)') this%data
++  end subroutine
++end module
++
++  use mod1
++  type(t) :: a
++  character (8) :: buffer
++  a%data = 1
++  allocate (a%next)
++  a%next%data = 2
++  allocate (a%next%next)
++  a%next%next%data = 3
++  write (buffer, '(dt)')a
++  deallocate (a%next)
++  if (trim (buffer) .ne. ' 3 2 1') stop 1
 +end
 diff --git a/gcc/testsuite/gfortran.dg/pr47614.f b/gcc/testsuite/gfortran.dg/pr47614.f
 index 500d210a2a4..d772eef257f 100644
