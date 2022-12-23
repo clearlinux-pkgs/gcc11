@@ -23,7 +23,8 @@ Eric Botcazou (5):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (241):
+GCC Administrator (242):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -675,10 +676,31 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..6d38ed30fd4 100644
+index a0587d18824..071c198d53f 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,1111 @@
+@@ -1,3 +1,1132 @@
++2022-12-22  Martin Liska  <mliska@suse.cz>
++
++	Backported from master:
++	2022-08-10  Martin Liska  <mliska@suse.cz>
++
++	* opts-jobserver.h: Add one member.
++	* opts-common.c (jobserver_info::jobserver_info): Parse FIFO
++	format of --jobserver-auth.
++
++2022-12-22  Martin Liska  <mliska@suse.cz>
++
++	Backported from master:
++	2022-08-10  Martin Liska  <mliska@suse.cz>
++
++	* gcc.c (driver::detect_jobserver): Remove and move to
++	jobserver.h.
++	* lto-wrapper.c (jobserver_active_p): Likewise.
++	(run_gcc): Likewise.
++	* opts-jobserver.h: New file.
++	* opts-common.c (jobserver_info::jobserver_info): New function.
++
 +2022-12-15  Sebastian Pop  <spop@amazon.com>
 +
 +	PR target/98776
@@ -22289,10 +22311,19 @@ index 025e575b5bc..5743516c046 100644
    unsigned IOCTL_GIO_FONT = GIO_FONT;
    unsigned IOCTL_GIO_UNIMAP = GIO_UNIMAP;
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..5db6c6f6084 100644
+index 85e04c45288..a7aa638dc05 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,928 @@
+@@ -1,3 +1,937 @@
++2022-12-22  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-11-23  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/107814
++	* testsuite/experimental/filesystem/iterators/error_reporting.cc:
++	Use a static buffer with space after it.
++
 +2022-11-08  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backported from master:
