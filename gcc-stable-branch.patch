@@ -20,10 +20,23 @@ Eric Botcazou (5):
       Fix wrong array type conversion with different storage orde
       Fix thinko in operator_bitwise_xor::op1_range
 
+Florian Weimer (2):
+      libsanitizer: Avoid implicit function declaration in configure test
+      libiberty: Fix C89-isms in configure tests
+
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (245):
+GCC Administrator (254):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -22068,6 +22081,98 @@ index 00000000000..f03aef6a030
 +  }
 +  return 0;
 +}
+diff --git a/libiberty/acinclude.m4 b/libiberty/acinclude.m4
+index 6db0e508517..8d89619a243 100644
+--- a/libiberty/acinclude.m4
++++ b/libiberty/acinclude.m4
+@@ -24,6 +24,8 @@ AC_CACHE_CHECK([for working strncmp], ac_cv_func_strncmp_works,
+ [AC_TRY_RUN([
+ /* Test by Jim Wilson and Kaveh Ghazi.
+    Check whether strncmp reads past the end of its string parameters. */
++#include <stdlib.h>
++#include <string.h>
+ #include <sys/types.h>
+ 
+ #ifdef HAVE_FCNTL_H
+@@ -51,7 +53,8 @@ AC_CACHE_CHECK([for working strncmp], ac_cv_func_strncmp_works,
+ 
+ #define MAP_LEN 0x10000
+ 
+-main ()
++int
++main (void)
+ {
+ #if defined(HAVE_MMAP) || defined(HAVE_MMAP_ANYWHERE)
+   char *p;
+@@ -157,7 +160,10 @@ if test $ac_cv_os_cray = yes; then
+ fi
+ 
+ AC_CACHE_CHECK(stack direction for C alloca, ac_cv_c_stack_direction,
+-[AC_TRY_RUN([find_stack_direction ()
++[AC_TRY_RUN([#include <stdlib.h>
++
++int
++find_stack_direction (void)
+ {
+   static char *addr = 0;
+   auto char dummy;
+@@ -169,7 +175,9 @@ AC_CACHE_CHECK(stack direction for C alloca, ac_cv_c_stack_direction,
+   else
+     return (&dummy > addr) ? 1 : -1;
+ }
+-main ()
++
++int
++main (void)
+ {
+   exit (find_stack_direction() < 0);
+ }],
+diff --git a/libiberty/configure b/libiberty/configure
+index e4d49732a09..26c882e7a97 100755
+--- a/libiberty/configure
++++ b/libiberty/configure
+@@ -6745,7 +6745,10 @@ else
+ else
+   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+ /* end confdefs.h.  */
+-find_stack_direction ()
++#include <stdlib.h>
++
++int
++find_stack_direction (void)
+ {
+   static char *addr = 0;
+   auto char dummy;
+@@ -6757,7 +6760,9 @@ find_stack_direction ()
+   else
+     return (&dummy > addr) ? 1 : -1;
+ }
+-main ()
++
++int
++main (void)
+ {
+   exit (find_stack_direction() < 0);
+ }
+@@ -7582,6 +7587,8 @@ else
+ 
+ /* Test by Jim Wilson and Kaveh Ghazi.
+    Check whether strncmp reads past the end of its string parameters. */
++#include <stdlib.h>
++#include <string.h>
+ #include <sys/types.h>
+ 
+ #ifdef HAVE_FCNTL_H
+@@ -7609,7 +7616,8 @@ else
+ 
+ #define MAP_LEN 0x10000
+ 
+-main ()
++int
++main (void)
+ {
+ #if defined(HAVE_MMAP) || defined(HAVE_MMAP_ANYWHERE)
+   char *p;
 diff --git a/libphobos/ChangeLog b/libphobos/ChangeLog
 index acd0b312ef2..9656a808272 100644
 --- a/libphobos/ChangeLog
@@ -22336,6 +22441,32 @@ index bafd5ad4502..8e2f1eefd5b 100755
                    -L${BUILD_DIR}/src/.libs"
        echo ${GDCLDFLAGS}
        ;;
+diff --git a/libsanitizer/configure b/libsanitizer/configure
+index 1d9ae59be67..8bdde896fe7 100755
+--- a/libsanitizer/configure
++++ b/libsanitizer/configure
+@@ -16035,6 +16035,7 @@ case "$target" in
+     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+ /* end confdefs.h.  */
+ #include <sys/syscall.h>
++#include <unistd.h>
+ int
+ main ()
+ {
+diff --git a/libsanitizer/configure.ac b/libsanitizer/configure.ac
+index 13cd302030d..ac24b4b593b 100644
+--- a/libsanitizer/configure.ac
++++ b/libsanitizer/configure.ac
+@@ -161,7 +161,8 @@ case "$target" in
+   *-*-linux*)
+     # Some old Linux distributions miss required syscalls.
+     sanitizer_supported=no
+-    AC_TRY_COMPILE([#include <sys/syscall.h>],[
++    AC_TRY_COMPILE([#include <sys/syscall.h>
++#include <unistd.h>],[
+       syscall (__NR_gettid);
+       syscall (__NR_futex);
+       syscall (__NR_exit_group);
 diff --git a/libsanitizer/sanitizer_common/sanitizer_platform_limits_posix.cpp b/libsanitizer/sanitizer_common/sanitizer_platform_limits_posix.cpp
 index 025e575b5bc..5743516c046 100644
 --- a/libsanitizer/sanitizer_common/sanitizer_platform_limits_posix.cpp
