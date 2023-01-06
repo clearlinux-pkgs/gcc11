@@ -27,7 +27,8 @@ Florian Weimer (2):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (255):
+GCC Administrator (256):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -695,10 +696,23 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..071c198d53f 100644
+index a0587d18824..594e41394c2 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,1132 @@
+@@ -1,3 +1,1145 @@
++2023-01-05  Kewen Lin  <linkw@linux.ibm.com>
++
++	PR target/106736
++	* config/rs6000/mma.md (define_expand movoo): Call function
++	rs6000_opaque_type_invalid_use_p to check and emit error message for
++	the invalid use of opaque type.
++	(define_expand movxo): Likewise.
++	* config/rs6000/rs6000-protos.h
++	(rs6000_opaque_type_invalid_use_p): New function declaration.
++	(currently_expanding_gimple_stmt): New extern declaration.
++	* config/rs6000/rs6000.c (rs6000_opaque_type_invalid_use_p): New
++	function.
++
 +2022-12-22  Martin Liska  <mliska@suse.cz>
 +
 +	Backported from master:
@@ -13402,10 +13416,19 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..3459ed4ac2b 100644
+index 5fc23605244..b494cec223d 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1253 @@
+@@ -1,3 +1,1262 @@
++2023-01-05  Kewen Lin  <linkw@linux.ibm.com>
++
++	PR target/106736
++	* gcc.target/powerpc/pr106736-1.c: New test.
++	* gcc.target/powerpc/pr106736-2.c: Likewise.
++	* gcc.target/powerpc/pr106736-3.c: Likewise.
++	* gcc.target/powerpc/pr106736-4.c: Likewise.
++	* gcc.target/powerpc/pr106736-5.c: Likewise.
++
 +2022-12-24  John David Anglin  <danglin@gcc.gnu.org>
 +
 +	* g++.dg/guality/guality.exp: Skip on hppa*-*-hpux*.
