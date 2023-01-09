@@ -30,7 +30,10 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (256):
+GCC Administrator (259):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -298,7 +301,7 @@ H.J. Lu (5):
       i386: Mark XMM4-XMM6 as clobbered by encodekey128/encodekey256
       Always use TYPE_MODE instead of DECL_MODE for vector field
 
-Harald Anlauf (17):
+Harald Anlauf (18):
       Fortran: improve error recovery on invalid array section
       Fortran: fix error recovery on invalid array section
       Fortran: fix checking of arguments to UNPACK when MASK is a variable [PR105813]
@@ -316,6 +319,7 @@ Harald Anlauf (17):
       Fortran: error recovery with references of bad array constructors [PR105633]
       Fortran: BOZ literal constants are not compatible to any type [PR103413]
       Fortran: reject NULL actual argument without explicit interface [PR107576]
+      Fortran: incorrect array bounds when bound intrinsic used in decl [PR108131]
 
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
@@ -11217,10 +11221,20 @@ index 70c5b3886ef..5b4053df520 100644
  
        if ((tem = fold_truth_andor (loc, code, type, arg0, arg1, op0, op1))
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..4edfc801749 100644
+index ee1c7bb4b31..a8cabf47e21 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,278 @@
+@@ -1,3 +1,288 @@
++2023-01-08  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-12-23  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/108131
++	* array.c (match_array_element_spec): Avoid too early simplification
++	of matched array element specs that can lead to a misinterpretation
++	when used as array bounds in array declarations.
++
 +2022-12-18  Paul Thomas  <pault@gcc.gnu.org>
 +
 +	Backported from master:
@@ -11499,6 +11513,28 @@ index ee1c7bb4b31..4edfc801749 100644
  2022-04-21  Release Manager
  
  	* GCC 11.3.0 released.
+diff --git a/gcc/fortran/array.c b/gcc/fortran/array.c
+index b406f6d1f6e..bb6f2bb9045 100644
+--- a/gcc/fortran/array.c
++++ b/gcc/fortran/array.c
+@@ -492,8 +492,6 @@ match_array_element_spec (gfc_array_spec *as)
+   if (!gfc_expr_check_typed (*upper, gfc_current_ns, false))
+     return AS_UNKNOWN;
+ 
+-  gfc_try_simplify_expr (*upper, 0);
+-
+   if (((*upper)->expr_type == EXPR_CONSTANT
+ 	&& (*upper)->ts.type != BT_INTEGER) ||
+       ((*upper)->expr_type == EXPR_FUNCTION
+@@ -526,8 +524,6 @@ match_array_element_spec (gfc_array_spec *as)
+   if (!gfc_expr_check_typed (*upper, gfc_current_ns, false))
+     return AS_UNKNOWN;
+ 
+-  gfc_try_simplify_expr (*upper, 0);
+-
+   if (((*upper)->expr_type == EXPR_CONSTANT
+ 	&& (*upper)->ts.type != BT_INTEGER) ||
+       ((*upper)->expr_type == EXPR_FUNCTION
 diff --git a/gcc/fortran/check.c b/gcc/fortran/check.c
 index 1add9436dce..4e2736fef1e 100644
 --- a/gcc/fortran/check.c
@@ -13420,10 +13456,37 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..b494cec223d 100644
+index 5fc23605244..af82f76f39f 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1262 @@
+@@ -1,3 +1,1289 @@
++2023-01-08  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-12-23  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/108131
++	* gfortran.dg/pr103505.f90: Adjust expected patterns.
++	* gfortran.dg/pr108131.f90: New test.
++
++2023-01-06  Francois-Xavier Coudert  <fxcoudert@gcc.gnu.org>
++
++	Backported from master:
++	2021-12-29  Francois-Xavier Coudert  <fxcoudert@gcc.gnu.org>
++
++	PR testsuite/47334
++	PR testsuite/103823
++	* lib/prune.exp: Prune some warnings related to LTO and
++	visibility.
++
++2023-01-06  Martin Liska  <mliska@suse.cz>
++
++	Backported from master:
++	2021-05-12  Martin Liska  <mliska@suse.cz>
++
++	* lib/lto.exp: When running tests without jobserver, one can see
++	the following warning for tests that use 1to1 partitioning.
++
 +2023-01-05  Kewen Lin  <linkw@linux.ibm.com>
 +
 +	PR target/106736
@@ -20432,6 +20495,23 @@ index 00000000000..607d1c6c8cc
 +end
 +
 +! { dg-prune-output "must be of INTEGER type" }
+diff --git a/gcc/testsuite/gfortran.dg/pr103505.f90 b/gcc/testsuite/gfortran.dg/pr103505.f90
+index 522e53efcb2..01308019b2c 100644
+--- a/gcc/testsuite/gfortran.dg/pr103505.f90
++++ b/gcc/testsuite/gfortran.dg/pr103505.f90
+@@ -3,7 +3,9 @@
+ ! Testcase by G.Steinmetz
+ 
+ program p
+-  integer, parameter :: a((2.))   = [4,8] ! { dg-error "scalar INTEGER" }
+-  integer, parameter :: z(1:(2.)) = [4,8] ! { dg-error "scalar INTEGER" }
+-  print *, a(1:1)                         ! { dg-error "Syntax error" }
++  integer, parameter :: a((2.))   = [4,8] ! { dg-error "INTEGER type" }
++  integer, parameter :: z(1:(2.)) = [4,8] ! { dg-error "INTEGER type" }
++  print *, a(1:1)
+ end
++
++! { dg-prune-output "Parameter array" }
 diff --git a/gcc/testsuite/gfortran.dg/pr103694.f90 b/gcc/testsuite/gfortran.dg/pr103694.f90
 new file mode 100644
 index 00000000000..3ed8b2088da
@@ -20678,6 +20758,37 @@ index 00000000000..09838479e92
 +  deallocate (a%next)
 +  if (trim (buffer) .ne. ' 3 2 1') stop 1
 +end
+diff --git a/gcc/testsuite/gfortran.dg/pr108131.f90 b/gcc/testsuite/gfortran.dg/pr108131.f90
+new file mode 100644
+index 00000000000..8bf36d361ba
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/pr108131.f90
+@@ -0,0 +1,25 @@
++! { dg-do run }
++! { dg-additional-options "-fdump-tree-original" }
++! PR fortran/108131
++!
++! Incorrect array bounds when bound intrinsic used in declaration
++
++program test
++  implicit none
++  integer, parameter :: mg(7:10)                 = 0
++  integer, parameter :: u =   ubound(mg, dim=1)
++  integer, parameter :: cx(-1:ubound(mg, dim=1)) = 1
++  integer, parameter :: dx(lbound(mg, dim=1):ubound(cx, dim=1)) = 2
++
++  write(*,*) ubound(mg, dim=1)
++  write(*,*) ubound(cx, dim=1)
++  if (u /= 10) stop 1
++  if (ubound(mg, dim=1) /= 10) stop 2
++  if (ubound(cx, dim=1) /= 10) stop 3
++  if (ubound(dx, dim=1) /= 10) stop 4
++  if (lbound(mg, dim=1) /=  7) stop 5
++  if (lbound(cx, dim=1) /= -1) stop 6
++  if (lbound(dx, dim=1) /=  7) stop 7
++end program test
++
++! { dg-final { scan-tree-dump-not "_gfortran_stop_numeric" "original" } }
 diff --git a/gcc/testsuite/gfortran.dg/pr47614.f b/gcc/testsuite/gfortran.dg/pr47614.f
 index 500d210a2a4..d772eef257f 100644
 --- a/gcc/testsuite/gfortran.dg/pr47614.f
