@@ -30,7 +30,8 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (260):
+GCC Administrator (261):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -708,10 +709,25 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..594e41394c2 100644
+index a0587d18824..95fa8878831 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,1145 @@
+@@ -1,3 +1,1160 @@
++2023-01-10  Stam Markianos-Wright  <stam.markianos-wright@arm.com>
++
++	Backported from master:
++	2022-12-30  Stam Markianos-Wright  <stam.markianos-wright@arm.com>
++
++	PR target/107714
++	* config/arm/arm-protos.h (mve_struct_mem_operand): New protoype.
++	* config/arm/arm.c (mve_struct_mem_operand): New function.
++	* config/arm/constraints.md (Ug): New constraint.
++	* config/arm/mve.md (mve_vst4q<mode>): Change constraint.
++	(mve_vst2q<mode>): Likewise.
++	(mve_vld4q<mode>): Likewise.
++	(mve_vld2q<mode>): Likewise.
++	* config/arm/predicates.md (mve_struct_operand): New predicate.
++
 +2023-01-05  Kewen Lin  <linkw@linux.ibm.com>
 +
 +	PR target/106736
@@ -13564,10 +13580,18 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..af82f76f39f 100644
+index 5fc23605244..e36c27945f2 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1289 @@
+@@ -1,3 +1,1297 @@
++2023-01-10  Stam Markianos-Wright  <stam.markianos-wright@arm.com>
++
++	Backported from master:
++	2022-12-30  Stam Markianos-Wright  <stam.markianos-wright@arm.com>
++
++	PR target/107714
++	* gcc.target/arm/mve/intrinsics/vldst24q_reg_offset.c: New test.
++
 +2023-01-08  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
