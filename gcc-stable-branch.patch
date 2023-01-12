@@ -13,12 +13,13 @@ David Malcolm (2):
       analyzer: fix ICE comparing VECTOR_CSTs [PR105252]
       analyzer: fix ICEs on complex constants [PR105365,105366]
 
-Eric Botcazou (5):
+Eric Botcazou (6):
       Fix internal error with vectorization on SPARC
       Fix PR target/107248
       Fix recent thinko in operand_equal_p
       Fix wrong array type conversion with different storage orde
       Fix thinko in operator_bitwise_xor::op1_range
+      Fix problematic interaction between bitfields, unions, SSO and SRA
 
 Florian Weimer (2):
       libsanitizer: Avoid implicit function declaration in configure test
@@ -30,7 +31,8 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (261):
+GCC Administrator (262):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -709,10 +711,16 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..95fa8878831 100644
+index a0587d18824..ced81f1f468 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,1160 @@
+@@ -1,3 +1,1166 @@
++2023-01-11  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR tree-optimization/108199
++	* tree-sra.c (sra_modify_expr): Deal with reverse storage order
++	for bit-field references.
++
 +2023-01-10  Stam Markianos-Wright  <stam.markianos-wright@arm.com>
 +
 +	Backported from master:
@@ -13580,10 +13588,14 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..e36c27945f2 100644
+index 5fc23605244..decfddcbf18 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1297 @@
+@@ -1,3 +1,1301 @@
++2023-01-11  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gcc.dg/sso-17.c: New test.
++
 +2023-01-10  Stam Markianos-Wright  <stam.markianos-wright@arm.com>
 +
 +	Backported from master:
@@ -17016,6 +17028,64 @@ index 2f44b617710..1b7cf09de0a 100644
  
  #if 0
  #pragma message ("Not printed")
+diff --git a/gcc/testsuite/gcc.dg/sso-17.c b/gcc/testsuite/gcc.dg/sso-17.c
+new file mode 100644
+index 00000000000..67e2d3793fd
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/sso-17.c
+@@ -0,0 +1,52 @@
++/* { dg-do run } */
++/* { dg-options "-O2" } */
++
++#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
++#define REV_ENDIANNESS __attribute__((scalar_storage_order("big-endian")))
++#else
++#define REV_ENDIANNESS __attribute__((scalar_storage_order("little-endian")))
++#endif
++
++typedef unsigned long long u64;
++
++union DST {
++  u64 val;
++
++  struct {
++    u64 x : 1;
++    u64 y : 1;
++    u64 r: 62;
++  } REV_ENDIANNESS;
++} REV_ENDIANNESS;
++
++
++struct SRC {
++  u64 a;
++} REV_ENDIANNESS;
++
++[[gnu::noipa]]
++void foo () {__builtin_abort();}
++
++[[gnu::noinline]]
++int bar(struct SRC *src)
++{
++  union DST dst;
++  
++  dst.val = src->a;
++
++  if (dst.y) {
++    foo();
++  }
++  return 0;
++}
++
++int main(void)
++{
++#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
++  struct SRC t = {-1ull & (~(0x01ull<<62))};
++#else
++  struct SRC t = {-1ull & (~(0x01ull<<1))};
++#endif
++  bar(&t);
++  return 0;
++}
 diff --git a/gcc/testsuite/gcc.dg/torture/pr105148.c b/gcc/testsuite/gcc.dg/torture/pr105148.c
 new file mode 100644
 index 00000000000..3338b0f3281
@@ -21710,7 +21780,7 @@ index 0a7c1a936ba..64ab7ad0a80 100644
  				  get_object_alignment (ref));
    ref = build2 (MEM_REF, type, addr, alias_ptr);
 diff --git a/gcc/tree-sra.c b/gcc/tree-sra.c
-index 970ad386873..dea9cf3235c 100644
+index 970ad386873..5a1fc81d301 100644
 --- a/gcc/tree-sra.c
 +++ b/gcc/tree-sra.c
 @@ -1647,7 +1647,18 @@ build_ref_for_offset (location_t loc, tree base, poly_int64 offset,
@@ -21733,6 +21803,31 @@ index 970ad386873..dea9cf3235c 100644
    while (!types_compatible_p (TREE_TYPE (expr), TREE_TYPE (base)))
      {
        if (!handled_component_p (expr))
+@@ -3817,7 +3828,23 @@ sra_modify_expr (tree *expr, gimple_stmt_iterator *gsi, bool write)
+ 	    }
+ 	}
+       else
+-	*expr = repl;
++	{
++	  /* If we are going to replace a scalar field in a structure with
++	     reverse storage order by a stand-alone scalar, we are going to
++	     effectively byte-swap the scalar and we also need to byte-swap
++	     the portion of it represented by the bit-field.  */
++	  if (bfr && REF_REVERSE_STORAGE_ORDER (bfr))
++	    {
++	      REF_REVERSE_STORAGE_ORDER (bfr) = 0;
++	      TREE_OPERAND (bfr, 2)
++		= size_binop (MINUS_EXPR, TYPE_SIZE (TREE_TYPE (repl)),
++			      size_binop (PLUS_EXPR, TREE_OPERAND (bfr, 1),
++						     TREE_OPERAND (bfr, 2)));
++	    }
++
++	  *expr = repl;
++	}
++
+       sra_stats.exprs++;
+     }
+   else if (write && access->grp_to_be_debug_replaced)
 diff --git a/gcc/tree-ssa-loop-ivopts.c b/gcc/tree-ssa-loop-ivopts.c
 index 4012ae3f19d..913b3ad4258 100644
 --- a/gcc/tree-ssa-loop-ivopts.c
