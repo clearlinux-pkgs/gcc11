@@ -1,3 +1,6 @@
+Alex Coplan (1):
+      varasm: Fix type confusion bug
+
 Alexandre Oliva (3):
       testsuite: vect: update unaligned message
       [PR105324] libstdc++: testsuite: pr105324 requires FP from_char
@@ -31,7 +34,11 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (262):
+GCC Administrator (266):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -22290,9 +22297,18 @@ index 42748771192..688089b04d2 100644
  	gcc_assert (value >= 0);
  
 diff --git a/gcc/varasm.c b/gcc/varasm.c
-index a7ef9b8d9fe..93b9c8ef0ee 100644
+index a7ef9b8d9fe..8e456576010 100644
 --- a/gcc/varasm.c
 +++ b/gcc/varasm.c
+@@ -2380,7 +2380,7 @@ assemble_variable (tree decl, int top_level ATTRIBUTE_UNUSED,
+   else
+     {
+       /* Special-case handling of vtv comdat sections.  */
+-      if (sect->named.name
++      if (SECTION_STYLE (sect) == SECTION_NAMED
+ 	  && (strcmp (sect->named.name, ".vtable_map_vars") == 0))
+ 	handle_vtv_comdat_section (sect, decl);
+       else
 @@ -4691,7 +4691,10 @@ narrowing_initializer_constant_valid_p (tree value, tree endtype, tree *cache)
      {
        tree inner = TREE_OPERAND (op0, 0);
