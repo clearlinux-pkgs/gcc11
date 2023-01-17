@@ -34,7 +34,8 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (266):
+GCC Administrator (267):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -718,10 +719,18 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..ced81f1f468 100644
+index a0587d18824..1df3c5b818c 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,1166 @@
+@@ -1,3 +1,1174 @@
++2023-01-16  Alex Coplan  <alex.coplan@arm.com>
++
++	Backported from master:
++	2022-12-01  Alex Coplan  <alex.coplan@arm.com>
++
++	* varasm.c (assemble_variable): Fix type confusion bug when
++	checking for ".vtable_map_vars" section.
++
 +2023-01-11  Eric Botcazou  <ebotcazou@adacore.com>
 +
 +	PR tree-optimization/108199
