@@ -34,7 +34,8 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (267):
+GCC Administrator (268):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -412,7 +413,7 @@ John David Anglin (2):
       Fix addvdi3 and subvdi3 patterns
       Skip guality tests on hppa-hpux.
 
-Jonathan Wakely (77):
+Jonathan Wakely (78):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -490,6 +491,7 @@ Jonathan Wakely (77):
       doc: Document correct -fwide-exec-charset defaults [PR41041]
       libstdc++: Remove empty <author> elements in manual
       libstdc++: Fix unsafe use of dirent::d_name [PR107814]
+      libstdc++: Unblock atomic wait on non-futex platforms [PR106183]
 
 José Rui Faustino de Sousa (5):
       Fortran: Fix ICE with -fcheck=pointer [PR100136]
@@ -25427,7 +25429,7 @@ index 60b976bf8d1..2abdc400260 100644
  					 std::__addressof(__desired), false,
  					 int(__success), int(__failure));
 diff --git a/libstdc++-v3/include/bits/atomic_wait.h b/libstdc++-v3/include/bits/atomic_wait.h
-index 394f666d02e..571a0dd08ef 100644
+index 394f666d02e..d6231808ec7 100644
 --- a/libstdc++-v3/include/bits/atomic_wait.h
 +++ b/libstdc++-v3/include/bits/atomic_wait.h
 @@ -142,8 +142,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
@@ -25465,6 +25467,74 @@ index 394f666d02e..571a0dd08ef 100644
  	  }
  
  	while (__spin())
+@@ -226,18 +223,25 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       }
+ 
+       void
+-      _M_notify(const __platform_wait_t* __addr, bool __all, bool __bare) noexcept
++      _M_notify(__platform_wait_t* __addr, [[maybe_unused]] bool __all,
++		bool __bare) noexcept
+       {
+-	if (!(__bare || _M_waiting()))
+-	  return;
+-
+ #ifdef _GLIBCXX_HAVE_PLATFORM_WAIT
+-	__platform_notify(__addr, __all);
++	if (__addr == &_M_ver)
++	  {
++	    __atomic_fetch_add(__addr, 1, __ATOMIC_SEQ_CST);
++	    __all = true;
++	  }
++
++	if (__bare || _M_waiting())
++	  __platform_notify(__addr, __all);
+ #else
+-	if (__all)
++	{
++	  lock_guard<mutex> __l(_M_mtx);
++	  __atomic_fetch_add(__addr, 1, __ATOMIC_RELAXED);
++	}
++	if (__bare || _M_waiting())
+ 	  _M_cv.notify_all();
+-	else
+-	  _M_cv.notify_one();
+ #endif
+       }
+ 
+@@ -264,7 +268,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	if (__val == __old)
+ 	  {
+ 	    lock_guard<mutex> __l(_M_mtx);
+-	    _M_cv.wait(_M_mtx);
++	    __atomic_load(__addr, &__val, __ATOMIC_RELAXED);
++	    if (__val == __old)
++	      _M_cv.wait(_M_mtx);
+ 	  }
+ #endif // __GLIBCXX_HAVE_PLATFORM_WAIT
+       }
+@@ -302,20 +308,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	    , _M_addr(_S_wait_addr(__addr, &_M_w._M_ver))
+ 	  { }
+ 
+-	bool
+-	_M_laundered() const
+-	{ return _M_addr == &_M_w._M_ver; }
+-
+ 	void
+-	_M_notify(bool __all, bool __bare = false)
+-	{
+-	  if (_M_laundered())
+-	    {
+-	      __atomic_fetch_add(_M_addr, 1, __ATOMIC_SEQ_CST);
+-	      __all = true;
+-	    }
+-	  _M_w._M_notify(_M_addr, __all, __bare);
+-	}
++	_M_notify(bool __all, bool __bare = false) noexcept
++	{ _M_w._M_notify(_M_addr, __all, __bare); }
+ 
+ 	template<typename _Up, typename _ValFn,
+ 		 typename _Spin = __default_spin_policy>
 diff --git a/libstdc++-v3/include/bits/forward_list.tcc b/libstdc++-v3/include/bits/forward_list.tcc
 index bd7a859091f..1145230b910 100644
 --- a/libstdc++-v3/include/bits/forward_list.tcc
