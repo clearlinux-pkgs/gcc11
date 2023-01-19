@@ -34,7 +34,8 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (268):
+GCC Administrator (269):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -23450,10 +23451,24 @@ index 025e575b5bc..5743516c046 100644
    unsigned IOCTL_GIO_FONT = GIO_FONT;
    unsigned IOCTL_GIO_UNIMAP = GIO_UNIMAP;
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..a7aa638dc05 100644
+index 85e04c45288..893662c74dc 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,937 @@
+@@ -1,3 +1,951 @@
++2023-01-18  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-08-04  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/106183
++	* include/bits/atomic_wait.h (__waiter_pool_base::_M_notify):
++	Move increment of _M_ver here.
++	[!_GLIBCXX_HAVE_PLATFORM_WAIT]: Lock mutex around increment.
++	Use relaxed memory order and always notify all waiters.
++	(__waiter_base::_M_do_wait) [!_GLIBCXX_HAVE_PLATFORM_WAIT]:
++	Check value again after locking mutex.
++	(__waiter_base::_M_notify): Remove increment of _M_ver.
++
 +2022-12-22  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backported from master:
