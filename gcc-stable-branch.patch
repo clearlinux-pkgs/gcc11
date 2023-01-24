@@ -34,7 +34,12 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (269):
+GCC Administrator (274):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -603,7 +608,7 @@ Qing Zhao (1):
 Rainer Orth (1):
       libstdc++: Fix 28_regex/basic_regex/84110.cc on Solaris
 
-Richard Biener (27):
+Richard Biener (31):
       Update BASE-VER to 11.3.1
       ipa/105598 - testcase for PR105598
       middle-end/105140 - fix bogus recursion in fold_convertible_p
@@ -631,6 +636,10 @@ Richard Biener (27):
       tree-optimization/106892 - avoid invalid pointer association in predcom
       tree-optimization/106934 - avoid BIT_FIELD_REF of bitfields
       tree-optimization/107107 - tail-merging VN wrong-code
+      tree-optimization/107212 - SLP reduction of reduction paths
+      tree-optimization/107254 - check and support live lanes from permutes
+      tree-optimization/107323 - loop distribution partition ordering issue
+      tree-optimization/107554 - fix ICE in stlen optimization
 
 Richard Earnshaw (3):
       arm: big-endian issue in gen_cpymem_ldrd_strd [PR105981]
@@ -661,9 +670,10 @@ Segher Boessenkool (7):
       rs6000: Add effective target has_arch_ppc64
       rs6000: Make the has_arch target selectors actually work
 
-Sergei Trofimovich (2):
+Sergei Trofimovich (3):
       gcov-profile: Allow negative counts of indirect calls [PR105282]
       gcc/config/t-i386: add build dependencies on i386-builtin-types.inc
+      driver: fix environ corruption after putenv() [PR106624]
 
 Simon Cook (1):
       RISC-V: Don't unconditionally add m,a,f,d in arch-canonicalize
@@ -12448,7 +12458,7 @@ index 69d3fdcfdac..bc032231d3a 100644
  
  
 diff --git a/gcc/gcc.c b/gcc/gcc.c
-index 0af888c7d78..795cf9eb01d 100644
+index 0af888c7d78..20a649ea08e 100644
 --- a/gcc/gcc.c
 +++ b/gcc/gcc.c
 @@ -27,6 +27,7 @@ CC recognizes how to compile each input file by suffixes in the file names.
@@ -12520,7 +12530,7 @@ index 0af888c7d78..795cf9eb01d 100644
 -    }
 +  jobserver_info jinfo;
 +  if (!jinfo.is_active && !jinfo.skipped_makeflags.empty ())
-+    xputenv (jinfo.skipped_makeflags.c_str ());
++    xputenv (xstrdup (jinfo.skipped_makeflags.c_str ()));
  }
  
  /* Determine what the exit code of the driver should be.  */
@@ -17028,6 +17038,24 @@ index 00000000000..5ad6a63159e
 +    __builtin_abort ();
 +  return 0;
 +}
+diff --git a/gcc/testsuite/gcc.dg/pr107554.c b/gcc/testsuite/gcc.dg/pr107554.c
+new file mode 100644
+index 00000000000..8bbe6b07ae9
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/pr107554.c
+@@ -0,0 +1,12 @@
++/* { dg-do compile } */
++/* { dg-options "-O -foptimize-strlen" } */
++
++#define ELEMS 0x40000000
++
++int a[ELEMS];
++int b[ELEMS];
++
++int main()
++{
++  __builtin_memcpy(a, b, ELEMS*sizeof(int));
++}
 diff --git a/gcc/testsuite/gcc.dg/pragma-message.c b/gcc/testsuite/gcc.dg/pragma-message.c
 index 2f44b617710..1b7cf09de0a 100644
 --- a/gcc/testsuite/gcc.dg/pragma-message.c
@@ -17392,6 +17420,40 @@ index 00000000000..77bcb4a6739
 +        if (val.U.var_2._s1._1 != 0x02020202 )
 +	  __builtin_abort ();
 +	return 0;
++}
+diff --git a/gcc/testsuite/gcc.dg/tree-ssa/pr107323.c b/gcc/testsuite/gcc.dg/tree-ssa/pr107323.c
+new file mode 100644
+index 00000000000..1204b6e36d5
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/tree-ssa/pr107323.c
+@@ -0,0 +1,28 @@
++/* { dg-do run } */
++/* { dg-options "-O2 -fno-tree-vectorize" } */
++
++int A[4];
++int B[4];
++
++static const char *__attribute__((noipa)) foo()
++{
++  return "1";
++}
++
++int main()
++{
++  const char *s = foo();
++
++  A[0] = 1000;
++  for(int i = 1; i < 4; ++i) {
++      B[i] = 0;
++      A[i] = 0;
++      if(s[0])
++	B[i] = 1;
++      A[i] = A[i - 1];
++  }
++
++  if (A[3] != 1000)
++    __builtin_abort ();
++  return 0;
 +}
 diff --git a/gcc/testsuite/gcc.dg/tree-ssa/ssa-sink-19.c b/gcc/testsuite/gcc.dg/tree-ssa/ssa-sink-19.c
 new file mode 100644
@@ -17773,6 +17835,68 @@ index 00000000000..2f4ed0f404c
 +}
 +
 +/* { dg-final { scan-tree-dump "peeling for gaps insufficient for access" "vect" { target { vect_perm_short } } } } */
+diff --git a/gcc/testsuite/gcc.dg/vect/pr107212-1.c b/gcc/testsuite/gcc.dg/vect/pr107212-1.c
+new file mode 100644
+index 00000000000..5343f9b6b23
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/vect/pr107212-1.c
+@@ -0,0 +1,27 @@
++/* { dg-do run } */
++
++#include "tree-vect.h"
++
++int main()
++{
++  check_vect ();
++
++  unsigned int tab[6][2] = { {69, 73}, {36, 40}, {24, 16},
++        {16, 11}, {4, 5}, {3, 1} };
++
++  int sum_0 = 0;
++  int sum_1 = 0;
++
++  for(int t=0; t<6; t++) {
++      sum_0 += tab[t][0];
++      sum_1 += tab[t][1];
++  }
++
++  int x1 = (sum_0 < 100);
++  int x2 = (sum_0 > 200);
++
++  if (x1 || x2 || sum_1 != 146)
++    __builtin_abort ();
++
++  return 0;
++}
+diff --git a/gcc/testsuite/gcc.dg/vect/pr107212-2.c b/gcc/testsuite/gcc.dg/vect/pr107212-2.c
+new file mode 100644
+index 00000000000..109c2b991a6
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/vect/pr107212-2.c
+@@ -0,0 +1,23 @@
++/* { dg-do run } */
++
++#include "tree-vect.h"
++
++int sum_1 = 0;
++
++int main()
++{
++  check_vect ();
++
++  unsigned int tab[6][2] = {{150, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}};
++  
++  int sum_0 = 0;
++  
++  for (int t = 0; t < 6; t++) {
++    sum_0 += tab[t][0];
++    sum_1 += tab[t][0];
++  }
++  
++  if (sum_0 < 100 || sum_0 > 200)
++    __builtin_abort();
++  return 0;
++}
 diff --git a/gcc/testsuite/gcc.dg/vect/vect.exp b/gcc/testsuite/gcc.dg/vect/vect.exp
 index dca9a4db6f6..3c60eff7072 100644
 --- a/gcc/testsuite/gcc.dg/vect/vect.exp
@@ -21360,6 +21484,61 @@ index 00000000000..5347c111e8f
 +  print *, unpack ([1,2,3], mask, 0) ! OK
 +  print *, unpack ([1,2],   mask, 0) ! { dg-error "must provide at least" }
 +end
+diff --git a/gcc/testsuite/gfortran.dg/vect/pr107254.f90 b/gcc/testsuite/gfortran.dg/vect/pr107254.f90
+new file mode 100644
+index 00000000000..85bcb5f3fa2
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/vect/pr107254.f90
+@@ -0,0 +1,49 @@
++! { dg-do run }
++
++subroutine dlartg( f, g, s, r )
++  implicit none
++  double precision :: f, g, r, s
++  double precision :: d, p
++
++  d = sqrt( f*f + g*g )
++  p = 1.d0 / d
++  if( abs( f ) > 1 ) then
++     s = g*sign( p, f )
++     r = sign( d, f )
++  else
++     s = g*sign( p, f )
++     r = sign( d, f )
++  end if
++end subroutine
++
++subroutine dhgeqz( n, h, t )
++  implicit none
++  integer            n
++  double precision   h( n, * ), t( n, * )
++  integer            jc
++  double precision   c, s, temp, temp2, tempr
++  temp2 = 10d0
++  call dlartg( 10d0, temp2, s, tempr )
++  c = 0.9d0
++  s = 1.d0
++  do jc = 1, n
++     temp = c*h( 1, jc ) + s*h( 2, jc )
++     h( 2, jc ) = -s*h( 1, jc ) + c*h( 2, jc )
++     h( 1, jc ) = temp
++     temp2 = c*t( 1, jc ) + s*t( 2, jc )
++     t( 2, jc ) = -s*t( 1, jc ) + c*t( 2, jc )
++     t( 1, jc ) = temp2
++  enddo
++end subroutine dhgeqz
++
++program test
++  implicit none
++  double precision h(2,2), t(2,2)  
++  h = 0
++  t(1,1) = 1
++  t(2,1) = 0
++  t(1,2) = 0
++  t(2,2) = 0
++  call dhgeqz( 2, h, t )
++  if (t(2,2).ne.0) STOP 1
++end program test
 diff --git a/gcc/testsuite/gnat.dg/opt100.adb b/gcc/testsuite/gnat.dg/opt100.adb
 new file mode 100644
 index 00000000000..83270b64339
@@ -21747,7 +21926,7 @@ index 857e57218c1..a09606e4497 100644
  }
  
 diff --git a/gcc/tree-loop-distribution.c b/gcc/tree-loop-distribution.c
-index 65aa1df4aba..7568384e286 100644
+index 65aa1df4aba..947326ab1e7 100644
 --- a/gcc/tree-loop-distribution.c
 +++ b/gcc/tree-loop-distribution.c
 @@ -1757,10 +1757,15 @@ loop_distribution::classify_builtin_ldst (loop_p loop, struct graph *rdg,
@@ -21767,6 +21946,109 @@ index 65aa1df4aba..7568384e286 100644
    /* Load and store in loop nest must access memory in the same way, i.e,
       their must have the same steps in each loop of the nest.  */
    if (dst_steps.length () != src_steps.length ())
+@@ -2158,8 +2163,6 @@ struct pg_edge_callback_data
+   bitmap sccs_to_merge;
+   /* Array constains component information for all vertices.  */
+   int *vertices_component;
+-  /* Array constains postorder information for all vertices.  */
+-  int *vertices_post;
+   /* Vector to record all data dependence relations which are needed
+      to break strong connected components by runtime alias checks.  */
+   vec<ddr_p> *alias_ddrs;
+@@ -2409,6 +2412,33 @@ pg_collect_alias_ddrs (struct graph *g, struct graph_edge *e, void *data)
+     cbdata->alias_ddrs->safe_splice (edata->alias_ddrs);
+ }
+ 
++/* Callback function for traversing edge E.  DATA is private
++   callback data.  */
++
++static void
++pg_unmark_merged_alias_ddrs (struct graph *, struct graph_edge *e, void *data)
++{
++  int i, j, component;
++  struct pg_edge_callback_data *cbdata;
++  struct pg_edata *edata = (struct pg_edata *) e->data;
++
++  if (edata == NULL || edata->alias_ddrs.length () == 0)
++    return;
++
++  cbdata = (struct pg_edge_callback_data *) data;
++  i = e->src;
++  j = e->dest;
++  component = cbdata->vertices_component[i];
++  /* Make sure to not skip vertices inside SCCs we are going to merge.  */
++  if (component == cbdata->vertices_component[j]
++      && bitmap_bit_p (cbdata->sccs_to_merge, component))
++    {
++      edata->alias_ddrs.release ();
++      delete edata;
++      e->data = NULL;
++    }
++}
++
+ /* This is the main function breaking strong conected components in
+    PARTITIONS giving reduced depdendence graph RDG.  Store data dependence
+    relations for runtime alias check in ALIAS_DDRS.  */
+@@ -2468,7 +2498,6 @@ loop_distribution::break_alias_scc_partitions (struct graph *rdg,
+       cbdata.sccs_to_merge = sccs_to_merge;
+       cbdata.alias_ddrs = alias_ddrs;
+       cbdata.vertices_component = XNEWVEC (int, pg->n_vertices);
+-      cbdata.vertices_post = XNEWVEC (int, pg->n_vertices);
+       /* Record the component information which will be corrupted by next
+ 	 graph scc finding call.  */
+       for (i = 0; i < pg->n_vertices; ++i)
+@@ -2477,17 +2506,18 @@ loop_distribution::break_alias_scc_partitions (struct graph *rdg,
+       /* Collect data dependences for runtime alias checks to break SCCs.  */
+       if (bitmap_count_bits (sccs_to_merge) != (unsigned) num_sccs)
+ 	{
+-	  /* Record the postorder information which will be corrupted by next
+-	     graph SCC finding call.  */
+-	  for (i = 0; i < pg->n_vertices; ++i)
+-	    cbdata.vertices_post[i] = pg->vertices[i].post;
++	  /* For SCCs we want to merge clear all alias_ddrs for edges
++	     inside the component.  */
++	  for_each_edge (pg, pg_unmark_merged_alias_ddrs, &cbdata);
+ 
+ 	  /* Run SCC finding algorithm again, with alias dependence edges
+ 	     skipped.  This is to topologically sort partitions according to
+ 	     compilation time known dependence.  Note the topological order
+ 	     is stored in the form of pg's post order number.  */
+ 	  num_sccs_no_alias = graphds_scc (pg, NULL, pg_skip_alias_edge);
+-	  gcc_assert (partitions->length () == (unsigned) num_sccs_no_alias);
++	  /* We cannot assert partitions->length () == num_sccs_no_alias
++	     since we are not ignoring alias edges in cycles we are
++	     going to merge.  That's required to compute correct postorder.  */
+ 	  /* With topological order, we can construct two subgraphs L and R.
+ 	     L contains edge <x, y> where x < y in terms of post order, while
+ 	     R contains edge <x, y> where x > y.  Edges for compilation time
+@@ -2522,16 +2552,14 @@ loop_distribution::break_alias_scc_partitions (struct graph *rdg,
+ 	      first->type = PTYPE_SEQUENTIAL;
+ 	    }
+ 	}
+-      /* Restore the postorder information if it's corrupted in finding SCC
+-	 with alias dependence edges skipped.  If reduction partition's SCC is
+-	 broken by runtime alias checks, we force a negative post order to it
+-	 making sure it will be scheduled in the last.  */
++      /* If reduction partition's SCC is broken by runtime alias checks,
++	 we force a negative post order to it making sure it will be scheduled
++	 in the last.  */
+       if (num_sccs_no_alias > 0)
+ 	{
+ 	  j = -1;
+ 	  for (i = 0; i < pg->n_vertices; ++i)
+ 	    {
+-	      pg->vertices[i].post = cbdata.vertices_post[i];
+ 	      struct pg_vdata *data = (struct pg_vdata *)pg->vertices[i].data;
+ 	      if (data->partition && partition_reduction_p (data->partition))
+ 		{
+@@ -2544,7 +2572,6 @@ loop_distribution::break_alias_scc_partitions (struct graph *rdg,
+ 	}
+ 
+       free (cbdata.vertices_component);
+-      free (cbdata.vertices_post);
+     }
+ 
+   sort_partitions_by_post_order (pg, partitions);
 diff --git a/gcc/tree-predcom.c b/gcc/tree-predcom.c
 index 0a7c1a936ba..64ab7ad0a80 100644
 --- a/gcc/tree-predcom.c
@@ -22209,6 +22491,19 @@ index 3c2ed795f85..b3097531203 100644
  		  /* In case the PHI node post-dominates the current insert
  		     location we can disregard it.  But make sure it is not
  		     dominating it as well as can happen in a CFG cycle.  */
+diff --git a/gcc/tree-ssa-strlen.c b/gcc/tree-ssa-strlen.c
+index cccd4a06771..9f317a190ee 100644
+--- a/gcc/tree-ssa-strlen.c
++++ b/gcc/tree-ssa-strlen.c
+@@ -4523,7 +4523,7 @@ count_nonzero_bytes (tree exp, unsigned HOST_WIDE_INT offset,
+ 
+   /* Compute the number of leading nonzero bytes in the representation
+      and update the minimum and maximum.  */
+-  unsigned n = prep ? strnlen (prep, nbytes) : nbytes;
++  unsigned HOST_WIDE_INT n = prep ? strnlen (prep, nbytes) : nbytes;
+ 
+   if (n < lenrange[0])
+     lenrange[0] = n;
 diff --git a/gcc/tree-ssa.c b/gcc/tree-ssa.c
 index 28a7f4f02c9..41959ca03f8 100644
 --- a/gcc/tree-ssa.c
@@ -22233,11 +22528,75 @@ index 28a7f4f02c9..41959ca03f8 100644
  	  && wi::umod_trunc (wi::to_offset (TYPE_SIZE (TREE_TYPE (base))),
  			     BITS_PER_UNIT) == 0)
  	return NULL_TREE;
+diff --git a/gcc/tree-vect-loop.c b/gcc/tree-vect-loop.c
+index 968087a9008..2c07fa38ff0 100644
+--- a/gcc/tree-vect-loop.c
++++ b/gcc/tree-vect-loop.c
+@@ -6589,10 +6589,20 @@ vectorizable_reduction (loop_vec_info loop_vinfo,
+ 	}
+       if (!REDUC_GROUP_FIRST_ELEMENT (vdef))
+ 	only_slp_reduc_chain = false;
+-      /* ???  For epilogue generation live members of the chain need
++      /* For epilogue generation live members of the chain need
+          to point back to the PHI via their original stmt for
+-	 info_for_reduction to work.  */
+-      if (STMT_VINFO_LIVE_P (vdef))
++	 info_for_reduction to work.  For SLP we need to look at
++	 all lanes here - even though we only will vectorize from
++	 the SLP node with live lane zero the other live lanes also
++	 need to be identified as part of a reduction to be able
++	 to skip code generation for them.  */
++      if (slp_for_stmt_info)
++	{
++	  for (auto s : SLP_TREE_SCALAR_STMTS (slp_for_stmt_info))
++	    if (STMT_VINFO_LIVE_P (s))
++	      STMT_VINFO_REDUC_DEF (vect_orig_stmt (s)) = phi_info;
++	}
++      else if (STMT_VINFO_LIVE_P (vdef))
+ 	STMT_VINFO_REDUC_DEF (def) = phi_info;
+       gassign *assign = dyn_cast <gassign *> (vdef->stmt);
+       if (!assign)
+@@ -8578,10 +8588,6 @@ vectorizable_live_operation (vec_info *vinfo,
+ 	     all involved stmts together.  */
+ 	  else if (slp_index != 0)
+ 	    return true;
+-	  else
+-	    /* For SLP reductions the meta-info is attached to
+-	       the representative.  */
+-	    stmt_info = SLP_TREE_REPRESENTATIVE (slp_node);
+ 	}
+       stmt_vec_info reduc_info = info_for_reduction (loop_vinfo, stmt_info);
+       gcc_assert (reduc_info->is_reduc_info);
 diff --git a/gcc/tree-vect-slp.c b/gcc/tree-vect-slp.c
-index 7289656db0f..a034abf9628 100644
+index 7289656db0f..7c75799f625 100644
 --- a/gcc/tree-vect-slp.c
 +++ b/gcc/tree-vect-slp.c
-@@ -6319,6 +6319,13 @@ vect_schedule_slp_node (vec_info *vinfo,
+@@ -3824,7 +3824,23 @@ vect_slp_analyze_node_operations_1 (vec_info *vinfo, slp_tree node,
+ 
+   /* Handle purely internal nodes.  */
+   if (SLP_TREE_CODE (node) == VEC_PERM_EXPR)
+-    return vectorizable_slp_permutation (vinfo, NULL, node, cost_vec);
++    {
++      if (!vectorizable_slp_permutation (vinfo, NULL, node, cost_vec))
++	return false;
++
++      stmt_vec_info slp_stmt_info;
++      unsigned int i;
++      FOR_EACH_VEC_ELT (SLP_TREE_SCALAR_STMTS (node), i, slp_stmt_info)
++	{
++	  if (STMT_VINFO_LIVE_P (slp_stmt_info)
++	      && !vectorizable_live_operation (vinfo,
++					       slp_stmt_info, NULL, node,
++					       node_instance, i,
++					       false, cost_vec))
++	    return false;
++	}
++      return true;
++    }
+ 
+   gcc_assert (STMT_SLP_TYPE (stmt_info) != loop_vect);
+   if (is_a <bb_vec_info> (vinfo)
+@@ -6319,6 +6335,13 @@ vect_schedule_slp_node (vec_info *vinfo,
  	  gcc_assert (seen_vector_def);
  	  si = gsi_after_labels (as_a <bb_vec_info> (vinfo)->bbs[0]);
  	}
@@ -22251,6 +22610,36 @@ index 7289656db0f..a034abf9628 100644
        else if (is_a <bb_vec_info> (vinfo)
  	       && gimple_bb (last_stmt) != gimple_bb (stmt_info->stmt)
  	       && gimple_could_trap_p (stmt_info->stmt))
+@@ -6343,8 +6366,6 @@ vect_schedule_slp_node (vec_info *vinfo,
+ 	}
+     }
+ 
+-  bool done_p = false;
+-
+   /* Handle purely internal nodes.  */
+   if (SLP_TREE_CODE (node) == VEC_PERM_EXPR)
+     {
+@@ -6355,9 +6376,18 @@ vect_schedule_slp_node (vec_info *vinfo,
+ 	 but open-code it here (partly).  */
+       bool done = vectorizable_slp_permutation (vinfo, &si, node, NULL);
+       gcc_assert (done);
+-      done_p = true;
++      stmt_vec_info slp_stmt_info;
++      unsigned int i;
++      FOR_EACH_VEC_ELT (SLP_TREE_SCALAR_STMTS (node), i, slp_stmt_info)
++	if (STMT_VINFO_LIVE_P (slp_stmt_info))
++	  {
++	    done = vectorizable_live_operation (vinfo,
++						slp_stmt_info, &si, node,
++						instance, i, true, NULL);
++	    gcc_assert (done);
++	  }
+     }
+-  if (!done_p)
++  else
+     vect_transform_stmt (vinfo, stmt_info, &si, node, instance);
+ }
+ 
 diff --git a/gcc/tree-vect-stmts.c b/gcc/tree-vect-stmts.c
 index 0d61b0f51d0..973c6dcea18 100644
 --- a/gcc/tree-vect-stmts.c
