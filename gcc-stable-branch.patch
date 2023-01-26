@@ -37,7 +37,8 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (275):
+GCC Administrator (276):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -612,7 +613,7 @@ Qing Zhao (1):
 Rainer Orth (1):
       libstdc++: Fix 28_regex/basic_regex/84110.cc on Solaris
 
-Richard Biener (31):
+Richard Biener (32):
       Update BASE-VER to 11.3.1
       ipa/105598 - testcase for PR105598
       middle-end/105140 - fix bogus recursion in fold_convertible_p
@@ -644,6 +645,7 @@ Richard Biener (31):
       tree-optimization/107254 - check and support live lanes from permutes
       tree-optimization/107323 - loop distribution partition ordering issue
       tree-optimization/107554 - fix ICE in stlen optimization
+      restrict gcc.dg/pr107554.c to 64bit platforms
 
 Richard Earnshaw (3):
       arm: big-endian issue in gen_cpymem_ldrd_strd [PR105981]
@@ -736,10 +738,25 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..029a011aca5 100644
+index a0587d18824..fe0aa4b8cc1 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,1229 @@
+@@ -1,3 +1,1244 @@
++2023-01-25  Christophe Lyon  <christophe.lyon@arm.com>
++
++	Backported from master:
++	2023-01-12  Christophe Lyon  <christophe.lyon@arm.com>
++		    Richard Sandiford  <richard.sandiford@arm.com>
++
++	* config/aarch64/aarch64.c (aarch64_function_arg_alignment): Fix
++	comment.
++	(aarch64_layout_arg): Factorize warning conditions.
++	(aarch64_function_arg_boundary): Fix typo.
++	* function.c (currently_expanding_function_start): New variable.
++	(expand_function_start): Handle
++	currently_expanding_function_start.
++	* function.h (currently_expanding_function_start): Declare.
++
 +2023-01-24  Richard Biener  <rguenther@suse.de>
 +
 +	Backported from master:
@@ -13794,10 +13811,33 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..ef1dcb3bb19 100644
+index 5fc23605244..e317151113c 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1335 @@
+@@ -1,3 +1,1358 @@
++2023-01-25  Christophe Lyon  <christophe.lyon@arm.com>
++
++	Backported from master:
++	2023-01-12  Christophe Lyon  <christophe.lyon@arm.com>
++		    Richard Sandiford  <richard.sandiford@arm.com>
++
++	* gcc.target/aarch64/bitfield-abi-warning-align16-O2.c: New test.
++	* gcc.target/aarch64/bitfield-abi-warning-align16-O2-extra.c: New
++	test.
++	* gcc.target/aarch64/bitfield-abi-warning-align32-O2.c: New test.
++	* gcc.target/aarch64/bitfield-abi-warning-align32-O2-extra.c: New
++	test.
++	* gcc.target/aarch64/bitfield-abi-warning-align8-O2.c: New test.
++	* gcc.target/aarch64/bitfield-abi-warning.h: New test.
++	* g++.target/aarch64/bitfield-abi-warning-align16-O2.C: New test.
++	* g++.target/aarch64/bitfield-abi-warning-align16-O2-extra.C: New
++	test.
++	* g++.target/aarch64/bitfield-abi-warning-align32-O2.C: New test.
++	* g++.target/aarch64/bitfield-abi-warning-align32-O2-extra.C: New
++	test.
++	* g++.target/aarch64/bitfield-abi-warning-align8-O2.C: New test.
++	* g++.target/aarch64/bitfield-abi-warning.h: New test.
++
 +2023-01-24  Richard Biener  <rguenther@suse.de>
 +
 +	Backported from master:
@@ -17839,11 +17879,11 @@ index 00000000000..5ad6a63159e
 +}
 diff --git a/gcc/testsuite/gcc.dg/pr107554.c b/gcc/testsuite/gcc.dg/pr107554.c
 new file mode 100644
-index 00000000000..8bbe6b07ae9
+index 00000000000..61ef2bcd90a
 --- /dev/null
 +++ b/gcc/testsuite/gcc.dg/pr107554.c
 @@ -0,0 +1,12 @@
-+/* { dg-do compile } */
++/* { dg-do compile { target lp64 } } */
 +/* { dg-options "-O -foptimize-strlen" } */
 +
 +#define ELEMS 0x40000000
