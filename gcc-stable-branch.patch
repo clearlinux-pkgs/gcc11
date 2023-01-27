@@ -19,6 +19,9 @@ David Malcolm (2):
       analyzer: fix ICE comparing VECTOR_CSTs [PR105252]
       analyzer: fix ICEs on complex constants [PR105365,105366]
 
+Dimitar Dimitrov (1):
+      pru: Fix CLZ expansion for QI and HI modes
+
 Eric Botcazou (6):
       Fix internal error with vectorization on SPARC
       Fix PR target/107248
@@ -37,7 +40,8 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (276):
+GCC Administrator (277):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -738,10 +742,20 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..fe0aa4b8cc1 100644
+index a0587d18824..9b7391510f0 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,1244 @@
+@@ -1,3 +1,1254 @@
++2023-01-26  Dimitar Dimitrov  <dimitar@dinux.eu>
++
++	Backported from master:
++	2023-01-22  Dimitar Dimitrov  <dimitar@dinux.eu>
++
++	* config/pru/pru.h (CLZ_DEFINED_VALUE_AT_ZERO): Fix value for QI
++	and HI input modes.
++	* config/pru/pru.md (clz): Fix generated code for QI and HI
++	input modes.
++
 +2023-01-25  Christophe Lyon  <christophe.lyon@arm.com>
 +
 +	Backported from master:
@@ -4450,6 +4464,55 @@ index 31e3b1bff80..3e0bfb09da2 100644
  
  (define_insn ""
    [(set (match_operand:DI 0 "register_operand" "=r,&r")
+diff --git a/gcc/config/pru/pru.h b/gcc/config/pru/pru.h
+index 4c35a7d7ee3..41260b9450d 100644
+--- a/gcc/config/pru/pru.h
++++ b/gcc/config/pru/pru.h
+@@ -562,8 +562,9 @@ do {									\
+ 
+ #define CASE_VECTOR_MODE Pmode
+ 
+-/* See definition of clz pattern for rationale of value -1.  */
+-#define CLZ_DEFINED_VALUE_AT_ZERO(MODE, VALUE) ((VALUE) = -1, 2)
++/* See definition of clz pattern for rationale of the value.  */
++#define CLZ_DEFINED_VALUE_AT_ZERO(MODE, VALUE)	\
++	((VALUE) = GET_MODE_BITSIZE (MODE) - 1 - 32, 2)
+ 
+ /* Jumps are cheap on PRU.  */
+ #define LOGICAL_OP_NON_SHORT_CIRCUIT		0
+diff --git a/gcc/config/pru/pru.md b/gcc/config/pru/pru.md
+index e6cfa8ec3bf..c5661adb6c4 100644
+--- a/gcc/config/pru/pru.md
++++ b/gcc/config/pru/pru.md
+@@ -1035,8 +1035,16 @@
+   [(set_attr "type" "control")])
+ 
+ ;; Count Leading Zeros implemented using LMBD.
+-;; LMBD returns 32 if bit value is not present, and we subtract 31 to get CLZ.
+-;; Hence we get a defined value -1 for CLZ_DEFINED_VALUE_AT_ZERO.
++;;
++;; LMBD returns 32 if bit value is not present, for any kind of input MODE.
++;; The LMBD's search result for a "1" bit is subtracted from the
++;; mode bit size minus one, in order to get CLZ.
++;;
++;; Hence for SImode we get a defined value -1 for CLZ_DEFINED_VALUE_AT_ZERO.
++;;
++;; The QImode and HImode defined values for zero inputs end up to be
++;; non-standard (-25 and -17).  But this is considered acceptable in
++;; order to keep the CLZ expansion to only two instructions.
+ (define_expand "clz<mode>2"
+   [(set (match_operand:QISI 0 "register_operand")
+ 	(clz:QISI (match_operand:QISI 1 "register_operand")))]
+@@ -1047,7 +1055,8 @@
+   rtx tmpval = gen_reg_rtx (<MODE>mode);
+ 
+   emit_insn (gen_pru_lmbd (<MODE>mode, tmpval, src, const1_rtx));
+-  emit_insn (gen_sub3_insn (dst, GEN_INT (31), tmpval));
++  int msb_bitn = GET_MODE_BITSIZE (<MODE>mode) - 1;
++  emit_insn (gen_sub3_insn (dst, GEN_INT (msb_bitn), tmpval));
+   DONE;
+ })
+ 
 diff --git a/gcc/config/riscv/arch-canonicalize b/gcc/config/riscv/arch-canonicalize
 index 3a91cfe687f..0bdf6aafe35 100755
 --- a/gcc/config/riscv/arch-canonicalize
@@ -13811,10 +13874,17 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..e317151113c 100644
+index 5fc23605244..2fd40e7a9a7 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1358 @@
+@@ -1,3 +1,1365 @@
++2023-01-26  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2022-11-14  Richard Biener  <rguenther@suse.de>
++
++	* gcc.dg/pr107554.c: Restrict to lp64.
++
 +2023-01-25  Christophe Lyon  <christophe.lyon@arm.com>
 +
 +	Backported from master:
