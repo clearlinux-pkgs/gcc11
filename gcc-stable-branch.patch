@@ -19,6 +19,9 @@ David Malcolm (2):
       analyzer: fix ICE comparing VECTOR_CSTs [PR105252]
       analyzer: fix ICEs on complex constants [PR105365,105366]
 
+Detlef Vollmann (1):
+      libstdc++: Move closing brace outside #endif [PR104866]
+
 Dimitar Dimitrov (1):
       pru: Fix CLZ expansion for QI and HI modes
 
@@ -29383,6 +29386,20 @@ index dbe05a9834b..2c70adf2b93 100644
      };
  
  #if __cpp_deduction_guides >= 201606
+diff --git a/libstdc++-v3/include/bits/this_thread_sleep.h b/libstdc++-v3/include/bits/this_thread_sleep.h
+index bdcd0cdeb77..b7e956f9119 100644
+--- a/libstdc++-v3/include/bits/this_thread_sleep.h
++++ b/libstdc++-v3/include/bits/this_thread_sleep.h
+@@ -107,8 +107,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	    __now = _Clock::now();
+ 	  }
+       }
+-  } // namespace this_thread
+ #endif // ! NO_SLEEP
++  } // namespace this_thread
+ 
+   /// @}
+ 
 diff --git a/libstdc++-v3/include/experimental/bits/fs_path.h b/libstdc++-v3/include/experimental/bits/fs_path.h
 index 1cc1b3bf686..830b51e45a0 100644
 --- a/libstdc++-v3/include/experimental/bits/fs_path.h
