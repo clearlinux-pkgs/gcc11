@@ -40,7 +40,13 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (277):
+GCC Administrator (283):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -548,9 +554,10 @@ Marek Polacek (6):
 Mark Mentovai (1):
       libstdc++: Rename __null_terminated to avoid collision with Apple SDK
 
-Martin Jambor (2):
+Martin Jambor (3):
       ipa: Release body of clone_of when removing its last clone (PR 100413)
       tree-sra: Fix union handling in build_reconstructed_reference
+      ipa: Release body more carefully when removing nodes (PR 107944)
 
 Martin Liska (7):
       ipa-icf: skip variables with body_removed
@@ -2376,18 +2383,28 @@ index 8fd128b471c..4fb145ee4c4 100644
        basic_block bb = BLOCK_FOR_INSN (insn);
        if (BB_END (bb) == insn)
 diff --git a/gcc/cgraph.c b/gcc/cgraph.c
-index d7c78d518bc..4e3e348513b 100644
+index d7c78d518bc..6e523e14e05 100644
 --- a/gcc/cgraph.c
 +++ b/gcc/cgraph.c
-@@ -1906,7 +1906,11 @@ cgraph_node::remove (void)
+@@ -1906,7 +1906,21 @@ cgraph_node::remove (void)
    if (prev_sibling_clone)
      prev_sibling_clone->next_sibling_clone = next_sibling_clone;
    else if (clone_of)
 -    clone_of->clones = next_sibling_clone;
 +    {
 +      clone_of->clones = next_sibling_clone;
-+      if (!clone_of->analyzed && !clone_of->clones && !clones)
-+	clone_of->release_body ();
++      if (!clones)
++	{
++	  bool need_body = false;
++	  for (cgraph_node *n = clone_of; n; n = n->clone_of)
++	    if (n->analyzed || n->clones)
++	      {
++		need_body = true;
++		break;
++	      }
++	  if (!need_body)
++	    clone_of->release_body ();
++	}
 +    }
    if (next_sibling_clone)
      next_sibling_clone->prev_sibling_clone = prev_sibling_clone;
