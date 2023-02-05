@@ -43,7 +43,9 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (284):
+GCC Administrator (286):
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -339,7 +341,7 @@ H.J. Lu (5):
       i386: Mark XMM4-XMM6 as clobbered by encodekey128/encodekey256
       Always use TYPE_MODE instead of DECL_MODE for vector field
 
-Harald Anlauf (18):
+Harald Anlauf (25):
       Fortran: improve error recovery on invalid array section
       Fortran: fix error recovery on invalid array section
       Fortran: fix checking of arguments to UNPACK when MASK is a variable [PR105813]
@@ -358,6 +360,13 @@ Harald Anlauf (18):
       Fortran: BOZ literal constants are not compatible to any type [PR103413]
       Fortran: reject NULL actual argument without explicit interface [PR107576]
       Fortran: incorrect array bounds when bound intrinsic used in decl [PR108131]
+      Fortran: diagnose USE associated symbols in COMMON blocks [PR108453]
+      Fortran: fix ICE in check_charlen_present [PR108420]
+      Fortran: fix ICE in get_expr_storage_size [PR108421]
+      Fortran: fix NULL pointer dereference in gfc_check_dependency [PR108502]
+      Fortran: avoid ICE on invalid array subscript triplets [PR108501]
+      Fortran: error recovery for bad initializers of implied-shape arrays [PR106209]
+      Fortran: ICE in transformational_result [PR108529]
 
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
@@ -11632,10 +11641,75 @@ index 70c5b3886ef..5b4053df520 100644
  
        if ((tem = fold_truth_andor (loc, code, type, arg0, arg1, op0, op1))
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..a8cabf47e21 100644
+index ee1c7bb4b31..9affb5fe843 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,288 @@
+@@ -1,3 +1,353 @@
++2023-02-04  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-01-24  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/108529
++	* simplify.c (simplify_transformation): Do not try to simplify
++	transformational intrinsic when the ARRAY argument has a NULL shape.
++
++2023-02-04  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-07-14  Harald Anlauf  <anlauf@gmx.de>
++		    Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/106209
++	* decl.c (add_init_expr_to_sym): Handle bad initializers for
++	implied-shape arrays.
++
++2023-02-04  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-01-23  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/108501
++	* interface.c (get_expr_storage_size): Check array subscript triplets
++	that we actually have integer values before trying to extract with
++	mpz_get_si.
++
++2023-02-04  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-01-23  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/108502
++	* dependency.c (gfc_check_dependency): Prevent NULL pointer
++	dereference while recursively checking expressions.
++
++2023-02-04  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-01-17  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/108421
++	* interface.c (get_expr_storage_size): Check that we actually have
++	an integer value before trying to extract it with mpz_get_si.
++
++2023-02-04  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-01-23  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/108420
++	* iresolve.c (check_charlen_present): Preserve character length if
++	there is no array constructor.
++
++2023-02-04  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-01-28  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/108453
++	* match.c (gfc_match_common): A USE associated name shall not appear
++	in a COMMON block (F2018:C8121).
++
 +2023-01-08  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -11960,10 +12034,34 @@ index 1add9436dce..4e2736fef1e 100644
        && gfc_array_size (vector, &vector_size))
      {
 diff --git a/gcc/fortran/decl.c b/gcc/fortran/decl.c
-index 602ad3e59bd..c25b53f9772 100644
+index 602ad3e59bd..6eb39d36196 100644
 --- a/gcc/fortran/decl.c
 +++ b/gcc/fortran/decl.c
-@@ -2696,6 +2696,18 @@ variable_decl (int elem)
+@@ -2050,10 +2050,21 @@ add_init_expr_to_sym (const char *name, gfc_expr **initp, locus *var_locus)
+ 	  /* The shape may be NULL for EXPR_ARRAY, set it.  */
+ 	  if (init->shape == NULL)
+ 	    {
+-	      gcc_assert (init->expr_type == EXPR_ARRAY);
++	      if (init->expr_type != EXPR_ARRAY)
++		{
++		  gfc_error ("Bad shape of initializer at %L", &init->where);
++		  return false;
++		}
++
+ 	      init->shape = gfc_get_shape (1);
+ 	      if (!gfc_array_size (init, &init->shape[0]))
+-		  gfc_internal_error ("gfc_array_size failed");
++		{
++		  gfc_error ("Cannot determine shape of initializer at %L",
++			     &init->where);
++		  free (init->shape);
++		  init->shape = NULL;
++		  return false;
++		}
+ 	    }
+ 
+ 	  for (dim = 0; dim < sym->as->rank; ++dim)
+@@ -2696,6 +2707,18 @@ variable_decl (int elem)
  		  else
  		    gfc_free_expr (n);
  		}
@@ -11982,7 +12080,7 @@ index 602ad3e59bd..c25b53f9772 100644
  	    }
  	}
      }
-@@ -6169,6 +6181,14 @@ gfc_match_data_decl (void)
+@@ -6169,6 +6192,14 @@ gfc_match_data_decl (void)
        goto cleanup;
      }
  
@@ -11997,6 +12095,22 @@ index 602ad3e59bd..c25b53f9772 100644
    if (current_ts.type == BT_CLASS
  	&& current_ts.u.derived->attr.unlimited_polymorphic)
      goto ok;
+diff --git a/gcc/fortran/dependency.c b/gcc/fortran/dependency.c
+index e1336e1c654..7a3cc82a5b2 100644
+--- a/gcc/fortran/dependency.c
++++ b/gcc/fortran/dependency.c
+@@ -1292,6 +1292,11 @@ gfc_check_dependency (gfc_expr *expr1, gfc_expr *expr2, bool identical)
+   if (expr1->expr_type != EXPR_VARIABLE)
+     gfc_internal_error ("gfc_check_dependency: expecting an EXPR_VARIABLE");
+ 
++  /* Prevent NULL pointer dereference while recursively analyzing invalid
++     expressions.  */
++  if (expr2 == NULL)
++    return 0;
++
+   switch (expr2->expr_type)
+     {
+     case EXPR_OP:
 diff --git a/gcc/fortran/expr.c b/gcc/fortran/expr.c
 index edacd974a21..d76922b77f9 100644
 --- a/gcc/fortran/expr.c
@@ -12025,7 +12139,7 @@ index edacd974a21..d76922b77f9 100644
  	  if (!simplify_parameter_variable (p, type))
  	    return false;
 diff --git a/gcc/fortran/interface.c b/gcc/fortran/interface.c
-index 9e3e8aa9da9..bcc835513d4 100644
+index 9e3e8aa9da9..150f3def319 100644
 --- a/gcc/fortran/interface.c
 +++ b/gcc/fortran/interface.c
 @@ -2760,7 +2760,8 @@ get_sym_storage_size (gfc_symbol *sym)
@@ -12049,7 +12163,84 @@ index 9e3e8aa9da9..bcc835513d4 100644
  	return 0;
  
        elements *= mpz_get_si (sym->as->upper[i]->value.integer)
-@@ -3973,6 +3976,14 @@ gfc_procedure_use (gfc_symbol *sym, gfc_actual_arglist **ap, locus *where)
+@@ -2808,7 +2811,8 @@ get_expr_storage_size (gfc_expr *e)
+   if (e->ts.type == BT_CHARACTER)
+     {
+       if (e->ts.u.cl && e->ts.u.cl->length
+-          && e->ts.u.cl->length->expr_type == EXPR_CONSTANT)
++	  && e->ts.u.cl->length->expr_type == EXPR_CONSTANT
++	  && e->ts.u.cl->length->ts.type == BT_INTEGER)
+ 	strlen = mpz_get_si (e->ts.u.cl->length->value.integer);
+       else if (e->expr_type == EXPR_CONSTANT
+ 	       && (e->ts.u.cl == NULL || e->ts.u.cl->length == NULL))
+@@ -2859,7 +2863,8 @@ get_expr_storage_size (gfc_expr *e)
+ 
+ 	    if (ref->u.ar.stride[i])
+ 	      {
+-		if (ref->u.ar.stride[i]->expr_type == EXPR_CONSTANT)
++		if (ref->u.ar.stride[i]->expr_type == EXPR_CONSTANT
++		    && ref->u.ar.stride[i]->ts.type == BT_INTEGER)
+ 		  stride = mpz_get_si (ref->u.ar.stride[i]->value.integer);
+ 		else
+ 		  return 0;
+@@ -2867,26 +2872,30 @@ get_expr_storage_size (gfc_expr *e)
+ 
+ 	    if (ref->u.ar.start[i])
+ 	      {
+-		if (ref->u.ar.start[i]->expr_type == EXPR_CONSTANT)
++		if (ref->u.ar.start[i]->expr_type == EXPR_CONSTANT
++		    && ref->u.ar.start[i]->ts.type == BT_INTEGER)
+ 		  start = mpz_get_si (ref->u.ar.start[i]->value.integer);
+ 		else
+ 		  return 0;
+ 	      }
+ 	    else if (ref->u.ar.as->lower[i]
+-		     && ref->u.ar.as->lower[i]->expr_type == EXPR_CONSTANT)
++		     && ref->u.ar.as->lower[i]->expr_type == EXPR_CONSTANT
++		     && ref->u.ar.as->lower[i]->ts.type == BT_INTEGER)
+ 	      start = mpz_get_si (ref->u.ar.as->lower[i]->value.integer);
+ 	    else
+ 	      return 0;
+ 
+ 	    if (ref->u.ar.end[i])
+ 	      {
+-		if (ref->u.ar.end[i]->expr_type == EXPR_CONSTANT)
++		if (ref->u.ar.end[i]->expr_type == EXPR_CONSTANT
++		    && ref->u.ar.end[i]->ts.type == BT_INTEGER)
+ 		  end = mpz_get_si (ref->u.ar.end[i]->value.integer);
+ 		else
+ 		  return 0;
+ 	      }
+ 	    else if (ref->u.ar.as->upper[i]
+-		     && ref->u.ar.as->upper[i]->expr_type == EXPR_CONSTANT)
++		     && ref->u.ar.as->upper[i]->expr_type == EXPR_CONSTANT
++		     && ref->u.ar.as->upper[i]->ts.type == BT_INTEGER)
+ 	      end = mpz_get_si (ref->u.ar.as->upper[i]->value.integer);
+ 	    else
+ 	      return 0;
+@@ -2927,7 +2936,9 @@ get_expr_storage_size (gfc_expr *e)
+ 		  || ref->u.ar.as->upper[i] == NULL
+ 		  || ref->u.ar.as->lower[i] == NULL
+ 		  || ref->u.ar.as->upper[i]->expr_type != EXPR_CONSTANT
+-		  || ref->u.ar.as->lower[i]->expr_type != EXPR_CONSTANT)
++		  || ref->u.ar.as->lower[i]->expr_type != EXPR_CONSTANT
++		  || ref->u.ar.as->upper[i]->ts.type != BT_INTEGER
++		  || ref->u.ar.as->lower[i]->ts.type != BT_INTEGER)
+ 		return 0;
+ 
+ 	      elements
+@@ -2949,7 +2960,9 @@ get_expr_storage_size (gfc_expr *e)
+ 	    {
+ 	      if (!as->upper[i] || !as->lower[i]
+ 		  || as->upper[i]->expr_type != EXPR_CONSTANT
+-		  || as->lower[i]->expr_type != EXPR_CONSTANT)
++		  || as->lower[i]->expr_type != EXPR_CONSTANT
++		  || as->upper[i]->ts.type != BT_INTEGER
++		  || as->lower[i]->ts.type != BT_INTEGER)
+ 		return 0;
+ 
+ 	      elements = elements
+@@ -3973,6 +3986,14 @@ gfc_procedure_use (gfc_symbol *sym, gfc_actual_arglist **ap, locus *where)
  	      return false;
  	    }
  
@@ -12064,6 +12255,47 @@ index 9e3e8aa9da9..bcc835513d4 100644
  	  /* TS 29113, C407b.  */
  	  if (a->expr && a->expr->expr_type == EXPR_VARIABLE
  	      && symbol_rank (a->expr->symtree->n.sym) == -1)
+diff --git a/gcc/fortran/iresolve.c b/gcc/fortran/iresolve.c
+index 598c0409b66..03db23b5b45 100644
+--- a/gcc/fortran/iresolve.c
++++ b/gcc/fortran/iresolve.c
+@@ -94,9 +94,12 @@ check_charlen_present (gfc_expr *source)
+   else if (source->expr_type == EXPR_ARRAY)
+     {
+       gfc_constructor *c = gfc_constructor_first (source->value.constructor);
+-      source->ts.u.cl->length
+-		= gfc_get_int_expr (gfc_charlen_int_kind, NULL,
+-				    c->expr->value.character.length);
++      if (c)
++	source->ts.u.cl->length
++	  = gfc_get_int_expr (gfc_charlen_int_kind, NULL,
++			      c->expr->value.character.length);
++      if (source->ts.u.cl->length == NULL)
++	gfc_internal_error ("check_charlen_present(): length not set");
+     }
+ }
+ 
+diff --git a/gcc/fortran/match.c b/gcc/fortran/match.c
+index 860b6567d2a..91b31e06e56 100644
+--- a/gcc/fortran/match.c
++++ b/gcc/fortran/match.c
+@@ -5299,6 +5299,16 @@ gfc_match_common (void)
+ 		goto cleanup;
+ 	    }
+ 
++	  /* F2018:R874:  common-block-object is variable-name [ (array-spec) ]
++	     F2018:C8121: A variable-name shall not be a name made accessible
++	     by use association.  */
++	  if (sym->attr.use_assoc)
++	    {
++	      gfc_error ("Symbol %qs at %C is USE associated from module %qs "
++			 "and cannot occur in COMMON", sym->name, sym->module);
++	      goto cleanup;
++	    }
++
+ 	  /* Deal with an optional array specification after the
+ 	     symbol name.  */
+ 	  m = gfc_match_array_spec (&as, true, true);
 diff --git a/gcc/fortran/resolve.c b/gcc/fortran/resolve.c
 index a26a90993a7..cb7a755b693 100644
 --- a/gcc/fortran/resolve.c
@@ -12079,10 +12311,18 @@ index a26a90993a7..cb7a755b693 100644
  	  continue;
  
 diff --git a/gcc/fortran/simplify.c b/gcc/fortran/simplify.c
-index 3599e1b3194..f13a8e57c83 100644
+index 3599e1b3194..8508f529c32 100644
 --- a/gcc/fortran/simplify.c
 +++ b/gcc/fortran/simplify.c
-@@ -3092,6 +3092,10 @@ gfc_simplify_extends_type_of (gfc_expr *a, gfc_expr *mold)
+@@ -708,6 +708,7 @@ simplify_transformation (gfc_expr *array, gfc_expr *dim, gfc_expr *mask,
+   size_zero = gfc_is_size_zero_array (array);
+ 
+   if (!(is_constant_array_expr (array) || size_zero)
++      || array->shape == NULL
+       || !gfc_is_constant_expr (dim))
+     return NULL;
+ 
+@@ -3092,6 +3093,10 @@ gfc_simplify_extends_type_of (gfc_expr *a, gfc_expr *mold)
    if (UNLIMITED_POLY (a) || UNLIMITED_POLY (mold))
      return NULL;
  
@@ -12093,7 +12333,7 @@ index 3599e1b3194..f13a8e57c83 100644
    /* Return .false. if the dynamic type can never be an extension.  */
    if ((a->ts.type == BT_CLASS && mold->ts.type == BT_CLASS
         && !gfc_type_is_extension_of
-@@ -3502,17 +3506,15 @@ gfc_expr *
+@@ -3502,17 +3507,15 @@ gfc_expr *
  gfc_simplify_index (gfc_expr *x, gfc_expr *y, gfc_expr *b, gfc_expr *kind)
  {
    gfc_expr *result;
@@ -12115,7 +12355,7 @@ index 3599e1b3194..f13a8e57c83 100644
  
    k = get_kind (BT_INTEGER, kind, "INDEX", gfc_default_integer_kind);
    if (k == -1)
-@@ -3529,111 +3531,40 @@ gfc_simplify_index (gfc_expr *x, gfc_expr *y, gfc_expr *b, gfc_expr *kind)
+@@ -3529,111 +3532,40 @@ gfc_simplify_index (gfc_expr *x, gfc_expr *y, gfc_expr *b, gfc_expr *kind)
        return result;
      }
  
@@ -12252,7 +12492,7 @@ index 3599e1b3194..f13a8e57c83 100644
  	}
      }
  
-@@ -5915,6 +5846,7 @@ gfc_simplify_findloc (gfc_expr *array, gfc_expr *value, gfc_expr *dim,
+@@ -5915,6 +5847,7 @@ gfc_simplify_findloc (gfc_expr *array, gfc_expr *value, gfc_expr *dim,
    bool back_val = false;
  
    if (!is_constant_array_expr (array)
@@ -12260,7 +12500,7 @@ index 3599e1b3194..f13a8e57c83 100644
        || !gfc_is_constant_expr (dim))
      return NULL;
  
-@@ -6451,7 +6383,7 @@ gfc_simplify_pack (gfc_expr *array, gfc_expr *mask, gfc_expr *vector)
+@@ -6451,7 +6384,7 @@ gfc_simplify_pack (gfc_expr *array, gfc_expr *mask, gfc_expr *vector)
        /* Copy only those elements of ARRAY to RESULT whose
  	 MASK equals .TRUE..  */
        mask_ctor = gfc_constructor_first (mask->value.constructor);
@@ -12269,7 +12509,7 @@ index 3599e1b3194..f13a8e57c83 100644
  	{
  	  if (mask_ctor->expr->value.logical)
  	    {
-@@ -7556,8 +7488,9 @@ simplify_size (gfc_expr *array, gfc_expr *dim, int k)
+@@ -7556,8 +7489,9 @@ simplify_size (gfc_expr *array, gfc_expr *dim, int k)
      }
  
    for (ref = array->ref; ref; ref = ref->next)
@@ -12281,7 +12521,7 @@ index 3599e1b3194..f13a8e57c83 100644
  
    if (dim == NULL)
      {
-@@ -8476,9 +8409,16 @@ gfc_simplify_unpack (gfc_expr *vector, gfc_expr *mask, gfc_expr *field)
+@@ -8476,9 +8410,16 @@ gfc_simplify_unpack (gfc_expr *vector, gfc_expr *mask, gfc_expr *field)
      {
        if (mask_ctor->expr->value.logical)
  	{
@@ -13904,10 +14144,67 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..2fd40e7a9a7 100644
+index 5fc23605244..05679b89434 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1365 @@
+@@ -1,3 +1,1422 @@
++2023-02-04  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-01-24  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/108529
++	* gfortran.dg/pr108529.f90: New test.
++
++2023-02-04  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2022-07-14  Harald Anlauf  <anlauf@gmx.de>
++		    Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/106209
++	* gfortran.dg/pr106209.f90: New test.
++
++2023-02-04  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-01-23  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/108501
++	* gfortran.dg/pr108501.f90: New test.
++
++2023-02-04  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-01-23  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/108502
++	* gfortran.dg/pr108502.f90: New test.
++
++2023-02-04  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-01-17  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/108421
++	* gfortran.dg/pr108421.f90: New test.
++
++2023-02-04  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-01-23  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/108420
++	* gfortran.dg/pr108420.f90: New test.
++
++2023-02-04  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-01-28  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/108453
++	* gfortran.dg/common_27.f90: New test.
++
 +2023-01-26  Richard Biener  <rguenther@suse.de>
 +
 +	Backported from master:
@@ -22334,6 +22631,26 @@ index 00000000000..c11ee38c086
 +  class(*), parameter :: z = 1   ! { dg-error "PARAMETER attribute" }
 +  print x%c                      ! { dg-error "Syntax error" }
 +end
+diff --git a/gcc/testsuite/gfortran.dg/common_27.f90 b/gcc/testsuite/gfortran.dg/common_27.f90
+new file mode 100644
+index 00000000000..dcde5de2bd2
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/common_27.f90
+@@ -0,0 +1,14 @@
++! { dg-do compile }
++! PR fortran/108453 - a use associated variable cannot occur in COMMON
++! Contributed by G.Steinmetz
++
++module m
++  type t
++  end type
++  real :: r
++end
++program p
++  use m, only: t, r
++  common t      ! { dg-error "USE associated from module" }
++  common /cm/ r ! { dg-error "USE associated from module" }
++end
 diff --git a/gcc/testsuite/gfortran.dg/dec_union_12.f90 b/gcc/testsuite/gfortran.dg/dec_union_12.f90
 new file mode 100755
 index 00000000000..26671230b05
@@ -22800,6 +23117,21 @@ index 00000000000..89004bf9aa7
 +end
 +
 +! { dg-final { scan-tree-dump-not "_gfortran_stop_numeric" "original" } }
+diff --git a/gcc/testsuite/gfortran.dg/pr106209.f90 b/gcc/testsuite/gfortran.dg/pr106209.f90
+new file mode 100644
+index 00000000000..44f9233ec2f
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/pr106209.f90
+@@ -0,0 +1,9 @@
++! { dg-do compile }
++! PR fortran/106209 - ICE in add_init_expr_to_sym
++! Contributed by G.Steinmetz
++
++program p
++  integer, parameter :: a(:) = 0   ! { dg-error "of deferred shape" }
++  integer, parameter :: b(*) = a   ! { dg-error "Bad shape of initializer" }
++  integer, parameter :: c(*) = [a] ! { dg-error "Cannot determine shape" }
++end
 diff --git a/gcc/testsuite/gfortran.dg/pr106331.f90 b/gcc/testsuite/gfortran.dg/pr106331.f90
 new file mode 100644
 index 00000000000..3873863be48
@@ -22968,6 +23300,92 @@ index 00000000000..8bf36d361ba
 +end program test
 +
 +! { dg-final { scan-tree-dump-not "_gfortran_stop_numeric" "original" } }
+diff --git a/gcc/testsuite/gfortran.dg/pr108420.f90 b/gcc/testsuite/gfortran.dg/pr108420.f90
+new file mode 100644
+index 00000000000..985c0b3bf53
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/pr108420.f90
+@@ -0,0 +1,10 @@
++! { dg-do compile }
++! PR fortran/108420
++! Contributed by G.Steinmetz
++
++program p
++  character :: c = 'c'
++  logical   :: m = .true.
++  print *, merge(transfer('a', 'b', 0), c, .true.)
++  print *, merge(transfer('a', 'b', 0), c, m)
++end
+diff --git a/gcc/testsuite/gfortran.dg/pr108421.f90 b/gcc/testsuite/gfortran.dg/pr108421.f90
+new file mode 100644
+index 00000000000..89439bc7eec
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/pr108421.f90
+@@ -0,0 +1,11 @@
++! { dg-do compile }
++! PR fortran/108421
++! Contributed by G.Steinmetz
++
++program p
++  character(real(3)) :: c ! { dg-error "must be of INTEGER type" }
++  call s(c)
++end
++subroutine s(x)
++  character(*) :: x
++end
+diff --git a/gcc/testsuite/gfortran.dg/pr108501.f90 b/gcc/testsuite/gfortran.dg/pr108501.f90
+new file mode 100644
+index 00000000000..09ab8c9f34f
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/pr108501.f90
+@@ -0,0 +1,14 @@
++! { dg-do compile }
++! PR fortran/108501 - ICE in get_expr_storage_size
++! Contributed by G.Steinmetz
++
++program p
++  real, parameter :: n = 2
++  real :: a(1,(n),2) ! { dg-error "must be of INTEGER type" }
++  call s(a(:,:,1))
++end
++subroutine s(x)
++  real :: x(2)
++end
++
++! { dg-prune-output "must have constant shape" }
+diff --git a/gcc/testsuite/gfortran.dg/pr108502.f90 b/gcc/testsuite/gfortran.dg/pr108502.f90
+new file mode 100644
+index 00000000000..45f73849c57
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/pr108502.f90
+@@ -0,0 +1,12 @@
++! { dg-do compile }
++! { dg-options "-O2 -ffrontend-optimize" }
++! PR fortran/108502 - ICE in gfc_check_dependency
++! Contributed by G.Steinmetz
++
++integer function n()
++  integer :: a(1)
++  a = [1] / 0
++end
++program p
++  integer :: b = n() ! { dg-error "must be an intrinsic function" }
++end
+diff --git a/gcc/testsuite/gfortran.dg/pr108529.f90 b/gcc/testsuite/gfortran.dg/pr108529.f90
+new file mode 100644
+index 00000000000..34c9691fae1
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/pr108529.f90
+@@ -0,0 +1,9 @@
++! { dg-do compile }
++! PR fortran/108529 - ICE in transformational_result
++! Contributed by G.Steinmetz
++
++program p
++  integer, parameter :: a(*,*) = reshape([1, 2, 3, 4], [2, 2])
++  logical, parameter :: b(2,*) = a > 2     ! { dg-error "Assumed size" }
++  logical, parameter :: c(*)   = all(b, 1) ! { dg-error "Bad shape" }
++end
 diff --git a/gcc/testsuite/gfortran.dg/pr47614.f b/gcc/testsuite/gfortran.dg/pr47614.f
 index 500d210a2a4..d772eef257f 100644
 --- a/gcc/testsuite/gfortran.dg/pr47614.f
