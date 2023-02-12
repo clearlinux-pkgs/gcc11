@@ -43,7 +43,11 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (289):
+GCC Administrator (293):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -344,7 +348,7 @@ H.J. Lu (5):
       i386: Mark XMM4-XMM6 as clobbered by encodekey128/encodekey256
       Always use TYPE_MODE instead of DECL_MODE for vector field
 
-Harald Anlauf (25):
+Harald Anlauf (28):
       Fortran: improve error recovery on invalid array section
       Fortran: fix error recovery on invalid array section
       Fortran: fix checking of arguments to UNPACK when MASK is a variable [PR105813]
@@ -370,6 +374,9 @@ Harald Anlauf (25):
       Fortran: avoid ICE on invalid array subscript triplets [PR108501]
       Fortran: error recovery for bad initializers of implied-shape arrays [PR106209]
       Fortran: ICE in transformational_result [PR108529]
+      Fortran: fix ICE in compare_bound_int [PR108527]
+      Fortran: error recovery on invalid array section [PR108609]
+      Fortran: ASSOCIATE variables should not be TREE_STATIC [PR95107]
 
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
@@ -718,8 +725,9 @@ Stam Markianos-Wright (1):
 Stefan Schulze Frielinghaus (1):
       IBM zSystems: Fix function_ok_for_sibcall [PR106355]
 
-Steve Kargl (1):
+Steve Kargl (2):
       Fortran: do not generate conflicting results under -ff2c [PR104313]
+      Fortran: error handling of global entity appearing in COMMON block [PR103259]
 
 Surya Kumari Jangala (1):
       regrename: Fix -fcompare-debug issue in check_new_reg_p [PR105041]
@@ -11654,10 +11662,50 @@ index 70c5b3886ef..5b4053df520 100644
  
        if ((tem = fold_truth_andor (loc, code, type, arg0, arg1, op0, op1))
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..9affb5fe843 100644
+index ee1c7bb4b31..e6b2e0a44e2 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,353 @@
+@@ -1,3 +1,393 @@
++2023-02-10  Steve Kargl  <kargl@gcc.gnu.org>
++
++	Backported from master:
++	2023-02-08  Steve Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/103259
++	* resolve.c (resolve_common_vars): Avoid NULL pointer dereference
++	when a symbol's location is not set.
++
++2023-02-10  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-02-07  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/95107
++	* trans-decl.c (gfc_finish_var_decl): With -fno-automatic, do not
++	make ASSOCIATE variables TREE_STATIC.
++
++2023-02-10  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-02-01  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/108609
++	* expr.c (find_array_section): Add check to prevent interpreting an
++	mpz non-integer constant as an integer.
++
++2023-02-10  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-01-28  Harald Anlauf  <anlauf@gmx.de>
++		    Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/108527
++	* resolve.c (compare_bound_int): Expression to compare must be of
++	type INTEGER.
++	(compare_bound_mpz_t): Likewise.
++	(check_dimension): Fix comment on checks applied to array section
++	and clean up associated logic.
++
 +2023-02-04  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -12125,14 +12173,18 @@ index e1336e1c654..7a3cc82a5b2 100644
      {
      case EXPR_OP:
 diff --git a/gcc/fortran/expr.c b/gcc/fortran/expr.c
-index edacd974a21..d76922b77f9 100644
+index edacd974a21..0860df907c5 100644
 --- a/gcc/fortran/expr.c
 +++ b/gcc/fortran/expr.c
-@@ -1549,6 +1549,12 @@ find_array_section (gfc_expr *expr, gfc_ref *ref)
+@@ -1549,6 +1549,16 @@ find_array_section (gfc_expr *expr, gfc_ref *ref)
        lower = ref->u.ar.as->lower[d];
        upper = ref->u.ar.as->upper[d];
  
-+      if (!lower || !upper)
++      if (!lower || !upper
++	  || lower->expr_type != EXPR_CONSTANT
++	  || upper->expr_type != EXPR_CONSTANT
++	  || lower->ts.type != BT_INTEGER
++	  || upper->ts.type != BT_INTEGER)
 +	{
 +	  t = false;
 +	  goto cleanup;
@@ -12141,7 +12193,7 @@ index edacd974a21..d76922b77f9 100644
        if (ref->u.ar.dimen_type[d] == DIMEN_VECTOR)  /* Vector subscript.  */
  	{
  	  gfc_constructor *ci;
-@@ -2281,7 +2287,8 @@ gfc_simplify_expr (gfc_expr *p, int type)
+@@ -2281,7 +2291,8 @@ gfc_simplify_expr (gfc_expr *p, int type)
  	 initialization expression, or we want a subsection.  */
        if (p->symtree->n.sym->attr.flavor == FL_PARAMETER
  	  && (gfc_init_expr_flag || p->ref
@@ -12310,10 +12362,93 @@ index 860b6567d2a..91b31e06e56 100644
  	     symbol name.  */
  	  m = gfc_match_array_spec (&as, true, true);
 diff --git a/gcc/fortran/resolve.c b/gcc/fortran/resolve.c
-index a26a90993a7..cb7a755b693 100644
+index a26a90993a7..3005619c463 100644
 --- a/gcc/fortran/resolve.c
 +++ b/gcc/fortran/resolve.c
-@@ -7497,7 +7497,8 @@ derived_inaccessible (gfc_symbol *sym)
+@@ -953,9 +953,15 @@ resolve_common_vars (gfc_common_head *common_block, bool named_common)
+     {
+       gsym = gfc_find_gsymbol (gfc_gsym_root, csym->name);
+       if (gsym && (gsym->type == GSYM_MODULE || gsym->type == GSYM_PROGRAM))
+-	gfc_error_now ("Global entity %qs at %L cannot appear in a "
+-			"COMMON block at %L", gsym->name,
+-			&gsym->where, &csym->common_block->where);
++	{
++	  if (csym->common_block)
++	    gfc_error_now ("Global entity %qs at %L cannot appear in a "
++			   "COMMON block at %L", gsym->name,
++			   &gsym->where, &csym->common_block->where);
++	  else
++	    gfc_error_now ("Global entity %qs at %L cannot appear in a "
++			   "COMMON block", gsym->name, &gsym->where);
++	}
+ 
+       /* gfc_add_in_common may have been called before, but the reported errors
+ 	 have been ignored to continue parsing.
+@@ -4543,12 +4549,11 @@ compare_bound_int (gfc_expr *a, int b)
+ {
+   int i;
+ 
+-  if (a == NULL || a->expr_type != EXPR_CONSTANT)
++  if (a == NULL
++      || a->expr_type != EXPR_CONSTANT
++      || a->ts.type != BT_INTEGER)
+     return CMP_UNKNOWN;
+ 
+-  if (a->ts.type != BT_INTEGER)
+-    gfc_internal_error ("compare_bound_int(): Bad expression");
+-
+   i = mpz_cmp_si (a->value.integer, b);
+ 
+   if (i < 0)
+@@ -4566,12 +4571,11 @@ compare_bound_mpz_t (gfc_expr *a, mpz_t b)
+ {
+   int i;
+ 
+-  if (a == NULL || a->expr_type != EXPR_CONSTANT)
++  if (a == NULL
++      || a->expr_type != EXPR_CONSTANT
++      || a->ts.type != BT_INTEGER)
+     return CMP_UNKNOWN;
+ 
+-  if (a->ts.type != BT_INTEGER)
+-    gfc_internal_error ("compare_bound_int(): Bad expression");
+-
+   i = mpz_cmp (a->value.integer, b);
+ 
+   if (i < 0)
+@@ -4701,23 +4705,24 @@ check_dimension (int i, gfc_array_ref *ar, gfc_array_spec *as)
+ #define AR_END (ar->end[i] ? ar->end[i] : as->upper[i])
+ 
+ 	compare_result comp_start_end = compare_bound (AR_START, AR_END);
++	compare_result comp_stride_zero = compare_bound_int (ar->stride[i], 0);
+ 
+ 	/* Check for zero stride, which is not allowed.  */
+-	if (compare_bound_int (ar->stride[i], 0) == CMP_EQ)
++	if (comp_stride_zero == CMP_EQ)
+ 	  {
+ 	    gfc_error ("Illegal stride of zero at %L", &ar->c_where[i]);
+ 	    return false;
+ 	  }
+ 
+-	/* if start == len || (stride > 0 && start < len)
+-			   || (stride < 0 && start > len),
++	/* if start == end || (stride > 0 && start < end)
++			   || (stride < 0 && start > end),
+ 	   then the array section contains at least one element.  In this
+ 	   case, there is an out-of-bounds access if
+ 	   (start < lower || start > upper).  */
+-	if (compare_bound (AR_START, AR_END) == CMP_EQ
+-	    || ((compare_bound_int (ar->stride[i], 0) == CMP_GT
+-		 || ar->stride[i] == NULL) && comp_start_end == CMP_LT)
+-	    || (compare_bound_int (ar->stride[i], 0) == CMP_LT
++	if (comp_start_end == CMP_EQ
++	    || ((comp_stride_zero == CMP_GT || ar->stride[i] == NULL)
++		&& comp_start_end == CMP_LT)
++	    || (comp_stride_zero == CMP_LT
+ 	        && comp_start_end == CMP_GT))
+ 	  {
+ 	    if (compare_bound (AR_START, as->lower[i]) == CMP_LT)
+@@ -7497,7 +7502,8 @@ derived_inaccessible (gfc_symbol *sym)
    for (c = sym->components; c; c = c->next)
      {
  	/* Prevent an infinite loop through this function.  */
@@ -12640,10 +12775,18 @@ index def6f8a43a0..0ec77cf27e1 100644
  void gfc_trans_deferred_array (gfc_symbol *, gfc_wrapped_block *);
  /* Generate an initializer for a static pointer or allocatable array.  */
 diff --git a/gcc/fortran/trans-decl.c b/gcc/fortran/trans-decl.c
-index 95af7d93162..85382e6d6f7 100644
+index 95af7d93162..f54b62b4fda 100644
 --- a/gcc/fortran/trans-decl.c
 +++ b/gcc/fortran/trans-decl.c
-@@ -4923,7 +4923,7 @@ gfc_trans_deferred_vars (gfc_symbol * proc_sym, gfc_wrapped_block * block)
+@@ -738,6 +738,7 @@ gfc_finish_var_decl (tree decl, gfc_symbol * sym)
+   /* Keep variables larger than max-stack-var-size off stack.  */
+   if (!(sym->ns->proc_name && sym->ns->proc_name->attr.recursive)
+       && !sym->attr.automatic
++      && !sym->attr.associate_var
+       && sym->attr.save != SAVE_EXPLICIT
+       && sym->attr.save != SAVE_IMPLICIT
+       && INTEGER_CST_P (DECL_SIZE_UNIT (decl))
+@@ -4923,7 +4924,7 @@ gfc_trans_deferred_vars (gfc_symbol * proc_sym, gfc_wrapped_block * block)
        else if ((!sym->attr.dummy || sym->ts.deferred)
  		&& (sym->ts.type == BT_CLASS
  		&& CLASS_DATA (sym)->attr.class_pointer))
@@ -12652,7 +12795,7 @@ index 95af7d93162..85382e6d6f7 100644
        else if ((!sym->attr.dummy || sym->ts.deferred)
  		&& (sym->attr.allocatable
  		    || (sym->attr.pointer && sym->attr.result)
-@@ -5007,6 +5007,10 @@ gfc_trans_deferred_vars (gfc_symbol * proc_sym, gfc_wrapped_block * block)
+@@ -5007,6 +5008,10 @@ gfc_trans_deferred_vars (gfc_symbol * proc_sym, gfc_wrapped_block * block)
  		  tmp = NULL_TREE;
  		}
  
@@ -12663,7 +12806,7 @@ index 95af7d93162..85382e6d6f7 100644
  	      /* Deallocate when leaving the scope. Nullifying is not
  		 needed.  */
  	      if (!sym->attr.result && !sym->attr.dummy && !sym->attr.pointer
-@@ -5624,6 +5628,7 @@ generate_coarray_sym_init (gfc_symbol *sym)
+@@ -5624,6 +5629,7 @@ generate_coarray_sym_init (gfc_symbol *sym)
  
    if (sym->attr.dummy || sym->attr.allocatable || !sym->attr.codimension
        || sym->attr.use_assoc || !sym->attr.referenced
@@ -12671,7 +12814,7 @@ index 95af7d93162..85382e6d6f7 100644
        || sym->attr.select_type_temporary)
      return;
  
-@@ -6564,7 +6569,7 @@ gfc_generate_return (void)
+@@ -6564,7 +6570,7 @@ gfc_generate_return (void)
  	     NULL_TREE, and a 'return' is generated without a variable.
  	     The following generates a 'return __result_XXX' where XXX is
  	     the function name.  */
@@ -14157,10 +14300,43 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..268db69334e 100644
+index 5fc23605244..3e87f0a34b5 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1430 @@
+@@ -1,3 +1,1463 @@
++2023-02-10  Steve Kargl  <kargl@gcc.gnu.org>
++
++	Backported from master:
++	2023-02-08  Steve Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/103259
++	* gfortran.dg/pr103259.f90: New test.
++
++2023-02-10  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-02-07  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/95107
++	* gfortran.dg/save_7.f90: New test.
++
++2023-02-10  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-02-01  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/108609
++	* gfortran.dg/pr108527.f90: Adjust test pattern.
++
++2023-02-10  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-01-28  Harald Anlauf  <anlauf@gmx.de>
++		    Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/108527
++	* gfortran.dg/pr108527.f90: New test.
++
 +2023-02-07  Richard Biener  <rguenther@suse.de>
 +
 +	Backported from master:
@@ -23012,6 +23188,23 @@ index d0a7356c0f5..6b1feaa9d79 100644
  
  function foo(a)
    integer(kind=4) :: a(1024)
+diff --git a/gcc/testsuite/gfortran.dg/pr103259.f90 b/gcc/testsuite/gfortran.dg/pr103259.f90
+new file mode 100644
+index 00000000000..f78ff26180e
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/pr103259.f90
+@@ -0,0 +1,11 @@
++! { dg-do compile }
++! PR fortran/103259 - ICE in resolve_common_vars
++! Contributed by G.Steinmetz
++
++module m
++  integer :: p
++  common /c/ p
++end
++program p ! { dg-error "cannot appear in a COMMON block" }
++  use m   ! { dg-error "is also the name of the current program unit" }
++end
 diff --git a/gcc/testsuite/gfortran.dg/pr103504.f90 b/gcc/testsuite/gfortran.dg/pr103504.f90
 new file mode 100644
 index 00000000000..607d1c6c8cc
@@ -23426,6 +23619,22 @@ index 00000000000..45f73849c57
 +program p
 +  integer :: b = n() ! { dg-error "must be an intrinsic function" }
 +end
+diff --git a/gcc/testsuite/gfortran.dg/pr108527.f90 b/gcc/testsuite/gfortran.dg/pr108527.f90
+new file mode 100644
+index 00000000000..804514810ac
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/pr108527.f90
+@@ -0,0 +1,10 @@
++! { dg-do compile }
++! PR fortran/108527 - ICE in compare_bound_int
++! Contributed by G.Steinmetz
++
++program p
++  integer, parameter :: a((2.)) = [4,8] ! { dg-error "must be of INTEGER type" }
++  integer(a(1:1)) :: b                  ! { dg-error "Unclassifiable statement" }
++end
++
++! { dg-prune-output "Parameter array" }
 diff --git a/gcc/testsuite/gfortran.dg/pr108529.f90 b/gcc/testsuite/gfortran.dg/pr108529.f90
 new file mode 100644
 index 00000000000..34c9691fae1
@@ -23466,6 +23675,29 @@ index b6ea17f4ae2..a7f1e1e710b 100644
        SUBROUTINE MAKTABS(IW,SOME,LBOX1,LBOX2,LBOX3,NSPACE,NA,NB,
       *            LBST,X,
       *            NX,IAMA,IAMI,IBMA,IBMI,MNUM,IDIM,MSTA,IBO,
+diff --git a/gcc/testsuite/gfortran.dg/save_7.f90 b/gcc/testsuite/gfortran.dg/save_7.f90
+new file mode 100644
+index 00000000000..dfbef12bec0
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/save_7.f90
+@@ -0,0 +1,17 @@
++! { dg-do compile }
++! { dg-options "-O2 -fno-automatic" }
++!
++! PR fortran/95107 - do not make associate variables TREE_STATIC
++! Contributed by G.Steinmetz
++
++program p
++  type t
++     real, pointer :: a => null()
++  end type
++  type t2
++     type(t) :: b(1)
++  end type
++  type(t2), save :: x
++  associate (y => x%b)
++  end associate
++end
 diff --git a/gcc/testsuite/gfortran.dg/unpack_vector_1.f90 b/gcc/testsuite/gfortran.dg/unpack_vector_1.f90
 new file mode 100644
 index 00000000000..5347c111e8f
