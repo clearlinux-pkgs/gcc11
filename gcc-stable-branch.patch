@@ -43,7 +43,8 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (293):
+GCC Administrator (294):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -544,12 +545,14 @@ José Rui Faustino de Sousa (5):
       Fortran: Fix ICE and wrong code for assumed-rank arrays [PR100029, PR100040]
       Fortran: Add missing TKR initialization to class variables [PR100097, PR100098]
 
-Kewen Lin (5):
+Kewen Lin (7):
       testsuite: Skip pr105250.c for powerpc and s390 [PR105266]
       rs6000: Preserve REG_EH_REGION when replacing load/store [PR106091]
       rs6000/test: Fix empty TU in some cases of effective targets [PR106345]
       rs6000: Fix the condition with frame_pointer_needed_indeed [PR96072]
       rs6000: Raise error for __vector_{quad,pair} uses without MMA enabled [PR106736]
+      rs6000: Teach rs6000_opaque_type_invalid_use_p about inline asm [PR108272]
+      rs6000: Teach rs6000_opaque_type_invalid_use_p about gcall [PR108348]
 
 Kewen.Lin (1):
       rs6000: Adjust mov optabs for opaque modes [PR103353]
@@ -7728,7 +7731,7 @@ index a06a147c339..3ebfdc0b86f 100644
 +extern bool rs6000_opaque_type_invalid_use_p (gimple *);
  #endif  /* rs6000-protos.h */
 diff --git a/gcc/config/rs6000/rs6000.c b/gcc/config/rs6000/rs6000.c
-index 0421dc7adb3..e5af3795e6a 100644
+index 0421dc7adb3..754ed7348f9 100644
 --- a/gcc/config/rs6000/rs6000.c
 +++ b/gcc/config/rs6000/rs6000.c
 @@ -4147,14 +4147,6 @@ rs6000_option_override_internal (bool global_init_p)
@@ -7761,9 +7764,6 @@ index 0421dc7adb3..e5af3795e6a 100644
 -    case PROCESSOR_PPCE300C2:
 -    case PROCESSOR_PPCE300C3:
 -      return "e300";
--
--    case PROCESSOR_PPCE500MC:
--      return "e500mc";
 +  /* e300 and e500 */
 +  if (rs6000_cpu == PROCESSOR_PPCE300C2 || rs6000_cpu == PROCESSOR_PPCE300C3)
 +    return "e300";
@@ -7804,6 +7804,9 @@ index 0421dc7adb3..e5af3795e6a 100644
 +  if (rs6000_cpu == PROCESSOR_MPCCORE)
 +    return "\"821\"";
  
+-    case PROCESSOR_PPCE500MC:
+-      return "e500mc";
+-
 -    case PROCESSOR_PPCE500MC64:
 -      return "e500mc64";
 -
@@ -7880,7 +7883,7 @@ index 0421dc7adb3..e5af3795e6a 100644
  
    /* Conversion allowed.  */
    return NULL;
-@@ -28068,6 +28078,45 @@ rs6000_output_addr_vec_elt (FILE *file, int value)
+@@ -28068,6 +28078,87 @@ rs6000_output_addr_vec_elt (FILE *file, int value)
    fprintf (file, "\n");
  }
  
@@ -7889,9 +7892,9 @@ index 0421dc7adb3..e5af3795e6a 100644
 +   __vector_pair built-in types.  They are target specific and
 +   only available when MMA is supported.  With MMA supported, it
 +   simply returns true, otherwise it checks if the given gimple
-+   STMT is an assignment stmt and uses either of these two opaque
-+   types unexpectedly, if yes, it would raise an error message
-+   and returns true, otherwise it returns false.  */
++   STMT is an assignment, asm or call stmt and uses either of
++   these two opaque types unexpectedly, if yes, it would raise
++   an error message and returns true, otherwise it returns false.  */
 +
 +bool
 +rs6000_opaque_type_invalid_use_p (gimple *stmt)
@@ -7899,23 +7902,65 @@ index 0421dc7adb3..e5af3795e6a 100644
 +  if (TARGET_MMA)
 +    return false;
 +
++  /* If the given TYPE is one MMA opaque type, emit the corresponding
++     error messages and return true, otherwise return false.  */
++  auto check_and_error_invalid_use = [](tree type)
++  {
++    tree mv = TYPE_MAIN_VARIANT (type);
++    if (mv == vector_quad_type_node)
++      {
++	error ("type %<__vector_quad%> requires the %qs option", "-mmma");
++	return true;
++      }
++    else if (mv == vector_pair_type_node)
++      {
++	error ("type %<__vector_pair%> requires the %qs option", "-mmma");
++	return true;
++      }
++    return false;
++  };
++
 +  if (stmt)
 +    {
 +      /* The usage of MMA opaque types is very limited for now,
-+	 to check with gassign is enough so far.  */
++	 to check with gassign, gasm and gcall is enough so far.  */
 +      if (gassign *ga = dyn_cast<gassign *> (stmt))
 +	{
 +	  tree lhs = gimple_assign_lhs (ga);
 +	  tree type = TREE_TYPE (lhs);
-+	  if (type == vector_quad_type_node)
++	  if (check_and_error_invalid_use (type))
++	    return true;
++	}
++      else if (gasm *gs = dyn_cast<gasm *> (stmt))
++	{
++	  unsigned ninputs = gimple_asm_ninputs (gs);
++	  for (unsigned i = 0; i < ninputs; i++)
 +	    {
-+	      error ("type %<__vector_quad%> requires the %qs option", "-mmma");
-+	      return true;
++	      tree op = gimple_asm_input_op (gs, i);
++	      tree val = TREE_VALUE (op);
++	      tree type = TREE_TYPE (val);
++	      if (check_and_error_invalid_use (type))
++		return true;
 +	    }
-+	  else if (type == vector_pair_type_node)
++	  unsigned noutputs = gimple_asm_noutputs (gs);
++	  for (unsigned i = 0; i < noutputs; i++)
 +	    {
-+	      error ("type %<__vector_pair%> requires the %qs option", "-mmma");
-+	      return true;
++	      tree op = gimple_asm_output_op (gs, i);
++	      tree val = TREE_VALUE (op);
++	      tree type = TREE_TYPE (val);
++	      if (check_and_error_invalid_use (type))
++		return true;
++	    }
++	}
++      else if (gcall *gc = dyn_cast<gcall *> (stmt))
++	{
++	  unsigned nargs = gimple_call_num_args (gc);
++	  for (unsigned i = 0; i < nargs; i++)
++	    {
++	      tree arg = gimple_call_arg (gc, i);
++	      tree type = TREE_TYPE (arg);
++	      if (check_and_error_invalid_use (type))
++		return true;
 +	    }
 +	}
 +    }
@@ -22029,6 +22074,157 @@ index 00000000000..d7370b81e81
 +foo (__vector_pair *a)
 +{
 +  *a = ga;
++}
++
+diff --git a/gcc/testsuite/gcc.target/powerpc/pr108272-1.c b/gcc/testsuite/gcc.target/powerpc/pr108272-1.c
+new file mode 100644
+index 00000000000..b99e6a4d86d
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/powerpc/pr108272-1.c
+@@ -0,0 +1,17 @@
++/* { dg-require-effective-target powerpc_p9modulo_ok } */
++/* If the default cpu type is power10 or later, type __vector_quad is
++   supported.  To keep the test point available all the time, this case
++   specifies -mdejagnu-cpu=power9 here.  */
++/* { dg-options "-mdejagnu-cpu=power9" } */
++
++/* Verify there is no ICE and don't check the error messages on unsupported
++   type since they could be fragile and are not test points of this case.  */
++
++/* { dg-excess-errors "pr108272-1" } */
++
++void
++foo (void)
++{
++  __vector_quad acc;
++  asm("#..." : "=d"(acc));
++}
+diff --git a/gcc/testsuite/gcc.target/powerpc/pr108272-2.c b/gcc/testsuite/gcc.target/powerpc/pr108272-2.c
+new file mode 100644
+index 00000000000..51b2100d0f1
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/powerpc/pr108272-2.c
+@@ -0,0 +1,17 @@
++/* { dg-require-effective-target powerpc_p9modulo_ok } */
++/* If the default cpu type is power10 or later, type __vector_pair is
++   supported.  To keep the test point available all the time, this case
++   specifies -mdejagnu-cpu=power9 here.  */
++/* { dg-options "-mdejagnu-cpu=power9" } */
++
++/* Verify there is no ICE and don't check the error messages on unsupported
++   type since they could be fragile and are not test points of this case.  */
++
++/* { dg-excess-errors "pr108272-2" } */
++
++void
++foo (void)
++{
++  __vector_pair acc;
++  asm("#..." :: "d"(acc));
++}
+diff --git a/gcc/testsuite/gcc.target/powerpc/pr108272-3.c b/gcc/testsuite/gcc.target/powerpc/pr108272-3.c
+new file mode 100644
+index 00000000000..634a529b5c8
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/powerpc/pr108272-3.c
+@@ -0,0 +1,17 @@
++/* { dg-require-effective-target powerpc_p9modulo_ok } */
++/* If the default cpu type is power10 or later, type __vector_quad is
++   supported.  To keep the test point available all the time, this case
++   specifies -mdejagnu-cpu=power9 here.  */
++/* { dg-options "-mdejagnu-cpu=power9" } */
++
++/* Verify there is no ICE and don't check the error messages on unsupported
++   type since they could be fragile and are not test points of this case.  */
++
++/* { dg-excess-errors "pr108272-3" } */
++
++void
++foo (void)
++{
++  volatile __vector_quad acc;
++  asm("#..." : "=d"(acc));
++}
+diff --git a/gcc/testsuite/gcc.target/powerpc/pr108272-4.c b/gcc/testsuite/gcc.target/powerpc/pr108272-4.c
+new file mode 100644
+index 00000000000..7eecd6c5a0d
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/powerpc/pr108272-4.c
+@@ -0,0 +1,18 @@
++/* { dg-require-effective-target powerpc_p9modulo_ok } */
++/* If the default cpu type is power10 or later, type __vector_pair is
++   supported.  To keep the test point available all the time, this case
++   specifies -mdejagnu-cpu=power9 here.  */
++/* { dg-options "-mdejagnu-cpu=power9" } */
++
++/* Verify there is no ICE and don't check the error messages on unsupported
++   type since they could be fragile and are not test points of this case.  */
++
++/* { dg-excess-errors "pr108272-4" } */
++
++typedef __vector_pair vpair_t;
++void
++foo (void)
++{
++  vpair_t acc;
++  asm("#..." : "=d"(acc));
++}
+diff --git a/gcc/testsuite/gcc.target/powerpc/pr108348-1.c b/gcc/testsuite/gcc.target/powerpc/pr108348-1.c
+new file mode 100644
+index 00000000000..29cbe7abffc
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/powerpc/pr108348-1.c
+@@ -0,0 +1,23 @@
++/* { dg-require-effective-target powerpc_altivec_ok } */
++/* If the default cpu type is power10 or later, type __vector_quad is
++   supported.  To keep the test point available all the time, this case
++   specifies -mdejagnu-cpu=power9 here.  This needs -mabi=no-altivec
++   to do the copying for pass-by-reference function argument on 32 bit
++   environment.  */
++/* { dg-options "-mdejagnu-cpu=power9 -mabi=no-altivec" } */
++
++/* Verify there is no ICE on 32 bit and don't check the error messages
++   on unsupported type since they could be fragile and are not test
++   points of this case.  */
++
++/* { dg-excess-errors "pr108348-1" } */
++
++extern void bar (__vector_quad v);
++
++void
++foo (void)
++{
++  __vector_quad v;
++  bar (v);
++}
++
+diff --git a/gcc/testsuite/gcc.target/powerpc/pr108348-2.c b/gcc/testsuite/gcc.target/powerpc/pr108348-2.c
+new file mode 100644
+index 00000000000..9aa8939e2f4
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/powerpc/pr108348-2.c
+@@ -0,0 +1,23 @@
++/* { dg-require-effective-target powerpc_altivec_ok } */
++/* If the default cpu type is power10 or later, type __vector_pair is
++   supported.  To keep the test point available all the time, this case
++   specifies -mdejagnu-cpu=power9 here.  This needs -mabi=no-altivec
++   to do the copying for pass-by-reference function argument on 32 bit
++   environment.  */
++/* { dg-options "-mdejagnu-cpu=power9 -mabi=no-altivec" } */
++
++/* Verify there is no ICE on 32 bit and don't check the error messages
++   on unsupported type since they could be fragile and are not test
++   points of this case.  */
++
++/* { dg-excess-errors "pr108348-2" } */
++
++extern void bar (__vector_pair v);
++
++void
++foo (void)
++{
++  __vector_pair v;
++  bar (v);
 +}
 +
 diff --git a/gcc/testsuite/gcc.target/powerpc/pr96072.c b/gcc/testsuite/gcc.target/powerpc/pr96072.c
