@@ -43,7 +43,8 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (294):
+GCC Administrator (295):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -745,8 +746,9 @@ Thomas Schwinge (2):
       nvptx: Define (dummy) 'TARGET_PTX_6_0'
       nvptx: In 'STARTFILE_SPEC', fix 'crt0.o' for '-mmainkernel'
 
-Thomas W Rodgers (1):
+Thomas W Rodgers (2):
       libstdc++: Make atomic notify_one and notify_all non-const
+      libstdc++: Add missing free functions for atomic_flag [PR103934]
 
 Tobias Burnus (1):
       OpenMP: Fix folding with simd's linear clause [PR106492]
@@ -777,10 +779,29 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..35cf9f4db44 100644
+index a0587d18824..6328a9f3e17 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,1272 @@
+@@ -1,3 +1,1291 @@
++2023-02-13  Kewen Lin  <linkw@linux.ibm.com>
++
++	Backported from master:
++	2023-01-18  Kewen Lin  <linkw@linux.ibm.com>
++
++	PR target/108348
++	* config/rs6000/rs6000.c (rs6000_opaque_type_invalid_use_p): Add the
++	support for invalid uses of MMA opaque type in function arguments.
++
++2023-02-13  Kewen Lin  <linkw@linux.ibm.com>
++
++	Backported from master:
++	2023-01-16  Kewen Lin  <linkw@linux.ibm.com>
++
++	PR target/108272
++	* config/rs6000/rs6000.c (rs6000_opaque_type_invalid_use_p): Add the
++	support for invalid uses in inline asm, factor out the checking and
++	erroring to lambda function check_and_error_invalid_use.
++
 +2023-02-07  Richard Biener  <rguenther@suse.de>
 +
 +	Backported from master:
@@ -14345,10 +14366,30 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..3e87f0a34b5 100644
+index 5fc23605244..20a8ed26961 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1463 @@
+@@ -1,3 +1,1483 @@
++2023-02-13  Kewen Lin  <linkw@linux.ibm.com>
++
++	Backported from master:
++	2023-01-18  Kewen Lin  <linkw@linux.ibm.com>
++
++	PR target/108348
++	* gcc.target/powerpc/pr108348-1.c: New test.
++	* gcc.target/powerpc/pr108348-2.c: New test.
++
++2023-02-13  Kewen Lin  <linkw@linux.ibm.com>
++
++	Backported from master:
++	2023-01-16  Kewen Lin  <linkw@linux.ibm.com>
++
++	PR target/108272
++	* gcc.target/powerpc/pr108272-1.c: New test.
++	* gcc.target/powerpc/pr108272-2.c: New test.
++	* gcc.target/powerpc/pr108272-3.c: New test.
++	* gcc.target/powerpc/pr108272-4.c: New test.
++
 +2023-02-10  Steve Kargl  <kargl@gcc.gnu.org>
 +
 +	Backported from master:
@@ -30536,7 +30577,7 @@ index 6ce070ae775..07eb137fb80 100644
        return *this;
      }
 diff --git a/libstdc++-v3/include/std/atomic b/libstdc++-v3/include/std/atomic
-index fdffacc35df..22faf82edde 100644
+index fdffacc35df..43f5d7a52cf 100644
 --- a/libstdc++-v3/include/std/atomic
 +++ b/libstdc++-v3/include/std/atomic
 @@ -172,11 +172,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
@@ -30617,7 +30658,34 @@ index fdffacc35df..22faf82edde 100644
      { _M_b.notify_all(); }
  #endif // __cpp_lib_atomic_wait
        __pointer_type
-@@ -1228,9 +1236,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+@@ -1203,6 +1211,26 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 				    memory_order __m) noexcept
+   { return __a->test_and_set(__m); }
+ 
++#if __cpp_lib_atomic_flag_test
++  inline bool
++  atomic_flag_test(const atomic_flag* __a) noexcept
++  { return __a->test(); }
++
++  inline bool
++  atomic_flag_test(const volatile atomic_flag* __a) noexcept
++  { return __a->test(); }
++
++  inline bool
++  atomic_flag_test_explicit(const atomic_flag* __a,
++			    memory_order __m) noexcept
++  { return __a->test(__m); }
++
++  inline bool
++  atomic_flag_test_explicit(const volatile atomic_flag* __a,
++			    memory_order __m) noexcept
++  { return __a->test(__m); }
++#endif
++
+   inline void
+   atomic_flag_clear_explicit(atomic_flag* __a, memory_order __m) noexcept
+   { __a->clear(__m); }
+@@ -1228,9 +1256,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    atomic_flag_clear(volatile atomic_flag* __a) noexcept
    { atomic_flag_clear_explicit(__a, memory_order_seq_cst); }
  
@@ -30630,7 +30698,7 @@ index fdffacc35df..22faf82edde 100644
    template<typename _Tp>
      using __atomic_diff_t = typename atomic<_Tp>::difference_type;
  
-@@ -1421,12 +1430,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+@@ -1421,12 +1450,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
  
    template<typename _Tp>
      inline void
@@ -33834,6 +33902,88 @@ index 9d92ff954f1..f572ce7ef11 100644
  {
    std::atomic_wait(a, v);
    std::atomic_notify_one(a);
+diff --git a/libstdc++-v3/testsuite/29_atomics/atomic_flag/test/explicit.cc b/libstdc++-v3/testsuite/29_atomics/atomic_flag/test/explicit.cc
+index 5d2fd10812c..751b78e8467 100644
+--- a/libstdc++-v3/testsuite/29_atomics/atomic_flag/test/explicit.cc
++++ b/libstdc++-v3/testsuite/29_atomics/atomic_flag/test/explicit.cc
+@@ -22,7 +22,8 @@
+ #include <atomic>
+ #include <testsuite_hooks.h>
+ 
+-int main()
++void
++test01()
+ {
+   using namespace std;
+ 
+@@ -38,3 +39,26 @@ int main()
+   VERIFY( ! af.test(memory_order_acquire) );
+   VERIFY( ! caf.test(memory_order_acquire) );
+ }
++
++void
++test02()
++{
++  using namespace std;
++
++  atomic_flag af{true};
++  const atomic_flag& caf = af;
++
++  VERIFY( atomic_flag_test_explicit(&af, memory_order_acquire) );
++  VERIFY( atomic_flag_test_explicit(&caf, memory_order_acquire) );
++  af.clear(memory_order_release);
++  VERIFY( ! atomic_flag_test_explicit(&af, memory_order_acquire) );
++  VERIFY( ! atomic_flag_test_explicit(&caf, memory_order_acquire) );
++}
++
++int
++main()
++{
++  test01();
++  test02();
++  return 0;
++}
+diff --git a/libstdc++-v3/testsuite/29_atomics/atomic_flag/test/implicit.cc b/libstdc++-v3/testsuite/29_atomics/atomic_flag/test/implicit.cc
+index 5e592c4b4a1..aaab0e374ec 100644
+--- a/libstdc++-v3/testsuite/29_atomics/atomic_flag/test/implicit.cc
++++ b/libstdc++-v3/testsuite/29_atomics/atomic_flag/test/implicit.cc
+@@ -22,7 +22,8 @@
+ #include <atomic>
+ #include <testsuite_hooks.h>
+ 
+-int main()
++void
++test01()
+ {
+   using namespace std;
+ 
+@@ -38,3 +39,26 @@ int main()
+   VERIFY( ! af.test() );
+   VERIFY( ! caf.test() );
+ }
++
++void
++test02()
++{
++  using namespace std;
++
++  atomic_flag af{true};
++  const atomic_flag& caf = af;
++
++  VERIFY( atomic_flag_test(&af) );
++  VERIFY( atomic_flag_test(&caf) );
++  af.clear(memory_order_release);
++  VERIFY( ! atomic_flag_test(&af) );
++  VERIFY( ! atomic_flag_test(&caf) );
++}
++
++int
++main()
++{
++  test01();
++  test02();
++  return 0;
++}
 diff --git a/libstdc++-v3/testsuite/30_threads/async/106695.cc b/libstdc++-v3/testsuite/30_threads/async/106695.cc
 new file mode 100644
 index 00000000000..74996342dc7
