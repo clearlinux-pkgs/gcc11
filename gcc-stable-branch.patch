@@ -43,7 +43,8 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (295):
+GCC Administrator (296):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -570,13 +571,14 @@ Lewis Hyatt (1):
 Maciej W. Rozycki (1):
       RISC-V: Remove duplicate backslashes from `stack_protect_set_<mode>'
 
-Marek Polacek (6):
+Marek Polacek (7):
       c++: ambiguous call not diagnosed after DR2352 [PR97296]
       c++: wrong error with constexpr COMPOUND_EXPR [PR105321]
       c++: enum in generic lambda at global scope [PR105398]
       c++: global-namespace-qualified var after class def [PR90107]
       c++: Fix ICE with -Wmismatched-tags [PR105725]
       c++: constinit on pointer to function [PR104066]
+      c++: fix ICE in joust_maybe_elide_copy [PR106675]
 
 Mark Mentovai (1):
       libstdc++: Rename __null_terminated to avoid collision with Apple SDK
@@ -9945,10 +9947,18 @@ index cdf22f14b94..fabc313197a 100644
  	}
  
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..850dfaeb3bc 100644
+index 85c8fdd38cd..0456d55eb6c 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,259 @@
+@@ -1,3 +1,267 @@
++2023-02-15  Marek Polacek  <polacek@redhat.com>
++
++	Backported from master:
++	2023-02-15  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/106675
++	* call.c (joust_maybe_elide_copy): Return false for ck_ambig.
++
 +2022-12-16  Patrick Palka  <ppalka@redhat.com>
 +
 +	Backported from master:
@@ -10209,7 +10219,7 @@ index 85c8fdd38cd..850dfaeb3bc 100644
  
  	* GCC 11.3.0 released.
 diff --git a/gcc/cp/call.c b/gcc/cp/call.c
-index 55bb9c45f8c..46c2a066499 100644
+index 55bb9c45f8c..7c3ce1693e1 100644
 --- a/gcc/cp/call.c
 +++ b/gcc/cp/call.c
 @@ -1683,8 +1683,19 @@ direct_reference_binding (tree type, conversion *conv)
@@ -10259,6 +10269,15 @@ index 55bb9c45f8c..46c2a066499 100644
    if (expr == error_mark_node)
      return error_mark_node;
  
+@@ -11584,6 +11593,8 @@ joust_maybe_elide_copy (z_candidate *&cand)
+   if (!DECL_COPY_CONSTRUCTOR_P (fn) && !DECL_MOVE_CONSTRUCTOR_P (fn))
+     return false;
+   conversion *conv = cand->convs[0];
++  if (conv->kind == ck_ambig)
++    return false;
+   gcc_checking_assert (conv->kind == ck_ref_bind);
+   conv = next_conversion (conv);
+   if (conv->kind == ck_user && !TYPE_REF_P (conv->type))
 diff --git a/gcc/cp/constexpr.c b/gcc/cp/constexpr.c
 index c13c920ade3..8bd41166dd9 100644
 --- a/gcc/cp/constexpr.c
@@ -14366,10 +14385,18 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..20a8ed26961 100644
+index 5fc23605244..adf3a08b61f 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1483 @@
+@@ -1,3 +1,1491 @@
++2023-02-15  Marek Polacek  <polacek@redhat.com>
++
++	Backported from master:
++	2023-02-15  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/106675
++	* g++.dg/cpp0x/overload-conv-5.C: New test.
++
 +2023-02-13  Kewen Lin  <linkw@linux.ibm.com>
 +
 +	Backported from master:
@@ -16225,6 +16252,33 @@ index 00000000000..a6631c5ca99
 +};
 +
 +int main() { }
+diff --git a/gcc/testsuite/g++.dg/cpp0x/overload-conv-5.C b/gcc/testsuite/g++.dg/cpp0x/overload-conv-5.C
+new file mode 100644
+index 00000000000..b1e7766e42b
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp0x/overload-conv-5.C
+@@ -0,0 +1,21 @@
++// PR c++/106675
++// { dg-do compile { target c++11 } }
++
++struct foo {
++    int n_;
++    foo(int n) : n_(n) {}
++};
++
++struct bar {
++    int n_;
++
++    operator foo() const {
++        return foo(n_);
++    }
++    operator foo &() { return *reinterpret_cast<foo *>(n_); }
++    operator foo const &() = delete;
++
++    void crashgcc() {
++        foo tmp(*this); // { dg-error "ambiguous" }
++    }
++};
 diff --git a/gcc/testsuite/g++.dg/cpp0x/ref-bind4.C b/gcc/testsuite/g++.dg/cpp0x/ref-bind4.C
 index 85ac9fbfd79..d296d7c3b72 100644
 --- a/gcc/testsuite/g++.dg/cpp0x/ref-bind4.C
@@ -26381,10 +26435,23 @@ index 025e575b5bc..5743516c046 100644
    unsigned IOCTL_GIO_FONT = GIO_FONT;
    unsigned IOCTL_GIO_UNIMAP = GIO_UNIMAP;
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..c802587719a 100644
+index 85e04c45288..1ac4250fb74 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,960 @@
+@@ -1,3 +1,973 @@
++2023-02-14  Thomas W Rodgers  <rodgert@twrodgers.com>
++
++	Backported from master:
++	2023-02-14  Thomas W Rodgers  <rodgert@twrodgers.com>
++
++	PR libstdc++/103934
++	* include/std/atomic (atomic_flag_test): Add.
++	(atomic_flag_test_explicit): Add.
++	* testsuite/29_atomics/atomic_flag/test/explicit.cc: Add
++	test case to cover missing atomic_flag free functions.
++	* testsuite/29_atomics/atomic_flag/test/implicit.cc:
++	Likewise.
++
 +2023-02-02  Detlef Vollmann  <dv@vollmann.ch>
 +
 +	Backported from master:
