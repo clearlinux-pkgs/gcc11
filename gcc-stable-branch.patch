@@ -25,13 +25,14 @@ Detlef Vollmann (1):
 Dimitar Dimitrov (1):
       pru: Fix CLZ expansion for QI and HI modes
 
-Eric Botcazou (6):
+Eric Botcazou (7):
       Fix internal error with vectorization on SPARC
       Fix PR target/107248
       Fix recent thinko in operand_equal_p
       Fix wrong array type conversion with different storage orde
       Fix thinko in operator_bitwise_xor::op1_range
       Fix problematic interaction between bitfields, unions, SSO and SRA
+      Fix PR target/90458
 
 Florian Weimer (2):
       libsanitizer: Avoid implicit function declaration in configure test
@@ -43,7 +44,8 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (296):
+GCC Administrator (297):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -781,10 +783,17 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..6328a9f3e17 100644
+index a0587d18824..aa226cd782d 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,1291 @@
+@@ -1,3 +1,1298 @@
++2023-02-15  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR target/90458
++	* config/i386/i386.c (ix86_compute_frame_layout): Disable the
++	effects of -fstack-clash-protection for TARGET_STACK_PROBE.
++	(ix86_expand_prologue): Likewise.
++
 +2023-02-13  Kewen Lin  <linkw@linux.ibm.com>
 +
 +	Backported from master:
@@ -4083,7 +4092,7 @@ index 31eae75d277..d95adaf962b 100644
  
    op0 = force_reg (tmode, op0);
 diff --git a/gcc/config/i386/i386.c b/gcc/config/i386/i386.c
-index 48300af9a09..1623bbcbd2d 100644
+index 48300af9a09..9832d4e0320 100644
 --- a/gcc/config/i386/i386.c
 +++ b/gcc/config/i386/i386.c
 @@ -3249,7 +3249,7 @@ ix86_function_arg (cumulative_args_t cum_v, const function_arg_info &arg)
@@ -4231,6 +4240,31 @@ index 48300af9a09..1623bbcbd2d 100644
  
  	  /* addr = &temp; */
  	  t = build1 (ADDR_EXPR, build_pointer_type (type), temp);
+@@ -6653,7 +6617,9 @@ ix86_compute_frame_layout (void)
+ 	 stack clash protections are enabled and the allocated frame is
+ 	 larger than the probe interval, then use pushes to save
+ 	 callee saved registers.  */
+-      || (flag_stack_clash_protection && to_allocate > get_probe_interval ()))
++      || (flag_stack_clash_protection
++	  && !ix86_target_stack_probe ()
++	  && to_allocate > get_probe_interval ()))
+     frame->save_regs_using_mov = false;
+ 
+   if (ix86_using_red_zone ()
+@@ -8528,8 +8494,11 @@ ix86_expand_prologue (void)
+       sse_registers_saved = true;
+     }
+ 
+-  /* If stack clash protection is requested, then probe the stack.  */
+-  if (allocate >= 0 && flag_stack_clash_protection)
++  /* If stack clash protection is requested, then probe the stack, unless it
++     is already probed on the target.  */
++  if (allocate >= 0
++      && flag_stack_clash_protection
++      && !ix86_target_stack_probe ())
+     {
+       ix86_adjust_stack_and_probe (allocate, int_registers_saved, false);
+       allocate = 0;
 diff --git a/gcc/config/i386/predicates.md b/gcc/config/i386/predicates.md
 index b815aca0da7..58aebd416f4 100644
 --- a/gcc/config/i386/predicates.md
