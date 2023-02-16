@@ -599,8 +599,11 @@ Martin Liska (7):
       lto: support --jobserver-style=fifo for recent GNU make
       lto-wrapper: silent warnings in tests
 
-Matthias Kretz (1):
+Matthias Kretz (4):
       c++: don't ICE on NAMESPACE_DECL inside FUNCTION_DECL
+      libstdc++: Ensure __builtin_constant_p isn't lost on the way
+      libstdc++: printf format string fix in testsuite
+      libstdc++: Fix incorrect __builtin_is_constant_evaluated calls
 
 Max Filippov (2):
       gcc: xtensa: fix PR target/105879
@@ -30595,7 +30598,7 @@ index 1cc1b3bf686..830b51e45a0 100644
        {
  	const std::string __s = _S_string_from_iter(__src);
 diff --git a/libstdc++-v3/include/experimental/bits/simd.h b/libstdc++-v3/include/experimental/bits/simd.h
-index 421c923e7b0..0e58ae01b17 100644
+index 421c923e7b0..e9a07018cf0 100644
 --- a/libstdc++-v3/include/experimental/bits/simd.h
 +++ b/libstdc++-v3/include/experimental/bits/simd.h
 @@ -2303,17 +2303,23 @@ template <typename _Tp>
@@ -30637,6 +30640,90 @@ index 421c923e7b0..0e58ae01b17 100644
  #endif
      using type =
        typename __intrinsic_type_impl<
+@@ -2539,7 +2546,8 @@ template <typename _Tp, size_t _Width>
+ 	  else
+ 	    __execute_n_times<_Width>(
+ 	      [&](auto __i) { __r &= _M_data[__i.value] == _Tp(); });
+-	  return __r;
++	  if (__builtin_constant_p(__r))
++	    return __r;
+ 	}
+       return false;
+     }
+@@ -2559,7 +2567,8 @@ template <typename _Tp, size_t _Width>
+ 	  else
+ 	    __execute_n_times<_Width>(
+ 	      [&](auto __i) { __r &= _M_data[__i.value] == ~_Tp(); });
+-	  return __r;
++	  if (__builtin_constant_p(__r))
++	    return __r;
+ 	}
+       return false;
+     }
+diff --git a/libstdc++-v3/include/experimental/bits/simd_x86.h b/libstdc++-v3/include/experimental/bits/simd_x86.h
+index 305d7a9fa54..db4c744d6e4 100644
+--- a/libstdc++-v3/include/experimental/bits/simd_x86.h
++++ b/libstdc++-v3/include/experimental/bits/simd_x86.h
+@@ -2340,15 +2340,16 @@ template <typename _Abi>
+ 	    else
+ 	      __assert_unreachable<_Tp>();
+ 	  }                                                   // }}}
+-	else if constexpr (!__builtin_is_constant_evaluated() // {{{
+-			   && sizeof(__x) == 8)
++	else if (__builtin_is_constant_evaluated())
++	  return _Base::_S_not_equal_to(__x, __y);
++	else if constexpr (sizeof(__x) == 8)
+ 	  {
+ 	    const auto __r128 = __vector_bitcast<_Tp, 16 / sizeof(_Tp)>(__x)
+ 				!= __vector_bitcast<_Tp, 16 / sizeof(_Tp)>(__y);
+ 	    _MaskMember<_Tp> __r64;
+ 	    __builtin_memcpy(&__r64._M_data, &__r128, sizeof(__r64));
+ 	    return __r64;
+-	  } // }}}
++	  }
+ 	else
+ 	  return _Base::_S_not_equal_to(__x, __y);
+       }
+@@ -2447,15 +2448,16 @@ template <typename _Abi>
+ 	    else
+ 	      __assert_unreachable<_Tp>();
+ 	  }                                                   // }}}
+-	else if constexpr (!__builtin_is_constant_evaluated() // {{{
+-			   && sizeof(__x) == 8)
++	else if (__builtin_is_constant_evaluated())
++	  return _Base::_S_less(__x, __y);
++	else if constexpr (sizeof(__x) == 8)
+ 	  {
+ 	    const auto __r128 = __vector_bitcast<_Tp, 16 / sizeof(_Tp)>(__x)
+ 				< __vector_bitcast<_Tp, 16 / sizeof(_Tp)>(__y);
+ 	    _MaskMember<_Tp> __r64;
+ 	    __builtin_memcpy(&__r64._M_data, &__r128, sizeof(__r64));
+ 	    return __r64;
+-	  } // }}}
++	  }
+ 	else
+ 	  return _Base::_S_less(__x, __y);
+       }
+@@ -2554,15 +2556,16 @@ template <typename _Abi>
+ 	    else
+ 	      __assert_unreachable<_Tp>();
+ 	  }                                                   // }}}
+-	else if constexpr (!__builtin_is_constant_evaluated() // {{{
+-			   && sizeof(__x) == 8)
++	else if (__builtin_is_constant_evaluated())
++	  return _Base::_S_less_equal(__x, __y);
++	else if constexpr (sizeof(__x) == 8)
+ 	  {
+ 	    const auto __r128 = __vector_bitcast<_Tp, 16 / sizeof(_Tp)>(__x)
+ 				<= __vector_bitcast<_Tp, 16 / sizeof(_Tp)>(__y);
+ 	    _MaskMember<_Tp> __r64;
+ 	    __builtin_memcpy(&__r64._M_data, &__r128, sizeof(__r64));
+ 	    return __r64;
+-	  } // }}}
++	  }
+ 	else
+ 	  return _Base::_S_less_equal(__x, __y);
+       }
 diff --git a/libstdc++-v3/include/experimental/internet b/libstdc++-v3/include/experimental/internet
 index 6ce070ae775..07eb137fb80 100644
 --- a/libstdc++-v3/include/experimental/internet
@@ -34425,6 +34512,19 @@ index 03e777b0041..b78f663dee9 100644
    std::error_code ec;
    auto r = fs::temp_directory_path(ec);
    VERIFY( ec == std::make_error_code(std::errc::not_a_directory) );
+diff --git a/libstdc++-v3/testsuite/experimental/simd/tests/bits/verify.h b/libstdc++-v3/testsuite/experimental/simd/tests/bits/verify.h
+index 82016c66802..ffa3e7f4cda 100644
+--- a/libstdc++-v3/testsuite/experimental/simd/tests/bits/verify.h
++++ b/libstdc++-v3/testsuite/experimental/simd/tests/bits/verify.h
+@@ -137,7 +137,7 @@ public:
+     {
+       if (m_failed)
+ 	[&] {
+-	  __builtin_fprintf(stderr, "%s:%d: (%s):\nInstruction Pointer: %x\n"
++	  __builtin_fprintf(stderr, "%s:%d: (%s):\nInstruction Pointer: %zx\n"
+ 				    "Assertion '%s' failed.\n",
+ 			    file, line, func, m_ip, cond);
+ 	  (print(extra_info, int()), ...);
 diff --git a/libstdc++-v3/testsuite/ext/rope/pthread7-rope.cc b/libstdc++-v3/testsuite/ext/rope/pthread7-rope.cc
 index 5df9f330cd4..ed0614e2797 100644
 --- a/libstdc++-v3/testsuite/ext/rope/pthread7-rope.cc
