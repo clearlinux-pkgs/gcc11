@@ -44,7 +44,8 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (297):
+GCC Administrator (298):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -26472,10 +26473,38 @@ index 025e575b5bc..5743516c046 100644
    unsigned IOCTL_GIO_FONT = GIO_FONT;
    unsigned IOCTL_GIO_UNIMAP = GIO_UNIMAP;
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..1ac4250fb74 100644
+index 85e04c45288..936e2a77af5 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,973 @@
+@@ -1,3 +1,1001 @@
++2023-02-16  Matthias Kretz  <m.kretz@gsi.de>
++
++	Backported from master:
++	2023-02-16  Matthias Kretz  <m.kretz@gsi.de>
++
++	* include/experimental/bits/simd_x86.h
++	(_SimdImplX86::_S_not_equal_to, _SimdImplX86::_S_less)
++	(_SimdImplX86::_S_less_equal): Do not call
++	__builtin_is_constant_evaluated in constexpr-if.
++
++2023-02-16  Matthias Kretz  <m.kretz@gsi.de>
++
++	Backported from master:
++	2023-02-16  Matthias Kretz  <m.kretz@gsi.de>
++
++	* testsuite/experimental/simd/tests/bits/verify.h
++	(verify::verify): Use %zx for size_t in format string.
++
++2023-02-16  Matthias Kretz  <m.kretz@gsi.de>
++
++	Backported from master:
++	2023-02-16  Matthias Kretz  <m.kretz@gsi.de>
++
++	* include/experimental/bits/simd.h
++	(_SimdWrapper::_M_is_constprop_none_of)
++	(_SimdWrapper::_M_is_constprop_all_of): Return false unless the
++	computed result still satisfies __builtin_constant_p.
++
 +2023-02-14  Thomas W Rodgers  <rodgert@twrodgers.com>
 +
 +	Backported from master:
