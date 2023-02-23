@@ -45,7 +45,9 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (302):
+GCC Administrator (304):
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -605,11 +607,12 @@ Martin Liska (7):
       lto: support --jobserver-style=fifo for recent GNU make
       lto-wrapper: silent warnings in tests
 
-Matthias Kretz (4):
+Matthias Kretz (5):
       c++: don't ICE on NAMESPACE_DECL inside FUNCTION_DECL
       libstdc++: Ensure __builtin_constant_p isn't lost on the way
       libstdc++: printf format string fix in testsuite
       libstdc++: Fix incorrect __builtin_is_constant_evaluated calls
+      libstdc++: Fix uses of non-reserved names in simd header
 
 Max Filippov (2):
       gcc: xtensa: fix PR target/105879
@@ -30709,7 +30712,7 @@ index 1cc1b3bf686..830b51e45a0 100644
        {
  	const std::string __s = _S_string_from_iter(__src);
 diff --git a/libstdc++-v3/include/experimental/bits/simd.h b/libstdc++-v3/include/experimental/bits/simd.h
-index 421c923e7b0..e9a07018cf0 100644
+index 421c923e7b0..cd811df7bfc 100644
 --- a/libstdc++-v3/include/experimental/bits/simd.h
 +++ b/libstdc++-v3/include/experimental/bits/simd.h
 @@ -2303,17 +2303,23 @@ template <typename _Tp>
@@ -30771,6 +30774,80 @@ index 421c923e7b0..e9a07018cf0 100644
  	}
        return false;
      }
+@@ -3586,7 +3595,7 @@ template <int _Index, int _Total, int _Combine = 1, typename _Tp, size_t _Np>
+   _SimdWrapper<_Tp, _Np / _Total * _Combine>
+   __extract_part(const _SimdWrapper<_Tp, _Np> __x);
+ 
+-template <int Index, int Parts, int _Combine = 1, typename _Tp, typename _A0,
++template <int _Index, int _Parts, int _Combine = 1, typename _Tp, typename _A0,
+ 	  typename... _As>
+   _GLIBCXX_SIMD_INTRINSIC auto
+   __extract_part(const _SimdTuple<_Tp, _A0, _As...>& __x);
+@@ -3699,19 +3708,19 @@ template <size_t... _Sizes, typename _Tp, typename... _As>
+ 
+ // split<simd>(simd) {{{
+ template <typename _V, typename _Ap,
+-	  size_t Parts = simd_size_v<typename _V::value_type, _Ap> / _V::size()>
+-  enable_if_t<simd_size_v<typename _V::value_type, _Ap> == Parts * _V::size()
+-	      && is_simd_v<_V>, array<_V, Parts>>
++	  size_t _Parts = simd_size_v<typename _V::value_type, _Ap> / _V::size()>
++  enable_if_t<simd_size_v<typename _V::value_type, _Ap> == _Parts * _V::size()
++		&& is_simd_v<_V>, array<_V, _Parts>>
+   split(const simd<typename _V::value_type, _Ap>& __x)
+   {
+     using _Tp = typename _V::value_type;
+-    if constexpr (Parts == 1)
++    if constexpr (_Parts == 1)
+       {
+ 	return {simd_cast<_V>(__x)};
+       }
+     else if (__x._M_is_constprop())
+       {
+-	return __generate_from_n_evaluations<Parts, array<_V, Parts>>([&](
++	return __generate_from_n_evaluations<_Parts, array<_V, _Parts>>([&](
+ 	  auto __i) constexpr {
+ 	  return _V([&](auto __j) constexpr {
+ 	    return __x[__i * _V::size() + __j];
+@@ -3729,13 +3738,13 @@ template <typename _V, typename _Ap,
+ #ifdef _GLIBCXX_SIMD_USE_ALIASING_LOADS
+       const __may_alias<_Tp>* const __element_ptr
+ 	= reinterpret_cast<const __may_alias<_Tp>*>(&__data(__x));
+-      return __generate_from_n_evaluations<Parts, array<_V, Parts>>([&](
++      return __generate_from_n_evaluations<_Parts, array<_V, _Parts>>([&](
+ 	auto __i) constexpr {
+ 	return _V(__element_ptr + __i * _V::size(), vector_aligned);
+       });
+ #else
+       const auto& __xx = __data(__x);
+-      return __generate_from_n_evaluations<Parts, array<_V, Parts>>([&](
++      return __generate_from_n_evaluations<_Parts, array<_V, _Parts>>([&](
+ 	auto __i) constexpr {
+ 	[[maybe_unused]] constexpr size_t __offset
+ 	  = decltype(__i)::value * _V::size();
+@@ -3749,12 +3758,12 @@ template <typename _V, typename _Ap,
+   else if constexpr (is_same_v<typename _V::abi_type, simd_abi::scalar>)
+     {
+       // normally memcpy should work here as well
+-      return __generate_from_n_evaluations<Parts, array<_V, Parts>>([&](
++      return __generate_from_n_evaluations<_Parts, array<_V, _Parts>>([&](
+ 	auto __i) constexpr { return __x[__i]; });
+     }
+   else
+     {
+-      return __generate_from_n_evaluations<Parts, array<_V, Parts>>([&](
++      return __generate_from_n_evaluations<_Parts, array<_V, _Parts>>([&](
+ 	auto __i) constexpr {
+ 	if constexpr (__is_fixed_size_abi_v<typename _V::abi_type>)
+ 	  return _V([&](auto __j) constexpr {
+@@ -3762,7 +3771,7 @@ template <typename _V, typename _Ap,
+ 	  });
+ 	else
+ 	  return _V(__private_init,
+-		    __extract_part<decltype(__i)::value, Parts>(__data(__x)));
++		    __extract_part<decltype(__i)::value, _Parts>(__data(__x)));
+       });
+     }
+   }
 diff --git a/libstdc++-v3/include/experimental/bits/simd_x86.h b/libstdc++-v3/include/experimental/bits/simd_x86.h
 index 305d7a9fa54..db4c744d6e4 100644
 --- a/libstdc++-v3/include/experimental/bits/simd_x86.h
