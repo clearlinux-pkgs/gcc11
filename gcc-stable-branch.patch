@@ -45,7 +45,8 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (304):
+GCC Administrator (305):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -607,12 +608,15 @@ Martin Liska (7):
       lto: support --jobserver-style=fifo for recent GNU make
       lto-wrapper: silent warnings in tests
 
-Matthias Kretz (5):
+Matthias Kretz (8):
       c++: don't ICE on NAMESPACE_DECL inside FUNCTION_DECL
       libstdc++: Ensure __builtin_constant_p isn't lost on the way
       libstdc++: printf format string fix in testsuite
       libstdc++: Fix incorrect __builtin_is_constant_evaluated calls
       libstdc++: Fix uses of non-reserved names in simd header
+      libstdc++: Add missing constexpr on simd shift implementation
+      libstdc++: Fix -Wsign-compare issue
+      libstdc++: Simplify three helper functions into one
 
 Max Filippov (2):
       gcc: xtensa: fix PR target/105879
@@ -714,9 +718,10 @@ Richard Sandiford (5):
       aarch64: Fix matching of BRKNS
       aarch64: Prevent generation of /M BRKAS and BRKBS
 
-Sebastian Huber (2):
+Sebastian Huber (3):
       RTEMS: Do not define _GNU_SOURCE by default
       RTEMS: Add -mvrsave multilibs
+      RTEMS: Tune multilib selection
 
 Sebastian Pop (2):
       [AArch64] add barriers to ool __sync builtins
@@ -4710,6 +4715,43 @@ index c3687d57047..3af34de063c 100644
    [(set_attr "length" "12")])
  
  (define_expand "stack_protect_test"
+diff --git a/gcc/config/riscv/t-rtems b/gcc/config/riscv/t-rtems
+index 41f5927fc87..19b12030895 100644
+--- a/gcc/config/riscv/t-rtems
++++ b/gcc/config/riscv/t-rtems
+@@ -1,8 +1,8 @@
+ MULTILIB_OPTIONS	=
+ MULTILIB_DIRNAMES	=
+ 
+-MULTILIB_OPTIONS	+= march=rv32i/march=rv32im/march=rv32imafd/march=rv32iac/march=rv32imac/march=rv32imafc/march=rv64imafd/march=rv64imac/march=rv64imafdc
+-MULTILIB_DIRNAMES	+= rv32i       rv32im       rv32imafd       rv32iac       rv32imac       rv32imafc       rv64imafd       rv64imac       rv64imafdc
++MULTILIB_OPTIONS	+= march=rv32i/march=rv32iac/march=rv32im/march=rv32ima/march=rv32imac/march=rv32imaf/march=rv32imafc/march=rv32imafd/march=rv32imafdc/march=rv64ima/march=rv64imac/march=rv64imafd/march=rv64imafdc
++MULTILIB_DIRNAMES	+= rv32i       rv32iac       rv32im       rv32ima       rv32imac       rv32imaf       rv32imafc       rv32imafd       rv32imafdc       rv64ima       rv64imac       rv64imafd       rv64imafdc
+ 
+ MULTILIB_OPTIONS	+= mabi=ilp32/mabi=ilp32f/mabi=ilp32d/mabi=lp64/mabi=lp64d
+ MULTILIB_DIRNAMES	+= ilp32      ilp32f      ilp32d      lp64      lp64d
+@@ -12,14 +12,15 @@ MULTILIB_DIRNAMES	+= medany
+ 
+ MULTILIB_REQUIRED	=
+ MULTILIB_REQUIRED	+= march=rv32i/mabi=ilp32
+-MULTILIB_REQUIRED	+= march=rv32im/mabi=ilp32
+-MULTILIB_REQUIRED	+= march=rv32imafd/mabi=ilp32d
+ MULTILIB_REQUIRED	+= march=rv32iac/mabi=ilp32
++MULTILIB_REQUIRED	+= march=rv32im/mabi=ilp32
++MULTILIB_REQUIRED	+= march=rv32ima/mabi=ilp32
+ MULTILIB_REQUIRED	+= march=rv32imac/mabi=ilp32
++MULTILIB_REQUIRED	+= march=rv32imaf/mabi=ilp32f
+ MULTILIB_REQUIRED	+= march=rv32imafc/mabi=ilp32f
+-MULTILIB_REQUIRED	+= march=rv64imafd/mabi=lp64d
+-MULTILIB_REQUIRED	+= march=rv64imafd/mabi=lp64d/mcmodel=medany
+-MULTILIB_REQUIRED	+= march=rv64imac/mabi=lp64
++MULTILIB_REQUIRED	+= march=rv32imafd/mabi=ilp32d
++MULTILIB_REQUIRED	+= march=rv32imafdc/mabi=ilp32d
++MULTILIB_REQUIRED	+= march=rv64ima/mabi=lp64/mcmodel=medany
+ MULTILIB_REQUIRED	+= march=rv64imac/mabi=lp64/mcmodel=medany
+-MULTILIB_REQUIRED	+= march=rv64imafdc/mabi=lp64d
++MULTILIB_REQUIRED	+= march=rv64imafd/mabi=lp64d/mcmodel=medany
+ MULTILIB_REQUIRED	+= march=rv64imafdc/mabi=lp64d/mcmodel=medany
 diff --git a/gcc/config/rs6000/bmi2intrin.h b/gcc/config/rs6000/bmi2intrin.h
 index 5b7b761b9d5..03299e6cccd 100644
 --- a/gcc/config/rs6000/bmi2intrin.h
@@ -26558,10 +26600,46 @@ index 025e575b5bc..5743516c046 100644
    unsigned IOCTL_GIO_FONT = GIO_FONT;
    unsigned IOCTL_GIO_UNIMAP = GIO_UNIMAP;
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..936e2a77af5 100644
+index 85e04c45288..ff6322ab1c9 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,1001 @@
+@@ -1,3 +1,1037 @@
++2023-02-23  Matthias Kretz  <m.kretz@gsi.de>
++
++	Backported from master:
++	2023-02-23  Matthias Kretz  <m.kretz@gsi.de>
++
++	PR libstdc++/108030
++	* include/experimental/bits/simd.h (__vector_broadcast):
++	Implement via __vector_broadcast_impl instead of
++	__call_with_n_evaluations + 2 lambdas.
++	(__vector_broadcast_impl): New.
++
++2023-02-23  Matthias Kretz  <m.kretz@gsi.de>
++
++	Backported from master:
++	2023-02-23  Matthias Kretz  <m.kretz@gsi.de>
++
++	* include/experimental/bits/simd_builtin.h (_S_set): Compare as
++	int. The actual range of these indexes is very small.
++
++2023-02-23  Matthias Kretz  <m.kretz@gsi.de>
++
++	Backported from master:
++	2023-02-23  Matthias Kretz  <m.kretz@gsi.de>
++
++	* include/experimental/bits/simd_x86.h (_S_bit_shift_left)
++	(_S_bit_shift_right): Declare constexpr. The implementation was
++	already expecting constexpr evaluation.
++
++2023-02-23  Matthias Kretz  <m.kretz@gsi.de>
++
++	Backported from master:
++	2023-02-20  Matthias Kretz  <m.kretz@gsi.de>
++
++	* include/experimental/bits/simd.h (__extract_part, split):
++	Use reserved name for template parameter.
++
 +2023-02-16  Matthias Kretz  <m.kretz@gsi.de>
 +
 +	Backported from master:
@@ -30712,10 +30790,31 @@ index 1cc1b3bf686..830b51e45a0 100644
        {
  	const std::string __s = _S_string_from_iter(__src);
 diff --git a/libstdc++-v3/include/experimental/bits/simd.h b/libstdc++-v3/include/experimental/bits/simd.h
-index 421c923e7b0..cd811df7bfc 100644
+index 421c923e7b0..abbde6110a4 100644
 --- a/libstdc++-v3/include/experimental/bits/simd.h
 +++ b/libstdc++-v3/include/experimental/bits/simd.h
-@@ -2303,17 +2303,23 @@ template <typename _Tp>
+@@ -1665,14 +1665,15 @@ template <typename _Tp, typename... _Args>
+ 
+ // }}}
+ // __vector_broadcast{{{
++template <size_t _Np, typename _Tp, size_t... _I>
++  _GLIBCXX_SIMD_INTRINSIC constexpr __vector_type_t<_Tp, _Np>
++  __vector_broadcast_impl(_Tp __x, index_sequence<_I...>)
++  { return __vector_type_t<_Tp, _Np>{((void)_I, __x)...}; }
++
+ template <size_t _Np, typename _Tp>
+   _GLIBCXX_SIMD_INTRINSIC constexpr __vector_type_t<_Tp, _Np>
+   __vector_broadcast(_Tp __x)
+-  {
+-    return __call_with_n_evaluations<_Np>(
+-      [](auto... __xx) { return __vector_type_t<_Tp, _Np>{__xx...}; },
+-      [&__x](int) { return __x; });
+-  }
++  { return __vector_broadcast_impl<_Np, _Tp>(__x, make_index_sequence<_Np>()); }
+ 
+ // }}}
+ // __generate_vector{{{
+@@ -2303,17 +2304,23 @@ template <typename _Tp>
    template <>                                                                  \
      struct __intrinsic_type_impl<_Tp> { using type = __vector _Tp; }
  _GLIBCXX_SIMD_PPC_INTRIN(float);
@@ -30739,7 +30838,7 @@ index 421c923e7b0..cd811df7bfc 100644
  #undef _GLIBCXX_SIMD_PPC_INTRIN
  
  template <typename _Tp, size_t _Bytes>
-@@ -2323,10 +2329,11 @@ template <typename _Tp, size_t _Bytes>
+@@ -2323,10 +2330,11 @@ template <typename _Tp, size_t _Bytes>
      static constexpr bool _S_is_ldouble = is_same_v<_Tp, long double>;
      // allow _Tp == long double with -mlong-double-64
      static_assert(!(_S_is_ldouble && sizeof(long double) > sizeof(double)),
@@ -30754,7 +30853,7 @@ index 421c923e7b0..cd811df7bfc 100644
  #endif
      using type =
        typename __intrinsic_type_impl<
-@@ -2539,7 +2546,8 @@ template <typename _Tp, size_t _Width>
+@@ -2539,7 +2547,8 @@ template <typename _Tp, size_t _Width>
  	  else
  	    __execute_n_times<_Width>(
  	      [&](auto __i) { __r &= _M_data[__i.value] == _Tp(); });
@@ -30764,7 +30863,7 @@ index 421c923e7b0..cd811df7bfc 100644
  	}
        return false;
      }
-@@ -2559,7 +2567,8 @@ template <typename _Tp, size_t _Width>
+@@ -2559,7 +2568,8 @@ template <typename _Tp, size_t _Width>
  	  else
  	    __execute_n_times<_Width>(
  	      [&](auto __i) { __r &= _M_data[__i.value] == ~_Tp(); });
@@ -30774,7 +30873,7 @@ index 421c923e7b0..cd811df7bfc 100644
  	}
        return false;
      }
-@@ -3586,7 +3595,7 @@ template <int _Index, int _Total, int _Combine = 1, typename _Tp, size_t _Np>
+@@ -3586,7 +3596,7 @@ template <int _Index, int _Total, int _Combine = 1, typename _Tp, size_t _Np>
    _SimdWrapper<_Tp, _Np / _Total * _Combine>
    __extract_part(const _SimdWrapper<_Tp, _Np> __x);
  
@@ -30783,7 +30882,7 @@ index 421c923e7b0..cd811df7bfc 100644
  	  typename... _As>
    _GLIBCXX_SIMD_INTRINSIC auto
    __extract_part(const _SimdTuple<_Tp, _A0, _As...>& __x);
-@@ -3699,19 +3708,19 @@ template <size_t... _Sizes, typename _Tp, typename... _As>
+@@ -3699,19 +3709,19 @@ template <size_t... _Sizes, typename _Tp, typename... _As>
  
  // split<simd>(simd) {{{
  template <typename _V, typename _Ap,
@@ -30808,7 +30907,7 @@ index 421c923e7b0..cd811df7bfc 100644
  	  auto __i) constexpr {
  	  return _V([&](auto __j) constexpr {
  	    return __x[__i * _V::size() + __j];
-@@ -3729,13 +3738,13 @@ template <typename _V, typename _Ap,
+@@ -3729,13 +3739,13 @@ template <typename _V, typename _Ap,
  #ifdef _GLIBCXX_SIMD_USE_ALIASING_LOADS
        const __may_alias<_Tp>* const __element_ptr
  	= reinterpret_cast<const __may_alias<_Tp>*>(&__data(__x));
@@ -30824,7 +30923,7 @@ index 421c923e7b0..cd811df7bfc 100644
  	auto __i) constexpr {
  	[[maybe_unused]] constexpr size_t __offset
  	  = decltype(__i)::value * _V::size();
-@@ -3749,12 +3758,12 @@ template <typename _V, typename _Ap,
+@@ -3749,12 +3759,12 @@ template <typename _V, typename _Ap,
    else if constexpr (is_same_v<typename _V::abi_type, simd_abi::scalar>)
      {
        // normally memcpy should work here as well
@@ -30839,7 +30938,7 @@ index 421c923e7b0..cd811df7bfc 100644
  	auto __i) constexpr {
  	if constexpr (__is_fixed_size_abi_v<typename _V::abi_type>)
  	  return _V([&](auto __j) constexpr {
-@@ -3762,7 +3771,7 @@ template <typename _V, typename _Ap,
+@@ -3762,7 +3772,7 @@ template <typename _V, typename _Ap,
  	  });
  	else
  	  return _V(__private_init,
@@ -30848,10 +30947,59 @@ index 421c923e7b0..cd811df7bfc 100644
        });
      }
    }
+diff --git a/libstdc++-v3/include/experimental/bits/simd_builtin.h b/libstdc++-v3/include/experimental/bits/simd_builtin.h
+index e986ee91620..3128e5b515e 100644
+--- a/libstdc++-v3/include/experimental/bits/simd_builtin.h
++++ b/libstdc++-v3/include/experimental/bits/simd_builtin.h
+@@ -2826,7 +2826,7 @@ template <typename _Abi>
+ 		__k = __generate_from_n_evaluations<_Np,
+ 						    __vector_type_t<_Tp, _Np>>(
+ 		  [&](auto __j) {
+-		    if (__i == __j)
++		    if (__i == static_cast<int>(__j))
+ 		      return _Tp(-__x);
+ 		    else
+ 		      return __k[+__j];
 diff --git a/libstdc++-v3/include/experimental/bits/simd_x86.h b/libstdc++-v3/include/experimental/bits/simd_x86.h
-index 305d7a9fa54..db4c744d6e4 100644
+index 305d7a9fa54..8df230fb773 100644
 --- a/libstdc++-v3/include/experimental/bits/simd_x86.h
 +++ b/libstdc++-v3/include/experimental/bits/simd_x86.h
+@@ -1524,7 +1524,7 @@ template <typename _Abi>
+     // values.
+   #ifndef _GLIBCXX_SIMD_NO_SHIFT_OPT
+     template <typename _Tp, typename _TVT = _VectorTraits<_Tp>>
+-      inline _GLIBCXX_CONST static typename _TVT::type
++      constexpr inline _GLIBCXX_CONST static typename _TVT::type
+       _S_bit_shift_left(_Tp __xx, int __y)
+       {
+ 	using _V = typename _TVT::type;
+@@ -1629,7 +1629,7 @@ template <typename _Abi>
+       }
+ 
+     template <typename _Tp, typename _TVT = _VectorTraits<_Tp>>
+-      inline _GLIBCXX_CONST static typename _TVT::type
++      constexpr inline _GLIBCXX_CONST static typename _TVT::type
+       _S_bit_shift_left(_Tp __xx, typename _TVT::type __y)
+       {
+ 	using _V = typename _TVT::type;
+@@ -1798,7 +1798,7 @@ template <typename _Abi>
+     // _S_bit_shift_right {{{
+ #ifndef _GLIBCXX_SIMD_NO_SHIFT_OPT
+     template <typename _Tp, typename _TVT = _VectorTraits<_Tp>>
+-      inline _GLIBCXX_CONST static typename _TVT::type
++      constexpr inline _GLIBCXX_CONST static typename _TVT::type
+       _S_bit_shift_right(_Tp __xx, int __y)
+       {
+ 	using _V = typename _TVT::type;
+@@ -1848,7 +1848,7 @@ template <typename _Abi>
+       }
+ 
+     template <typename _Tp, typename _TVT = _VectorTraits<_Tp>>
+-      inline _GLIBCXX_CONST static typename _TVT::type
++      constexpr inline _GLIBCXX_CONST static typename _TVT::type
+       _S_bit_shift_right(_Tp __xx, typename _TVT::type __y)
+       {
+ 	using _V = typename _TVT::type;
 @@ -2340,15 +2340,16 @@ template <typename _Abi>
  	    else
  	      __assert_unreachable<_Tp>();
