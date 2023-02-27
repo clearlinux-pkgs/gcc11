@@ -45,7 +45,9 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (306):
+GCC Administrator (308):
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -559,7 +561,7 @@ José Rui Faustino de Sousa (5):
       Fortran: Fix ICE and wrong code for assumed-rank arrays [PR100029, PR100040]
       Fortran: Add missing TKR initialization to class variables [PR100097, PR100098]
 
-Kewen Lin (7):
+Kewen Lin (8):
       testsuite: Skip pr105250.c for powerpc and s390 [PR105266]
       rs6000: Preserve REG_EH_REGION when replacing load/store [PR106091]
       rs6000/test: Fix empty TU in some cases of effective targets [PR106345]
@@ -567,6 +569,7 @@ Kewen Lin (7):
       rs6000: Raise error for __vector_{quad,pair} uses without MMA enabled [PR106736]
       rs6000: Teach rs6000_opaque_type_invalid_use_p about inline asm [PR108272]
       rs6000: Teach rs6000_opaque_type_invalid_use_p about gcall [PR108348]
+      rs6000/test: Adjust some test cases on partial vector [PR96373]
 
 Kewen.Lin (1):
       rs6000: Adjust mov optabs for opaque modes [PR103353]
@@ -22072,6 +22075,160 @@ index 1255ee9f0ab..41e46d41401 100644
  /* { dg-require-effective-target power10_hw } */
  
  /* Check that the expected 128-bit instructions are generated if the processor
+diff --git a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-1.c b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-1.c
+index d248f091b52..dfcc0e95320 100644
+--- a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-1.c
++++ b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-1.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target { lp64 && powerpc_p9vector_ok } } } */
+-/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops" } */
++/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops -fno-trapping-math" } */
+ 
+ /* { dg-additional-options "--param=vect-partial-vector-usage=1" } */
+ 
+diff --git a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-2.c b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-2.c
+index 9f78a447ec7..e63f1bf2372 100644
+--- a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-2.c
++++ b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-2.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target { lp64 && powerpc_p9vector_ok } } } */
+-/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops" } */
++/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops -fno-trapping-math" } */
+ 
+ /* { dg-additional-options "--param=vect-partial-vector-usage=1" } */
+ 
+diff --git a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-3.c b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-3.c
+index a08797fcbca..4a99e3a3265 100644
+--- a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-3.c
++++ b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-3.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target { lp64 && powerpc_p9vector_ok } } } */
+-/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops" } */
++/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops -fno-trapping-math" } */
+ 
+ /* { dg-additional-options "--param=vect-partial-vector-usage=1" } */
+ 
+diff --git a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-4.c b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-4.c
+index ad051fb1cef..9fbee6a4324 100644
+--- a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-4.c
++++ b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-4.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target { lp64 && powerpc_p9vector_ok } } } */
+-/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops" } */
++/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops -fno-trapping-math" } */
+ 
+ /* { dg-additional-options "--param=vect-partial-vector-usage=1" } */
+ 
+diff --git a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-5.c b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-5.c
+index a24c30feeba..d023a998c3b 100644
+--- a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-5.c
++++ b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-5.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target { lp64 && powerpc_p9vector_ok } } } */
+-/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops" } */
++/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops -fno-trapping-math" } */
+ 
+ /* { dg-additional-options "--param=vect-partial-vector-usage=1" } */
+ 
+diff --git a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-6.c b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-6.c
+index 4eaeb3b005f..dbce90757e3 100644
+--- a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-6.c
++++ b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-6.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target { lp64 && powerpc_p9vector_ok } } } */
+-/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops" } */
++/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops -fno-trapping-math" } */
+ 
+ /* { dg-additional-options "--param=vect-partial-vector-usage=1" } */
+ 
+diff --git a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-8.c b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-8.c
+index 961df0d5646..b7b01fc14d8 100644
+--- a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-8.c
++++ b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-8.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target { lp64 && powerpc_p9vector_ok } } } */
+-/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops" } */
++/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops -fno-trapping-math" } */
+ 
+ /* { dg-additional-options "--param=vect-partial-vector-usage=1" } */
+ 
+diff --git a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-1.c b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-1.c
+index 3336752edbb..f01f1c54fa5 100644
+--- a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-1.c
++++ b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-1.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target { lp64 && powerpc_p9vector_ok } } } */
+-/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops" } */
++/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops -fno-trapping-math" } */
+ 
+ /* { dg-additional-options "--param=vect-partial-vector-usage=2" } */
+ 
+diff --git a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-2.c b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-2.c
+index 98abf8b33b1..f546e97fa7d 100644
+--- a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-2.c
++++ b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-2.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target { lp64 && powerpc_p9vector_ok } } } */
+-/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops" } */
++/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops -fno-trapping-math" } */
+ 
+ /* { dg-additional-options "--param=vect-partial-vector-usage=2" } */
+ 
+diff --git a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-3.c b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-3.c
+index 0881d1a960a..65142b3fecd 100644
+--- a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-3.c
++++ b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-3.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target { lp64 && powerpc_p9vector_ok } } } */
+-/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops" } */
++/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops -fno-trapping-math" } */
+ 
+ /* { dg-additional-options "--param=vect-partial-vector-usage=2" } */
+ 
+diff --git a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-4.c b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-4.c
+index 8ce3dc19a60..a4cc7aafaeb 100644
+--- a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-4.c
++++ b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-4.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target { lp64 && powerpc_p9vector_ok } } } */
+-/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops" } */
++/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops -fno-trapping-math" } */
+ 
+ /* { dg-additional-options "--param=vect-partial-vector-usage=2" } */
+ 
+diff --git a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-5.c b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-5.c
+index f9f58ba11f5..4b0b9070c84 100644
+--- a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-5.c
++++ b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-5.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target { lp64 && powerpc_p9vector_ok } } } */
+-/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops" } */
++/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops -fno-trapping-math" } */
+ 
+ /* { dg-additional-options "--param=vect-partial-vector-usage=2" } */
+ 
+diff --git a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-6.c b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-6.c
+index 5d2357aabfa..65ddf2b098a 100644
+--- a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-6.c
++++ b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-6.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target { lp64 && powerpc_p9vector_ok } } } */
+-/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops" } */
++/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops -fno-trapping-math" } */
+ 
+ /* { dg-additional-options "--param=vect-partial-vector-usage=2" } */
+ 
+diff --git a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-8.c b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-8.c
+index 1fc2af1e753..7fe0dd00431 100644
+--- a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-8.c
++++ b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-full-8.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target { lp64 && powerpc_p9vector_ok } } } */
+-/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops" } */
++/* { dg-options "-mdejagnu-cpu=power9 -O2 -ftree-vectorize -fno-vect-cost-model -fno-unroll-loops -fno-trapping-math" } */
+ 
+ /* { dg-additional-options "--param=vect-partial-vector-usage=2" } */
+ 
 diff --git a/gcc/testsuite/gcc.target/powerpc/pr102059-4.c b/gcc/testsuite/gcc.target/powerpc/pr102059-4.c
 new file mode 100644
 index 00000000000..4a0ad3daf73
@@ -22515,6 +22672,43 @@ index 00000000000..10341c91d2f
 +      goto wa;
 +  }
 +wa:;
++}
+diff --git a/gcc/testsuite/gcc.target/powerpc/pr96373.c b/gcc/testsuite/gcc.target/powerpc/pr96373.c
+new file mode 100644
+index 00000000000..f0471b6f68b
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/powerpc/pr96373.c
+@@ -0,0 +1,31 @@
++/* { dg-do run { target { powerpc*-*-linux* } } } */
++/* { dg-options "-O2 -ftree-vectorize" } */
++
++/* Verify it can run successfully, especially on Power10 and later.   */
++
++#define _GNU_SOURCE
++#include <fenv.h>
++
++__attribute__ ((noipa)) void
++div (double *d, double *s, int n)
++{
++  for (; n; n--, d++, s++)
++    *d = *d / *s;
++}
++
++int main()
++{
++  double d[] = {1,2,3,4,5,6,7,8,9,10,11};
++  double s[] = {11,10,9,8,7,6,5,4,3,2,1};
++
++  feenableexcept(FE_DIVBYZERO|FE_INVALID);
++  div(d, s, 11);
++
++  int i;
++  for (i = 0; i < 11; i++)
++    __builtin_printf(" %f", d[i]);
++
++  __builtin_printf("\n");
++
++  return 0;
 +}
 diff --git a/gcc/testsuite/gcc.target/powerpc/test_mffsl.c b/gcc/testsuite/gcc.target/powerpc/test_mffsl.c
 index 41377efba1a..045d0bfa349 100644
