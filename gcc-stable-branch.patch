@@ -45,7 +45,10 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (309):
+GCC Administrator (312):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -399,7 +402,7 @@ Harald Anlauf (28):
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
 
-Iain Buclaw (10):
+Iain Buclaw (11):
       libphobos: Don't call free on the TLS array in the emutls destroy function.
       libphobos: Give _Unwind_Exception an alignment that best resembles __attribute__((aligned))
       darwin, d: Support outfile substitution for libphobos
@@ -410,6 +413,7 @@ Iain Buclaw (10):
       d: Fix ICE on named continue label in an unrolled loop [PR107592]
       d: Fix internal compiler error: in visit, at d/imports.cc:72 (PR108050)
       libphobos: Backport library and bindings fixes from mainline
+      d: Fix ICE on explicit immutable struct import [PR108877]
 
 Ian Lance Taylor (1):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
@@ -11570,10 +11574,37 @@ index 095f7ecca41..0976aebd7d4 100644
  List all non-mutable fields which occupy an object instance.
  @item nogc
 diff --git a/gcc/d/imports.cc b/gcc/d/imports.cc
-index 2288843c61a..399c3ee3d25 100644
+index 2288843c61a..289bd5e6c49 100644
 --- a/gcc/d/imports.cc
 +++ b/gcc/d/imports.cc
-@@ -157,6 +157,20 @@ public:
+@@ -97,12 +97,17 @@ public:
+     tree type = build_ctype (d->type);
+     /* Not all kinds of D enums create a TYPE_DECL.  */
+     if (TREE_CODE (type) == ENUMERAL_TYPE)
+-      d->isym = this->make_import (TYPE_STUB_DECL (type));
++      {
++	type = TYPE_MAIN_VARIANT (type);
++	d->isym = this->make_import (TYPE_STUB_DECL (type));
++      }
++
+   }
+ 
+   void visit (AggregateDeclaration *d)
+   {
+     tree type = build_ctype (d->type);
++    type = TYPE_MAIN_VARIANT (type);
+     d->isym = this->make_import (TYPE_STUB_DECL (type));
+   }
+ 
+@@ -110,6 +115,7 @@ public:
+   {
+     /* Want the RECORD_TYPE, not POINTER_TYPE.  */
+     tree type = TREE_TYPE (build_ctype (d->type));
++    type = TYPE_MAIN_VARIANT (type);
+     d->isym = this->make_import (TYPE_STUB_DECL (type));
+   }
+ 
+@@ -157,6 +163,20 @@ public:
        }
    }
  
@@ -22963,6 +22994,18 @@ index 00000000000..b8b03b832af
 @@ -0,0 +1,2 @@
 +module imports.pr108050;
 +public import imports.pr108050.mod1, imports.pr108050.mod2;
+diff --git a/gcc/testsuite/gdc.dg/imports/pr108877a.d b/gcc/testsuite/gdc.dg/imports/pr108877a.d
+new file mode 100644
+index 00000000000..a23c78ddf84
+--- /dev/null
++++ b/gcc/testsuite/gdc.dg/imports/pr108877a.d
+@@ -0,0 +1,6 @@
++immutable struct ImmutableS { }
++const struct ConstS { }
++immutable class ImmutableC { }
++const class ConstC { }
++immutable enum ImmutableE { _ }
++const enum ConstE { _ }
 diff --git a/gcc/testsuite/gdc.dg/pr106139a.d b/gcc/testsuite/gdc.dg/pr106139a.d
 new file mode 100644
 index 00000000000..f635eabc745
@@ -23142,6 +23185,21 @@ index 00000000000..69134e73137
 +// { dg-additional-sources "imports/pr108050/package.d imports/pr108050/mod1.d imports/pr108050/mod2.d" }
 +// { dg-options "-g" }
 +import imports.pr108050 : split;
+diff --git a/gcc/testsuite/gdc.dg/pr108877.d b/gcc/testsuite/gdc.dg/pr108877.d
+new file mode 100644
+index 00000000000..710551f3f9a
+--- /dev/null
++++ b/gcc/testsuite/gdc.dg/pr108877.d
+@@ -0,0 +1,9 @@
++// { dg-options "-I $srcdir/gdc.dg" }
++// { dg-do compile }
++import imports.pr108877a :
++    ImmutableS,
++    ConstS,
++    ImmutableC,
++    ConstC,
++    ImmutableE,
++    ConstE;
 diff --git a/gcc/testsuite/gdc.test/fail_compilation/ice20264.d b/gcc/testsuite/gdc.test/fail_compilation/ice20264.d
 new file mode 100644
 index 00000000000..0d697e22c9f
