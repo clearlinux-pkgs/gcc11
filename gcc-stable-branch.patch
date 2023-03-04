@@ -45,7 +45,8 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (312):
+GCC Administrator (313):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -756,8 +757,9 @@ Simon Cook (1):
 Stam Markianos-Wright (1):
       Fix memory constraint on MVE v[ld/st][2/4] instructions [PR107714]
 
-Stefan Schulze Frielinghaus (1):
+Stefan Schulze Frielinghaus (2):
       IBM zSystems: Fix function_ok_for_sibcall [PR106355]
+      s390: libatomic: Fix 16 byte atomic {cas,load,store}
 
 Steve Kargl (2):
       Fortran: do not generate conflicting results under -ff2c [PR104313]
@@ -11294,10 +11296,21 @@ index af112fd0985..14478eec238 100644
  extern rtx cselib_expand_value_rtx (rtx, bitmap, int);
  typedef rtx (*cselib_expand_callback)(rtx, bitmap, int, void *);
 diff --git a/gcc/d/ChangeLog b/gcc/d/ChangeLog
-index 6021ffdbf78..791007eeaa5 100644
+index 6021ffdbf78..83f399e72ad 100644
 --- a/gcc/d/ChangeLog
 +++ b/gcc/d/ChangeLog
-@@ -1,3 +1,66 @@
+@@ -1,3 +1,77 @@
++2023-03-03  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2023-03-03  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	PR d/108877
++	* imports.cc (ImportVisitor::visit (EnumDeclaration *)): Call
++	make_import on TYPE_MAIN_VARIANT.
++	(ImportVisitor::visit (AggregateDeclaration *)): Likewise.
++	(ImportVisitor::visit (ClassDeclaration *)): Likewise.
++
 +2022-12-11  Iain Buclaw  <ibuclaw@gdcproject.org>
 +
 +	Backported from master:
@@ -14539,10 +14552,19 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..50e887aa7d9 100644
+index 5fc23605244..19e473dee59 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1523 @@
+@@ -1,3 +1,1532 @@
++2023-03-03  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2023-03-03  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	PR d/108877
++	* gdc.dg/imports/pr108877a.d: New test.
++	* gdc.dg/pr108877.d: New test.
++
 +2023-02-27  Kewen Lin  <linkw@linux.ibm.com>
 +
 +	Backported from master:
@@ -25817,10 +25839,19 @@ index 906f4ea9dfc..c90fd99acbc 100644
  
  } // namespace selftest
 diff --git a/libatomic/ChangeLog b/libatomic/ChangeLog
-index ae629bf4079..22d4396db06 100644
+index ae629bf4079..927b378ab47 100644
 --- a/libatomic/ChangeLog
 +++ b/libatomic/ChangeLog
-@@ -1,3 +1,12 @@
+@@ -1,3 +1,21 @@
++2023-03-03  Stefan Schulze Frielinghaus  <stefansf@linux.ibm.com>
++
++	Backported from master:
++	2023-03-03  Stefan Schulze Frielinghaus  <stefansf@linux.ibm.com>
++
++	* config/s390/cas_n.c: New file.
++	* config/s390/load_n.c: New file.
++	* config/s390/store_n.c: New file.
++
 +2022-11-21  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -25833,6 +25864,200 @@ index ae629bf4079..22d4396db06 100644
  2022-04-21  Release Manager
  
  	* GCC 11.3.0 released.
+diff --git a/libatomic/config/s390/cas_n.c b/libatomic/config/s390/cas_n.c
+new file mode 100644
+index 00000000000..44b7152ca5d
+--- /dev/null
++++ b/libatomic/config/s390/cas_n.c
+@@ -0,0 +1,65 @@
++/* Copyright (C) 2018-2023 Free Software Foundation, Inc.
++
++   This file is part of the GNU Atomic Library (libatomic).
++
++   Libatomic is free software; you can redistribute it and/or modify it
++   under the terms of the GNU General Public License as published by
++   the Free Software Foundation; either version 3 of the License, or
++   (at your option) any later version.
++
++   Libatomic is distributed in the hope that it will be useful, but WITHOUT ANY
++   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
++   FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
++   more details.
++
++   Under Section 7 of GPL version 3, you are granted additional
++   permissions described in the GCC Runtime Library Exception, version
++   3.1, as published by the Free Software Foundation.
++
++   You should have received a copy of the GNU General Public License and
++   a copy of the GCC Runtime Library Exception along with this program;
++   see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#include <libatomic_i.h>
++
++
++/* Analog to config/s390/exch_n.c.  */
++
++#if !DONE && N == 16
++bool
++SIZE(libat_compare_exchange) (UTYPE *mptr, UTYPE *eptr, UTYPE newval,
++			      int smodel, int fmodel UNUSED)
++{
++  if (!((uintptr_t)mptr & 0xf))
++    {
++      return __atomic_compare_exchange_n (
++	(UTYPE *)__builtin_assume_aligned (mptr, 16), eptr, newval, false,
++	__ATOMIC_SEQ_CST, __ATOMIC_RELAXED);
++    }
++  else
++    {
++      UTYPE oldval;
++      UWORD magic;
++      bool ret;
++
++      pre_seq_barrier (smodel);
++      magic = protect_start (mptr);
++
++      oldval = *mptr;
++      ret = (oldval == *eptr);
++      if (ret)
++	*mptr = newval;
++      else
++	*eptr = oldval;
++
++      protect_end (mptr, magic);
++      post_seq_barrier (smodel);
++
++      return ret;
++    }
++}
++#define DONE 1
++#endif /* N == 16 */
++
++#include "../../cas_n.c"
+diff --git a/libatomic/config/s390/load_n.c b/libatomic/config/s390/load_n.c
+new file mode 100644
+index 00000000000..335d2f8b2c3
+--- /dev/null
++++ b/libatomic/config/s390/load_n.c
+@@ -0,0 +1,57 @@
++/* Copyright (C) 2018-2023 Free Software Foundation, Inc.
++
++   This file is part of the GNU Atomic Library (libatomic).
++
++   Libatomic is free software; you can redistribute it and/or modify it
++   under the terms of the GNU General Public License as published by
++   the Free Software Foundation; either version 3 of the License, or
++   (at your option) any later version.
++
++   Libatomic is distributed in the hope that it will be useful, but WITHOUT ANY
++   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
++   FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
++   more details.
++
++   Under Section 7 of GPL version 3, you are granted additional
++   permissions described in the GCC Runtime Library Exception, version
++   3.1, as published by the Free Software Foundation.
++
++   You should have received a copy of the GNU General Public License and
++   a copy of the GCC Runtime Library Exception along with this program;
++   see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#include <libatomic_i.h>
++
++
++/* Analog to config/s390/exch_n.c.  */
++
++#if !DONE && N == 16
++UTYPE
++SIZE(libat_load) (UTYPE *mptr, int smodel)
++{
++  if (!((uintptr_t)mptr & 0xf))
++    {
++      return __atomic_load_n ((UTYPE *)__builtin_assume_aligned (mptr, 16),
++			      __ATOMIC_SEQ_CST);
++    }
++  else
++    {
++      UTYPE ret;
++      UWORD magic;
++
++      pre_seq_barrier (smodel);
++      magic = protect_start (mptr);
++
++      ret = *mptr;
++
++      protect_end (mptr, magic);
++      post_seq_barrier (smodel);
++
++      return ret;
++    }
++}
++#define DONE 1
++#endif /* N == 16 */
++
++#include "../../load_n.c"
+diff --git a/libatomic/config/s390/store_n.c b/libatomic/config/s390/store_n.c
+new file mode 100644
+index 00000000000..9e5b2b8213d
+--- /dev/null
++++ b/libatomic/config/s390/store_n.c
+@@ -0,0 +1,54 @@
++/* Copyright (C) 2018-2023 Free Software Foundation, Inc.
++
++   This file is part of the GNU Atomic Library (libatomic).
++
++   Libatomic is free software; you can redistribute it and/or modify it
++   under the terms of the GNU General Public License as published by
++   the Free Software Foundation; either version 3 of the License, or
++   (at your option) any later version.
++
++   Libatomic is distributed in the hope that it will be useful, but WITHOUT ANY
++   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
++   FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
++   more details.
++
++   Under Section 7 of GPL version 3, you are granted additional
++   permissions described in the GCC Runtime Library Exception, version
++   3.1, as published by the Free Software Foundation.
++
++   You should have received a copy of the GNU General Public License and
++   a copy of the GCC Runtime Library Exception along with this program;
++   see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#include <libatomic_i.h>
++
++
++/* Analog to config/s390/exch_n.c.  */
++
++#if !DONE && N == 16
++void
++SIZE(libat_store) (UTYPE *mptr, UTYPE newval, int smodel)
++{
++  if (!((uintptr_t)mptr & 0xf))
++    {
++      __atomic_store_n ((UTYPE *)__builtin_assume_aligned (mptr, 16), newval,
++			__ATOMIC_SEQ_CST);
++    }
++  else
++    {
++      UWORD magic;
++
++      pre_seq_barrier (smodel);
++      magic = protect_start (mptr);
++
++      *mptr = newval;
++
++      protect_end (mptr, magic);
++      post_seq_barrier (smodel);
++    }
++}
++#define DONE 1
++#endif /* N == 16 */
++
++#include "../../store_n.c"
 diff --git a/libatomic/config/x86/init.c b/libatomic/config/x86/init.c
 index 36e231c68cc..c9b474bda79 100644
 --- a/libatomic/config/x86/init.c
