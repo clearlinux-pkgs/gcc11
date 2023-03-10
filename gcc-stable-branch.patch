@@ -45,7 +45,11 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (315):
+GCC Administrator (319):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -783,12 +787,14 @@ Thomas Schwinge (2):
       nvptx: Define (dummy) 'TARGET_PTX_6_0'
       nvptx: In 'STARTFILE_SPEC', fix 'crt0.o' for '-mmainkernel'
 
-Thomas W Rodgers (2):
+Thomas W Rodgers (3):
       libstdc++: Make atomic notify_one and notify_all non-const
       libstdc++: Add missing free functions for atomic_flag [PR103934]
+      libstdc++: Add missing free functions for atomic_flag [PR103934]
 
-Tobias Burnus (1):
+Tobias Burnus (2):
       OpenMP: Fix folding with simd's linear clause [PR106492]
+      OpenMP/Fortran: Fix handling of optional is_device_ptr + bind(C) [PR108546]
 
 Tom de Vries (2):
       [nvptx] Add bar.warp.sync
@@ -816,10 +822,20 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..4722a25fb02 100644
+index a0587d18824..4a7b57ad0ab 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,1315 @@
+@@ -1,3 +1,1325 @@
++2023-03-09  Tobias Burnus  <tobias@codesourcery.com>
++
++	Backported from master:
++	2023-03-01  Tobias Burnus  <tobias@codesourcery.com>
++
++	PR middle-end/108546
++	* omp-low.c (lower_omp_target): Remove optional handling
++	on the receiver side, i.e. inside target (data), for
++	use_device_ptr.
++
 +2023-02-24  Sebastian Huber  <sebastian.huber@embedded-brains.de>
 +
 +	Backported from master:
@@ -11919,10 +11935,19 @@ index 70c5b3886ef..5b4053df520 100644
  
        if ((tem = fold_truth_andor (loc, code, type, arg0, arg1, op0, op1))
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..1c5700f2c8f 100644
+index ee1c7bb4b31..79fcc0fc64d 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,423 @@
+@@ -1,3 +1,432 @@
++2023-03-09  Tobias Burnus  <tobias@codesourcery.com>
++
++	Backported from master:
++	2023-03-01  Tobias Burnus  <tobias@codesourcery.com>
++
++	PR middle-end/108546
++	* trans-openmp.c (gfc_trans_omp_clauses): Fix mapping of
++	type(C_ptr) variables.
++
 +2023-03-05  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -13469,6 +13494,21 @@ index 313440d7022..05dc2c7c9a6 100644
    mask = fold_build1_loc (input_location, BIT_NOT_EXPR, type, mask);
  
    tmp = fold_build2_loc (input_location, RSHIFT_EXPR, type, args[0], args[1]);
+diff --git a/gcc/fortran/trans-openmp.c b/gcc/fortran/trans-openmp.c
+index 973d916b4a2..b24059a4eb3 100644
+--- a/gcc/fortran/trans-openmp.c
++++ b/gcc/fortran/trans-openmp.c
+@@ -2747,7 +2747,9 @@ gfc_trans_omp_clauses (stmtblock_t *block, gfc_omp_clauses *clauses,
+ 			       || GFC_DECL_CRAY_POINTEE (decl)
+ 			       || GFC_DESCRIPTOR_TYPE_P
+ 					     (TREE_TYPE (TREE_TYPE (decl)))
+-			       || n->sym->ts.type == BT_DERIVED))
++			       || (n->sym->ts.type == BT_DERIVED
++				   && (n->sym->ts.u.derived->ts.f90_type
++				       != BT_VOID))))
+ 		    {
+ 		      tree orig_decl = decl;
+ 
 diff --git a/gcc/fortran/trans-types.c b/gcc/fortran/trans-types.c
 index d6520eee5c0..96b8b512749 100644
 --- a/gcc/fortran/trans-types.c
@@ -14083,7 +14123,7 @@ index dc797f95154..c151ce63e8a 100644
        cur_region = new_omp_region (bb, code, cur_region);
        fallthru = true;
 diff --git a/gcc/omp-low.c b/gcc/omp-low.c
-index 962cf886710..91330a92b30 100644
+index 962cf886710..8d76127934b 100644
 --- a/gcc/omp-low.c
 +++ b/gcc/omp-low.c
 @@ -5903,10 +5903,10 @@ lower_rec_input_clauses (tree clauses, gimple_seq *ilist, gimple_seq *dlist,
@@ -14108,6 +14148,16 @@ index 962cf886710..91330a92b30 100644
    gimple_bind_add_seq (bind, dseq);
  
    pop_gimplify_context (bind);
+@@ -12911,7 +12910,8 @@ lower_omp_target (gimple_stmt_iterator *gsi_p, omp_context *ctx)
+ 				     gimple_build_assign (new_var, x));
+ 	      }
+ 	    tree present;
+-	    present = (do_optional_check
++	    present = ((do_optional_check
++			&& OMP_CLAUSE_CODE (c) != OMP_CLAUSE_IS_DEVICE_PTR)
+ 		       ? omp_check_optional_argument (OMP_CLAUSE_DECL (c), true)
+ 		       : NULL_TREE);
+ 	    if (present)
 diff --git a/gcc/opts-common.c b/gcc/opts-common.c
 index 5e10edeb4cf..e41d21d8ddc 100644
 --- a/gcc/opts-common.c
@@ -26636,10 +26686,19 @@ index 8ce061e2f5f..336a5983750 100644
  #include <linux/reboot.h>
  #endif
 diff --git a/libgomp/ChangeLog b/libgomp/ChangeLog
-index 0fa2757d939..9f557f42b6f 100644
+index 0fa2757d939..057568e6e36 100644
 --- a/libgomp/ChangeLog
 +++ b/libgomp/ChangeLog
-@@ -1,3 +1,33 @@
+@@ -1,3 +1,42 @@
++2023-03-09  Tobias Burnus  <tobias@codesourcery.com>
++
++	Backported from master:
++	2023-03-01  Tobias Burnus  <tobias@codesourcery.com>
++
++	PR middle-end/108546
++	* testsuite/libgomp.fortran/is_device_ptr-3.f90: New test.
++	* testsuite/libgomp.fortran/use_device_ptr-optional-4.f90: New test.
++
 +2022-11-04  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -26908,6 +26967,118 @@ index 00000000000..f03aef6a030
 +  }
 +  return 0;
 +}
+diff --git a/libgomp/testsuite/libgomp.fortran/is_device_ptr-3.f90 b/libgomp/testsuite/libgomp.fortran/is_device_ptr-3.f90
+new file mode 100644
+index 00000000000..18d0d38f718
+--- /dev/null
++++ b/libgomp/testsuite/libgomp.fortran/is_device_ptr-3.f90
+@@ -0,0 +1,47 @@
++module m
++   use iso_c_binding
++   implicit none
++contains
++   subroutine s(x,y,z)
++      type(c_ptr), optional :: x
++      integer, pointer, optional :: y
++      integer, allocatable, optional :: z
++      logical is_present, is_null
++      is_present = present(x)
++      if (is_present) &
++        is_null = .not. c_associated(x)
++
++      !$omp target is_device_ptr(x)
++        if (is_present) then
++          if (is_null) then
++            if (c_associated(x)) stop 1
++!            if (associated(y)) stop 2
++!            if (allocated(z)) stop 3
++          else
++            if (.not. c_associated(x)) stop 4
++!            if (.not. c_associated(x, c_loc(y))) stop 4
++!            if (y /= 7) stop 5
++!            if (z /= 9) stop 6
++          end if
++        end if
++      !$omp end target
++   end
++end
++
++use m
++implicit none
++integer, pointer :: p
++integer, allocatable :: a
++p => null()
++call s()
++!$omp target data map(p,a) use_device_addr(p,a)
++  call s(c_null_ptr, p, a)
++!$omp end target data
++allocate(p,a)
++p = 7
++a = 9
++!$omp target data map(p,a) use_device_addr(p,a)
++  call s(c_loc(p), p, a)
++!$omp end target data
++deallocate(p,a)
++end
+diff --git a/libgomp/testsuite/libgomp.fortran/use_device_ptr-optional-4.f90 b/libgomp/testsuite/libgomp.fortran/use_device_ptr-optional-4.f90
+new file mode 100644
+index 00000000000..b2a5c314685
+--- /dev/null
++++ b/libgomp/testsuite/libgomp.fortran/use_device_ptr-optional-4.f90
+@@ -0,0 +1,53 @@
++! PR middle-end/108546
++!
++module m
++   use iso_c_binding
++   implicit none
++   type(c_ptr) :: p2, p3
++contains
++   subroutine s(x,y,z)
++      type(c_ptr), optional :: x
++      integer, pointer, optional :: y
++      integer, allocatable, optional, target :: z
++      logical is_present, is_null
++      is_present = present(x)
++      if (is_present) &
++        is_null = .not. c_associated(x)
++
++      !$omp target data use_device_ptr(x) use_device_addr(y) use_device_addr(z)
++        if (is_present) then
++          if (is_null) then
++            if (c_associated(x)) stop 1
++            if (associated(y)) stop 2
++            if (allocated(z)) stop 3
++          else
++            if (.not. c_associated(x, p2)) stop 4
++            if (.not. c_associated(c_loc(y), p2)) stop 5
++            if (.not. c_associated(c_loc(z), p3)) stop 6
++          end if
++        end if
++      !$omp end target data
++   end
++end
++
++use m
++implicit none
++type(c_ptr) :: cp
++integer, pointer :: p
++integer, allocatable, target :: a
++call s()
++p => null()
++call s(c_null_ptr, p, a)
++allocate(p,a)
++p = 7
++a = 9
++cp = c_loc(p)
++!$omp target enter data map(to: cp, p, a)
++!$omp target map(from: p2, p3)
++  p2 = c_loc(p)
++  p3 = c_loc(a)
++!$omp end target
++call s(cp, p, a)
++!$omp target exit data map(delete: cp, p, a)
++deallocate(p,a)
++end
 diff --git a/libiberty/ChangeLog b/libiberty/ChangeLog
 index e150febed85..414adc576ae 100644
 --- a/libiberty/ChangeLog
@@ -31864,7 +32035,7 @@ index 6ce070ae775..07eb137fb80 100644
        return *this;
      }
 diff --git a/libstdc++-v3/include/std/atomic b/libstdc++-v3/include/std/atomic
-index fdffacc35df..43f5d7a52cf 100644
+index fdffacc35df..2e2be30c6b2 100644
 --- a/libstdc++-v3/include/std/atomic
 +++ b/libstdc++-v3/include/std/atomic
 @@ -172,11 +172,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
@@ -31917,7 +32088,16 @@ index fdffacc35df..43f5d7a52cf 100644
  	return __atomic_compare_exchange(std::__addressof(_M_i),
  					 std::__addressof(__e),
  					 std::__addressof(__i),
-@@ -391,11 +399,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+@@ -380,7 +388,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       { return compare_exchange_strong(__e, __i, __m,
+                                        __cmpexch_failure_order(__m)); }
+ 
+-#if __cpp_lib_atomic_wait 
++#if __cpp_lib_atomic_wait
+     void
+     wait(_Tp __old, memory_order __m = memory_order_seq_cst) const noexcept
+     {
+@@ -391,13 +399,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
      // TODO add const volatile overload
  
      void
@@ -31929,8 +32109,11 @@ index fdffacc35df..43f5d7a52cf 100644
 -    notify_all() const noexcept
 +    notify_all() noexcept
      { std::__atomic_notify_address(&_M_i, true); }
- #endif // __cpp_lib_atomic_wait 
+-#endif // __cpp_lib_atomic_wait 
++#endif // __cpp_lib_atomic_wait
  
+     };
+ #undef _GLIBCXX20_INIT
 @@ -645,11 +653,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
      // TODO add const volatile overload
  
@@ -31972,11 +32155,30 @@ index fdffacc35df..43f5d7a52cf 100644
    inline void
    atomic_flag_clear_explicit(atomic_flag* __a, memory_order __m) noexcept
    { __a->clear(__m); }
-@@ -1228,9 +1256,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+@@ -1228,9 +1256,30 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    atomic_flag_clear(volatile atomic_flag* __a) noexcept
    { atomic_flag_clear_explicit(__a, memory_order_seq_cst); }
  
--
++#if __cpp_lib_atomic_wait
++  inline void
++  atomic_flag_wait(atomic_flag* __a, bool __old) noexcept
++  { __a->wait(__old); }
++
++  inline void
++  atomic_flag_wait_explicit(atomic_flag* __a, bool __old,
++                                memory_order __m) noexcept
++  { __a->wait(__old, __m); }
++
++  inline void
++  atomic_flag_notify_one(atomic_flag* __a) noexcept
++  { __a->notify_one(); }
++
++  inline void
++  atomic_flag_notify_all(atomic_flag* __a) noexcept
++  { __a->notify_all(); }
++#endif // __cpp_lib_atomic_wait
+ 
++  /// @cond undocumented
 +  // _GLIBCXX_RESOLVE_LIB_DEFECTS
 +  // 3220. P0558 broke conforming C++14 uses of atomic shared_ptr
    template<typename _Tp>
@@ -31985,7 +32187,7 @@ index fdffacc35df..43f5d7a52cf 100644
    template<typename _Tp>
      using __atomic_diff_t = typename atomic<_Tp>::difference_type;
  
-@@ -1421,12 +1450,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+@@ -1421,12 +1470,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
  
    template<typename _Tp>
      inline void
@@ -35271,6 +35473,49 @@ index 5e592c4b4a1..aaab0e374ec 100644
 +  test02();
 +  return 0;
 +}
+diff --git a/libstdc++-v3/testsuite/29_atomics/atomic_flag/wait_notify/1.cc b/libstdc++-v3/testsuite/29_atomics/atomic_flag/wait_notify/1.cc
+index 9872a56a20e..70b5b50b9cd 100644
+--- a/libstdc++-v3/testsuite/29_atomics/atomic_flag/wait_notify/1.cc
++++ b/libstdc++-v3/testsuite/29_atomics/atomic_flag/wait_notify/1.cc
+@@ -26,8 +26,8 @@
+ 
+ #include <testsuite_hooks.h>
+ 
+-int
+-main()
++void
++test01()
+ {
+   std::atomic_flag a;
+   VERIFY( !a.test() );
+@@ -39,5 +39,27 @@ main()
+     });
+   a.wait(false);
+   t.join();
++}
++
++void
++test02()
++{
++  std::atomic_flag a;
++  VERIFY( !std::atomic_flag_test(&a) );
++  std::atomic_flag_wait(&a, true);
++  std::thread t([&]
++    {
++      std::atomic_flag_test_and_set(&a);
++      std::atomic_flag_notify_one(&a);
++    });
++    std::atomic_flag_wait(&a, false);
++    t.join();
++}
++
++int
++main()
++{
++  test01();
++  test02();
+   return 0;
+ }
 diff --git a/libstdc++-v3/testsuite/30_threads/async/106695.cc b/libstdc++-v3/testsuite/30_threads/async/106695.cc
 new file mode 100644
 index 00000000000..74996342dc7
