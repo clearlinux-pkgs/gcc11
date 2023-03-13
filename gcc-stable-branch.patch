@@ -45,7 +45,10 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (319):
+GCC Administrator (322):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -27534,10 +27537,23 @@ index 025e575b5bc..5743516c046 100644
    unsigned IOCTL_GIO_FONT = GIO_FONT;
    unsigned IOCTL_GIO_UNIMAP = GIO_UNIMAP;
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..ff6322ab1c9 100644
+index 85e04c45288..ad02e89f20c 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,1037 @@
+@@ -1,3 +1,1050 @@
++2023-03-10  Thomas W Rodgers  <rodgert@twrodgers.com>
++
++	Backported from master:
++	2023-02-14  Thomas W Rodgers  <rodgert@twrodgers.com>
++
++	PR libstdc++/103934
++	* include/std/atomic (atomic_flag_wait): Add.
++	(atomic_flag_wait_explicit): Add.
++	(atomic_flag_notify): Add.
++	(atomic_flag_notify_explicit): Add.
++	* testsuite/29_atomics/atomic_flag/wait_notify/1.cc:
++	Add test case to cover missing atomic_flag free functions.
++
 +2023-02-23  Matthias Kretz  <m.kretz@gsi.de>
 +
 +	Backported from master:
