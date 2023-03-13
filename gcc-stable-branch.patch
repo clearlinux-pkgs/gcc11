@@ -13,6 +13,9 @@ Andre Vieira (1):
 Andreas Krebbel (1):
       IBM zSystems/testsuite: PR105147: Skip pr105140.c
 
+Arsen Arsenović (1):
+      c++: top level bind when rewriting coroutines [PR106188]
+
 Christophe Lyon (1):
       aarch64: fix warning emission for ABI break since GCC 9.1
 
@@ -415,7 +418,7 @@ Harald Anlauf (31):
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
 
-Iain Buclaw (11):
+Iain Buclaw (13):
       libphobos: Don't call free on the TLS array in the emutls destroy function.
       libphobos: Give _Unwind_Exception an alignment that best resembles __attribute__((aligned))
       darwin, d: Support outfile substitution for libphobos
@@ -427,6 +430,8 @@ Iain Buclaw (11):
       d: Fix internal compiler error: in visit, at d/imports.cc:72 (PR108050)
       libphobos: Backport library and bindings fixes from mainline
       d: Fix ICE on explicit immutable struct import [PR108877]
+      d: Refactor DECL_ARGUMENT and DECL_RESULT generation to own function
+      d: Delay removing DECL_EXTERNAL from thunks until funcion has finished
 
 Ian Lance Taylor (1):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
@@ -10557,6 +10562,26 @@ index c13c920ade3..8bd41166dd9 100644
    tree target = NULL_TREE;
    return potential_constant_expression_1 (t, want_rval, strict, now,
  					  flags, &target);
+diff --git a/gcc/cp/coroutines.cc b/gcc/cp/coroutines.cc
+index e982cdb89a7..ea3850082cf 100644
+--- a/gcc/cp/coroutines.cc
++++ b/gcc/cp/coroutines.cc
+@@ -4067,6 +4067,15 @@ coro_rewrite_function_body (location_t fn_start, tree fnbody, tree orig,
+       BLOCK_SUPERCONTEXT (replace_blk) = top_block;
+       BLOCK_SUBBLOCKS (top_block) = replace_blk;
+     }
++  else
++    {
++      /* We are missing a top level BIND_EXPR. We need one to ensure that we
++	 don't shuffle around the coroutine frame and corrupt it.  */
++      tree bind_wrap = build3_loc (fn_start, BIND_EXPR, void_type_node,
++				   NULL, NULL, NULL);
++      BIND_EXPR_BODY (bind_wrap) = fnbody;
++      fnbody = bind_wrap;
++    }
+ 
+   /* Wrap the function body in a try {} catch (...) {} block, if exceptions
+      are enabled.  */
 diff --git a/gcc/cp/cp-tree.h b/gcc/cp/cp-tree.h
 index a2d8c1c77b3..fded2527e5e 100644
 --- a/gcc/cp/cp-tree.h
@@ -11521,10 +11546,118 @@ index b12d28f1047..1304126a675 100644
        if (saw_libcxx)
  	new_decoded_options[j++] = *saw_libcxx;
 diff --git a/gcc/d/decl.cc b/gcc/d/decl.cc
-index a30549ce8e0..fff7a7c2a74 100644
+index a30549ce8e0..c77f10fe615 100644
 --- a/gcc/d/decl.cc
 +++ b/gcc/d/decl.cc
-@@ -197,8 +197,16 @@ public:
+@@ -116,6 +116,107 @@ gcc_attribute_p (Dsymbol *decl)
+   return false;
+ }
+ 
++/* Return the DECL_RESULT for the function declaration DECL, create it if it
++   doesn't already exist.  */
++
++static tree
++get_fndecl_result (FuncDeclaration *decl)
++{
++  tree fndecl = get_symbol_decl (decl);
++  tree resdecl = DECL_RESULT (fndecl);
++
++  if (resdecl != NULL_TREE)
++    return resdecl;
++
++  resdecl = build_decl (make_location_t (decl->loc), RESULT_DECL,
++			NULL_TREE, TREE_TYPE (TREE_TYPE (fndecl)));
++
++  DECL_ARTIFICIAL (resdecl) = 1;
++  DECL_IGNORED_P (resdecl) = 1;
++  DECL_CONTEXT (resdecl) = fndecl;
++  DECL_RESULT (fndecl) = resdecl;
++  return resdecl;
++}
++
++/* Return the list of PARAM_DECLs for the function declaration DECL, create it
++   if it doesn't already exist.  */
++
++static tree
++get_fndecl_arguments (FuncDeclaration *decl)
++{
++  tree fndecl = get_symbol_decl (decl);
++  tree param_list = DECL_ARGUMENTS (fndecl);
++
++  if (param_list != NULL_TREE)
++    return param_list;
++
++  if (decl->fbody)
++    {
++      /* Handle special arguments first.  */
++
++      /* `this' parameter:
++	 For nested functions, D still generates a vthis, but it
++	 should not be referenced in any expression.  */
++      if (decl->vthis)
++	{
++	  tree parm_decl = get_symbol_decl (decl->vthis);
++	  DECL_ARTIFICIAL (parm_decl) = 1;
++	  TREE_READONLY (parm_decl) = 1;
++
++	  if (decl->vthis->type == Type::tvoidptr)
++	    {
++	      /* Replace generic pointer with back-end closure type
++		 (this wins for gdb).  */
++	      tree frame_type = FRAMEINFO_TYPE (get_frameinfo (decl));
++	      gcc_assert (frame_type != NULL_TREE);
++	      TREE_TYPE (parm_decl) = build_pointer_type (frame_type);
++	    }
++
++	  param_list = chainon (param_list, parm_decl);
++	}
++
++      /* `_arguments' parameter.  */
++      if (decl->v_arguments)
++	{
++	  tree parm_decl = get_symbol_decl (decl->v_arguments);
++	  param_list = chainon (param_list, parm_decl);
++	}
++
++      /* Now add on formal function parameters.  */
++      size_t n_parameters = decl->parameters ? decl->parameters->length : 0;
++
++      for (size_t i = 0; i < n_parameters; i++)
++	{
++	  VarDeclaration *param = (*decl->parameters)[i];
++	  tree parm_decl = get_symbol_decl (param);
++	  /* Chain them in the correct order.  */
++	  param_list = chainon (param_list, parm_decl);
++	}
++    }
++  else
++    {
++      /* Build parameters from the function type.  */
++      tree fntype = TREE_TYPE (fndecl);
++
++      for (tree t = TYPE_ARG_TYPES (fntype); t; t = TREE_CHAIN (t))
++	{
++	  if (t == void_list_node)
++	    break;
++
++	  tree param = build_decl (DECL_SOURCE_LOCATION (fndecl),
++				   PARM_DECL, NULL_TREE, TREE_VALUE (t));
++	  DECL_ARG_TYPE (param) = TREE_TYPE (param);
++	  DECL_ARTIFICIAL (param) = 1;
++	  DECL_IGNORED_P (param) = 1;
++	  DECL_CONTEXT (param) = fndecl;
++	  param_list = chainon (param_list, param);
++	}
++    }
++
++  DECL_ARGUMENTS (fndecl) = param_list;
++  return param_list;
++}
++
+ /* Implements the visitor interface to lower all Declaration AST classes
+    emitted from the D Front-end to GCC trees.
+    All visit methods accept one parameter D, which holds the frontend AST
+@@ -197,8 +298,16 @@ public:
  	    tree name = (alias != NULL)
  	      ? get_identifier (alias->toChars ()) : NULL_TREE;
  
@@ -11543,6 +11676,200 @@ index a30549ce8e0..fff7a7c2a74 100644
  	  }
        }
      else
+@@ -824,59 +933,17 @@ public:
+     d->semanticRun = PASSobj;
+ 
+     tree old_context = start_function (d);
++    tree param_list = get_fndecl_arguments (d);
+ 
+-    tree parm_decl = NULL_TREE;
+-    tree param_list = NULL_TREE;
+-
+-    /* Special arguments...  */
+-
+-    /* `this' parameter:
+-       For nested functions, D still generates a vthis, but it
+-       should not be referenced in any expression.  */
+-    if (d->vthis)
+-      {
+-	parm_decl = get_symbol_decl (d->vthis);
+-	DECL_ARTIFICIAL (parm_decl) = 1;
+-	TREE_READONLY (parm_decl) = 1;
+-
+-	if (d->vthis->type == Type::tvoidptr)
+-	  {
+-	    /* Replace generic pointer with back-end closure type
+-	       (this wins for gdb).  */
+-	    tree frame_type = FRAMEINFO_TYPE (get_frameinfo (d));
+-	    gcc_assert (frame_type != NULL_TREE);
+-	    TREE_TYPE (parm_decl) = build_pointer_type (frame_type);
+-	  }
+-
+-	param_list = chainon (param_list, parm_decl);
+-	d_function_chain->static_chain = parm_decl;
+-      }
+-
+-    /* _arguments parameter.  */
+-    if (d->v_arguments)
+-      {
+-	parm_decl = get_symbol_decl (d->v_arguments);
+-	param_list = chainon (param_list, parm_decl);
+-      }
+-
+-    /* formal function parameters.  */
+-    size_t n_parameters = d->parameters ? d->parameters->length : 0;
+-
+-    for (size_t i = 0; i < n_parameters; i++)
+-      {
+-	VarDeclaration *param = (*d->parameters)[i];
+-	parm_decl = get_symbol_decl (param);
+-	/* Chain them in the correct order.  */
+-	param_list = chainon (param_list, parm_decl);
+-      }
+-
+-    DECL_ARGUMENTS (fndecl) = param_list;
+     DECL_IN_UNITTEST_CONDITION_P (fndecl) = this->in_version_unittest_;
+     rest_of_decl_compilation (fndecl, 1, 0);
+ 
+     /* If this is a member function that nested (possibly indirectly) in another
+        function, construct an expession for this member function's static chain
+        by going through parent link of nested classes.  */
++    if (d->vthis)
++      d_function_chain->static_chain = get_symbol_decl (d->vthis);
++
+     if (d->isThis ())
+       {
+ 	AggregateDeclaration *ad = d->isThis ();
+@@ -891,7 +958,7 @@ public:
+ 	    ad = pd->isAggregateDeclaration ();
+ 	    if (ad == NULL)
+ 	      {
+-		cfun->language->static_chain = this_tree;
++		d_function_chain->static_chain = this_tree;
+ 		break;
+ 	      }
+ 	  }
+@@ -952,7 +1019,7 @@ public:
+ 	var = build_address (var);
+ 
+ 	tree init = build_call_expr (builtin_decl_explicit (BUILT_IN_VA_START),
+-				     2, var, parm_decl);
++				     2, var, tree_last (param_list));
+ 	declare_local_var (d->v_argptr);
+ 	add_stmt (init);
+ 
+@@ -1640,6 +1707,7 @@ finish_thunk (tree thunk, tree function)
+ 
+   TREE_ADDRESSABLE (function) = 1;
+   TREE_USED (function) = 1;
++  DECL_EXTERNAL (thunk) = 0;
+ 
+   if (flag_syntax_only)
+     {
+@@ -1711,43 +1779,14 @@ make_thunk (FuncDeclaration *decl, int offset)
+ 
+   if (!DECL_ARGUMENTS (function) || !DECL_RESULT (function))
+     {
+-      /* Compile the function body before generating the thunk, this is done
+-	 even if the decl is external to the current module.  */
+-      if (decl->fbody)
+-	build_decl_tree (decl);
+-      else
+-	{
+-	  /* Build parameters for functions that are not being compiled,
+-	     so that they can be correctly cloned in finish_thunk.  */
+-	  tree fntype = TREE_TYPE (function);
+-	  tree params = NULL_TREE;
+-
+-	  for (tree t = TYPE_ARG_TYPES (fntype); t; t = TREE_CHAIN (t))
+-	    {
+-	      if (t == void_list_node)
+-		break;
+-
+-	      tree param = build_decl (DECL_SOURCE_LOCATION (function),
+-				       PARM_DECL, NULL_TREE, TREE_VALUE (t));
+-	      DECL_ARG_TYPE (param) = TREE_TYPE (param);
+-	      DECL_ARTIFICIAL (param) = 1;
+-	      DECL_IGNORED_P (param) = 1;
+-	      DECL_CONTEXT (param) = function;
+-	      params = chainon (params, param);
+-	    }
+-
+-	  DECL_ARGUMENTS (function) = params;
+-
+-	  /* Also build the result decl, which is needed when force creating
+-	     the thunk in gimple inside cgraph_node::expand_thunk.  */
+-	  tree resdecl = build_decl (DECL_SOURCE_LOCATION (function),
+-				     RESULT_DECL, NULL_TREE,
+-				     TREE_TYPE (fntype));
+-	  DECL_ARTIFICIAL (resdecl) = 1;
+-	  DECL_IGNORED_P (resdecl) = 1;
+-	  DECL_CONTEXT (resdecl) = function;
+-	  DECL_RESULT (function) = resdecl;
+-	}
++      /* Build parameters for functions that are not being compiled,
++	 so that they can be correctly cloned in finish_thunk.  */
++      tree function = get_symbol_decl (decl);
++      DECL_ARGUMENTS (function) = get_fndecl_arguments (decl);
++
++      /* Also build the result decl, which is needed when force creating
++	 the thunk in gimple inside cgraph_node::expand_thunk.  */
++      DECL_RESULT (function) = get_fndecl_result (decl);
+     }
+ 
+   /* Don't build the thunk if the compilation step failed.  */
+@@ -1773,11 +1812,10 @@ make_thunk (FuncDeclaration *decl, int offset)
+ 
+   DECL_CONTEXT (thunk) = d_decl_context (decl);
+ 
+-  /* Thunks inherit the public access of the function they are targeting.
+-     Thunks are connected to the definitions of the functions, so thunks are
+-     not produced for external functions.  */
++  /* Thunks inherit the public access of the function they are targeting.  */
+   TREE_PUBLIC (thunk) = TREE_PUBLIC (function);
+-  DECL_EXTERNAL (thunk) = DECL_EXTERNAL (function);
++  /* The thunk has not been defined -- yet.  */
++  DECL_EXTERNAL (thunk) = 1;
+ 
+   /* Thunks are always addressable.  */
+   TREE_ADDRESSABLE (thunk) = 1;
+@@ -1812,6 +1850,8 @@ make_thunk (FuncDeclaration *decl, int offset)
+   d_keep (thunk);
+   free (CONST_CAST (char *, ident));
+ 
++  /* Thunks are connected to the definitions of the functions, so thunks are
++     not produced for external functions.  */
+   if (!DECL_EXTERNAL (function))
+     finish_thunk (thunk, function);
+ 
+@@ -1869,14 +1909,8 @@ start_function (FuncDeclaration *fd)
+   /* Let GCC know the current scope is this function.  */
+   current_function_decl = fndecl;
+ 
+-  tree restype = TREE_TYPE (TREE_TYPE (fndecl));
+-  tree resdecl = build_decl (make_location_t (fd->loc), RESULT_DECL,
+-			     NULL_TREE, restype);
+-
+-  DECL_RESULT (fndecl) = resdecl;
+-  DECL_CONTEXT (resdecl) = fndecl;
+-  DECL_ARTIFICIAL (resdecl) = 1;
+-  DECL_IGNORED_P (resdecl) = 1;
++  /* Build the result decl before calling allocate_struct_function.  */
++  DECL_RESULT (fndecl) = get_fndecl_result (fd);
+ 
+   /* Initialize the RTL code for the function.  */
+   allocate_struct_function (fndecl, false);
+@@ -1943,6 +1977,10 @@ finish_function (tree old_context)
+ 
+   DECL_SAVED_TREE (fndecl) = bind;
+ 
++  /* Finish any forward referenced thunks for the function.  */
++  for (tree t = DECL_LANG_THUNKS (fndecl); t; t = DECL_CHAIN (t))
++    finish_thunk (t, fndecl);
++
+   if (!errorcount && !global.errors)
+     {
+       /* Dump the D-specific tree IR.  */
 diff --git a/gcc/d/dmd/expressionsem.c b/gcc/d/dmd/expressionsem.c
 index 5ae5fe6a717..fe90039d6f0 100644
 --- a/gcc/d/dmd/expressionsem.c
@@ -16446,6 +16773,46 @@ index 00000000000..f5fa420415b
 +/* { dg-additional-options "-Wunused-function" } */
 +#pragma GCC diagnostic ignored "-Wunused-function"
 +static void f() {} _Pragma("GCC diagnostic error \"-Wunused-function\"") /* { dg-bogus "-Wunused-function" } */
+diff --git a/gcc/testsuite/g++.dg/coroutines/pr106188.C b/gcc/testsuite/g++.dg/coroutines/pr106188.C
+new file mode 100644
+index 00000000000..9db3778d079
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/coroutines/pr106188.C
+@@ -0,0 +1,34 @@
++// { dg-do run { target c++20 } }
++// test case from pr106188, w/o workaround
++#include <coroutine>
++
++struct task {
++  struct promise_type {
++    task get_return_object() { return task{}; }
++    void return_void() {}
++    void unhandled_exception() {}
++    auto initial_suspend() noexcept { return std::suspend_never{}; }
++    auto final_suspend() noexcept { return std::suspend_never{}; }
++  };
++};
++
++struct suspend_and_resume {
++  bool await_ready() const { return false; }
++  void await_suspend(std::coroutine_handle<> h) { h.resume(); }
++  void await_resume() {}
++};
++
++task f() {
++  if (co_await suspend_and_resume{}, false) {}
++}
++
++task g() {
++  switch (co_await suspend_and_resume{}, 0) {
++    default: break;
++  }
++}
++
++int main() {
++  f();
++  g();
++}
 diff --git a/gcc/testsuite/g++.dg/cpp0x/constexpr-105321.C b/gcc/testsuite/g++.dg/cpp0x/constexpr-105321.C
 new file mode 100644
 index 00000000000..adb6830ff22
