@@ -48,7 +48,10 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (326):
+GCC Administrator (329):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -386,7 +389,7 @@ H.J. Lu (5):
       i386: Mark XMM4-XMM6 as clobbered by encodekey128/encodekey256
       Always use TYPE_MODE instead of DECL_MODE for vector field
 
-Harald Anlauf (31):
+Harald Anlauf (33):
       Fortran: improve error recovery on invalid array section
       Fortran: fix error recovery on invalid array section
       Fortran: fix checking of arguments to UNPACK when MASK is a variable [PR105813]
@@ -418,6 +421,8 @@ Harald Anlauf (31):
       Fortran: improve checking of character length specification [PR96025]
       Fortran: reject invalid CHARACTER length of derived type components [PR96024]
       Fortran: fix corner case of IBITS intrinsic [PR108937]
+      Fortran: fix ICE with bind(c) in block data [PR104332]
+      Fortran: fix bounds check for copying of class expressions [PR106945]
 
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
@@ -12379,10 +12384,28 @@ index 70c5b3886ef..5b4053df520 100644
  
        if ((tem = fold_truth_andor (loc, code, type, arg0, arg1, op0, op1))
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..79fcc0fc64d 100644
+index ee1c7bb4b31..6c1a377b0c2 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,432 @@
+@@ -1,3 +1,450 @@
++2023-03-17  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-03-11  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/106945
++	* trans-expr.c (gfc_copy_class_to_class): Convert element counts in
++	bounds check to common type for comparison.
++
++2023-03-17  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-03-10  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/104332
++	* resolve.c (resolve_symbol): Avoid NULL pointer dereference while
++	checking a symbol with the BIND(C) attribute.
++
 +2023-03-09  Tobias Burnus  <tobias@codesourcery.com>
 +
 +	Backported from master:
@@ -13180,7 +13203,7 @@ index 04501f44ef8..23602446b61 100644
  
      case ST_FORMAT:
 diff --git a/gcc/fortran/resolve.c b/gcc/fortran/resolve.c
-index a26a90993a7..18e766494f2 100644
+index a26a90993a7..939b740df61 100644
 --- a/gcc/fortran/resolve.c
 +++ b/gcc/fortran/resolve.c
 @@ -953,9 +953,15 @@ resolve_common_vars (gfc_common_head *common_block, bool named_common)
@@ -13296,6 +13319,17 @@ index a26a90993a7..18e766494f2 100644
      }
  
    if (c->ts.type == BT_CHARACTER && c->ts.deferred
+@@ -15759,8 +15778,8 @@ resolve_symbol (gfc_symbol *sym)
+ 
+       /* First, make sure the variable is declared at the
+ 	 module-level scope (J3/04-007, Section 15.3).	*/
+-      if (sym->ns->proc_name->attr.flavor != FL_MODULE &&
+-          sym->attr.in_common == 0)
++      if (!(sym->ns->proc_name && sym->ns->proc_name->attr.flavor == FL_MODULE)
++	  && !sym->attr.in_common)
+ 	{
+ 	  gfc_error ("Variable %qs at %L cannot be BIND(C) because it "
+ 		     "is neither a COMMON block nor declared at the "
 @@ -17254,7 +17273,9 @@ resolve_fntype (gfc_namespace *ns)
  	  }
        }
@@ -13673,7 +13707,7 @@ index 95af7d93162..f54b62b4fda 100644
  	      result = gfc_get_fake_result_decl (sym, 0);
  	      result = fold_build2_loc (input_location, MODIFY_EXPR,
 diff --git a/gcc/fortran/trans-expr.c b/gcc/fortran/trans-expr.c
-index a5c391d077e..a06dc7bf556 100644
+index a5c391d077e..35d3c8897e2 100644
 --- a/gcc/fortran/trans-expr.c
 +++ b/gcc/fortran/trans-expr.c
 @@ -1136,8 +1136,10 @@ gfc_conv_class_to_class (gfc_se *parmse, gfc_expr *e, gfc_typespec class_ts,
@@ -13704,7 +13738,15 @@ index a5c391d077e..a06dc7bf556 100644
  	  else
  	    class_array_data_assign (&parmse->post, parmse->expr, ctree, true);
  	}
-@@ -5642,7 +5648,6 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
+@@ -1483,6 +1489,7 @@ gfc_copy_class_to_class (tree from, tree to, tree nelems, bool unlimited)
+ 	    name = (const char *)(DECL_NAME (to)->identifier.id.str);
+ 
+ 	  from_len = gfc_conv_descriptor_size (from_data, 1);
++	  from_len = fold_convert (TREE_TYPE (orig_nelems), from_len);
+ 	  tmp = fold_build2_loc (input_location, NE_EXPR,
+ 				  logical_type_node, from_len, orig_nelems);
+ 	  msg = xasprintf ("Array bound mismatch for dimension %d "
+@@ -5642,7 +5649,6 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
    gfc_charlen cl;
    gfc_expr *e;
    gfc_symbol *fsym;
@@ -13712,7 +13754,7 @@ index a5c391d077e..a06dc7bf556 100644
    enum {MISSING = 0, ELEMENTAL, SCALAR, SCALAR_POINTER, ARRAY};
    gfc_component *comp = NULL;
    int arglen;
-@@ -5686,7 +5691,9 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
+@@ -5686,7 +5692,9 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
    else
      info = NULL;
  
@@ -13722,7 +13764,7 @@ index a5c391d077e..a06dc7bf556 100644
    gfc_init_interface_mapping (&mapping);
    if (!comp)
      {
-@@ -6023,7 +6030,7 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
+@@ -6023,7 +6031,7 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
  				&& e->symtree->n.sym->attr.pointer))
  			&& fsym && fsym->attr.target)
  		/* Make sure the function only gets called once.  */
@@ -13731,7 +13773,7 @@ index a5c391d077e..a06dc7bf556 100644
  	      else if (e->expr_type == EXPR_FUNCTION
  		       && e->symtree->n.sym->result
  		       && e->symtree->n.sym->result != e->symtree->n.sym
-@@ -6130,22 +6137,37 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
+@@ -6130,22 +6138,37 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
  		    }
  		  else
  		    {
@@ -13785,7 +13827,7 @@ index a5c391d077e..a06dc7bf556 100644
  		    }
  		  /* Catch base objects that are not variables.  */
  		  if (e->ts.type == BT_CLASS
-@@ -6154,23 +6176,6 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
+@@ -6154,23 +6177,6 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
  		    base_object = build_fold_indirect_ref_loc (input_location,
  							       parmse.expr);
  
@@ -13809,7 +13851,7 @@ index a5c391d077e..a06dc7bf556 100644
  		  /* If an ALLOCATABLE dummy argument has INTENT(OUT) and is
  		     allocated on entry, it must be deallocated.  */
  		  if (fsym && fsym->attr.intent == INTENT_OUT
-@@ -6230,6 +6235,23 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
+@@ -6230,6 +6236,23 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
  		      gfc_add_expr_to_block (&se->pre, tmp);
  		    }
  
@@ -13833,7 +13875,7 @@ index a5c391d077e..a06dc7bf556 100644
  		  if (fsym && (fsym->ts.type == BT_DERIVED
  			       || fsym->ts.type == BT_ASSUMED)
  		      && e->ts.type == BT_CLASS
-@@ -6808,16 +6830,15 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
+@@ -6808,16 +6831,15 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
  	      else
  		goto end_pointer_check;
  
@@ -13853,7 +13895,7 @@ index a5c391d077e..a06dc7bf556 100644
  
  	      /* If the argument is passed by value, we need to strip the
  		 INDIRECT_REF.  */
-@@ -6973,6 +6994,7 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
+@@ -6973,6 +6995,7 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
  
        vec_safe_push (arglist, parmse.expr);
      }
@@ -13861,7 +13903,7 @@ index a5c391d077e..a06dc7bf556 100644
    gfc_finish_interface_mapping (&mapping, &se->pre, &se->post);
  
    if (comp)
-@@ -8782,8 +8804,8 @@ gfc_trans_structure_assign (tree dest, gfc_expr * expr, bool init, bool coarray)
+@@ -8782,8 +8805,8 @@ gfc_trans_structure_assign (tree dest, gfc_expr * expr, bool init, bool coarray)
    return gfc_finish_block (&block);
  }
  
@@ -13872,7 +13914,7 @@ index a5c391d077e..a06dc7bf556 100644
                              gfc_component *un, gfc_expr *init)
  {
    gfc_constructor *ctor;
-@@ -9066,7 +9088,7 @@ gfc_conv_expr_type (gfc_se * se, gfc_expr * expr, tree type)
+@@ -9066,7 +9089,7 @@ gfc_conv_expr_type (gfc_se * se, gfc_expr * expr, tree type)
     values only.  */
  
  void
@@ -13881,7 +13923,7 @@ index a5c391d077e..a06dc7bf556 100644
  {
    gfc_ss *ss;
    tree var;
-@@ -9106,16 +9128,6 @@ gfc_conv_expr_reference (gfc_se * se, gfc_expr * expr, bool add_clobber)
+@@ -9106,16 +9129,6 @@ gfc_conv_expr_reference (gfc_se * se, gfc_expr * expr, bool add_clobber)
  	  gfc_add_block_to_block (&se->pre, &se->post);
  	  se->expr = var;
  	}
@@ -13898,7 +13940,7 @@ index a5c391d077e..a06dc7bf556 100644
        return;
      }
  
-@@ -11021,6 +11033,9 @@ trans_class_assignment (stmtblock_t *block, gfc_expr *lhs, gfc_expr *rhs,
+@@ -11021,6 +11034,9 @@ trans_class_assignment (stmtblock_t *block, gfc_expr *lhs, gfc_expr *rhs,
        class_han = GFC_CLASS_TYPE_P (TREE_TYPE (lse->expr))
  	  ? gfc_class_data_get (lse->expr) : lse->expr;
  
@@ -15204,10 +15246,26 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..cbd07c85618 100644
+index 5fc23605244..c9f7c6ce751 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1572 @@
+@@ -1,3 +1,1588 @@
++2023-03-17  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-03-11  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/106945
++	* gfortran.dg/pr106945.f90: New test.
++
++2023-03-17  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-03-10  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/104332
++	* gfortran.dg/bind_c_usage_34.f90: New test.
++
 +2023-03-14  Iain Buclaw  <ibuclaw@gdcproject.org>
 +
 +	Backported from master:
@@ -24375,6 +24433,33 @@ index 00000000000..85aebebd4d8
 +  associate (i => a(1:p, 1:p))
 +  end associate
 +end program co_assoc
+diff --git a/gcc/testsuite/gfortran.dg/bind_c_usage_34.f90 b/gcc/testsuite/gfortran.dg/bind_c_usage_34.f90
+new file mode 100644
+index 00000000000..40c8e9363cf
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/bind_c_usage_34.f90
+@@ -0,0 +1,21 @@
++! { dg-do compile }
++! PR fortran/104332 - ICE with bind(c) in block data
++! Contributed by G. Steinmetz
++
++block data
++  bind(c) :: a ! { dg-error "cannot be BIND\\(C\\)" }
++end
++
++block data aa
++   real, bind(c) :: a ! { dg-error "cannot be BIND\\(C\\)" }
++end
++
++block data bb
++   real    :: a ! { dg-error "cannot be BIND\\(C\\)" }
++   bind(c) :: a
++end
++
++block data cc
++   common /a/ x
++   bind(c) :: /a/
++end
 diff --git a/gcc/testsuite/gfortran.dg/class_58.f90 b/gcc/testsuite/gfortran.dg/class_58.f90
 index 20b601a2f51..fceb575432d 100644
 --- a/gcc/testsuite/gfortran.dg/class_58.f90
@@ -25008,6 +25093,23 @@ index 00000000000..ac58a3e82e3
 +   logical(1) :: a = .true.
 +   logical(2) :: b
 +   a = transfer(b, a)
++end
+diff --git a/gcc/testsuite/gfortran.dg/pr106945.f90 b/gcc/testsuite/gfortran.dg/pr106945.f90
+new file mode 100644
+index 00000000000..e760ca7d27f
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/pr106945.f90
+@@ -0,0 +1,11 @@
++! { dg-do compile }
++! { dg-options "-fcoarray=single -fcheck=bounds -ftrapv" }
++! PR fortran/106945
++! Contributed by G. Steinmetz
++
++module m
++  implicit none
++  type t
++     class(*), allocatable :: a[:]
++  end type
 +end
 diff --git a/gcc/testsuite/gfortran.dg/pr106985.f90 b/gcc/testsuite/gfortran.dg/pr106985.f90
 new file mode 100644
