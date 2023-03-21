@@ -48,7 +48,8 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (329):
+GCC Administrator (330):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -649,7 +650,7 @@ Martin Liska (7):
       lto: support --jobserver-style=fifo for recent GNU make
       lto-wrapper: silent warnings in tests
 
-Matthias Kretz (8):
+Matthias Kretz (9):
       c++: don't ICE on NAMESPACE_DECL inside FUNCTION_DECL
       libstdc++: Ensure __builtin_constant_p isn't lost on the way
       libstdc++: printf format string fix in testsuite
@@ -658,6 +659,7 @@ Matthias Kretz (8):
       libstdc++: Add missing constexpr on simd shift implementation
       libstdc++: Fix -Wsign-compare issue
       libstdc++: Simplify three helper functions into one
+      libstdc++: Fix simd test compilation with Clang
 
 Max Filippov (2):
       gcc: xtensa: fix PR target/105879
@@ -36741,6 +36743,26 @@ index 82016c66802..ffa3e7f4cda 100644
  				    "Assertion '%s' failed.\n",
  			    file, line, func, m_ip, cond);
  	  (print(extra_info, int()), ...);
+diff --git a/libstdc++-v3/testsuite/experimental/simd/tests/operators.cc b/libstdc++-v3/testsuite/experimental/simd/tests/operators.cc
+index 171bae5b05e..d0f5a1e5ce1 100644
+--- a/libstdc++-v3/testsuite/experimental/simd/tests/operators.cc
++++ b/libstdc++-v3/testsuite/experimental/simd/tests/operators.cc
+@@ -223,7 +223,14 @@ template <typename V>
+     }
+ 
+     // divides
+-    constexpr bool is_iec559 = __GCC_IEC_559 >= 2;
++    constexpr bool is_iec559 =
++#ifdef __GCC_IEC_559
++      __GCC_IEC_559 >= 2;
++#elif defined __STDC_IEC_559__
++      true;
++#else
++      false;
++#endif
+     if constexpr (std::is_floating_point_v<T> && !is_iec559)
+       { // avoid testing subnormals and expect minor deltas for non-IEC559 float
+ 	V x = 2;
 diff --git a/libstdc++-v3/testsuite/ext/rope/pthread7-rope.cc b/libstdc++-v3/testsuite/ext/rope/pthread7-rope.cc
 index 5df9f330cd4..ed0614e2797 100644
 --- a/libstdc++-v3/testsuite/ext/rope/pthread7-rope.cc
