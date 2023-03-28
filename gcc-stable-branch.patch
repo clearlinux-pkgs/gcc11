@@ -29,7 +29,7 @@ Detlef Vollmann (1):
 Dimitar Dimitrov (1):
       pru: Fix CLZ expansion for QI and HI modes
 
-Eric Botcazou (7):
+Eric Botcazou (8):
       Fix internal error with vectorization on SPARC
       Fix PR target/107248
       Fix recent thinko in operand_equal_p
@@ -37,6 +37,7 @@ Eric Botcazou (7):
       Fix thinko in operator_bitwise_xor::op1_range
       Fix problematic interaction between bitfields, unions, SSO and SRA
       Fix PR target/90458
+      Fix PR target/109140
 
 Florian Weimer (2):
       libsanitizer: Avoid implicit function declaration in configure test
@@ -48,7 +49,8 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (336):
+GCC Administrator (337):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -9985,7 +9987,7 @@ index 44e48d90beb..5ef92d699c4 100644
    return false;
  }
 diff --git a/gcc/config/sparc/sparc.c b/gcc/config/sparc/sparc.c
-index 7c8a1f18c39..a9196d68863 100644
+index 7c8a1f18c39..c42546eb9d1 100644
 --- a/gcc/config/sparc/sparc.c
 +++ b/gcc/config/sparc/sparc.c
 @@ -6122,6 +6122,9 @@ sparc_expand_prologue (void)
@@ -10088,6 +10090,107 @@ index 7c8a1f18c39..a9196d68863 100644
  
    /* Force target-independent code to convert constant permutations on other
       modes down to V8QI.  Rely on this to avoid the complexity of the byte
+@@ -13693,18 +13705,16 @@ sparc_expand_conditional_move (machine_mode mode, rtx *operands)
+ void
+ sparc_expand_vcond (machine_mode mode, rtx *operands, int ccode, int fcode)
+ {
++  enum rtx_code code = signed_condition (GET_CODE (operands[3]));
+   rtx mask, cop0, cop1, fcmp, cmask, bshuf, gsr;
+-  enum rtx_code code = GET_CODE (operands[3]);
+ 
+   mask = gen_reg_rtx (Pmode);
+   cop0 = operands[4];
+   cop1 = operands[5];
+   if (code == LT || code == GE)
+     {
+-      rtx t;
+-
+       code = swap_condition (code);
+-      t = cop0; cop0 = cop1; cop1 = t;
++      std::swap (cop0, cop1);
+     }
+ 
+   gsr = gen_rtx_REG (DImode, SPARC_GSR_REG);
+diff --git a/gcc/config/sparc/sparc.md b/gcc/config/sparc/sparc.md
+index 5ea5a8f1b98..e2ff304bc73 100644
+--- a/gcc/config/sparc/sparc.md
++++ b/gcc/config/sparc/sparc.md
+@@ -9033,6 +9033,50 @@ visl")
+   DONE;
+ })
+ 
++(define_expand "vcondv8qiv8qi"
++  [(match_operand:V8QI 0 "register_operand" "")
++   (match_operand:V8QI 1 "register_operand" "")
++   (match_operand:V8QI 2 "register_operand" "")
++   (match_operator 3 ""
++     [(match_operand:V8QI 4 "register_operand" "")
++      (match_operand:V8QI 5 "register_operand" "")])]
++  "TARGET_VIS4"
++{
++  sparc_expand_vcond (V8QImode, operands, UNSPEC_CMASK8, UNSPEC_FCMP);
++  DONE;
++})
++
++(define_insn "fucmp<gcond:code>8<P:mode>_vis"
++  [(set (match_operand:P 0 "register_operand" "=r")
++	(unspec:P [(gcond:V8QI (match_operand:V8QI 1 "register_operand" "e")
++		               (match_operand:V8QI 2 "register_operand" "e"))]
++	 UNSPEC_FUCMP))]
++  "TARGET_VIS3"
++  "fucmp<gcond:code>8\t%1, %2, %0"
++  [(set_attr "type" "viscmp")])
++
++(define_insn "fpcmpu<gcond:code><GCM:gcm_name><P:mode>_vis"
++  [(set (match_operand:P 0 "register_operand" "=r")
++	(unspec:P [(gcond:GCM (match_operand:GCM 1 "register_operand" "e")
++		              (match_operand:GCM 2 "register_operand" "e"))]
++	 UNSPEC_FUCMP))]
++  "TARGET_VIS4"
++  "fpcmpu<gcond:code><GCM:gcm_name>\t%1, %2, %0"
++  [(set_attr "type" "viscmp")])
++
++(define_expand "vcondu<GCM:mode><GCM:mode>"
++  [(match_operand:GCM 0 "register_operand" "")
++   (match_operand:GCM 1 "register_operand" "")
++   (match_operand:GCM 2 "register_operand" "")
++   (match_operator 3 ""
++     [(match_operand:GCM 4 "register_operand" "")
++      (match_operand:GCM 5 "register_operand" "")])]
++  "TARGET_VIS4"
++{
++  sparc_expand_vcond (<MODE>mode, operands, UNSPEC_CMASK<gcm_name>, UNSPEC_FUCMP);
++  DONE;
++})
++
+ (define_expand "vconduv8qiv8qi"
+   [(match_operand:V8QI 0 "register_operand" "")
+    (match_operand:V8QI 1 "register_operand" "")
+@@ -9351,24 +9395,6 @@ visl")
+  [(set_attr "type" "fga")
+   (set_attr "subtype" "other")])
+ 
+-(define_insn "fucmp<gcond:code>8<P:mode>_vis"
+-  [(set (match_operand:P 0 "register_operand" "=r")
+-	(unspec:P [(gcond:V8QI (match_operand:V8QI 1 "register_operand" "e")
+-		               (match_operand:V8QI 2 "register_operand" "e"))]
+-	 UNSPEC_FUCMP))]
+-  "TARGET_VIS3"
+-  "fucmp<gcond:code>8\t%1, %2, %0"
+-  [(set_attr "type" "viscmp")])
+-
+-(define_insn "fpcmpu<gcond:code><GCM:gcm_name><P:mode>_vis"
+-  [(set (match_operand:P 0 "register_operand" "=r")
+-	(unspec:P [(gcond:GCM (match_operand:GCM 1 "register_operand" "e")
+-		              (match_operand:GCM 2 "register_operand" "e"))]
+-	 UNSPEC_FUCMP))]
+-  "TARGET_VIS4"
+-  "fpcmpu<gcond:code><GCM:gcm_name>\t%1, %2, %0"
+-  [(set_attr "type" "viscmp")])
+-
+ (define_insn "*naddsf3"
+   [(set (match_operand:SF 0 "register_operand" "=f")
+         (neg:SF (plus:SF (match_operand:SF 1 "register_operand" "f")
 diff --git a/gcc/config/tilepro/gen-mul-tables.cc b/gcc/config/tilepro/gen-mul-tables.cc
 index 03c0cfd5a8b..227bf086e8c 100644
 --- a/gcc/config/tilepro/gen-mul-tables.cc
@@ -23828,6 +23931,106 @@ index 00000000000..f321cab8482
 +      s->cts_bits   = __builtin_bswap16(bsx2);
 +    }
 +}
+diff --git a/gcc/testsuite/gcc.target/sparc/20230328-1.c b/gcc/testsuite/gcc.target/sparc/20230328-1.c
+new file mode 100644
+index 00000000000..becdc2ed3b3
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/sparc/20230328-1.c
+@@ -0,0 +1,19 @@
++/* PR target/109140 */
++/* { dg-do compile } */
++/* { dg-options "-O3 -mvis3 -std=c99" } */
++
++#define TYPE unsigned char
++
++struct S { TYPE ub[8]; };
++
++struct S s;
++
++TYPE v;
++
++void foo (void)
++{
++  for (int i = 0; i < 8; i++)
++    s.ub[i] = s.ub[i] > v;
++}
++
++/* { dg-final { scan-assembler "fucmpgt8\t%" } } */
+diff --git a/gcc/testsuite/gcc.target/sparc/20230328-2.c b/gcc/testsuite/gcc.target/sparc/20230328-2.c
+new file mode 100644
+index 00000000000..d63d047db80
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/sparc/20230328-2.c
+@@ -0,0 +1,19 @@
++/* PR target/109140 */
++/* { dg-do compile } */
++/* { dg-options "-O3 -mvis4 -std=c99" } */
++
++#define TYPE char
++
++struct S { TYPE ub[8]; };
++
++struct S s;
++
++TYPE v;
++
++void foo (void)
++{
++  for (int i = 0; i < 8; i++)
++    s.ub[i] = s.ub[i] > v;
++}
++
++/* { dg-final { scan-assembler "fpcmpgt8\t%" } } */
+diff --git a/gcc/testsuite/gcc.target/sparc/20230328-3.c b/gcc/testsuite/gcc.target/sparc/20230328-3.c
+new file mode 100644
+index 00000000000..8ad10bbf0af
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/sparc/20230328-3.c
+@@ -0,0 +1,19 @@
++/* PR target/109140 */
++/* { dg-do compile } */
++/* { dg-options "-O3 -mvis4 -std=c99" } */
++
++#define TYPE unsigned short
++
++struct S { TYPE ub[4]; };
++
++struct S s;
++
++TYPE v;
++
++void foo (void)
++{
++  for (int i = 0; i < 4; i++)
++    s.ub[i] = s.ub[i] > v;
++}
++
++/* { dg-final { scan-assembler "fpcmpugt16\t%" } } */
+diff --git a/gcc/testsuite/gcc.target/sparc/20230328-4.c b/gcc/testsuite/gcc.target/sparc/20230328-4.c
+new file mode 100644
+index 00000000000..f3e4ecef7b8
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/sparc/20230328-4.c
+@@ -0,0 +1,19 @@
++/* PR target/109140 */
++/* { dg-do compile } */
++/* { dg-options "-O3 -mvis3 -std=c99" } */
++
++#define TYPE short
++
++struct S { TYPE ub[4]; };
++
++struct S s;
++
++TYPE v;
++
++void foo (void)
++{
++  for (int i = 0; i < 4; i++)
++    s.ub[i] = s.ub[i] > v;
++}
++
++/* { dg-final { scan-assembler "fcmpgt16\t%" } } */
 diff --git a/gcc/testsuite/gcc.target/x86_64/abi/asm-support.S b/gcc/testsuite/gcc.target/x86_64/abi/asm-support.S
 index 7a8ed03d119..b2ad67aef87 100644
 --- a/gcc/testsuite/gcc.target/x86_64/abi/asm-support.S
