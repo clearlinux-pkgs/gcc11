@@ -13,6 +13,9 @@ Andre Vieira (1):
 Andreas Krebbel (1):
       IBM zSystems/testsuite: PR105147: Skip pr105140.c
 
+Andrew Pinski (1):
+      Fix fc-prototypes usage with C_INT64_T and non LP64 Targets.
+
 Arsen Arsenović (1):
       c++: top level bind when rewriting coroutines [PR106188]
 
@@ -49,7 +52,12 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (338):
+GCC Administrator (343):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -816,6 +824,9 @@ Surya Kumari Jangala (1):
 
 Tamar Christina (1):
       testsuite: Backport testsuite changes from GCC 12 to GCC 11
+
+Thomas Koenig (1):
+      Change "long_double" into "long double" for C prototypes from Fortran.
 
 Thomas Rodgers (1):
       libstdc++: Minor codegen improvement for atomic wait spinloop
@@ -12510,10 +12521,21 @@ index 70c5b3886ef..5b4053df520 100644
  
        if ((tem = fold_truth_andor (loc, code, type, arg0, arg1, op0, op1))
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..7ceff28b3dc 100644
+index ee1c7bb4b31..7094ae6c90b 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,477 @@
+@@ -1,3 +1,488 @@
++2023-04-02  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	* dump-parse-tree.c (get_c_type_name): Fix "long_long"
++	type name to be "long long".
++
++2023-04-02  Andrew Pinski  <apinski@marvell.com>
++
++	* dump-parse-tree.c (get_c_type_name): Fix "long_long"
++	type name to be "long long". Add a comment on why adding
++	2 to the name too.
++
 +2023-03-24  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -13118,6 +13140,23 @@ index e1336e1c654..7a3cc82a5b2 100644
    switch (expr2->expr_type)
      {
      case EXPR_OP:
+diff --git a/gcc/fortran/dump-parse-tree.c b/gcc/fortran/dump-parse-tree.c
+index 059d8421bb5..4e210a0e87f 100644
+--- a/gcc/fortran/dump-parse-tree.c
++++ b/gcc/fortran/dump-parse-tree.c
+@@ -3349,7 +3349,12 @@ get_c_type_name (gfc_typespec *ts, gfc_array_spec *as, const char **pre,
+ 	  if (c_interop_kinds_table[i].f90_type == ts->type
+ 	      && c_interop_kinds_table[i].value == ts->kind)
+ 	    {
++	      /* Skip over 'c_'. */
+ 	      *type_name = c_interop_kinds_table[i].name + 2;
++	      if (strcmp (*type_name, "long_long") == 0)
++		*type_name = "long long";
++	      if (strcmp (*type_name, "long_double") == 0)
++		*type_name = "long double";
+ 	      if (strcmp (*type_name, "signed_char") == 0)
+ 		*type_name = "signed char";
+ 	      else if (strcmp (*type_name, "size_t") == 0)
 diff --git a/gcc/fortran/expr.c b/gcc/fortran/expr.c
 index edacd974a21..0860df907c5 100644
 --- a/gcc/fortran/expr.c
