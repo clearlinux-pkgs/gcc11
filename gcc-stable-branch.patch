@@ -52,7 +52,8 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (351):
+GCC Administrator (352):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -879,10 +880,21 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..d13f651304a 100644
+index a0587d18824..f51865a0570 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,1335 @@
+@@ -1,3 +1,1346 @@
++2023-04-11  Michael Meissner  <meissner@linux.ibm.com>
++
++	PR target/109067
++	* config/rs6000/rs6000.c (create_complex_muldiv): Delete.
++	(init_float128_ieee): Delete code to switch complex multiply and divide
++	for long double.  Backport from master, 3/20/2023.
++	(complex_multiply_builtin_code): New helper function.
++	(complex_divide_builtin_code): Likewise.
++	(rs6000_mangle_decl_assembler_name): Add support for mangling the name
++	of complex 128-bit multiply and divide built-in functions.
++
 +2023-03-28  Eric Botcazou  <ebotcazou@adacore.com>
 +
 +	PR target/109140
@@ -15630,10 +15642,19 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..1d449589c7e 100644
+index 5fc23605244..0c707fd1c00 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1619 @@
+@@ -1,3 +1,1628 @@
++2023-04-11  Michael Meissner  <meissner@linux.ibm.com>
++
++	PR target/109067
++	* gcc.target/powerpc/divic3-1.c: New test.  Backport from master,
++	3/20/2023.
++	* gcc.target/powerpc/divic3-2.c: Likewise.
++	* gcc.target/powerpc/mulic3-1.c: Likewise.
++	* gcc.target/powerpc/mulic3-2.c: Likewise.
++
 +2023-03-28  Eric Botcazou  <ebotcazou@adacore.com>
 +
 +	* gcc.target/sparc/20230328-1.c: New test.
