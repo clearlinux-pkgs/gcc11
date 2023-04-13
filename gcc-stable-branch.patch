@@ -52,7 +52,8 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (352):
+GCC Administrator (353):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -734,10 +735,11 @@ Peter Bergner (5):
       rs6000: Allow conversions of MMA pointer types [PR106017]
       rs6000: Don't ICE when we disassemble an MMA variable [PR101322]
 
-Philipp Tomsich (3):
+Philipp Tomsich (4):
       aarch64: fix off-by-one in reading cpuinfo
       aarch64: update Ampere-1 core definition
       aarch64: Add support for Ampere-1A (-mcpu=ampere1a) CPU
+      aarch64: update ampere1 vectorization cost
 
 Qing Zhao (1):
       i386: Adjust -fzero-call-used-regs to always use XOR [PR101891]
@@ -3247,9 +3249,41 @@ index 2beac8c8353..b5f35c68e23 100644
 +	"cortexa34,cortexa35,cortexa53,cortexa57,cortexa72,cortexa73,thunderx,thunderxt88p1,thunderxt88,octeontx,octeontxt81,octeontxt83,thunderxt81,thunderxt83,ampere1,ampere1a,emag,xgene1,falkor,qdf24xx,exynosm1,phecda,thunderx2t99p1,vulcan,thunderx2t99,cortexa55,cortexa75,cortexa76,cortexa76ae,cortexa77,cortexa78,cortexa78ae,cortexa78c,cortexa65,cortexa65ae,cortexx1,ares,neoversen1,neoversee1,octeontx2,octeontx2t98,octeontx2t96,octeontx2t93,octeontx2f95,octeontx2f95n,octeontx2f95mm,a64fx,tsv110,thunderx3t110,zeus,neoversev1,neoverse512tvb,saphira,neoversen2,neoversev2,cortexa57cortexa53,cortexa72cortexa53,cortexa73cortexa35,cortexa73cortexa53,cortexa75cortexa55,cortexa76cortexa55,cortexr82"
  	(const (symbol_ref "((enum attr_tune) aarch64_tune)")))
 diff --git a/gcc/config/aarch64/aarch64.c b/gcc/config/aarch64/aarch64.c
-index c155f4883cf..0622c134b9d 100644
+index c155f4883cf..81032662256 100644
 --- a/gcc/config/aarch64/aarch64.c
 +++ b/gcc/config/aarch64/aarch64.c
+@@ -1070,7 +1070,7 @@ static const struct cpu_vector_cost thunderx3t110_vector_cost =
+ 
+ static const advsimd_vec_cost ampere1_advsimd_vector_cost =
+ {
+-  3, /* int_stmt_cost  */
++  1, /* int_stmt_cost  */
+   3, /* fp_stmt_cost  */
+   0, /* ld2_st2_permute_cost  */
+   0, /* ld3_st3_permute_cost  */
+@@ -1086,17 +1086,17 @@ static const advsimd_vec_cost ampere1_advsimd_vector_cost =
+   8, /* store_elt_extra_cost  */
+   6, /* vec_to_scalar_cost  */
+   7, /* scalar_to_vec_cost  */
+-  5, /* align_load_cost  */
+-  5, /* unalign_load_cost  */
+-  2, /* unalign_store_cost  */
+-  2  /* store_cost  */
++  4, /* align_load_cost  */
++  4, /* unalign_load_cost  */
++  1, /* unalign_store_cost  */
++  1  /* store_cost  */
+ };
+ 
+ /* Ampere-1 costs for vector insn classes.  */
+ static const struct cpu_vector_cost ampere1_vector_cost =
+ {
+   1, /* scalar_int_stmt_cost  */
+-  1, /* scalar_fp_stmt_cost  */
++  3, /* scalar_fp_stmt_cost  */
+   4, /* scalar_load_cost  */
+   1, /* scalar_store_cost  */
+   1, /* cond_taken_branch_cost  */
 @@ -1749,6 +1749,37 @@ static const struct tune_params ampere1_tunings =
    &ampere1_prefetch_tune
  };
