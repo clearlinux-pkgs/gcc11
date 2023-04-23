@@ -52,7 +52,11 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (359):
+GCC Administrator (363):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -517,7 +521,7 @@ Jan Hubicka (2):
       Fix modref_tree::remap_params
       Fix ipa-cp wrt volatile loads
 
-Jason Merrill (19):
+Jason Merrill (27):
       c++: rodata and defaulted ctor [PR104142]
       c++: low -faligned-new [PR102071]
       c++: local function versioning [PR104669]
@@ -537,6 +541,14 @@ Jason Merrill (19):
       c++: anon union designated init [PR105925]
       c++: dependent generic lambda template-id [PR106024]
       c++: defaulted friend op== [PR106361]
+      c++: variable tmpl partial specialization [PR108468]
+      c++: co_await and initializer_list [PR103871]
+      c++: co_await and move-only type [PR105406]
+      c++: &enum::enumerator [PR101869]
+      c++: namespace-scoped friend in local class [PR69410]
+      c++: constant, array, lambda, template [PR108975]
+      c++: constexpr PMF conversion [PR105996]
+      c-family: -Wsequence-point and COMPONENT_REF [PR107163]
 
 Jeff Law (1):
       [committed] Fix more problems with new linker warnings
@@ -2551,10 +2563,16 @@ index 64f4999ab07..627a89b3c45 100644
    set_mem_alias_set (mem, 0);
    return mem;
 diff --git a/gcc/c-family/ChangeLog b/gcc/c-family/ChangeLog
-index dff48ba4655..65de3d901d3 100644
+index dff48ba4655..a045289fafa 100644
 --- a/gcc/c-family/ChangeLog
 +++ b/gcc/c-family/ChangeLog
-@@ -1,3 +1,12 @@
+@@ -1,3 +1,18 @@
++2023-04-22  Jason Merrill  <jason@redhat.com>
++
++	PR c++/107163
++	* c-common.c (verify_tree): Don't use sequenced handling
++	for COMPONENT_REF.
++
 +2022-04-28  Patrick Palka  <ppalka@redhat.com>
 +
 +	Backported from master:
@@ -2568,7 +2586,7 @@ index dff48ba4655..65de3d901d3 100644
  
  	* GCC 11.3.0 released.
 diff --git a/gcc/c-family/c-common.c b/gcc/c-family/c-common.c
-index 7b8f49d78dc..16fc52302e5 100644
+index 7b8f49d78dc..9417b7fb4d1 100644
 --- a/gcc/c-family/c-common.c
 +++ b/gcc/c-family/c-common.c
 @@ -1854,12 +1854,12 @@ verify_tree (tree x, struct tlist **pbefore_sp, struct tlist **pno_sp,
@@ -2585,6 +2603,25 @@ index 7b8f49d78dc..16fc52302e5 100644
    code = TREE_CODE (x);
    cl = TREE_CODE_CLASS (code);
  
+@@ -2023,12 +2023,17 @@ verify_tree (tree x, struct tlist **pbefore_sp, struct tlist **pno_sp,
+ 
+     case LSHIFT_EXPR:
+     case RSHIFT_EXPR:
+-    case COMPONENT_REF:
+     case ARRAY_REF:
+       if (cxx_dialect >= cxx17)
+ 	goto sequenced_binary;
+       goto do_default;
+ 
++    case COMPONENT_REF:
++      /* Treat as unary, the other operands aren't evaluated.  */
++      x = TREE_OPERAND (x, 0);
++      writer = 0;
++      goto restart;
++
+     default:
+     do_default:
+       /* For other expressions, simply recurse on their operands.
 diff --git a/gcc/c/ChangeLog b/gcc/c/ChangeLog
 index 8d0dffcaa10..2e238018890 100644
 --- a/gcc/c/ChangeLog
@@ -10729,10 +10766,51 @@ index cdf22f14b94..fabc313197a 100644
  	}
  
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..6d7be7a50f5 100644
+index 85c8fdd38cd..40643b5a789 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,274 @@
+@@ -1,3 +1,315 @@
++2023-04-22  Jason Merrill  <jason@redhat.com>
++
++	PR c++/105996
++	* typeck.c (build_ptrmemfunc): Drop 0-offset optimization
++	and location wrappers.
++
++2023-04-22  Jason Merrill  <jason@redhat.com>
++
++	PR c++/108975
++	* lambda.c (prune_lambda_captures): Don't bother in a template.
++
++2023-04-22  Jason Merrill  <jason@redhat.com>
++
++	PR c++/69410
++	* friend.c (do_friend): Handle namespace as scope argument.
++	* decl.c (grokdeclarator): Pass down in_namespace.
++
++2023-04-22  Jason Merrill  <jason@redhat.com>
++
++	PR c++/101869
++	* semantics.c (finish_qualified_id_expr): Don't try to build a
++	pointer-to-member if the scope is an enumeration.
++
++2023-04-22  Jason Merrill  <jason@redhat.com>
++
++	PR c++/105406
++	* coroutines.cc (build_co_await): Handle lvalue 'o'.
++
++2023-04-22  Jason Merrill  <jason@redhat.com>
++
++	PR c++/103871
++	PR c++/98056
++	* typeck.c (cp_build_modify_expr): Allow array initialization of
++	DECL_ARTIFICIAL variable.
++
++2023-04-22  Jason Merrill  <jason@redhat.com>
++
++	PR c++/108468
++	* pt.c (unify_pack_expansion): Check that TPARMS_PRIMARY_TEMPLATE
++	is non-null.
++
 +2023-03-13  Arsen Arsenović  <arsen@aarsen.me>
 +
 +	PR c++/106188
@@ -11194,10 +11272,35 @@ index c13c920ade3..8bd41166dd9 100644
    return potential_constant_expression_1 (t, want_rval, strict, now,
  					  flags, &target);
 diff --git a/gcc/cp/coroutines.cc b/gcc/cp/coroutines.cc
-index e982cdb89a7..ea3850082cf 100644
+index e982cdb89a7..b20e773bff6 100644
 --- a/gcc/cp/coroutines.cc
 +++ b/gcc/cp/coroutines.cc
-@@ -4067,6 +4067,15 @@ coro_rewrite_function_body (location_t fn_start, tree fnbody, tree orig,
+@@ -1016,9 +1016,13 @@ build_co_await (location_t loc, tree a, suspend_point_kind suspend_kind)
+     }
+   else
+     {
+-      e_proxy = get_awaitable_var (suspend_kind, o_type);
++      tree p_type = o_type;
++      if (glvalue_p (o))
++	p_type = cp_build_reference_type (p_type, !lvalue_p (o));
++      e_proxy = get_awaitable_var (suspend_kind, p_type);
+       o = cp_build_modify_expr (loc, e_proxy, INIT_EXPR, o,
+ 				tf_warning_or_error);
++      e_proxy = convert_from_reference (e_proxy);
+     }
+ 
+   /* I suppose we could check that this is contextually convertible to bool.  */
+@@ -1111,6 +1115,9 @@ build_co_await (location_t loc, tree a, suspend_point_kind suspend_kind)
+     }
+   TREE_VEC_ELT (awaiter_calls, 2) = awrs_call; /* await_resume().  */
+ 
++  if (REFERENCE_REF_P (e_proxy))
++    e_proxy = TREE_OPERAND (e_proxy, 0);
++
+   tree await_expr = build5_loc (loc, CO_AWAIT_EXPR,
+ 				TREE_TYPE (TREE_TYPE (awrs_func)),
+ 				a, e_proxy, o, awaiter_calls,
+@@ -4067,6 +4074,15 @@ coro_rewrite_function_body (location_t fn_start, tree fnbody, tree orig,
        BLOCK_SUPERCONTEXT (replace_blk) = top_block;
        BLOCK_SUBBLOCKS (top_block) = replace_blk;
      }
@@ -11226,7 +11329,7 @@ index a2d8c1c77b3..fded2527e5e 100644
  extern void print_template_statistics		(void);
  bool template_template_parameter_p		(const_tree);
 diff --git a/gcc/cp/decl.c b/gcc/cp/decl.c
-index bffbd004167..6c07cc2ad61 100644
+index bffbd004167..178f533a795 100644
 --- a/gcc/cp/decl.c
 +++ b/gcc/cp/decl.c
 @@ -1059,11 +1059,14 @@ decls_match (tree newdecl, tree olddecl, bool record_versions /* = true */)
@@ -11358,7 +11461,17 @@ index bffbd004167..6c07cc2ad61 100644
  	      {
  		error_at (declspecs->locations[ds_constinit],
  			  "%<constinit%> on function return type is not "
-@@ -14663,8 +14689,6 @@ copy_fn_p (const_tree d)
+@@ -13862,7 +13888,8 @@ grokdeclarator (const cp_declarator *declarator,
+ 		      return error_mark_node;
+ 		  }
+ 
+-		decl = do_friend (ctype, unqualified_id, decl,
++		tree scope = ctype ? ctype : in_namespace;
++		decl = do_friend (scope, unqualified_id, decl,
+ 				  *attrlist, flags,
+ 				  funcdef_flag);
+ 		return decl;
+@@ -14663,8 +14690,6 @@ copy_fn_p (const_tree d)
  bool
  move_fn_p (const_tree d)
  {
@@ -11412,6 +11525,55 @@ index d16d1896f2d..6b7ead2adc8 100644
  			      "%<volatile%>-qualified left operand is "
  			      "deprecated"))
  		/* Make sure not to warn about this assignment again.  */
+diff --git a/gcc/cp/friend.c b/gcc/cp/friend.c
+index ee73adb1677..e41def3a2ea 100644
+--- a/gcc/cp/friend.c
++++ b/gcc/cp/friend.c
+@@ -467,19 +467,32 @@ make_friend_class (tree type, tree friend_type, bool complain)
+ }
+ 
+ /* Record DECL (a FUNCTION_DECL) as a friend of the
+-   CURRENT_CLASS_TYPE.  If DECL is a member function, CTYPE is the
++   CURRENT_CLASS_TYPE.  If DECL is a member function, SCOPE is the
+    class of which it is a member, as named in the friend declaration.
++   If the friend declaration was explicitly namespace-qualified, SCOPE
++   is that namespace.
+    DECLARATOR is the name of the friend.  FUNCDEF_FLAG is true if the
+    friend declaration is a definition of the function.  FLAGS is as
+    for grokclass fn.  */
+ 
+ tree
+-do_friend (tree ctype, tree declarator, tree decl,
++do_friend (tree scope, tree declarator, tree decl,
+ 	   tree attrlist, enum overload_flags flags,
+ 	   bool funcdef_flag)
+ {
+   gcc_assert (TREE_CODE (decl) == FUNCTION_DECL);
+-  gcc_assert (!ctype || MAYBE_CLASS_TYPE_P (ctype));
++
++  tree ctype = NULL_TREE;
++  tree in_namespace = NULL_TREE;
++  if (!scope)
++    ;
++  else if (MAYBE_CLASS_TYPE_P (scope))
++    ctype = scope;
++  else
++    {
++      gcc_checking_assert (TREE_CODE (scope) == NAMESPACE_DECL);
++      in_namespace = scope;
++    }
+ 
+   /* Friend functions are unique, until proved otherwise.  */
+   DECL_UNIQUE_FRIEND_P (decl) = 1;
+@@ -606,7 +619,7 @@ do_friend (tree ctype, tree declarator, tree decl,
+ 	       parameters.  Instead, we call pushdecl when the class
+ 	       is instantiated.  */
+ 	    decl = push_template_decl (decl, /*is_friend=*/true);
+-	  else if (current_function_decl)
++	  else if (current_function_decl && !in_namespace)
+ 	    /* pushdecl will check there's a local decl already.  */
+ 	    decl = pushdecl (decl, /*hiding=*/true);
+ 	  else
 diff --git a/gcc/cp/init.c b/gcc/cp/init.c
 index bd27c92324b..f694c9a5776 100644
 --- a/gcc/cp/init.c
@@ -11464,7 +11626,7 @@ index bd27c92324b..f694c9a5776 100644
  
    /* Strip any COMPOUND_EXPRs from ALLOC_CALL.  */
 diff --git a/gcc/cp/lambda.c b/gcc/cp/lambda.c
-index d8efe91d9fe..1508e232091 100644
+index d8efe91d9fe..bc849beef41 100644
 --- a/gcc/cp/lambda.c
 +++ b/gcc/cp/lambda.c
 @@ -31,6 +31,7 @@ along with GCC; see the file COPYING3.  If not see
@@ -11526,6 +11688,16 @@ index d8efe91d9fe..1508e232091 100644
  
    CALL_FROM_THUNK_P (call) = 1;
    SET_EXPR_LOCATION (call, UNKNOWN_LOCATION);
+@@ -1536,6 +1559,9 @@ prune_lambda_captures (tree body)
+   if (LAMBDA_EXPR_DEFAULT_CAPTURE_MODE (lam) == CPLD_NONE)
+     /* No default captures, and we don't prune explicit captures.  */
+     return;
++  /* Don't bother pruning in a template, we'll prune at instantiation time.  */
++  if (dependent_type_p (TREE_TYPE (lam)))
++    return;
+ 
+   hash_map<tree,tree*> const_vars;
+ 
 diff --git a/gcc/cp/module.cc b/gcc/cp/module.cc
 index b97b1bcb2f8..6cb926c044a 100644
 --- a/gcc/cp/module.cc
@@ -11676,7 +11848,7 @@ index 90d119eaa28..ead4a239cc3 100644
  	     proceed below to add a reference to it at the current location.
  	     (Declarations in precompiled headers that are not definitions
 diff --git a/gcc/cp/pt.c b/gcc/cp/pt.c
-index 318d42d800d..588c46504b4 100644
+index 318d42d800d..02a74bb3f49 100644
 --- a/gcc/cp/pt.c
 +++ b/gcc/cp/pt.c
 @@ -5200,8 +5200,9 @@ process_partial_specialization (tree decl)
@@ -11781,7 +11953,16 @@ index 318d42d800d..588c46504b4 100644
  
    if (dependent_p)
      {
-@@ -23928,7 +23969,7 @@ unify (tree tparms, tree targs, tree parm, tree arg, int strict,
+@@ -23410,6 +23451,8 @@ unify_pack_expansion (tree tparms, tree targs, tree packed_parms,
+ 	     arguments if it is not otherwise deduced.  */
+ 	  if (cxx_dialect >= cxx20
+ 	      && TREE_VEC_LENGTH (new_args) < TREE_VEC_LENGTH (old_args)
++	      /* FIXME This isn't set properly for partial instantiations.  */
++	      && TPARMS_PRIMARY_TEMPLATE (tparms)
+ 	      && builtin_guide_p (TPARMS_PRIMARY_TEMPLATE (tparms)))
+ 	    TREE_VEC_LENGTH (old_args) = TREE_VEC_LENGTH (new_args);
+ 	  if (!comp_template_args (old_args, new_args,
+@@ -23928,7 +23971,7 @@ unify (tree tparms, tree targs, tree parm, tree arg, int strict,
  	      /* Now check whether the type of this parameter is still
  		 dependent, and give up if so.  */
  	      ++processing_template_decl;
@@ -11790,7 +11971,7 @@ index 318d42d800d..588c46504b4 100644
  	      --processing_template_decl;
  	      if (uses_template_parms (tparm))
  		return unify_success (explain_p);
-@@ -28726,7 +28767,7 @@ rewrite_template_parm (tree olddecl, unsigned index, unsigned level,
+@@ -28726,7 +28769,7 @@ rewrite_template_parm (tree olddecl, unsigned index, unsigned level,
  	  const int depth = TMPL_ARGS_DEPTH (tsubst_args);
  	  tree ttargs = make_tree_vec (depth + 1);
  	  for (int i = 0; i < depth; ++i)
@@ -11799,7 +11980,7 @@ index 318d42d800d..588c46504b4 100644
  	  TREE_VEC_ELT (ttargs, depth)
  	    = template_parms_level_to_args (ttparms);
  	  // Substitute ttargs into ttparms to fix references to
-@@ -28739,8 +28780,17 @@ rewrite_template_parm (tree olddecl, unsigned index, unsigned level,
+@@ -28739,8 +28782,17 @@ rewrite_template_parm (tree olddecl, unsigned index, unsigned level,
  	  ttparms = tsubst_template_parms_level (ttparms, ttargs,
  						 complain);
  	  // Finally, tack the adjusted parms onto tparms.
@@ -11819,7 +12000,7 @@ index 318d42d800d..588c46504b4 100644
  	  DECL_TEMPLATE_PARMS (newdecl) = ttparms;
  	}
      }
-@@ -29238,6 +29288,11 @@ alias_ctad_tweaks (tree tmpl, tree uguides)
+@@ -29238,6 +29290,11 @@ alias_ctad_tweaks (tree tmpl, tree uguides)
  	      ++ndlen;
  	  tree gtparms = make_tree_vec (natparms + ndlen);
  
@@ -11832,7 +12013,7 @@ index 318d42d800d..588c46504b4 100644
  	  for (j = 0; j < natparms; ++j)
  	    TREE_VEC_ELT (gtparms, j) = TREE_VEC_ELT (atparms, j);
 diff --git a/gcc/cp/semantics.c b/gcc/cp/semantics.c
-index d447ce80174..baae5a0f1e4 100644
+index d447ce80174..385e108a1c8 100644
 --- a/gcc/cp/semantics.c
 +++ b/gcc/cp/semantics.c
 @@ -655,7 +655,8 @@ do_pushlevel (scope_kind sk)
@@ -11845,7 +12026,17 @@ index d447ce80174..baae5a0f1e4 100644
  
  void
  push_cleanup (tree decl, tree cleanup, bool eh_only)
-@@ -10220,7 +10221,7 @@ finish_decltype_type (tree expr, bool id_expression_or_member_access_p,
+@@ -2301,7 +2302,8 @@ finish_qualified_id_expr (tree qualifying_class,
+ 
+   /* If EXPR occurs as the operand of '&', use special handling that
+      permits a pointer-to-member.  */
+-  if (address_p && done)
++  if (address_p && done
++      && TREE_CODE (qualifying_class) != ENUMERAL_TYPE)
+     {
+       if (TREE_CODE (expr) == SCOPE_REF)
+ 	expr = TREE_OPERAND (expr, 1);
+@@ -10220,7 +10222,7 @@ finish_decltype_type (tree expr, bool id_expression_or_member_access_p,
      }
    else if (processing_template_decl)
      {
@@ -11855,7 +12046,7 @@ index d447ce80174..baae5a0f1e4 100644
  	return error_mark_node;
      }
 diff --git a/gcc/cp/typeck.c b/gcc/cp/typeck.c
-index 93ad497d531..e61d67727f0 100644
+index 93ad497d531..78d679b6c81 100644
 --- a/gcc/cp/typeck.c
 +++ b/gcc/cp/typeck.c
 @@ -8769,10 +8769,14 @@ cp_build_modify_expr (location_t loc, tree lhs, enum tree_code modifycode,
@@ -11875,6 +12066,39 @@ index 93ad497d531..e61d67727f0 100644
  	    warning_at (loc, OPT_Wvolatile,
  			"compound assignment with %<volatile%>-qualified left "
  			"operand is deprecated");
+@@ -8887,6 +8891,8 @@ cp_build_modify_expr (location_t loc, tree lhs, enum tree_code modifycode,
+ 	}
+ 
+       /* Allow array assignment in compiler-generated code.  */
++      else if (DECL_P (lhs) && DECL_ARTIFICIAL (lhs))
++	/* OK, used by coroutines (co-await-initlist1.C).  */;
+       else if (!current_function_decl
+ 	       || !DECL_DEFAULTED_FN (current_function_decl))
+ 	{
+@@ -9208,18 +9214,15 @@ build_ptrmemfunc (tree type, tree pfn, int force, bool c_cast_p,
+       if (n == error_mark_node)
+ 	return error_mark_node;
+ 
++      STRIP_ANY_LOCATION_WRAPPER (pfn);
++
+       /* We don't have to do any conversion to convert a
+ 	 pointer-to-member to its own type.  But, we don't want to
+ 	 just return a PTRMEM_CST if there's an explicit cast; that
+ 	 cast should make the expression an invalid template argument.  */
+-      if (TREE_CODE (pfn) != PTRMEM_CST)
+-	{
+-	  if (same_type_p (to_type, pfn_type))
+-	    return pfn;
+-	  else if (integer_zerop (n) && TREE_CODE (pfn) != CONSTRUCTOR)
+-	    return build_reinterpret_cast (input_location, to_type, pfn, 
+-                                           complain);
+-	}
++      if (TREE_CODE (pfn) != PTRMEM_CST
++	  && same_type_p (to_type, pfn_type))
++	return pfn;
+ 
+       if (TREE_SIDE_EFFECTS (pfn))
+ 	pfn = save_expr (pfn);
 diff --git a/gcc/cselib.c b/gcc/cselib.c
 index 779874eeb2d..342c3cfdda8 100644
 --- a/gcc/cselib.c
@@ -16138,10 +16362,51 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..7956af5f588 100644
+index 5fc23605244..3c01055b313 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1686 @@
+@@ -1,3 +1,1727 @@
++2023-04-22  Jason Merrill  <jason@redhat.com>
++
++	PR c++/107163
++	* g++.dg/warn/Wsequence-point-5.C: New test.
++
++2023-04-22  Jason Merrill  <jason@redhat.com>
++
++	PR c++/105996
++	* g++.dg/cpp0x/constexpr-pmf3.C: New test.
++
++2023-04-22  Jason Merrill  <jason@redhat.com>
++
++	PR c++/108975
++	* g++.dg/cpp0x/lambda/lambda-const11.C: New test.
++
++2023-04-22  Jason Merrill  <jason@redhat.com>
++
++	PR c++/69410
++	* g++.dg/lookup/friend24.C: New test.
++
++2023-04-22  Jason Merrill  <jason@redhat.com>
++
++	PR c++/101869
++	* g++.dg/cpp0x/enum43.C: New test.
++
++2023-04-22  Jason Merrill  <jason@redhat.com>
++
++	PR c++/105406
++	* g++.dg/coroutines/co-await-moveonly1.C: New test.
++
++2023-04-22  Jason Merrill  <jason@redhat.com>
++
++	PR c++/103871
++	PR c++/98056
++	* g++.dg/coroutines/co-await-initlist1.C: New test.
++
++2023-04-22  Jason Merrill  <jason@redhat.com>
++
++	PR c++/108468
++	* g++.dg/cpp1y/var-templ78.C: New test.
++
 +2023-04-18  Philipp Tomsich  <philipp.tomsich@vrull.eu>
 +
 +	Backported from master:
@@ -17951,6 +18216,102 @@ index 00000000000..f5fa420415b
 +/* { dg-additional-options "-Wunused-function" } */
 +#pragma GCC diagnostic ignored "-Wunused-function"
 +static void f() {} _Pragma("GCC diagnostic error \"-Wunused-function\"") /* { dg-bogus "-Wunused-function" } */
+diff --git a/gcc/testsuite/g++.dg/coroutines/co-await-initlist1.C b/gcc/testsuite/g++.dg/coroutines/co-await-initlist1.C
+new file mode 100644
+index 00000000000..b8e8923a9c8
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/coroutines/co-await-initlist1.C
+@@ -0,0 +1,21 @@
++// PR c++/103871
++// { dg-do compile { target c++20 } }
++
++#include <coroutine>
++#include <initializer_list>
++
++struct my_coro {
++  struct promise_type {
++    my_coro get_return_object();
++    std::suspend_never initial_suspend();
++    std::suspend_never final_suspend() noexcept;
++    void unhandled_exception();
++  };
++};
++
++std::suspend_never inner(std::initializer_list<int>);
++
++my_coro doesnt_work()
++{
++  co_await inner({ 1,2,3 });
++}
+diff --git a/gcc/testsuite/g++.dg/coroutines/co-await-moveonly1.C b/gcc/testsuite/g++.dg/coroutines/co-await-moveonly1.C
+new file mode 100644
+index 00000000000..e2831c104bf
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/coroutines/co-await-moveonly1.C
+@@ -0,0 +1,63 @@
++// PR c++/105406
++// { dg-do compile { target c++20 } }
++
++#include <coroutine>
++#include <exception>
++
++// A move-only awaitable
++class MoveOnlyAwaitable {
++public:
++    MoveOnlyAwaitable() = default;
++    MoveOnlyAwaitable(MoveOnlyAwaitable &&) = default;
++    MoveOnlyAwaitable &operator=(MoveOnlyAwaitable &&) = default;
++
++    MoveOnlyAwaitable(const MoveOnlyAwaitable &) = delete;
++    MoveOnlyAwaitable &operator=(const MoveOnlyAwaitable &) = delete;
++
++    bool await_ready() const noexcept { return false; }
++    void await_suspend(std::coroutine_handle<>) noexcept {}
++    void await_resume() {}
++};
++
++struct task {
++    struct promise_type {
++        auto initial_suspend() const { return std::suspend_never{}; }
++        auto final_suspend() const noexcept { return std::suspend_never(); }
++        auto get_return_object() { return task{}; }
++        void return_void() {}
++        void unhandled_exception() {}
++
++        template<typename T>
++        T &&await_transform(T &&t) {
++            return static_cast<T &&>(t);
++        }
++
++
++    };
++
++    bool await_ready() const { return false; }
++    void await_suspend(std::coroutine_handle<> awaiter) {}
++    void await_resume() {}
++};
++
++task myCoroutine() {
++    // GCC: OK
++    // clang: OK
++    {
++        co_await MoveOnlyAwaitable();
++    }
++    // GCC: OK
++    // clang: OK
++    {
++        auto moveonly = MoveOnlyAwaitable();
++        co_await std::move(moveonly);
++    }
++
++    // GCC <= 11.2: OK
++    // GCC 11.3:ERROR:  error: use of deleted function 'MoveOnlyAwaitable::MoveOnlyAwaitable(const MoveOnlyAwaitable&)
++    // clang: OK
++    {
++        auto moveonly = MoveOnlyAwaitable();
++        co_await moveonly;
++    }
++}
 diff --git a/gcc/testsuite/g++.dg/coroutines/pr106188.C b/gcc/testsuite/g++.dg/coroutines/pr106188.C
 new file mode 100644
 index 00000000000..9db3778d079
@@ -18110,6 +18471,25 @@ index 00000000000..71c76fa0247
 +  Trans_NS___cxx11_basic_regex<char> re;
 +  regex_search(main___trans_tmp_1, main___trans_tmp_2, re);
 +}
+diff --git a/gcc/testsuite/g++.dg/cpp0x/constexpr-pmf3.C b/gcc/testsuite/g++.dg/cpp0x/constexpr-pmf3.C
+new file mode 100644
+index 00000000000..14daea312b7
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp0x/constexpr-pmf3.C
+@@ -0,0 +1,13 @@
++// PR c++/105996
++// { dg-do compile { target c++11 } }
++
++struct A {
++  void CB() {}
++};
++struct B : public A { };
++
++using APMF = void (A::*)();
++using BPMF = void (B::*)();
++
++constexpr APMF foo () { return &A::CB; };
++static constexpr BPMF b = foo();
 diff --git a/gcc/testsuite/g++.dg/cpp0x/decltype81.C b/gcc/testsuite/g++.dg/cpp0x/decltype81.C
 new file mode 100644
 index 00000000000..7d25db39d9c
@@ -18131,6 +18511,23 @@ index 00000000000..7d25db39d9c
 +};
 +
 +A<int> a;
+diff --git a/gcc/testsuite/g++.dg/cpp0x/enum43.C b/gcc/testsuite/g++.dg/cpp0x/enum43.C
+new file mode 100644
+index 00000000000..b2cd9797a06
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp0x/enum43.C
+@@ -0,0 +1,11 @@
++// PR c++/101869
++
++enum E { A };
++E operator & (E e)
++{
++  return e;
++}
++E f(void)
++{
++    return &E::A;	 // { dg-error "not a class" "" { target c++98_only } }
++}
 diff --git a/gcc/testsuite/g++.dg/cpp0x/initlist-new6.C b/gcc/testsuite/g++.dg/cpp0x/initlist-new6.C
 new file mode 100644
 index 00000000000..0ef27806acf
@@ -18216,6 +18613,26 @@ index 00000000000..e44dbecfece
 +  if (!destroyed)
 +    __builtin_abort();
 +}
+diff --git a/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-const11.C b/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-const11.C
+new file mode 100644
+index 00000000000..26af75bf132
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-const11.C
+@@ -0,0 +1,14 @@
++// PR c++/108975
++// { dg-do compile { target c++11 } }
++
++template<class T>
++void f() {
++  constexpr int dim = 1;
++  auto l = [&] {
++    int n[dim * 1];
++  };
++  // In f<int>, we shouldn't actually capture dim.
++  static_assert (sizeof(l) == 1, "");
++}
++
++template void f<int>();
 diff --git a/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-current-inst1.C b/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-current-inst1.C
 new file mode 100644
 index 00000000000..a6631c5ca99
@@ -18365,6 +18782,24 @@ index 00000000000..77cf0bb9d02
 +int main() {
 +    f(0);
 +}
+diff --git a/gcc/testsuite/g++.dg/cpp1y/var-templ78.C b/gcc/testsuite/g++.dg/cpp1y/var-templ78.C
+new file mode 100644
+index 00000000000..48366c92775
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp1y/var-templ78.C
+@@ -0,0 +1,12 @@
++// PR c++/108468
++// { dg-do compile { target c++14 } }
++
++template<int> struct C {
++  template<class, class>
++  static constexpr int x = 1;
++};
++
++template<int I> template<class... A>
++int C<I>::x<void(A...), void(A...)> = 2;
++
++int y = C<0>::x<void(int), void()>;
 diff --git a/gcc/testsuite/g++.dg/cpp1z/aligned-new9.C b/gcc/testsuite/g++.dg/cpp1z/aligned-new9.C
 new file mode 100644
 index 00000000000..3fa0ed996bd
@@ -18977,6 +19412,21 @@ index 00000000000..96d71e7cf35
 +  DownloadSelectedContent();
 +}
 +ClientNetworkContentSocketHandler::ClientNetworkContentSocketHandler() {}
+diff --git a/gcc/testsuite/g++.dg/lookup/friend24.C b/gcc/testsuite/g++.dg/lookup/friend24.C
+new file mode 100644
+index 00000000000..9a45410d2a7
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/lookup/friend24.C
+@@ -0,0 +1,9 @@
++// PR c++/69410
++
++void a();
++void f() {
++    class A {
++        friend void ::a();
++        friend class Z;
++    };
++}
 diff --git a/gcc/testsuite/g++.dg/modules/tpl-friend-2_a.C b/gcc/testsuite/g++.dg/modules/tpl-friend-2_a.C
 index 3acacf8ee34..c12857fbf69 100644
 --- a/gcc/testsuite/g++.dg/modules/tpl-friend-2_a.C
@@ -19522,6 +19972,49 @@ index 00000000000..d7e10743bb4
 +template <class, class> bool B;
 +template <class T>
 +bool B<T, enable_if_t<is_class_v<class T::foo>>>;
+diff --git a/gcc/testsuite/g++.dg/warn/Wsequence-point-5.C b/gcc/testsuite/g++.dg/warn/Wsequence-point-5.C
+new file mode 100644
+index 00000000000..0354ab09f53
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/warn/Wsequence-point-5.C
+@@ -0,0 +1,37 @@
++// PR c++/107163
++// { dg-additional-options "-Wsequence-point" }
++
++struct BaseType  {
++  int i;
++};
++
++template< int Seq >
++class DerivedType : public DerivedType< Seq - 1 > { };
++
++template<>
++class DerivedType< -1 > : public BaseType { };
++
++int main() {
++  DerivedType< 400 > d;
++  d.i = 42;
++  d.i = 42;
++  d.i = 42;
++  d.i = 42;
++  d.i = 42;
++  d.i = 42;
++  d.i = 42;
++  d.i = 42;
++  d.i = 42;
++  d.i = 42;
++  d.i = 42;
++  d.i = 42;
++  d.i = 42;
++  d.i = 42;
++  d.i = 42;
++  d.i = 42;
++  d.i = 42;
++  d.i = 42;
++  d.i = 42;
++  d.i = 42;
++  return d.i;
++}
 diff --git a/gcc/testsuite/g++.target/aarch64/bitfield-abi-warning-align16-O2-extra.C b/gcc/testsuite/g++.target/aarch64/bitfield-abi-warning-align16-O2-extra.C
 new file mode 100644
 index 00000000000..fb3194bd231
