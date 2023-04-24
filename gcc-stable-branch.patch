@@ -52,7 +52,8 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (363):
+GCC Administrator (364):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -426,6 +427,9 @@ H.J. Lu (5):
       x86: Require AVX for F16C and VAES
       i386: Mark XMM4-XMM6 as clobbered by encodekey128/encodekey256
       Always use TYPE_MODE instead of DECL_MODE for vector field
+
+Haochen Gui (1):
+      rs6000: correct vector sign extend builtins on Big Endian
 
 Harald Anlauf (37):
       Fortran: improve error recovery on invalid array section
@@ -8116,7 +8120,7 @@ index eab712fdfa6..4d7e14f312a 100644
  
  extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
 diff --git a/gcc/config/rs6000/rs6000-builtin.def b/gcc/config/rs6000/rs6000-builtin.def
-index 6270444ef70..931ae960b9f 100644
+index 6270444ef70..b0f8c708698 100644
 --- a/gcc/config/rs6000/rs6000-builtin.def
 +++ b/gcc/config/rs6000/rs6000-builtin.def
 @@ -2881,9 +2881,9 @@ BU_P9V_AV_1 (VCTZB,		"vctzb",		CONST,  ctzv16qi2)
@@ -8132,6 +8136,32 @@ index 6270444ef70..931ae960b9f 100644
  
  /* ISA 3.0 vector overloaded 1 argument functions.  */
  BU_P9V_OVERLOAD_1 (VCTZ,	"vctz")
+@@ -2910,11 +2910,11 @@ BU_P9_OVERLOAD_2 (CMPRB2,	"byte_in_either_range")
+ BU_P9_OVERLOAD_2 (CMPEQB,	"byte_in_set")
+ 
+ 
+-BU_P9V_AV_1 (VSIGNEXTSB2W,	"vsignextsb2w",		CONST,  vsignextend_qi_v4si)
+-BU_P9V_AV_1 (VSIGNEXTSH2W,	"vsignextsh2w",		CONST,  vsignextend_hi_v4si)
+-BU_P9V_AV_1 (VSIGNEXTSB2D,	"vsignextsb2d",		CONST,  vsignextend_qi_v2di)
+-BU_P9V_AV_1 (VSIGNEXTSH2D,	"vsignextsh2d",		CONST,  vsignextend_hi_v2di)
+-BU_P9V_AV_1 (VSIGNEXTSW2D,	"vsignextsw2d",		CONST,  vsignextend_si_v2di)
++BU_P9V_AV_1 (VSIGNEXTSB2W,	"vsignextsb2w",		CONST,  vsx_sign_extend_v16qi_v4si)
++BU_P9V_AV_1 (VSIGNEXTSH2W,	"vsignextsh2w",		CONST,  vsx_sign_extend_v8hi_v4si)
++BU_P9V_AV_1 (VSIGNEXTSB2D,	"vsignextsb2d",		CONST,  vsx_sign_extend_v16qi_v2di)
++BU_P9V_AV_1 (VSIGNEXTSH2D,	"vsignextsh2d",		CONST,  vsx_sign_extend_v8hi_v2di)
++BU_P9V_AV_1 (VSIGNEXTSW2D,	"vsignextsw2d",		CONST,  vsx_sign_extend_v4si_v2di)
+ 
+ /* Builtins for scalar instructions added in ISA 3.1 (power10).  */
+ BU_P10V_AV_P (VCMPEQUT_P,	"vcmpequt_p",	CONST,	vector_eq_v1ti_p)
+@@ -2954,7 +2954,7 @@ BU_P10V_AV_2 (VNOR_V1TI,	"vnor_v1ti",	CONST,	norv1ti3)
+ BU_P10V_AV_2 (VCMPNET_P,	"vcmpnet_p",	CONST,	vector_ne_v1ti_p)
+ BU_P10V_AV_2 (VCMPAET_P,	"vcmpaet_p",	CONST,	vector_ae_v1ti_p)
+ 
+-BU_P10V_AV_1 (VSIGNEXTSD2Q,	"vsignext",     CONST,  vsignextend_v2di_v1ti)
++BU_P10V_AV_1 (VSIGNEXTSD2Q,	"vsignext",     CONST,  vsx_sign_extend_v2di_v1ti)
+ 
+ BU_P10V_AV_2 (VMULEUD,	"vmuleud",	CONST,	vec_widen_umult_even_v2di)
+ BU_P10V_AV_2 (VMULESD,	"vmulesd",	CONST,	vec_widen_smult_even_v2di)
 diff --git a/gcc/config/rs6000/rs6000-call.c b/gcc/config/rs6000/rs6000-call.c
 index ef20cb30388..1be4797e834 100644
 --- a/gcc/config/rs6000/rs6000-call.c
@@ -8715,7 +8745,7 @@ index 4ca6372435d..3b3dea5114a 100644
    "%{mdejagnu-*: %<mdejagnu-*}", \
     SUBTARGET_DRIVER_SELF_SPECS
 diff --git a/gcc/config/rs6000/rs6000.md b/gcc/config/rs6000/rs6000.md
-index a4a7d105f5e..4ef392ebe7b 100644
+index a4a7d105f5e..f4ca287891a 100644
 --- a/gcc/config/rs6000/rs6000.md
 +++ b/gcc/config/rs6000/rs6000.md
 @@ -835,8 +835,8 @@
@@ -8767,6 +8797,15 @@ index a4a7d105f5e..4ef392ebe7b 100644
  	   r,          d,          v,
  	   I,          L,          eI,         n,
  	   wa,         O,          wM,         wB,
+@@ -7557,7 +7557,7 @@
+   rtx op0_v16qi = gen_rtx_REG (V16QImode, r);
+ 
+   emit_insn (gen_xxspltib_v16qi (op0_v16qi, op1));
+-  emit_insn (gen_vsx_sign_extend_qi_si (operands[0], op0_v16qi));
++  emit_insn (gen_vsx_sign_extend_v16qi_si (operands[0], op0_v16qi));
+   DONE;
+ })
+ 
 @@ -7601,11 +7601,11 @@
  ;;		MTVSRWZ     MF%1       MT%1       NOP
  (define_insn "*mov<mode>_internal"
@@ -8794,6 +8833,18 @@ index a4a7d105f5e..4ef392ebe7b 100644
  	  f,         r,         r,         *h,        0"))]
    "(register_operand (operands[0], SDmode)
     || register_operand (operands[1], SDmode))
+@@ -9452,9 +9452,9 @@
+ 
+   emit_insn (gen_xxspltib_v16qi (op0_v16qi, op1));
+   if (<MODE>mode == DImode)
+-    emit_insn (gen_vsx_sign_extend_qi_di (operands[0], op0_v16qi));
++    emit_insn (gen_vsx_sign_extend_v16qi_di (operands[0], op0_v16qi));
+   else if (<MODE>mode == SImode)
+-    emit_insn (gen_vsx_sign_extend_qi_si (operands[0], op0_v16qi));
++    emit_insn (gen_vsx_sign_extend_v16qi_si (operands[0], op0_v16qi));
+   else if (<MODE>mode == HImode)
+     {
+       rtx op0_v8hi = gen_rtx_REG (V8HImode, r);
 diff --git a/gcc/config/rs6000/rtems.h b/gcc/config/rs6000/rtems.h
 index 872cc2849af..2a064bfad19 100644
 --- a/gcc/config/rs6000/rtems.h
@@ -8922,6 +8973,131 @@ index 20b8ba1666f..d4f81abce1d 100644
  
  
  ;; Same size conversions
+diff --git a/gcc/config/rs6000/vsx.md b/gcc/config/rs6000/vsx.md
+index f2260badf70..bb44109c7bc 100644
+--- a/gcc/config/rs6000/vsx.md
++++ b/gcc/config/rs6000/vsx.md
+@@ -1145,10 +1145,10 @@
+   emit_insn (gen_xxspltib_v16qi (tmp, GEN_INT (value)));
+ 
+   if (<MODE>mode == V2DImode)
+-    emit_insn (gen_vsx_sign_extend_qi_v2di (op0, tmp));
++    emit_insn (gen_vsx_sign_extend_v16qi_v2di (op0, tmp));
+ 
+   else if (<MODE>mode == V4SImode)
+-    emit_insn (gen_vsx_sign_extend_qi_v4si (op0, tmp));
++    emit_insn (gen_vsx_sign_extend_v16qi_v4si (op0, tmp));
+ 
+   else if (<MODE>mode == V8HImode)
+     emit_insn (gen_altivec_vupkhsb  (op0, tmp));
+@@ -4892,27 +4892,9 @@
+  "vextsd2q %0,%1"
+ [(set_attr "type" "vecexts")])
+ 
+-(define_expand "vsignextend_v2di_v1ti"
+-  [(set (match_operand:V1TI 0 "vsx_register_operand" "=v")
+-	(unspec:V1TI [(match_operand:V2DI 1 "vsx_register_operand" "v")]
+-		     UNSPEC_VSX_SIGN_EXTEND))]
+-  "TARGET_POWER10"
+-{
+-  if (BYTES_BIG_ENDIAN)
+-    {
+-      rtx tmp = gen_reg_rtx (V2DImode);
+-
+-      emit_insn (gen_altivec_vrevev2di2(tmp, operands[1]));
+-      emit_insn (gen_vsx_sign_extend_v2di_v1ti(operands[0], tmp));
+-      DONE;
+-     }
+-
+-  emit_insn (gen_vsx_sign_extend_v2di_v1ti(operands[0], operands[1]));
+-})
+-
+ ;; ISA 3.0 vector extend sign support
+ 
+-(define_insn "vsx_sign_extend_qi_<mode>"
++(define_insn "vsx_sign_extend_v16qi_<mode>"
+   [(set (match_operand:VSINT_84 0 "vsx_register_operand" "=v")
+ 	(unspec:VSINT_84
+ 	 [(match_operand:V16QI 1 "vsx_register_operand" "v")]
+@@ -4921,25 +4903,7 @@
+   "vextsb2<wd> %0,%1"
+   [(set_attr "type" "vecexts")])
+ 
+-(define_expand "vsignextend_qi_<mode>"
+-  [(set (match_operand:VIlong 0 "vsx_register_operand" "=v")
+-	(unspec:VIlong
+-	 [(match_operand:V16QI 1 "vsx_register_operand" "v")]
+-	 UNSPEC_VSX_SIGN_EXTEND))]
+-  "TARGET_P9_VECTOR"
+-{
+-  if (BYTES_BIG_ENDIAN)
+-    {
+-      rtx tmp = gen_reg_rtx (V16QImode);
+-      emit_insn (gen_altivec_vrevev16qi2(tmp, operands[1]));
+-      emit_insn (gen_vsx_sign_extend_qi_<mode>(operands[0], tmp));
+-    }
+-  else
+-    emit_insn (gen_vsx_sign_extend_qi_<mode>(operands[0], operands[1]));
+-  DONE;
+-})
+-
+-(define_insn "vsx_sign_extend_hi_<mode>"
++(define_insn "vsx_sign_extend_v8hi_<mode>"
+   [(set (match_operand:VSINT_84 0 "vsx_register_operand" "=v")
+ 	(unspec:VSINT_84
+ 	 [(match_operand:V8HI 1 "vsx_register_operand" "v")]
+@@ -4948,25 +4912,7 @@
+   "vextsh2<wd> %0,%1"
+   [(set_attr "type" "vecexts")])
+ 
+-(define_expand "vsignextend_hi_<mode>"
+-  [(set (match_operand:VIlong 0 "vsx_register_operand" "=v")
+-	(unspec:VIlong
+-	 [(match_operand:V8HI 1 "vsx_register_operand" "v")]
+-	 UNSPEC_VSX_SIGN_EXTEND))]
+-  "TARGET_P9_VECTOR"
+-{
+-  if (BYTES_BIG_ENDIAN)
+-    {
+-      rtx tmp = gen_reg_rtx (V8HImode);
+-      emit_insn (gen_altivec_vrevev8hi2(tmp, operands[1]));
+-      emit_insn (gen_vsx_sign_extend_hi_<mode>(operands[0], tmp));
+-    }
+-  else
+-     emit_insn (gen_vsx_sign_extend_hi_<mode>(operands[0], operands[1]));
+-  DONE;
+-})
+-
+-(define_insn "vsx_sign_extend_si_v2di"
++(define_insn "vsx_sign_extend_v4si_v2di"
+   [(set (match_operand:V2DI 0 "vsx_register_operand" "=v")
+ 	(unspec:V2DI [(match_operand:V4SI 1 "vsx_register_operand" "v")]
+ 		     UNSPEC_VSX_SIGN_EXTEND))]
+@@ -4974,24 +4920,6 @@
+   "vextsw2d %0,%1"
+   [(set_attr "type" "vecexts")])
+ 
+-(define_expand "vsignextend_si_v2di"
+-  [(set (match_operand:V2DI 0 "vsx_register_operand" "=v")
+-	(unspec:V2DI [(match_operand:V4SI 1 "vsx_register_operand" "v")]
+-		     UNSPEC_VSX_SIGN_EXTEND))]
+-  "TARGET_P9_VECTOR"
+-{
+-  if (BYTES_BIG_ENDIAN)
+-    {
+-       rtx tmp = gen_reg_rtx (V4SImode);
+-
+-       emit_insn (gen_altivec_vrevev4si2(tmp, operands[1]));
+-       emit_insn (gen_vsx_sign_extend_si_v2di(operands[0], tmp));
+-    }
+-  else
+-     emit_insn (gen_vsx_sign_extend_si_v2di(operands[0], operands[1]));
+-  DONE;
+-})
+-
+ ;; ISA 3.1 vector sign extend
+ ;; Move DI value from GPR to TI mode in VSX register, word 1.
+ (define_insn "mtvsrdd_diti_w1"
 diff --git a/gcc/config/rs6000/xmmintrin.h b/gcc/config/rs6000/xmmintrin.h
 index ae1a33e8d95..ba311cbf2df 100644
 --- a/gcc/config/rs6000/xmmintrin.h
@@ -24570,7 +24746,7 @@ index b3f457a28e2..40ca00a7405 100644
  vector double fusion_vector (vector double *p) { return p[2]; }
  
 diff --git a/gcc/testsuite/gcc.target/powerpc/int_128bit-runnable.c b/gcc/testsuite/gcc.target/powerpc/int_128bit-runnable.c
-index 1255ee9f0ab..41e46d41401 100644
+index 1255ee9f0ab..9d216799a0f 100644
 --- a/gcc/testsuite/gcc.target/powerpc/int_128bit-runnable.c
 +++ b/gcc/testsuite/gcc.target/powerpc/int_128bit-runnable.c
 @@ -1,5 +1,5 @@
@@ -24580,6 +24756,30 @@ index 1255ee9f0ab..41e46d41401 100644
  /* { dg-require-effective-target power10_hw } */
  
  /* Check that the expected 128-bit instructions are generated if the processor
+@@ -90,7 +90,11 @@ int main ()
+   vec_arg1_di[0] = 1000;
+   vec_arg1_di[1] = -123456;
+ 
++#ifdef __BIG_ENDIAN__
++  expected_result = -123456;
++#else
+   expected_result = 1000;
++#endif
+ 
+   vec_result = vec_signextq (vec_arg1_di);
+ 
+@@ -109,7 +113,11 @@ int main ()
+   vec_arg1_di[0] = -123456;
+   vec_arg1_di[1] = 1000;
+ 
++#ifdef __BIG_ENDIAN__
++  expected_result = 1000;
++#else
+   expected_result = -123456;
++#endif
+ 
+   vec_result = vec_signextq (vec_arg1_di);
+ 
 diff --git a/gcc/testsuite/gcc.target/powerpc/mulic3-1.c b/gcc/testsuite/gcc.target/powerpc/mulic3-1.c
 new file mode 100644
 index 00000000000..664f7118167
@@ -24638,6 +24838,75 @@ index 00000000000..c2c12dcd817
 +}
 +
 +/* { dg-final { scan-assembler {\mbl .*__multc3\M} } } */
+diff --git a/gcc/testsuite/gcc.target/powerpc/p9-sign_extend-runnable.c b/gcc/testsuite/gcc.target/powerpc/p9-sign_extend-runnable.c
+index fdcad019b96..03c0f1201e4 100644
+--- a/gcc/testsuite/gcc.target/powerpc/p9-sign_extend-runnable.c
++++ b/gcc/testsuite/gcc.target/powerpc/p9-sign_extend-runnable.c
+@@ -34,7 +34,12 @@ int main ()
+   /* test sign extend byte to word */
+   vec_arg_qi = (vector signed char) {1, 2, 3, 4, 5, 6, 7, 8,
+ 				     -1, -2, -3, -4, -5, -6, -7, -8};
++
++#ifdef __BIG_ENDIAN__
++  vec_expected_wi = (vector signed int) {4, 8, -4, -8};
++#else
+   vec_expected_wi = (vector signed int) {1, 5, -1, -5};
++#endif
+ 
+   vec_result_wi = vec_signexti (vec_arg_qi);
+ 
+@@ -54,7 +59,12 @@ int main ()
+   /* test sign extend byte to double */
+   vec_arg_qi = (vector signed char){1, 2, 3, 4, 5, 6, 7, 8,
+ 				    -1, -2, -3, -4, -5, -6, -7, -8};
++
++#ifdef __BIG_ENDIAN__
++  vec_expected_di = (vector signed long long int){8, -8};
++#else
+   vec_expected_di = (vector signed long long int){1, -1};
++#endif
+ 
+   vec_result_di = vec_signextll(vec_arg_qi);
+ 
+@@ -72,7 +82,12 @@ int main ()
+ 
+   /* test sign extend short to word */
+   vec_arg_hi = (vector signed short int){1, 2, 3, 4, -1, -2, -3, -4};
++
++#ifdef __BIG_ENDIAN__
++  vec_expected_wi = (vector signed int){2, 4, -2, -4};
++#else
+   vec_expected_wi = (vector signed int){1, 3, -1, -3};
++#endif
+ 
+   vec_result_wi = vec_signexti(vec_arg_hi);
+ 
+@@ -90,7 +105,12 @@ int main ()
+ 
+   /* test sign extend short to double word */
+   vec_arg_hi = (vector signed short int ){1, 3, 5, 7,  -1, -3, -5, -7};
++
++#ifdef __BIG_ENDIAN__
++  vec_expected_di = (vector signed long long int){7, -7};
++#else
+   vec_expected_di = (vector signed long long int){1, -1};
++#endif
+ 
+   vec_result_di = vec_signextll(vec_arg_hi);
+ 
+@@ -108,7 +128,12 @@ int main ()
+ 
+   /* test sign extend word to double word */
+   vec_arg_wi = (vector signed int ){1, 3, -1, -3};
++
++#ifdef __BIG_ENDIAN__
++  vec_expected_di = (vector signed long long int){3, -3};
++#else
+   vec_expected_di = (vector signed long long int){1, -1};
++#endif
+ 
+   vec_result_di = vec_signextll(vec_arg_wi);
+ 
 diff --git a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-1.c b/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-1.c
 index d248f091b52..dfcc0e95320 100644
 --- a/gcc/testsuite/gcc.target/powerpc/p9-vec-length-epil-1.c
