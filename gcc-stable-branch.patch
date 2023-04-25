@@ -52,7 +52,8 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (364):
+GCC Administrator (365):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -913,10 +914,43 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..aca05340ccb 100644
+index a0587d18824..0979e0e6580 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,1437 @@
+@@ -1,3 +1,1470 @@
++2023-04-24  Haochen Gui  <guihaoc@gcc.gnu.org>
++
++	PR target/108812
++	* config/rs6000/vsx.md (vsx_sign_extend_qi_<mode>): Rename to...
++	(vsx_sign_extend_v16qi_<mode>): ... this.
++	(vsx_sign_extend_hi_<mode>): Rename to...
++	(vsx_sign_extend_v8hi_<mode>): ... this.
++	(vsx_sign_extend_si_v2di): Rename to...
++	(vsx_sign_extend_v4si_v2di): ... this.
++	(vsignextend_qi_<mode>): Remove.
++	(vsignextend_hi_<mode>): Remove.
++	(vsignextend_si_v2di): Remove.
++	(vsignextend_v2di_v1ti): Remove.
++	(*xxspltib_<mode>_split): Replace gen_vsx_sign_extend_qi_v2di with
++	gen_vsx_sign_extend_v16qi_v2di and gen_vsx_sign_extend_qi_v4si
++	with gen_vsx_sign_extend_v16qi_v4si.
++	* config/rs6000/rs6000.md (split for DI constant generation):
++	Replace gen_vsx_sign_extend_qi_si with gen_vsx_sign_extend_v16qi_si.
++	(split for HSDI constant generation): Replace gen_vsx_sign_extend_qi_di
++	with gen_vsx_sign_extend_v16qi_di and gen_vsx_sign_extend_qi_si
++	with gen_vsx_sign_extend_v16qi_si.
++	* config/rs6000/rs6000-builtin.def (__builtin_altivec_vsignextsb2d):
++	Set ICODE to vsx_sign_extend_v16qi_v2di.
++	(__builtin_altivec_vsignextsb2w): Set ICODE to
++	vsx_sign_extend_v16qi_v4si.
++	(__builtin_altivec_visgnextsh2d): Set ICODE to
++	vsx_sign_extend_v8hi_v2di.
++	(__builtin_altivec_vsignextsh2w): Set ICODE to
++	vsx_sign_extend_v8hi_v4si.
++	(__builtin_altivec_vsignextsw2d): Set ICDE to
++	vsx_sign_extend_si_v2di.
++	(__builtin_altivec_vsignext): Set ICODE to vsx_sign_extend_v2di_v1ti.
++
 +2023-04-18  Philipp Tomsich  <philipp.tomsich@vrull.eu>
 +
 +	Backported from master:
@@ -16538,10 +16572,17 @@ index 67a49e65fd8..88b37584f74 100644
  	  x = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
  					new_rtx, GET_MODE (XEXP (x, 0)));
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..3c01055b313 100644
+index 5fc23605244..ab1206c3c92 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1727 @@
+@@ -1,3 +1,1734 @@
++2023-04-24  Haochen Gui  <guihaoc@gcc.gnu.org>
++
++	PR target/108812
++	* gcc.target/powerpc/p9-sign_extend-runnable.c: Set corresponding
++	expected vectors for Big Endian.
++	* gcc.target/powerpc/int_128bit-runnable.c: Likewise.
++
 +2023-04-22  Jason Merrill  <jason@redhat.com>
 +
 +	PR c++/107163
