@@ -53,7 +53,8 @@ Francois-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (366):
+GCC Administrator (367):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -29097,6 +29098,20 @@ index 906f4ea9dfc..c90fd99acbc 100644
  }
  
  } // namespace selftest
+diff --git a/gnattools/ChangeLog b/gnattools/ChangeLog
+index b57a967f2e2..5e145d6f99d 100644
+--- a/gnattools/ChangeLog
++++ b/gnattools/ChangeLog
+@@ -1,3 +1,9 @@
++2023-04-26  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* configure.ac (TOOLS_TARGET_PAIRS): Remove obsolete settings.
++	(EXTRA_GNATTOOLS): Likewise.
++	* configure: Regenerate.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/gnattools/configure b/gnattools/configure
 index c2d755b723a..6cdfbe67af2 100755
 --- a/gnattools/configure
