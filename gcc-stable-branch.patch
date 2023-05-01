@@ -50,10 +50,17 @@ Florian Weimer (2):
 Francois-Xavier Coudert (1):
       LTO: Prune some warnings in the testsuite
 
+François Dumont (1):
+      libstdc++: Fix printing of std::span for versioned namespace
+
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (367):
+GCC Administrator (371):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -565,7 +572,7 @@ John David Anglin (2):
       Fix addvdi3 and subvdi3 patterns
       Skip guality tests on hppa-hpux.
 
-Jonathan Wakely (82):
+Jonathan Wakely (91):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -648,6 +655,15 @@ Jonathan Wakely (82):
       libstdc++: Fix std::random_device for avr
       libstdc++: Horrible macro hacks to allow building on avr
       libstdc++: Fix std::filesystem errors with -fkeep-inline-functions [PR108636]
+      libstdc++: Fix name of <experimental/optional> in comment
+      libstdc++: Fix uses_allocator_construction_args for pair<T&&, U&&> [PR108952]
+      libstdc++: Fix GDB Xmethod for std::shared_ptr::use_count() [PR109064]
+      libstdc++: Fix dangling reference in filesystem::path::filename()
+      libstdc++: Reduce Doxygen output for PDF
+      libstdc++: Fix outdated docs about demangling exception messages
+      libstdc++: Fix error in doxygen comments in <atomic>
+      libstdc++: Add missing runtime exception to licence notice
+      libstdc++: Document LWG 1203 API change in manual
 
 José Rui Faustino de Sousa (5):
       Fortran: Fix ICE with -fcheck=pointer [PR100136]
@@ -763,6 +779,10 @@ Peter Bergner (5):
       c: Handle initializations of opaque types [PR106016]
       rs6000: Allow conversions of MMA pointer types [PR106017]
       rs6000: Don't ICE when we disassemble an MMA variable [PR101322]
+
+Philipp Fent (2):
+      libstdc++: Add pretty printer for std::span
+      libstdc++: Add pretty printer for std::initializer_list
 
 Philipp Tomsich (6):
       aarch64: fix off-by-one in reading cpuinfo
@@ -3620,13 +3640,23 @@ index c155f4883cf..391a93f3018 100644
 -      && aarch64_bti_enabled ()
 -      && !cgraph_node::get (cfun->decl)->only_called_directly_p ())
 +  if (!cfun->machine->label_is_assembled)
-+    {
+     {
+-      /* Remove the BTI that follows the patch area and insert a new BTI
+-	 before the patch area right after the function label.  */
+-      rtx_insn *insn = next_real_nondebug_insn (get_insns ());
+-      if (insn
+-	  && INSN_P (insn)
+-	  && GET_CODE (PATTERN (insn)) == UNSPEC_VOLATILE
+-	  && XINT (PATTERN (insn), 1) == UNSPECV_BTI_C)
+-	delete_insn (insn);
+-      asm_fprintf (file, "\thint\t34 // bti c\n");
 +      /* Emit the patching area before the entry label, if any.  */
 +      default_print_patchable_function_entry (file, patch_area_size,
 +					      record_p);
 +      return;
-+    }
-+
+     }
+ 
+-  default_print_patchable_function_entry (file, patch_area_size, record_p);
 +  rtx pa = gen_patchable_area (GEN_INT (patch_area_size),
 +			       GEN_INT (record_p));
 +  basic_block bb = ENTRY_BLOCK_PTR_FOR_FN (cfun)->next_bb;
@@ -3645,21 +3675,11 @@ index c155f4883cf..391a93f3018 100644
 +      || !INSN_P (insn)
 +      || GET_CODE (PATTERN (insn)) != UNSPEC_VOLATILE
 +      || XINT (PATTERN (insn), 1) != UNSPECV_BTI_C)
-     {
--      /* Remove the BTI that follows the patch area and insert a new BTI
--	 before the patch area right after the function label.  */
--      rtx_insn *insn = next_real_nondebug_insn (get_insns ());
--      if (insn
--	  && INSN_P (insn)
--	  && GET_CODE (PATTERN (insn)) == UNSPEC_VOLATILE
--	  && XINT (PATTERN (insn), 1) == UNSPECV_BTI_C)
--	delete_insn (insn);
--      asm_fprintf (file, "\thint\t34 // bti c\n");
++    {
 +      /* Emit a BTI_C.  */
 +      insn = emit_insn_before (gen_bti_c (), BB_HEAD (bb));
-     }
- 
--  default_print_patchable_function_entry (file, patch_area_size, record_p);
++    }
++
 +  /* Emit the patchable_area after BTI_C.  */
 +  insn = emit_insn_after (pa, insn);
 +  INSN_ADDRESSES_NEW (insn, -1);
@@ -4300,15 +4320,6 @@ index 9212937380f..581b05f845e 100644
 - if (!s_register_operand (operands[0], <MODE>mode)
 -     && !s_register_operand (operands[1], <MODE>mode))
 -   operands[1] = force_reg (<MODE>mode, operands[1]);
--
-- if (s_register_operand (operands[0], <MODE>mode))
--   adjust_mem = operands[1];
-- else
--   adjust_mem = operands[0];
--
-- /* Legitimize address.  */
-- if (!neon_vector_mem_operand (adjust_mem, 2, true))
--   XEXP (adjust_mem, 0) = force_reg (Pmode, XEXP (adjust_mem, 0));
 +  rtx *memloc;
 +  bool for_store = false;
 +  /* This pattern is not permitted to fail during expansion: if both arguments
@@ -4317,7 +4328,11 @@ index 9212937380f..581b05f845e 100644
 +  if (!s_register_operand (operands[0], <MODE>mode)
 +      && !s_register_operand (operands[1], <MODE>mode))
 +    operands[1] = force_reg (<MODE>mode, operands[1]);
-+
+ 
+- if (s_register_operand (operands[0], <MODE>mode))
+-   adjust_mem = operands[1];
+- else
+-   adjust_mem = operands[0];
 +  if (s_register_operand (operands[0], <MODE>mode))
 +    memloc = &operands[1];
 +  else
@@ -4325,7 +4340,10 @@ index 9212937380f..581b05f845e 100644
 +      memloc = &operands[0];
 +      for_store = true;
 +    }
-+
+ 
+- /* Legitimize address.  */
+- if (!neon_vector_mem_operand (adjust_mem, 2, true))
+-   XEXP (adjust_mem, 0) = force_reg (Pmode, XEXP (adjust_mem, 0));
 +  /* For MVE, vector loads/stores must be aligned to the element size.  If the
 +     alignment is less than that convert the load/store to a suitable mode.  */
 +  if (TARGET_HAVE_MVE
@@ -4402,80 +4420,78 @@ index 515ee0c1728..1ce6bade1b4 100644
  #else
 -#define _mm512_scalef_round_pd(A, B, C)            \
 -    (__m512d)__builtin_ia32_scalefpd512_mask(A, B, (__v8df)_mm512_undefined_pd(), -1, C)
--
--#define _mm512_mask_scalef_round_pd(W, U, A, B, C) \
--    (__m512d)__builtin_ia32_scalefpd512_mask(A, B, W, U, C)
--
--#define _mm512_maskz_scalef_round_pd(U, A, B, C)   \
--    (__m512d)__builtin_ia32_scalefpd512_mask(A, B, (__v8df)_mm512_setzero_pd(), U, C)
 +#define _mm512_scalef_round_pd(A, B, C)					\
 +  ((__m512d)								\
 +   __builtin_ia32_scalefpd512_mask((A), (B),				\
 +				   (__v8df) _mm512_undefined_pd(),	\
 +				   -1, (C)))
-+
+ 
+-#define _mm512_mask_scalef_round_pd(W, U, A, B, C) \
+-    (__m512d)__builtin_ia32_scalefpd512_mask(A, B, W, U, C)
 +#define _mm512_mask_scalef_round_pd(W, U, A, B, C)			\
 +  ((__m512d) __builtin_ia32_scalefpd512_mask((A), (B), (W), (U), (C)))
-+
+ 
+-#define _mm512_maskz_scalef_round_pd(U, A, B, C)   \
+-    (__m512d)__builtin_ia32_scalefpd512_mask(A, B, (__v8df)_mm512_setzero_pd(), U, C)
 +#define _mm512_maskz_scalef_round_pd(U, A, B, C)			\
 +  ((__m512d)								\
 +   __builtin_ia32_scalefpd512_mask((A), (B),				\
 +				   (__v8df) _mm512_setzero_pd(),	\
 +				   (U), (C)))
-+
+ 
+-#define _mm512_scalef_round_ps(A, B, C)            \
+-    (__m512)__builtin_ia32_scalefps512_mask(A, B, (__v16sf)_mm512_undefined_ps(), -1, C)
 +#define _mm512_scalef_round_ps(A, B, C)					\
 +  ((__m512)								\
 +   __builtin_ia32_scalefps512_mask((A), (B),				\
 +				   (__v16sf) _mm512_undefined_ps(),	\
 +				   -1, (C)))
-+
+ 
+-#define _mm512_mask_scalef_round_ps(W, U, A, B, C) \
+-    (__m512)__builtin_ia32_scalefps512_mask(A, B, W, U, C)
 +#define _mm512_mask_scalef_round_ps(W, U, A, B, C)			\
 +  ((__m512) __builtin_ia32_scalefps512_mask((A), (B), (W), (U), (C)))
-+
+ 
+-#define _mm512_maskz_scalef_round_ps(U, A, B, C)   \
+-    (__m512)__builtin_ia32_scalefps512_mask(A, B, (__v16sf)_mm512_setzero_ps(), U, C)
 +#define _mm512_maskz_scalef_round_ps(U, A, B, C)			\
 +  ((__m512)								\
 +   __builtin_ia32_scalefps512_mask((A), (B),				\
 +				   (__v16sf) _mm512_setzero_ps(),	\
 +				   (U), (C)))
-+
+ 
+-#define _mm_scalef_round_sd(A, B, C)            \
+-    (__m128d)__builtin_ia32_scalefsd_mask_round (A, B, \
+-	(__v2df)_mm_setzero_pd (), -1, C)
 +#define _mm_scalef_round_sd(A, B, C)					\
 +  ((__m128d)								\
 +   __builtin_ia32_scalefsd_mask_round ((A), (B),			\
 +				       (__v2df) _mm_undefined_pd (),	\
 +				       -1, (C)))
  
--#define _mm512_scalef_round_ps(A, B, C)            \
--    (__m512)__builtin_ia32_scalefps512_mask(A, B, (__v16sf)_mm512_undefined_ps(), -1, C)
+-#define _mm_scalef_round_ss(A, B, C)            \
+-    (__m128)__builtin_ia32_scalefss_mask_round (A, B, \
+-	(__v4sf)_mm_setzero_ps (), -1, C)
 +#define _mm_scalef_round_ss(A, B, C)					\
 +  ((__m128)								\
 +   __builtin_ia32_scalefss_mask_round ((A), (B),			\
 +				       (__v4sf) _mm_undefined_ps (),	\
 +				       -1, (C)))
- 
--#define _mm512_mask_scalef_round_ps(W, U, A, B, C) \
--    (__m512)__builtin_ia32_scalefps512_mask(A, B, W, U, C)
++
 +#define _mm_mask_scalef_round_sd(W, U, A, B, C)				\
 +  ((__m128d)								\
 +   __builtin_ia32_scalefsd_mask_round ((A), (B), (W), (U), (C)))
- 
--#define _mm512_maskz_scalef_round_ps(U, A, B, C)   \
--    (__m512)__builtin_ia32_scalefps512_mask(A, B, (__v16sf)_mm512_setzero_ps(), U, C)
++
 +#define _mm_mask_scalef_round_ss(W, U, A, B, C)				\
 +  ((__m128)								\
 +   __builtin_ia32_scalefss_mask_round ((A), (B), (W), (U), (C)))
- 
--#define _mm_scalef_round_sd(A, B, C)            \
--    (__m128d)__builtin_ia32_scalefsd_mask_round (A, B, \
--	(__v2df)_mm_setzero_pd (), -1, C)
++
 +#define _mm_maskz_scalef_round_sd(U, A, B, C)				\
 +  ((__m128d)								\
 +   __builtin_ia32_scalefsd_mask_round ((A), (B),			\
 +				       (__v2df) _mm_setzero_pd (),	\
 +				       (U), (C)))
- 
--#define _mm_scalef_round_ss(A, B, C)            \
--    (__m128)__builtin_ia32_scalefss_mask_round (A, B, \
--	(__v4sf)_mm_setzero_ps (), -1, C)
++
 +#define _mm_maskz_scalef_round_ss(U, A, B, C)				\
 +  ((__m128)								\
 +   __builtin_ia32_scalefss_mask_round ((A), (B),			\
@@ -6703,18 +6719,17 @@ index ce1287edf78..991368095dd 100644
 -  __v4si vsum;
 -  const __v4su zero = { 0, 0, 0, 0 };
 -  __v4si result;
--
--  a = (__v16qu) __A;
--  b = (__v16qu) __B;
--  vmin = vec_min (a, b);
--  vmax = vec_max (a, b);
--  vabsdiff = vec_sub (vmax, vmin);
 +  __v16qu __a, __b;
 +  __v16qu __vmin, __vmax, __vabsdiff;
 +  __v4si __vsum;
 +  const __v4su __zero = { 0, 0, 0, 0 };
 +  __v4si __result;
-+
+ 
+-  a = (__v16qu) __A;
+-  b = (__v16qu) __B;
+-  vmin = vec_min (a, b);
+-  vmax = vec_max (a, b);
+-  vabsdiff = vec_sub (vmax, vmin);
 +  __a = (__v16qu) __A;
 +  __b = (__v16qu) __B;
 +  __vmin = vec_min (__a, __b);
@@ -6757,16 +6772,15 @@ index c04348068e0..4503e75ce18 100644
    /* Linux GLIBC malloc alignment is at least 2 X ptr size.  */
 -  size_t malloc_align = (sizeof (void *) + sizeof (void *));
 -  void *ptr;
--
++  size_t __malloc_align = (sizeof (void *) + sizeof (void *));
++  void *__ptr;
+ 
 -  if (alignment == malloc_align && alignment == vec_align)
 -    return malloc (size);
 -  if (alignment < vec_align)
 -    alignment = vec_align;
 -  if (posix_memalign (&ptr, alignment, size) == 0)
 -    return ptr;
-+  size_t __malloc_align = (sizeof (void *) + sizeof (void *));
-+  void *__ptr;
-+
 +  if (__alignment == __malloc_align && __alignment == __vec_align)
 +    return malloc (__size);
 +  if (__alignment < __vec_align)
@@ -8058,7 +8072,8 @@ index 0bd929c5afe..a826fdd0c7f 100644
 +  return (__m64) ((__vector long long) __res)[0];
  #else
 -  __m64_union res;
--
++  __m64_union __res;
+ 
 -  res.as_char[0] = __b;
 -  res.as_char[1] = __b;
 -  res.as_char[2] = __b;
@@ -8068,8 +8083,6 @@ index 0bd929c5afe..a826fdd0c7f 100644
 -  res.as_char[6] = __b;
 -  res.as_char[7] = __b;
 -  return (res.as_m64);
-+  __m64_union __res;
-+
 +  __res.as_char[0] = __b;
 +  __res.as_char[1] = __b;
 +  __res.as_char[2] = __b;
@@ -8335,7 +8348,10 @@ index 0421dc7adb3..eba5b200f6a 100644
 +    return "e5500";
 +  if (rs6000_cpu == PROCESSOR_PPCE6500)
 +    return "e6500";
-+
+ 
+-    case PROCESSOR_PPCE300C2:
+-    case PROCESSOR_PPCE300C3:
+-      return "e300";
 +  /* 400 series */
 +  if (rs6000_cpu == PROCESSOR_PPC403)
 +    return "\"403\"";
@@ -8345,35 +8361,34 @@ index 0421dc7adb3..eba5b200f6a 100644
 +    return "\"440\"";
 +  if (rs6000_cpu == PROCESSOR_PPC476)
 +    return "\"476\"";
-+
+ 
+-    case PROCESSOR_PPCE500MC:
+-      return "e500mc";
 +  /* A2 */
 +  if (rs6000_cpu == PROCESSOR_PPCA2)
 +    return "a2";
-+
+ 
+-    case PROCESSOR_PPCE500MC64:
+-      return "e500mc64";
 +  /* Cell BE */
 +  if (rs6000_cpu == PROCESSOR_CELL)
 +    return "cell";
-+
+ 
+-    case PROCESSOR_PPCE5500:
+-      return "e5500";
 +  /* Titan */
 +  if (rs6000_cpu == PROCESSOR_TITAN)
 +    return "titan";
-+
+ 
+-    case PROCESSOR_PPCE6500:
+-      return "e6500";
 +  /* 500 series and 800 series */
 +  if (rs6000_cpu == PROCESSOR_MPCCORE)
 +    return "\"821\"";
  
--    case PROCESSOR_PPCE300C2:
--    case PROCESSOR_PPCE300C3:
--      return "e300";
--
--    case PROCESSOR_PPCE500MC:
--      return "e500mc";
--
--    case PROCESSOR_PPCE500MC64:
--      return "e500mc64";
--
--    case PROCESSOR_PPCE5500:
--      return "e5500";
+-    default:
+-      break;
+-    }
 +#if 0
 +  /* This (and ppc64 below) are disabled here (for now at least) because
 +     PROCESSOR_POWERPC, PROCESSOR_POWERPC64, and PROCESSOR_COMMON
@@ -8385,16 +8400,11 @@ index 0421dc7adb3..eba5b200f6a 100644
 +      || rs6000_cpu == PROCESSOR_PPC750)
 +    return "ppc";
 +#endif
- 
--    case PROCESSOR_PPCE6500:
--      return "e6500";
++
 +  /* Classic with AltiVec, "G4" */
 +  if (rs6000_cpu == PROCESSOR_PPC7400 || rs6000_cpu == PROCESSOR_PPC7450)
 +    return "\"7450\"";
- 
--    default:
--      break;
--    }
++
 +#if 0
 +  /* The older 64-bit CPUs */
 +  if (rs6000_cpu == PROCESSOR_PPC620 || rs6000_cpu == PROCESSOR_PPC630
@@ -10253,15 +10263,14 @@ index ae1a33e8d95..ba311cbf2df 100644
  #if _ARCH_PWR8
 -  __vector signed short a, b, r;
 -  __vector __bool short c;
--
++  __vector signed short __a, __b, __r;
++  __vector __bool short __c;
+ 
 -  a = (__vector signed short)vec_splats (__A);
 -  b = (__vector signed short)vec_splats (__B);
 -  c = (__vector __bool short)vec_cmpgt (a, b);
 -  r = vec_sel (b, a, c);
 -  return (__m64) ((__vector long long) r)[0];
-+  __vector signed short __a, __b, __r;
-+  __vector __bool short __c;
-+
 +  __a = (__vector signed short)vec_splats (__A);
 +  __b = (__vector signed short)vec_splats (__B);
 +  __c = (__vector __bool short)vec_cmpgt (__a, __b);
@@ -10304,15 +10313,14 @@ index ae1a33e8d95..ba311cbf2df 100644
  #if _ARCH_PWR8
 -  __vector unsigned char a, b, r;
 -  __vector __bool char c;
--
++  __vector unsigned char __a, __b, __r;
++  __vector __bool char __c;
+ 
 -  a = (__vector unsigned char)vec_splats (__A);
 -  b = (__vector unsigned char)vec_splats (__B);
 -  c = (__vector __bool char)vec_cmpgt (a, b);
 -  r = vec_sel (b, a, c);
 -  return (__m64) ((__vector long long) r)[0];
-+  __vector unsigned char __a, __b, __r;
-+  __vector __bool char __c;
-+
 +  __a = (__vector unsigned char)vec_splats (__A);
 +  __b = (__vector unsigned char)vec_splats (__B);
 +  __c = (__vector __bool char)vec_cmpgt (__a, __b);
@@ -10350,15 +10358,14 @@ index ae1a33e8d95..ba311cbf2df 100644
  #if _ARCH_PWR8
 -  __vector signed short a, b, r;
 -  __vector __bool short c;
--
++  __vector signed short __a, __b, __r;
++  __vector __bool short __c;
+ 
 -  a = (__vector signed short)vec_splats (__A);
 -  b = (__vector signed short)vec_splats (__B);
 -  c = (__vector __bool short)vec_cmplt (a, b);
 -  r = vec_sel (b, a, c);
 -  return (__m64) ((__vector long long) r)[0];
-+  __vector signed short __a, __b, __r;
-+  __vector __bool short __c;
-+
 +  __a = (__vector signed short)vec_splats (__A);
 +  __b = (__vector signed short)vec_splats (__B);
 +  __c = (__vector __bool short)vec_cmplt (__a, __b);
@@ -10401,15 +10408,14 @@ index ae1a33e8d95..ba311cbf2df 100644
  #if _ARCH_PWR8
 -  __vector unsigned char a, b, r;
 -  __vector __bool char c;
--
++  __vector unsigned char __a, __b, __r;
++  __vector __bool char __c;
+ 
 -  a = (__vector unsigned char)vec_splats (__A);
 -  b = (__vector unsigned char)vec_splats (__B);
 -  c = (__vector __bool char)vec_cmplt (a, b);
 -  r = vec_sel (b, a, c);
 -  return (__m64) ((__vector long long) r)[0];
-+  __vector unsigned char __a, __b, __r;
-+  __vector __bool char __c;
-+
 +  __a = (__vector unsigned char)vec_splats (__A);
 +  __b = (__vector unsigned char)vec_splats (__B);
 +  __c = (__vector __bool char)vec_cmplt (__a, __b);
@@ -10682,27 +10688,23 @@ index 44e48d90beb..5ef92d699c4 100644
  
 -       if (!parm_rtx)
 -	 continue;
--
++      if (!parm_rtx)
++	continue;
+ 
 -       if (REG_P (parm_rtx))
 -	 {
 -	   for (reg = 0; reg < REG_NREGS (parm_rtx); reg++)
 -	     if (!call_used_or_fixed_reg_p (reg + REGNO (parm_rtx)))
 -	       return true;
 -	 }
-+      if (!parm_rtx)
-+	continue;
- 
--       if (GET_CODE (parm_rtx) == PARALLEL)
--	 {
--	   int i;
 +      if (REG_P (parm_rtx))
 +	{
 +	  int size = s390_function_arg_size (arg.mode, arg.type);
 +	  int nregs = (size + UNITS_PER_LONG - 1) / UNITS_PER_LONG;
  
--	   for (i = 0; i < XVECLEN (parm_rtx, 0); i++)
--	     {
--	       rtx r = XEXP (XVECEXP (parm_rtx, 0, i), 0);
+-       if (GET_CODE (parm_rtx) == PARALLEL)
+-	 {
+-	   int i;
 +	  for (reg = 0; reg < nregs; reg++)
 +	    if (!call_used_or_fixed_reg_p (reg + REGNO (parm_rtx)))
 +	      return true;
@@ -10711,11 +10713,15 @@ index 44e48d90beb..5ef92d699c4 100644
 +	{
 +	  int i;
  
--	       gcc_assert (REG_P (r));
+-	   for (i = 0; i < XVECLEN (parm_rtx, 0); i++)
+-	     {
+-	       rtx r = XEXP (XVECEXP (parm_rtx, 0, i), 0);
 +	  for (i = 0; i < XVECLEN (parm_rtx, 0); i++)
 +	    {
 +	      rtx r = XEXP (XVECEXP (parm_rtx, 0, i), 0);
  
+-	       gcc_assert (REG_P (r));
+-
 -	       for (reg = 0; reg < REG_NREGS (r); reg++)
 -		 if (!call_used_or_fixed_reg_p (reg + REGNO (r)))
 -		   return true;
@@ -10963,12 +10969,11 @@ index cdf22f14b94..fabc313197a 100644
        if (register_operand (operands[0], DImode))
  	{
 -	  rtx first, second;
--
++	  rtx lowpart, highpart;
+ 
 -	  split_double (operands[1], &first, &second);
 -	  emit_insn (gen_movsi (gen_lowpart (SImode, operands[0]), first));
 -	  emit_insn (gen_movsi (gen_highpart (SImode, operands[0]), second));
-+	  rtx lowpart, highpart;
-+
 +	  if (TARGET_BIG_ENDIAN)
 +	    split_double (operands[1], &highpart, &lowpart);
 +	  else
@@ -14604,15 +14609,7 @@ index 3599e1b3194..885f672e389 100644
 -	  return result;
 -	}
 -      else if (lensub == 1)
-+      last = -1;
-+      start = len - lensub;
-+      delta = -1;
-+    }
-+
-+  for (; start != last; start += delta)
-+    {
-+      for (i = 0; i < lensub; i++)
- 	{
+-	{
 -	  for (i = 0; i < len; i++)
 -	    {
 -	      for (j = 0; j < lensub; j++)
@@ -14625,13 +14622,9 @@ index 3599e1b3194..885f672e389 100644
 -		    }
 -		}
 -	    }
-+	  if (x->value.character.string[start + i]
-+	      != y->value.character.string[i])
-+	    break;
- 	}
+-	}
 -      else
-+      if (i == lensub)
- 	{
+-	{
 -	  for (i = 0; i < len; i++)
 -	    {
 -	      for (j = 0; j < lensub; j++)
@@ -14647,7 +14640,11 @@ index 3599e1b3194..885f672e389 100644
 -			    if (y->value.character.string[k]
 -			        == x->value.character.string[k + start])
 -			      count++;
--
++      last = -1;
++      start = len - lensub;
++      delta = -1;
++    }
+ 
 -			  if (count == lensub)
 -			    {
 -			      index = start + 1;
@@ -14661,6 +14658,16 @@ index 3599e1b3194..885f672e389 100644
 -		    }
 -		}
 -	    }
++  for (; start != last; start += delta)
++    {
++      for (i = 0; i < lensub; i++)
++	{
++	  if (x->value.character.string[start + i]
++	      != y->value.character.string[i])
++	    break;
++	}
++      if (i == lensub)
++	{
 +	  index = start + 1;
 +	  goto done;
  	}
@@ -14977,10 +14984,9 @@ index a5c391d077e..35d3c8897e2 100644
 -			&& !e->symtree->n.sym->attr.associate_var
 -			&& e->ts.type != BT_CHARACTER && e->ts.type != BT_DERIVED
 -			&& e->ts.type != BT_CLASS && !sym->attr.elemental;
--
--		      gfc_conv_expr_reference (&parmse, e, add_clobber);
 +		      gfc_conv_expr_reference (&parmse, e);
-+
+ 
+-		      gfc_conv_expr_reference (&parmse, e, add_clobber);
 +		      if (fsym
 +			  && fsym->attr.intent == INTENT_OUT
 +			  && !fsym->attr.allocatable
@@ -15561,14 +15567,13 @@ index ad37f20afaa..cfaa2179bb6 100644
  	  offset_int off = tree_to_shwi (memrefoff);
  	  refoff += off;
 -      	}
--
+ 
 -      if (!integer_zerop (memrefoff))
 -	/* A non-zero offset into an array of struct with flexible array
 -	   members implies that the array is empty because there is no
 -	   way to initialize such a member when it belongs to an array.
 -	   This must be some sort of a bug.  */
 -	refsize = 0;
-+
 +	  if (!integer_zerop (memrefoff)
 +	      && !COMPLETE_TYPE_P (TREE_TYPE (expr))
 +	      && multiple_of_p (sizetype, memrefoff,
@@ -16277,30 +16282,31 @@ index bace44e6468..fa3365f4c81 100644
 -      INSN_CODE (insn) = -1;
 -      if (recog_memoized (insn) == -1)
 -	fail = 1;
--      /* In case the flags don't die here, recurse to try fix
--         following user too.  */
--      else if (! dead_or_set_p (insn, ix86_flags_rtx))
 +      if (DEBUG_INSN_P (insn))
 +	gcc_assert (debug_seen < 0);
 +      else
- 	{
--	  insn = next_flags_user (insn);
--	  if (!insn || !swap_rtx_condition (insn))
++	{
 +	  INSN_CODE (insn) = -1;
 +	  if (recog_memoized (insn) == -1)
- 	    fail = 1;
- 	}
--      if (fail)
-+      /* In case the flags don't die here, recurse to try fix
++	    fail = 1;
++	}
+       /* In case the flags don't die here, recurse to try fix
+-         following user too.  */
+-      else if (! dead_or_set_p (insn, ix86_flags_rtx))
 +	 following user too.  */
 +      if (!fail && !dead_or_set_p (insn, ix86_flags_rtx))
  	{
--	  swap_rtx_condition_1 (pat);
--	  return 0;
+-	  insn = next_flags_user (insn);
+-	  if (!insn || !swap_rtx_condition (insn))
 +	  insn = next_flags_user (insn, debug_seen);
 +	  if (!insn || !swap_rtx_condition (insn, debug_seen))
-+	    fail = 1;
+ 	    fail = 1;
  	}
+-      if (fail)
+-	{
+-	  swap_rtx_condition_1 (pat);
+-	  return 0;
+-	}
 -      return 1;
 +      if (fail || debug_seen == 1)
 +	swap_rtx_condition_1 (pat);
@@ -30686,10 +30692,121 @@ index 025e575b5bc..5743516c046 100644
    unsigned IOCTL_GIO_FONT = GIO_FONT;
    unsigned IOCTL_GIO_UNIMAP = GIO_UNIMAP;
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..46c89801dfa 100644
+index 85e04c45288..2b6c1fed779 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,1111 @@
+@@ -1,3 +1,1222 @@
++2023-04-27  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-09-14  Jonathan Wakely  <jwakely@redhat.com>
++
++	* doc/xml/manual/intro.xml: Document LWG 1203.
++	* doc/html/*: Regenerate.
++
++2023-04-27  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-09-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/std/barrier: Add missing runtime exception.
++
++2023-04-27  François Dumont  <fdumont@gcc.gnu.org>
++
++	Backported from master:
++	2022-05-26  François Dumont  <fdumont@gcc.gnu.org>
++
++	* python/libstdcxx/v6/printers.py (StdSpanPrinter.__init__):
++	Strip typename from version namespace.
++
++2023-04-27  Philipp Fent  <fent@in.tum.de>
++
++	Backported from master:
++	2022-04-25  Philipp Fent  <fent@in.tum.de>
++
++	* python/libstdcxx/v6/printers.py (StdSpanPrinter._iterator):
++	Rename as iterator.
++	(StdInitializerListPrinter): Define new printer.
++	(build_libstdcxx_dictionary): Register new printer.
++	* testsuite/libstdc++-prettyprinters/cxx11.cc: Check printer for
++	initializer_list.
++
++2023-04-27  Philipp Fent  <fent@in.tum.de>
++
++	Backported from master:
++	2022-04-19  Philipp Fent  <fent@in.tum.de>
++
++	* python/libstdcxx/v6/printers.py (StdSpanPrinter): Define.
++	* testsuite/libstdc++-prettyprinters/cxx20.cc: Test it.
++
++2023-04-27  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/std/atomic: Add missing @endcond doxygen comment.
++
++2023-04-27  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2023-04-04  Jonathan Wakely  <jwakely@redhat.com>
++
++	* doc/xml/manual/extensions.xml: Remove std::bad_exception from
++	example program.
++	* doc/html/manual/ext_demangling.html: Regenerate.
++
++2023-04-27  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2023-04-27  Jonathan Wakely  <jwakely@redhat.com>
++
++	* doc/doxygen/user.cfg.in (SOURCE_BROWSER): Only set to YES for
++	HTML docs.
++	* include/bits/gslice_array.h (_DEFINE_VALARRAY_OPERATOR): Omit
++	from doxygen docs.
++	* include/bits/indirect_array.h (_DEFINE_VALARRAY_OPERATOR):
++	Likewise.
++	* include/bits/mask_array.h (_DEFINE_VALARRAY_OPERATOR):
++	Likewise.
++	* include/bits/slice_array.h (_DEFINE_VALARRAY_OPERATOR):
++	Likewise.
++	* include/std/valarray (_DEFINE_VALARRAY_UNARY_OPERATOR)
++	(_DEFINE_VALARRAY_AUGMENTED_ASSIGNMENT)
++	(_DEFINE_VALARRAY_EXPR_AUGMENTED_ASSIGNMENT)
++	(_DEFINE_BINARY_OPERATOR): Likewise.
++
++2023-04-27  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-10-28  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/bits/fs_path.h (path::filename()): Fix dangling
++	reference.
++
++2023-04-27  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/109064
++	* python/libstdcxx/v6/xmethods.py (SharedPtrUseCountWorker):
++	Remove self-recursion in __init__. Add missing _supports.
++	* testsuite/libstdc++-xmethods/shared_ptr.cc: Check use_count()
++	and unique().
++
++2023-04-27  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2023-02-28  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/108952
++	* include/bits/uses_allocator_args.h
++	(uses_allocator_construction_args): Implement LWG 3527.
++	* testsuite/20_util/pair/astuple/get-2.cc: New test.
++	* testsuite/20_util/scoped_allocator/108952.cc: New test.
++	* testsuite/20_util/uses_allocator/lwg3527.cc: New test.
++
++2023-04-27  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2023-02-16  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/experimental/optional: Fix header name in comment.
++
 +2023-03-21  Matthias Kretz  <m.kretz@gsi.de>
 +
 +	Backported from master:
@@ -31862,6 +31979,19 @@ index fb256bb0287..4d16b094d7f 100644
  
    # C11 functions for C++17 library
    AC_CHECK_FUNCS(timespec_get)
+diff --git a/libstdc++-v3/doc/doxygen/user.cfg.in b/libstdc++-v3/doc/doxygen/user.cfg.in
+index eb05c975213..cf8d21c4e5b 100644
+--- a/libstdc++-v3/doc/doxygen/user.cfg.in
++++ b/libstdc++-v3/doc/doxygen/user.cfg.in
+@@ -1216,7 +1216,7 @@ USE_MDFILE_AS_MAINPAGE =
+ # also VERBATIM_HEADERS is set to NO.
+ # The default value is: NO.
+ 
+-SOURCE_BROWSER         = YES
++SOURCE_BROWSER         = @do_html@
+ 
+ # Setting the INLINE_SOURCES tag to YES will include the body of functions,
+ # classes and enums directly into the documentation.
 diff --git a/libstdc++-v3/doc/html/bk02.html b/libstdc++-v3/doc/html/bk02.html
 index 7c47759f223..182c94b59a6 100644
 --- a/libstdc++-v3/doc/html/bk02.html
@@ -31885,6 +32015,56 @@ index ed1a05f36f7..b118c214b47 100644
      Standard Contents
    </a></span></dt><dd><dl><dt><span class="chapter"><a href="manual/support.html">4. 
    Support
+diff --git a/libstdc++-v3/doc/html/manual/bugs.html b/libstdc++-v3/doc/html/manual/bugs.html
+index 7e0837322e5..280aa77d311 100644
+--- a/libstdc++-v3/doc/html/manual/bugs.html
++++ b/libstdc++-v3/doc/html/manual/bugs.html
+@@ -350,6 +350,9 @@
+ 	<span class="emphasis"><em>More algorithms that throw away information</em></span>
+     </span></dt><dd><p>The traditional HP / SGI return type and value is blessed
+ 		    by the resolution of the DR.
++    </p></dd><dt><a id="manual.bugs.dr1203"></a><span class="term"><a class="link" href="http://www.open-std.org/jtc1/sc22/wg21/docs/lwg-defects.html#1203" target="_top">1203</a>:
++       <span class="emphasis"><em>More useful rvalue stream insertion</em></span>
++    </span></dt><dd><p>Return the stream as its original type, not the base class.
+     </p></dd><dt><a id="manual.bugs.dr1339"></a><span class="term"><a class="link" href="http://www.open-std.org/jtc1/sc22/wg21/docs/lwg-defects.html#1339" target="_top">1339</a>:
+        <span class="emphasis"><em>uninitialized_fill_n should return the end of its range</em></span>
+     </span></dt><dd><p>Return the end of the filled range.
+diff --git a/libstdc++-v3/doc/html/manual/ext_demangling.html b/libstdc++-v3/doc/html/manual/ext_demangling.html
+index 879497f7d08..028ec71d8c8 100644
+--- a/libstdc++-v3/doc/html/manual/ext_demangling.html
++++ b/libstdc++-v3/doc/html/manual/ext_demangling.html
+@@ -39,14 +39,6 @@ int main()
+   int     status;
+   char   *realname;
+ 
+-  // exception classes not in &lt;stdexcept&gt;, thrown by the implementation
+-  // instead of the user
+-  std::bad_exception  e;
+-  realname = abi::__cxa_demangle(e.what(), 0, 0, &amp;status);
+-  std::cout &lt;&lt; e.what() &lt;&lt; "\t=&gt; " &lt;&lt; realname &lt;&lt; "\t: " &lt;&lt; status &lt;&lt; '\n';
+-  free(realname);
+-
+-
+   // typeid
+   bar&lt;empty,17&gt;          u;
+   const std::type_info  &amp;ti = typeid(u);
+@@ -61,13 +53,12 @@ int main()
+      This prints
+    </p><pre class="screen">
+    <code class="computeroutput">
+-      St13bad_exception       =&gt; std::bad_exception   : 0
+       3barI5emptyLi17EE       =&gt; bar&lt;empty, 17&gt;       : 0
+    </code>
+    </pre><p>
+      The demangler interface is described in the source documentation
+      linked to above.  It is actually written in C, so you don't need to
+      be writing C++ in order to demangle C++.  (That also means we have to
+-     use crummy memory management facilities, so don't forget to free()
+-     the returned char array.)
++     use crummy memory management facilities, so don't forget to
++     <code class="code">free()</code> the returned char array.)
+    </p></div><div class="navfooter"><hr /><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="ext_io.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="extensions.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="ext_concurrency.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Chapter 27. Input and Output </td><td width="20%" align="center"><a accesskey="h" href="../index.html">Home</a></td><td width="40%" align="right" valign="top"> Chapter 29. Concurrency</td></tr></table></div></body></html>
+\ No newline at end of file
 diff --git a/libstdc++-v3/doc/html/manual/extensions.html b/libstdc++-v3/doc/html/manual/extensions.html
 index 82bf42e54b0..1b13d711714 100644
 --- a/libstdc++-v3/doc/html/manual/extensions.html
@@ -32218,8 +32398,46 @@ index 0a120b508e9..95626d46cba 100644
    <author><personname><firstname>Paolo</firstname><surname>Carlini</surname></personname><personblurb>
        <para>
  	TR1, LWG Active, Closed, Defects lists.
+diff --git a/libstdc++-v3/doc/xml/manual/extensions.xml b/libstdc++-v3/doc/xml/manual/extensions.xml
+index 86e92beffd3..196b55d8347 100644
+--- a/libstdc++-v3/doc/xml/manual/extensions.xml
++++ b/libstdc++-v3/doc/xml/manual/extensions.xml
+@@ -534,14 +534,6 @@ int main()
+   int     status;
+   char   *realname;
+ 
+-  // exception classes not in &lt;stdexcept&gt;, thrown by the implementation
+-  // instead of the user
+-  std::bad_exception  e;
+-  realname = abi::__cxa_demangle(e.what(), 0, 0, &amp;status);
+-  std::cout &lt;&lt; e.what() &lt;&lt; "\t=&gt; " &lt;&lt; realname &lt;&lt; "\t: " &lt;&lt; status &lt;&lt; '\n';
+-  free(realname);
+-
+-
+   // typeid
+   bar&lt;empty,17&gt;          u;
+   const std::type_info  &amp;ti = typeid(u);
+@@ -559,7 +551,6 @@ int main()
+ 
+    <screen>
+    <computeroutput>
+-      St13bad_exception       =&gt; std::bad_exception   : 0
+       3barI5emptyLi17EE       =&gt; bar&lt;empty, 17&gt;       : 0
+    </computeroutput>
+    </screen>
+@@ -568,8 +559,8 @@ int main()
+      The demangler interface is described in the source documentation
+      linked to above.  It is actually written in C, so you don't need to
+      be writing C++ in order to demangle C++.  (That also means we have to
+-     use crummy memory management facilities, so don't forget to free()
+-     the returned char array.)
++     use crummy memory management facilities, so don't forget to
++     <code>free()</code> the returned char array.)
+    </para>
+ </chapter>
+ 
 diff --git a/libstdc++-v3/doc/xml/manual/intro.xml b/libstdc++-v3/doc/xml/manual/intro.xml
-index 3e7843f58c1..62cab81651e 100644
+index 3e7843f58c1..98dbf596866 100644
 --- a/libstdc++-v3/doc/xml/manual/intro.xml
 +++ b/libstdc++-v3/doc/xml/manual/intro.xml
 @@ -47,15 +47,19 @@
@@ -32245,6 +32463,19 @@ index 3e7843f58c1..62cab81651e 100644
      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" parse="xml" href="status_cxxis29124.xml">
      </xi:include>
    </section>
+@@ -835,6 +839,12 @@ requirements of the license of GCC.
+ 		    by the resolution of the DR.
+     </para></listitem></varlistentry>
+ 
++    <varlistentry xml:id="manual.bugs.dr1203"><term><link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="&DR;#1203">1203</link>:
++       <emphasis>More useful rvalue stream insertion</emphasis>
++    </term>
++    <listitem><para>Return the stream as its original type, not the base class.
++    </para></listitem></varlistentry>
++
+     <varlistentry xml:id="manual.bugs.dr1339"><term><link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="&DR;#1339">1339</link>:
+        <emphasis>uninitialized_fill_n should return the end of its range</emphasis>
+     </term>
 diff --git a/libstdc++-v3/doc/xml/manual/prerequisites.xml b/libstdc++-v3/doc/xml/manual/prerequisites.xml
 index 22e90a7e79d..f00979a1afa 100644
 --- a/libstdc++-v3/doc/xml/manual/prerequisites.xml
@@ -32975,7 +33206,7 @@ index bd7a859091f..1145230b910 100644
  	while (__node->_M_next && __list._M_impl._M_head._M_next)
  	  {
 diff --git a/libstdc++-v3/include/bits/fs_path.h b/libstdc++-v3/include/bits/fs_path.h
-index a1f780a9c9b..f37e7e8909f 100644
+index a1f780a9c9b..1188e585b14 100644
 --- a/libstdc++-v3/include/bits/fs_path.h
 +++ b/libstdc++-v3/include/bits/fs_path.h
 @@ -558,12 +558,7 @@ namespace __detail
@@ -33002,6 +33233,19 @@ index a1f780a9c9b..f37e7e8909f 100644
  
      _Cmpt() : _M_pos(-1) { }
  
+@@ -1211,9 +1205,9 @@ namespace __detail
+       {
+ 	if (_M_pathname.back() == preferred_separator)
+ 	  return {};
+-	auto& __last = *--end();
+-	if (__last._M_type() == _Type::_Filename)
+-	  return __last;
++	auto __last = --end();
++	if (__last->_M_type() == _Type::_Filename)
++	  return *__last;
+       }
+     return {};
+   }
 @@ -1361,6 +1355,16 @@ extern template class __shared_ptr<const filesystem::filesystem_error::_Impl>;
  
  /// @endcond
@@ -33018,6 +33262,46 @@ index a1f780a9c9b..f37e7e8909f 100644
 +
  _GLIBCXX_END_NAMESPACE_VERSION
  } // namespace std
+ 
+diff --git a/libstdc++-v3/include/bits/gslice_array.h b/libstdc++-v3/include/bits/gslice_array.h
+index 4f3309d842e..f8d11855699 100644
+--- a/libstdc++-v3/include/bits/gslice_array.h
++++ b/libstdc++-v3/include/bits/gslice_array.h
+@@ -183,6 +183,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 			      _Array<size_t>(_M_index));
+       }
+ 
++  /// @cond undocumented
+ #undef _DEFINE_VALARRAY_OPERATOR
+ #define _DEFINE_VALARRAY_OPERATOR(_Op, _Name)				\
+   template<typename _Tp>						\
+@@ -214,6 +215,7 @@ _DEFINE_VALARRAY_OPERATOR(<<, __shift_left)
+ _DEFINE_VALARRAY_OPERATOR(>>, __shift_right)
+ 
+ #undef _DEFINE_VALARRAY_OPERATOR
++  /// @endcond
+ 
+   /// @} group numeric_arrays
+ 
+diff --git a/libstdc++-v3/include/bits/indirect_array.h b/libstdc++-v3/include/bits/indirect_array.h
+index a3dc6059988..bb47855ecea 100644
+--- a/libstdc++-v3/include/bits/indirect_array.h
++++ b/libstdc++-v3/include/bits/indirect_array.h
+@@ -174,6 +174,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       indirect_array<_Tp>::operator=(const _Expr<_Dom, _Tp>& __e) const
+       { std::__valarray_copy(__e, _M_sz, _M_array, _M_index); }
+ 
++  /// @cond undocumented
+ #undef _DEFINE_VALARRAY_OPERATOR
+ #define _DEFINE_VALARRAY_OPERATOR(_Op, _Name)				\
+   template<typename _Tp>						\
+@@ -203,6 +204,7 @@ _DEFINE_VALARRAY_OPERATOR(<<, __shift_left)
+ _DEFINE_VALARRAY_OPERATOR(>>, __shift_right)
+ 
+ #undef _DEFINE_VALARRAY_OPERATOR
++  /// @endcond
+ 
+   /// @} group numeric_arrays
  
 diff --git a/libstdc++-v3/include/bits/list.tcc b/libstdc++-v3/include/bits/list.tcc
 index 0ce4c47a90e..62b0ba1063a 100644
@@ -33039,12 +33323,7 @@ index 0ce4c47a90e..62b0ba1063a 100644
 -	      else
 -		++__first1;
 -	    if (__first2 != __last2)
--	      _M_transfer(__last1, __first2, __last2);
- 
--	    this->_M_inc_size(__x._M_get_size());
--	    __x._M_set_size(0);
--	  }
--	  __catch(...)
++
 +	  const _Finalize_merge __fin(*this, __x, __first2);
 +
 +	  while (__first1 != __last1 && __first2 != __last2)
@@ -33057,12 +33336,18 @@ index 0ce4c47a90e..62b0ba1063a 100644
 +	    else
 +	      ++__first1;
 +	  if (__first2 != __last2)
- 	    {
++	    {
+ 	      _M_transfer(__last1, __first2, __last2);
+-
+-	    this->_M_inc_size(__x._M_get_size());
+-	    __x._M_set_size(0);
+-	  }
+-	  __catch(...)
+-	    {
 -	      const size_t __dist = std::distance(__first2, __last2);
 -	      this->_M_inc_size(__orig_size - __dist);
 -	      __x._M_set_size(__dist);
 -	      __throw_exception_again;
-+	      _M_transfer(__last1, __first2, __last2);
 +	      __first2 = __last2;
  	    }
  	}
@@ -33085,12 +33370,11 @@ index 0ce4c47a90e..62b0ba1063a 100644
 -		    ++__first1;
 -		if (__first2 != __last2)
 -		  _M_transfer(__last1, __first2, __last2);
--
+ 
 -		this->_M_inc_size(__x._M_get_size());
 -		__x._M_set_size(0);
 -	      }
 -	    __catch(...)
-+
 +	    const _Finalize_merge __fin(*this, __x, __first2);
 +
 +	    while (__first1 != __last1 && __first2 != __last2)
@@ -33164,6 +33448,26 @@ index 51c23d8003a..4aef5502032 100644
  
  	  _M_pos_format = __mp.pos_format();
  	  _M_neg_format = __mp.neg_format();
+diff --git a/libstdc++-v3/include/bits/mask_array.h b/libstdc++-v3/include/bits/mask_array.h
+index 3889bd151a6..fb861dac95b 100644
+--- a/libstdc++-v3/include/bits/mask_array.h
++++ b/libstdc++-v3/include/bits/mask_array.h
+@@ -174,6 +174,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       mask_array<_Tp>::operator=(const _Expr<_Ex, _Tp>& __e) const
+       { std::__valarray_copy(__e, __e.size(), _M_array, _M_mask); }
+ 
++  /// @cond undocumented
+ #undef _DEFINE_VALARRAY_OPERATOR
+ #define _DEFINE_VALARRAY_OPERATOR(_Op, _Name)				\
+   template<typename _Tp>						\
+@@ -204,6 +205,7 @@ _DEFINE_VALARRAY_OPERATOR(<<, __shift_left)
+ _DEFINE_VALARRAY_OPERATOR(>>, __shift_right)
+ 
+ #undef _DEFINE_VALARRAY_OPERATOR
++  /// @endcond
+ 
+   /// @} group numeric_arrays
+ 
 diff --git a/libstdc++-v3/include/bits/random.tcc b/libstdc++-v3/include/bits/random.tcc
 index 22ae1f38ebb..2898f7f17e6 100644
 --- a/libstdc++-v3/include/bits/random.tcc
@@ -34344,6 +34648,26 @@ index a3512083f0e..473dc888a20 100644
        else if (__c != ']' && __c != '}')
  	{
  	  auto __it = _M_token_tbl;
+diff --git a/libstdc++-v3/include/bits/slice_array.h b/libstdc++-v3/include/bits/slice_array.h
+index bdced19e789..1990a1cddb4 100644
+--- a/libstdc++-v3/include/bits/slice_array.h
++++ b/libstdc++-v3/include/bits/slice_array.h
+@@ -245,6 +245,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     slice_array<_Tp>::operator=(const _Expr<_Dom,_Tp>& __e) const
+     { std::__valarray_copy(__e, _M_sz, _M_array, _M_stride); }
+ 
++  /// @cond undocumented
+ #undef _DEFINE_VALARRAY_OPERATOR
+ #define _DEFINE_VALARRAY_OPERATOR(_Op,_Name)				\
+   template<typename _Tp>						\
+@@ -275,6 +276,7 @@ _DEFINE_VALARRAY_OPERATOR(<<, __shift_left)
+ _DEFINE_VALARRAY_OPERATOR(>>, __shift_right)
+ 
+ #undef _DEFINE_VALARRAY_OPERATOR
++  /// @endcond
+ 
+   /// @} group numeric_arrays
+ 
 diff --git a/libstdc++-v3/include/bits/std_thread.h b/libstdc++-v3/include/bits/std_thread.h
 index 2a500bf1777..976526001c5 100644
 --- a/libstdc++-v3/include/bits/std_thread.h
@@ -34926,6 +35250,27 @@ index bdcd0cdeb77..b7e956f9119 100644
  
    /// @}
  
+diff --git a/libstdc++-v3/include/bits/uses_allocator_args.h b/libstdc++-v3/include/bits/uses_allocator_args.h
+index 044494aab05..40ef6843945 100644
+--- a/libstdc++-v3/include/bits/uses_allocator_args.h
++++ b/libstdc++-v3/include/bits/uses_allocator_args.h
+@@ -180,11 +180,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       using _Tp1 = typename _Tp::first_type;
+       using _Tp2 = typename _Tp::second_type;
+ 
++      // _GLIBCXX_RESOLVE_LIB_DEFECTS
++      // 3527. uses_allocator_construction_args handles rvalue pairs
++      // of rvalue references incorrectly
+       return std::make_tuple(piecewise_construct,
+ 	  std::uses_allocator_construction_args<_Tp1>(__a,
+-	    std::move(__pr).first),
++	    std::get<0>(std::move(__pr))),
+ 	  std::uses_allocator_construction_args<_Tp2>(__a,
+-	    std::move(__pr).second));
++	    std::get<1>(std::move(__pr))));
+     }
+ 
+   template<typename _Tp, typename _Alloc, typename... _Args>
 diff --git a/libstdc++-v3/include/experimental/bits/fs_path.h b/libstdc++-v3/include/experimental/bits/fs_path.h
 index 1cc1b3bf686..830b51e45a0 100644
 --- a/libstdc++-v3/include/experimental/bits/fs_path.h
@@ -35329,8 +35674,18 @@ index 6ce070ae775..07eb137fb80 100644
        _M_is_v4 = false;
        return *this;
      }
+diff --git a/libstdc++-v3/include/experimental/optional b/libstdc++-v3/include/experimental/optional
+index c1d61d6a0d7..2d934115923 100644
+--- a/libstdc++-v3/include/experimental/optional
++++ b/libstdc++-v3/include/experimental/optional
+@@ -1,4 +1,4 @@
+-// <optional> -*- C++ -*-
++// <experimental/optional> -*- C++ -*-
+ 
+ // Copyright (C) 2013-2021 Free Software Foundation, Inc.
+ //
 diff --git a/libstdc++-v3/include/std/atomic b/libstdc++-v3/include/std/atomic
-index fdffacc35df..2e2be30c6b2 100644
+index fdffacc35df..83102d02b4a 100644
 --- a/libstdc++-v3/include/std/atomic
 +++ b/libstdc++-v3/include/std/atomic
 @@ -172,11 +172,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
@@ -35450,7 +35805,7 @@ index fdffacc35df..2e2be30c6b2 100644
    inline void
    atomic_flag_clear_explicit(atomic_flag* __a, memory_order __m) noexcept
    { __a->clear(__m); }
-@@ -1228,9 +1256,30 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+@@ -1228,11 +1256,33 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    atomic_flag_clear(volatile atomic_flag* __a) noexcept
    { atomic_flag_clear_explicit(__a, memory_order_seq_cst); }
  
@@ -35458,7 +35813,7 @@ index fdffacc35df..2e2be30c6b2 100644
 +  inline void
 +  atomic_flag_wait(atomic_flag* __a, bool __old) noexcept
 +  { __a->wait(__old); }
-+
+ 
 +  inline void
 +  atomic_flag_wait_explicit(atomic_flag* __a, bool __old,
 +                                memory_order __m) noexcept
@@ -35472,7 +35827,7 @@ index fdffacc35df..2e2be30c6b2 100644
 +  atomic_flag_notify_all(atomic_flag* __a) noexcept
 +  { __a->notify_all(); }
 +#endif // __cpp_lib_atomic_wait
- 
++
 +  /// @cond undocumented
 +  // _GLIBCXX_RESOLVE_LIB_DEFECTS
 +  // 3220. P0558 broke conforming C++14 uses of atomic shared_ptr
@@ -35481,8 +35836,11 @@ index fdffacc35df..2e2be30c6b2 100644
 +    using __atomic_val_t = __type_identity_t<_Tp>;
    template<typename _Tp>
      using __atomic_diff_t = typename atomic<_Tp>::difference_type;
++  /// @endcond
  
-@@ -1421,12 +1470,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+   // [atomics.nonmembers] Non-member functions.
+   // Function templates generally applicable to atomic types.
+@@ -1421,12 +1471,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
  
    template<typename _Tp>
      inline void
@@ -35497,6 +35855,26 @@ index fdffacc35df..2e2be30c6b2 100644
      { __a->notify_all(); }
  #endif // __cpp_lib_atomic_wait
  
+diff --git a/libstdc++-v3/include/std/barrier b/libstdc++-v3/include/std/barrier
+index 4210e30d1ce..02501639f8e 100644
+--- a/libstdc++-v3/include/std/barrier
++++ b/libstdc++-v3/include/std/barrier
+@@ -13,8 +13,13 @@
+ // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ // GNU General Public License for more details.
+ 
+-// You should have received a copy of the GNU General Public License along
+-// with this library; see the file COPYING3.  If not see
++// Under Section 7 of GPL version 3, you are granted additional
++// permissions described in the GCC Runtime Library Exception, version
++// 3.1, as published by the Free Software Foundation.
++
++// You should have received a copy of the GNU General Public License and
++// a copy of the GCC Runtime Library Exception along with this program;
++// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+ // <http://www.gnu.org/licenses/>.
+ 
+ // This implementation is based on libcxx/include/barrier
 diff --git a/libstdc++-v3/include/std/charconv b/libstdc++-v3/include/std/charconv
 index 8572e376c92..65f923993fa 100644
 --- a/libstdc++-v3/include/std/charconv
@@ -35901,6 +36279,26 @@ index dcf30bd9a8d..63bd68fbe43 100644
        // Constraint for a non-explicit constructor.
        // True iff each Ti in _Types... can be constructed from Ui in _UTypes...
        // and every Ui is implicitly convertible to Ti.
+diff --git a/libstdc++-v3/include/std/valarray b/libstdc++-v3/include/std/valarray
+index 72eb7a9d56d..458c7cd7811 100644
+--- a/libstdc++-v3/include/std/valarray
++++ b/libstdc++-v3/include/std/valarray
+@@ -1076,6 +1076,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       return _Expr<_Closure, _Tp>(_Closure(*this, func));
+     }
+ 
++  /// @cond undocumented
+ #define _DEFINE_VALARRAY_UNARY_OPERATOR(_Op, _Name)                     \
+   template<typename _Tp>						\
+     inline typename valarray<_Tp>::template _UnaryOp<_Name>::_Rt	\
+@@ -1202,6 +1203,7 @@ _DEFINE_BINARY_OPERATOR(<=, __less_equal)
+ _DEFINE_BINARY_OPERATOR(>=, __greater_equal)
+ 
+ #undef _DEFINE_BINARY_OPERATOR
++  /// @endcond
+ 
+ #if __cplusplus >= 201103L
+   /**
 diff --git a/libstdc++-v3/include/std/variant b/libstdc++-v3/include/std/variant
 index c0585cb5999..285c5be6521 100644
 --- a/libstdc++-v3/include/std/variant
@@ -36118,6 +36516,122 @@ index f35b9da2307..e86b94bf9dc 100644
  #endif // C++2b
  #endif // C++20
  #endif // C++17
+diff --git a/libstdc++-v3/python/libstdcxx/v6/printers.py b/libstdc++-v3/python/libstdcxx/v6/printers.py
+index b5b523c4b5a..081eec454dd 100644
+--- a/libstdc++-v3/python/libstdcxx/v6/printers.py
++++ b/libstdc++-v3/python/libstdcxx/v6/printers.py
+@@ -1626,6 +1626,60 @@ class StdErrorCodePrinter:
+         return '%s = {%s: %s}' % (self.typename, name, strval)
+ 
+ 
++class StdSpanPrinter:
++    "Print a std::span"
++
++    class iterator(Iterator):
++        def __init__(self, begin, size):
++            self.count = 0
++            self.begin = begin
++            self.size = size
++
++        def __iter__ (self):
++            return self
++
++        def __next__ (self):
++            if self.count == self.size:
++                raise StopIteration
++
++            count = self.count
++            self.count = self.count + 1
++            return '[%d]' % count, (self.begin + count).dereference()
++
++    def __init__(self, typename, val):
++        self.typename = strip_versioned_namespace(typename)
++        self.val = val
++        if val.type.template_argument(1) == gdb.parse_and_eval('static_cast<std::size_t>(-1)'):
++            self.size = val['_M_extent']['_M_extent_value']
++        else:
++            self.size = val.type.template_argument(1)
++
++    def to_string(self):
++        return '%s of length %d' % (self.typename, self.size)
++
++    def children(self):
++        return self.iterator(self.val['_M_ptr'], self.size)
++
++    def display_hint(self):
++        return 'array'
++
++class StdInitializerListPrinter:
++    "Print a std::initializer_list"
++
++    def __init__(self, typename, val):
++        self.typename = typename
++        self.val = val
++        self.size = val['_M_len']
++
++    def to_string(self):
++        return '%s of length %d' % (self.typename, self.size)
++
++    def children(self):
++        return StdSpanPrinter.iterator(self.val['_M_array'], self.size)
++
++    def display_hint(self):
++        return 'array'
++
+ # A "regular expression" printer which conforms to the
+ # "SubPrettyPrinter" protocol from gdb.printing.
+ class RxPrinter(object):
+@@ -1866,7 +1920,7 @@ class FilteringTypePrinter(object):
+         self.enabled = True
+ 
+     class _recognizer(object):
+-        "The recognizer class for TemplateTypePrinter."
++        "The recognizer class for FilteringTypePrinter."
+ 
+         def __init__(self, match, name):
+             self.match = match
+@@ -2091,6 +2145,10 @@ def build_libstdcxx_dictionary ():
+     libstdcxx_printer.add_version('std::tr1::', 'unordered_multiset',
+                                   Tr1UnorderedSetPrinter)
+ 
++    libstdcxx_printer.add_version('std::', 'initializer_list',
++                                  StdInitializerListPrinter)
++
++
+     # These are the C++11 printer registrations for -D_GLIBCXX_DEBUG cases.
+     # The tr1 namespace containers do not have any debug equivalents,
+     # so do not register printers for them.
+@@ -2138,6 +2196,7 @@ def build_libstdcxx_dictionary ():
+     libstdcxx_printer.add_version('std::', 'partial_ordering', StdCmpCatPrinter)
+     libstdcxx_printer.add_version('std::', 'weak_ordering', StdCmpCatPrinter)
+     libstdcxx_printer.add_version('std::', 'strong_ordering', StdCmpCatPrinter)
++    libstdcxx_printer.add_version('std::', 'span', StdSpanPrinter)
+ 
+     # Extensions.
+     libstdcxx_printer.add_version('__gnu_cxx::', 'slist', StdSlistPrinter)
+diff --git a/libstdc++-v3/python/libstdcxx/v6/xmethods.py b/libstdc++-v3/python/libstdcxx/v6/xmethods.py
+index 991d945321a..d6cbcf139c5 100644
+--- a/libstdc++-v3/python/libstdcxx/v6/xmethods.py
++++ b/libstdc++-v3/python/libstdcxx/v6/xmethods.py
+@@ -730,7 +730,7 @@ class SharedPtrUseCountWorker(gdb.xmethod.XMethodWorker):
+     "Implements std::shared_ptr<T>::use_count()"
+ 
+     def __init__(self, elem_type):
+-        SharedPtrUseCountWorker.__init__(self, elem_type)
++        pass
+ 
+     def get_arg_types(self):
+         return None
+@@ -738,6 +738,9 @@ class SharedPtrUseCountWorker(gdb.xmethod.XMethodWorker):
+     def get_result_type(self, obj):
+         return gdb.lookup_type('long')
+ 
++    def _supports(self, method_name):
++        return True
++
+     def __call__(self, obj):
+         refcounts = obj['_M_refcount']['_M_pi']
+         return refcounts['_M_use_count'] if refcounts else 0
 diff --git a/libstdc++-v3/src/Makefile.am b/libstdc++-v3/src/Makefile.am
 index 16f4cc6eff4..f92a52748c5 100644
 --- a/libstdc++-v3/src/Makefile.am
@@ -36977,6 +37491,109 @@ index 40180223bae..a98815d932b 100644
      // Should not reach here!
      VERIFY( !"attempt to allocate SIZE_MAX-1 should not have succeeded" );
      throw p;
+diff --git a/libstdc++-v3/testsuite/20_util/pair/astuple/get-2.cc b/libstdc++-v3/testsuite/20_util/pair/astuple/get-2.cc
+new file mode 100644
+index 00000000000..573d239effa
+--- /dev/null
++++ b/libstdc++-v3/testsuite/20_util/pair/astuple/get-2.cc
+@@ -0,0 +1,68 @@
++// { dg-do compile { target c++11 } }
++
++#include <utility>
++
++template<int N, typename T, typename Pair>
++constexpr bool
++check()
++{
++  return std::is_same<decltype(std::get<N>(std::declval<Pair>())), T>::value;
++}
++
++void
++test_value_category()
++{
++  using P = std::pair<int, long>;
++  static_assert( check<0, int&, P&>(),
++		 "get<0>(pair<T1, T2>&)" );
++  static_assert( check<1, long&, P&>(),
++		 "get<1>(pair<T1, T2>&)" );
++  static_assert( check<0, int&&, P&&>(),
++		 "get<0>(pair<T1, T2>&&)" );
++  static_assert( check<1, long&&, P&&>(),
++		 "get<1>(pair<T1, T2>&&)" );
++  static_assert( check<0, const int&, const P&>(),
++		 "get<0>(const pair<T1, T2>&)" );
++  static_assert( check<1, const long&, const P&>(),
++		 "get<1>(const pair<T1, T2>&)" );
++  static_assert( check<0, const int&&, const P&&>(),
++		 "get<0>(const pair<T1, T2>&&)" );
++  static_assert( check<1, const long&&, const P&&>(),
++		 "get<1>(const pair<T1, T2>&&)" );
++
++  using PL = std::pair<int&, long&>;
++  static_assert( check<0, int&, PL&>(),
++		 "get<0>(pair<T1&, T2&>&)" );
++  static_assert( check<1, long&, PL&>(),
++		 "get<1>(pair<T1&, T2&>&)" );
++  static_assert( check<0, int&, PL&&>(),
++		 "get<0>(pair<T1&, T2&>&&)" );
++  static_assert( check<1, long&, PL&&>(),
++		 "get<1>(pair<T1&, T2&>&&)" );
++  static_assert( check<0, int&, const PL&>(),
++		 "get<0>(const pair<T1&, T2&>&)" );
++  static_assert( check<1, long&, const PL&>(),
++		 "get<1>(const pair<T1&, T2&>&)" );
++  static_assert( check<0, int&, const PL&&>(),
++		 "get<0>(const pair<T1&, T2&>&&)" );
++  static_assert( check<1, long&, const PL&&>(),
++		 "get<1>(const pair<T1&, T2&>&&)" );
++
++  using PR = std::pair<int&&, long&&>;
++  static_assert( check<0, int&, P&>(),
++		 "get<0>(pair<T1&&, T2&&>&)" );
++  static_assert( check<1, long&, P&>(),
++		 "get<1>(pair<T1&&, T2&&>&)" );
++  static_assert( check<0, int&&, PR&&>(),
++		 "get<0>(pair<T1&&, T2&&>&&)" );
++  static_assert( check<1, long&&, PR&&>(),
++		 "get<1>(pair<T1&&, T2&&>&&)" );
++  static_assert( check<0, int&, const PR&>(),
++		 "get<0>(const pair<T1&&, T2&&>&)" );
++  static_assert( check<1, long&, const PR&>(),
++		 "get<1>(const pair<T1&&, T2&&>&)" );
++  static_assert( check<0, int&&, const PR&&>(),
++		 "get<0>(const pair<T1&&, T2&&>&&)" );
++  static_assert( check<1, long&&, const PR&&>(),
++		 "get<1>(const pair<T1&&, T2&&>&&)" );
++}
+diff --git a/libstdc++-v3/testsuite/20_util/scoped_allocator/108952.cc b/libstdc++-v3/testsuite/20_util/scoped_allocator/108952.cc
+new file mode 100644
+index 00000000000..a6b9c67498c
+--- /dev/null
++++ b/libstdc++-v3/testsuite/20_util/scoped_allocator/108952.cc
+@@ -0,0 +1,23 @@
++// { dg-do compile { target c++11 } }
++
++#include <scoped_allocator>
++
++struct move_only
++{
++  move_only(move_only&&);
++};
++
++using P = std::pair<move_only, move_only>;
++
++void
++test_pr108952(std::pair<move_only&&, move_only&&> rvals)
++{
++  // LWG 3527. uses_allocator_construction_args handles rvalue pairs of
++  // rvalue references incorrectly.
++  // PR libstdc++/108952 Regression in uses_allocator_construction_args
++  // for pair of rvalue references
++  std::scoped_allocator_adaptor<std::allocator<P>> a;
++  auto p = a.allocate(1);
++  a.construct(p, std::move(rvals));
++  a.deallocate(p, 1);
++}
 diff --git a/libstdc++-v3/testsuite/20_util/unsynchronized_pool_resource/allocate.cc b/libstdc++-v3/testsuite/20_util/unsynchronized_pool_resource/allocate.cc
 index a76afbe87a2..fe847dadd27 100644
 --- a/libstdc++-v3/testsuite/20_util/unsynchronized_pool_resource/allocate.cc
@@ -36995,6 +37612,34 @@ index a76afbe87a2..fe847dadd27 100644
      // Should not reach here!
      VERIFY( !"attempt to allocate SIZE_MAX-1 should not have succeeded" );
      throw p;
+diff --git a/libstdc++-v3/testsuite/20_util/uses_allocator/lwg3527.cc b/libstdc++-v3/testsuite/20_util/uses_allocator/lwg3527.cc
+new file mode 100644
+index 00000000000..ae377f4b5a3
+--- /dev/null
++++ b/libstdc++-v3/testsuite/20_util/uses_allocator/lwg3527.cc
+@@ -0,0 +1,22 @@
++// { dg-options "-std=gnu++20" }
++// { dg-do compile { target c++20 } }
++
++#include <memory>
++
++struct move_only
++{
++  move_only(move_only&&);
++};
++
++using P = std::pair<move_only, move_only>;
++
++void
++test_lwg3527(std::pair<move_only&&, move_only&&> rvals)
++{
++  // LWG 3527. uses_allocator_construction_args handles rvalue pairs of
++  // rvalue references incorrectly.
++  // PR libstdc++/108952 Regression in uses_allocator_construction_args
++  // for pair of rvalue references
++  std::allocator<move_only> a;
++  (void) std::uses_allocator_construction_args<P>(a, std::move(rvals));
++}
 diff --git a/libstdc++-v3/testsuite/21_strings/basic_string/cons/char/moveable.cc b/libstdc++-v3/testsuite/21_strings/basic_string/cons/char/moveable.cc
 index 5de2a5f9330..3ba39ec432d 100644
 --- a/libstdc++-v3/testsuite/21_strings/basic_string/cons/char/moveable.cc
@@ -38377,12 +39022,12 @@ index 7df70604ea6..0d76e63da7b 100644
    catch (const std::regex_error& e)
    {
 +    VERIFY(e.code() == std::regex_constants::error_range);
-+  }
+   }
 +  try
 +  {
 +    regex("[@--]", regex_constants::extended);
 +    VERIFY(false);
-   }
++  }
 +  catch (const std::regex_error& e)
 +  {
 +    VERIFY(e.code() == std::regex_constants::error_range);
@@ -39329,6 +39974,86 @@ index 5df9f330cd4..ed0614e2797 100644
  {
    // To see a problem with gcc 3.3 and before, set a break point here.
    // Single step through c_str implementation, call sched_yield after
+diff --git a/libstdc++-v3/testsuite/libstdc++-prettyprinters/cxx11.cc b/libstdc++-v3/testsuite/libstdc++-prettyprinters/cxx11.cc
+index 7b5d9795df7..0545076fb6f 100644
+--- a/libstdc++-v3/testsuite/libstdc++-prettyprinters/cxx11.cc
++++ b/libstdc++-v3/testsuite/libstdc++-prettyprinters/cxx11.cc
+@@ -25,6 +25,7 @@
+ #include <memory>
+ #include <iostream>
+ #include <future>
++#include <initializer_list>
+ #include "../util/testsuite_allocator.h" // NullablePointer
+ 
+ typedef std::tuple<int, int> ExTuple;
+@@ -191,6 +192,11 @@ main()
+   std::error_code ecfut0 = std::make_error_code(std::future_errc{});
+   // { dg-final { note-test ecfut0 {std::error_code = {"future": 0}} } }
+ 
++  std::initializer_list<int> emptyIl = {};
++  // { dg-final { note-test emptyIl {std::initializer_list of length 0} } }
++  std::initializer_list<int> il = {3, 4};
++  // { dg-final { note-test il {std::initializer_list of length 2 = {3, 4}} } }
++
+   placeholder(""); // Mark SPOT
+   use(efl);
+   use(fl);
+diff --git a/libstdc++-v3/testsuite/libstdc++-prettyprinters/cxx20.cc b/libstdc++-v3/testsuite/libstdc++-prettyprinters/cxx20.cc
+index d9b47114d57..c0eded2302a 100644
+--- a/libstdc++-v3/testsuite/libstdc++-prettyprinters/cxx20.cc
++++ b/libstdc++-v3/testsuite/libstdc++-prettyprinters/cxx20.cc
+@@ -18,8 +18,10 @@
+ // with this library; see the file COPYING3.  If not see
+ // <http://www.gnu.org/licenses/>.
+ 
++#include <array>
+ #include <compare>
+ #include <iostream>
++#include <span>
+ 
+ struct X
+ {
+@@ -54,6 +56,15 @@ main()
+   auto c10 = 0.0 <=> __builtin_nan("");
+ // { dg-final { note-test c10 "std::partial_ordering::unordered" } }
+ 
++  auto il = {1, 2};
++  auto s1 = std::span(il);
++  static_assert(s1.extent == std::size_t(-1));
++// { dg-final { note-test s1 {std::span of length 2 = {1, 2}} } }
++  auto a = std::array{3, 4};
++  auto s2 = std::span(a);
++  static_assert(s2.extent == std::size_t(2));
++// { dg-final { note-test s2 {std::span of length 2 = {3, 4}} } }
++
+   std::cout << "\n";
+   return 0;			// Mark SPOT
+ }
+diff --git a/libstdc++-v3/testsuite/libstdc++-xmethods/shared_ptr.cc b/libstdc++-v3/testsuite/libstdc++-xmethods/shared_ptr.cc
+index e7cdfa4bd53..7b9e3e5534d 100644
+--- a/libstdc++-v3/testsuite/libstdc++-xmethods/shared_ptr.cc
++++ b/libstdc++-v3/testsuite/libstdc++-xmethods/shared_ptr.cc
+@@ -36,6 +36,8 @@ main ()
+ 
+   std::shared_ptr<x_struct[3]> s(new x_struct[2]{ {92}, {115} });
+ 
++  auto qq = q;
++
+ // { dg-final { note-test *p 10 } }
+ // { dg-final { regexp-test p.get() 0x.* } }
+ 
+@@ -66,6 +68,11 @@ main ()
+ // { dg-final { whatis-test s.get() "x_struct \*" } }
+ // { dg-final { whatis-test s\[1].y int } }
+ 
++// { dg-final { note-test p.use_count() 1 } }
++// { dg-final { note-test p.unique() true } }
++// { dg-final { note-test q.use_count() 2 } }
++// { dg-final { note-test q.unique() false } }
++
+   return 0;  // Mark SPOT
+ }
+ 
 diff --git a/libstdc++-v3/testsuite/std/ranges/access/empty.cc b/libstdc++-v3/testsuite/std/ranges/access/empty.cc
 index b2d8b105325..693355c6cf5 100644
 --- a/libstdc++-v3/testsuite/std/ranges/access/empty.cc
