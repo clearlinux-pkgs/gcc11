@@ -56,7 +56,8 @@ François Dumont (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (371):
+GCC Administrator (372):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -798,7 +799,7 @@ Qing Zhao (1):
 Rainer Orth (1):
       libstdc++: Fix 28_regex/basic_regex/84110.cc on Solaris
 
-Richard Biener (37):
+Richard Biener (47):
       Update BASE-VER to 11.3.1
       ipa/105598 - testcase for PR105598
       middle-end/105140 - fix bogus recursion in fold_convertible_p
@@ -836,6 +837,16 @@ Richard Biener (37):
       middle-end/104450 - ISEL and non-call EH
       middle-end/104464 - ISEL and non-call EH #2
       tree-optimization/105484 - VEC_SET and EH
+      ipa/106124 - ICE with -fkeep-inline-functions and OpenMP
+      tree-optimization/107451 - SLP load vectorization issue
+      tree-optimization/108076 - if-conversion and forced labels
+      middle-end/108625 - wrong folding due to misinterpreted !
+      tree-optimization/109473 - ICE with reduction epilog adjustment op
+      tree-optimization/109502 - vector conversion between mask and non-mask
+      rtl-optimization/109585 - alias analysis typo
+      tree-optimization/109573 - avoid ICEing on unexpected live def
+      lto/109263 - lto-wrapper and -g0 -ggdb
+      tree-optimization/108821 - store motion and volatiles
 
 Richard Earnshaw (3):
       arm: big-endian issue in gen_cpymem_ldrd_strd [PR105981]
@@ -13284,6 +13295,18 @@ index b634429449c..dd99756d151 100644
  	    {
  	      if (GET_MODE (mem) == BLKmode)
  		{
+diff --git a/gcc/dwarf2out.c b/gcc/dwarf2out.c
+index e5d3ce4966d..c3dab15026d 100644
+--- a/gcc/dwarf2out.c
++++ b/gcc/dwarf2out.c
+@@ -5791,6 +5791,7 @@ lookup_type_die (tree type)
+   if (die && die->removed)
+     {
+       TYPE_SYMTAB_DIE (type) = NULL;
++      TREE_ASM_WRITTEN (type) = 0;
+       return NULL;
+     }
+   return die;
 diff --git a/gcc/emit-rtl.c b/gcc/emit-rtl.c
 index 07e908624a0..0dc51220682 100644
 --- a/gcc/emit-rtl.c
@@ -15345,6 +15368,30 @@ index 0af888c7d78..20a649ea08e 100644
  }
  
  /* Determine what the exit code of the driver should be.  */
+diff --git a/gcc/genmatch.c b/gcc/genmatch.c
+index 8311f5d768a..3b99705606c 100644
+--- a/gcc/genmatch.c
++++ b/gcc/genmatch.c
+@@ -2526,7 +2526,8 @@ expr::gen_transform (FILE *f, int indent, const char *dest, bool gimple,
+       for (unsigned i = 0; i < ops.length (); ++i)
+ 	fprintf (f, ", _o%d[%u]", depth, i);
+       fprintf (f, ");\n");
+-      fprintf_indent (f, indent, "tem_op.resimplify (lseq, valueize);\n");
++      fprintf_indent (f, indent, "tem_op.resimplify (%s, valueize);\n",
++		      !force_leaf ? "lseq" : "NULL");
+       fprintf_indent (f, indent,
+ 		      "_r%d = maybe_push_res_to_seq (&tem_op, %s);\n", depth,
+ 		      !force_leaf ? "lseq" : "NULL");
+@@ -3428,7 +3429,8 @@ dt_simplify::gen_1 (FILE *f, int indent, bool gimple, operand *result)
+ 	  if (!is_predicate)
+ 	    {
+ 	      fprintf_indent (f, indent,
+-			      "res_op->resimplify (lseq, valueize);\n");
++			      "res_op->resimplify (%s, valueize);\n",
++			      !e->force_leaf ? "lseq" : "NULL");
+ 	      if (e->force_leaf)
+ 		fprintf_indent (f, indent,
+ 				"if (!maybe_push_res_to_seq (res_op, NULL)) "
 diff --git a/gcc/gimple-array-bounds.cc b/gcc/gimple-array-bounds.cc
 index b1179518651..8bcc0077b8c 100644
 --- a/gcc/gimple-array-bounds.cc
@@ -15786,7 +15833,7 @@ index eb8a7dc57b0..0c5af5cecef 100644
    /* Stream references to early generated DIEs.  Keep in sync with the
       trees handled in dwarf2out_register_external_die.  */
 diff --git a/gcc/lto-wrapper.c b/gcc/lto-wrapper.c
-index 03a5922f8ea..4429182a61a 100644
+index 03a5922f8ea..038784ca2dc 100644
 --- a/gcc/lto-wrapper.c
 +++ b/gcc/lto-wrapper.c
 @@ -37,6 +37,7 @@ along with GCC; see the file COPYING3.  If not see
@@ -15843,7 +15890,22 @@ index 03a5922f8ea..4429182a61a 100644
  /* Test that a make command is present and working, return true if so.  */
  
  static bool
-@@ -1581,14 +1552,14 @@ run_gcc (unsigned argc, char *argv[])
+@@ -1549,6 +1520,14 @@ run_gcc (unsigned argc, char *argv[])
+ 	  skip_debug = option->arg && !strcmp (option->arg, "0");
+ 	  break;
+ 
++	case OPT_gdwarf:
++	case OPT_gdwarf_:
++	case OPT_ggdb:
++	case OPT_gvms:
++	  /* Negative forms, if allowed, enable debug info as well.  */
++	  skip_debug = false;
++	  break;
++
+ 	case OPT_dumpdir:
+ 	  incoming_dumppfx = dumppfx = option->arg;
+ 	  break;
+@@ -1581,14 +1560,14 @@ run_gcc (unsigned argc, char *argv[])
      }
    else
      {
@@ -15862,7 +15924,7 @@ index 03a5922f8ea..4429182a61a 100644
  	{
  	  parallel = 1;
  	  jobserver = 1;
-@@ -1903,6 +1874,15 @@ cont:
+@@ -1903,6 +1882,15 @@ cont:
        maybe_unlink (ltrans_output_file);
        ltrans_output_file = NULL;
  
@@ -19498,6 +19560,31 @@ index 00000000000..6dee7e68ff5
 +  }
 +};
 +void baz () { F::bar (); }
+diff --git a/gcc/testsuite/g++.dg/gomp/pr106124.C b/gcc/testsuite/g++.dg/gomp/pr106124.C
+new file mode 100644
+index 00000000000..3129749804b
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/gomp/pr106124.C
+@@ -0,0 +1,19 @@
++// { dg-do compile }
++// { dg-require-effective-target c++11 }
++// { dg-options "-g -O2 -fopenmp -fkeep-inline-functions" }
++
++int q;
++struct A
++{
++  typedef int T;
++#pragma omp declare reduction (x : T : omp_out += omp_in + [] (){ return q; }()) initializer (omp_priv = [](){ return 0; }())
++  static void foo ();
++};
++void bar (int &, int &);
++void
++A::foo ()
++{
++  int r = 0, s = 0;
++#pragma omp parallel reduction (x : r, s)
++  bar (r, s);
++}
 diff --git a/gcc/testsuite/g++.dg/gomp/pr106492.C b/gcc/testsuite/g++.dg/gomp/pr106492.C
 new file mode 100644
 index 00000000000..f263bb42710
@@ -20159,6 +20246,103 @@ index 00000000000..b3b440debef
 +    int factor = Non_Folded_Value();
 +    Width = 32 << factor;
 +    Height = 24 << factor;
++}
+diff --git a/gcc/testsuite/g++.dg/vect/pr109573.cc b/gcc/testsuite/g++.dg/vect/pr109573.cc
+new file mode 100644
+index 00000000000..d96f86f9579
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/vect/pr109573.cc
+@@ -0,0 +1,91 @@
++// { dg-do compile }
++// { dg-require-effective-target c++20 }
++
++void *operator new(__SIZE_TYPE__, void *__p) { return __p; }
++template <typename _Head> struct _Head_base {
++  _Head _M_head_impl;
++};
++template <unsigned long, typename...> struct _Tuple_impl;
++template <unsigned long _Idx, typename _Head, typename... _Tail>
++struct _Tuple_impl<_Idx, _Head, _Tail...> : _Tuple_impl<_Idx + 1, _Tail...>,
++                                            _Head_base<_Head> {
++  template <typename _UHead, typename... _UTail>
++  _Tuple_impl(_UHead __head, _UTail... __tail)
++      : _Tuple_impl<_Idx + 1, _Tail...>(__tail...), _Head_base<_Head>(__head) {}
++};
++template <unsigned long _Idx, typename _Head> struct _Tuple_impl<_Idx, _Head> {
++  template <typename _UHead> _Tuple_impl(_UHead);
++};
++template <typename... _Elements> struct tuple : _Tuple_impl<0, _Elements...> {
++  template <typename... _UElements>
++  tuple(_UElements... __elements)
++      : _Tuple_impl<0, _Elements...>(__elements...) {}
++};
++unsigned long position_;
++struct Zone {
++  template <typename T, typename... Args> T *New(Args... args) {
++    return new (reinterpret_cast<void *>(position_)) T(args...);
++  }
++};
++struct Label {
++  int pos_;
++  int near_link_pos_;
++};
++enum Condition { below_equal };
++void bind(Label *);
++Zone *zone();
++unsigned long deopt_info_address();
++int MakeDeferredCode___trans_tmp_2, MakeDeferredCode___trans_tmp_3,
++    Prologue___trans_tmp_6, MakeDeferredCode___trans_tmp_1;
++struct MaglevAssembler {
++  template <typename Function, typename... Args>
++  void MakeDeferredCode(Function &&, Args &&...);
++  template <typename Function, typename... Args>
++  void JumpToDeferredIf(Condition, Function, Args... args) {
++    MakeDeferredCode(Function(), args...);
++  }
++  void Prologue();
++};
++struct ZoneLabelRef {
++  ZoneLabelRef(Zone *zone) : label_(zone->New<Label>()) {}
++  ZoneLabelRef(MaglevAssembler *) : ZoneLabelRef(zone()) {}
++  Label *operator*() { return label_; }
++  Label *label_;
++};
++template <typename Function>
++struct FunctionArgumentsTupleHelper
++    : FunctionArgumentsTupleHelper<decltype(&Function::operator())> {};
++template <typename C, typename R, typename... A>
++struct FunctionArgumentsTupleHelper<R (C::*)(A...) const> {
++  using Tuple = tuple<A...>;
++};
++template <typename> struct StripFirstTupleArg;
++template <typename T1, typename... T>
++struct StripFirstTupleArg<tuple<T1, T...>> {
++  using Stripped = tuple<T...>;
++};
++template <typename Function> struct DeferredCodeInfoImpl {
++  template <typename... InArgs>
++  DeferredCodeInfoImpl(int *, int, int, Function, InArgs... args)
++      : args(args...) {}
++  StripFirstTupleArg<
++      typename FunctionArgumentsTupleHelper<Function>::Tuple>::Stripped args;
++};
++template <typename Function, typename... Args>
++void MaglevAssembler::MakeDeferredCode(Function &&deferred_code_gen,
++                                       Args &&...args) {
++  zone()->New<DeferredCodeInfoImpl<Function>>(
++      &MakeDeferredCode___trans_tmp_1, MakeDeferredCode___trans_tmp_2,
++      MakeDeferredCode___trans_tmp_3, deferred_code_gen, args...);
++}
++void MaglevAssembler::Prologue() {
++  int *__trans_tmp_9;
++  ZoneLabelRef deferred_call_stack_guard_return(this);
++  __trans_tmp_9 = reinterpret_cast<int *>(deopt_info_address());
++  JumpToDeferredIf(
++      below_equal, [](MaglevAssembler, int *, ZoneLabelRef, int, int) {},
++      __trans_tmp_9, deferred_call_stack_guard_return, Prologue___trans_tmp_6,
++      0);
++  Label __trans_tmp_7 = **deferred_call_stack_guard_return;
++  bind(&__trans_tmp_7);
 +}
 diff --git a/gcc/testsuite/g++.dg/warn/Warray-bounds-27.C b/gcc/testsuite/g++.dg/warn/Warray-bounds-27.C
 new file mode 100644
@@ -21375,6 +21559,26 @@ index 00000000000..61ef2bcd90a
 +{
 +  __builtin_memcpy(a, b, ELEMS*sizeof(int));
 +}
+diff --git a/gcc/testsuite/gcc.dg/pr108625.c b/gcc/testsuite/gcc.dg/pr108625.c
+new file mode 100644
+index 00000000000..03fc2889c4f
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/pr108625.c
+@@ -0,0 +1,14 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -fdump-tree-forwprop1 -fdump-tree-optimized" } */
++
++unsigned char foo(int x)
++{
++  int t = -x;
++  unsigned char t1 = t;
++  unsigned char t2 = t;
++  /* We may not rewrite this as (unsigned char)(t - x).  */
++  return t1 + t2;
++}
++
++/* { dg-final { scan-tree-dump-times "x_" 1 "forwprop1" } } */
++/* { dg-final { scan-tree-dump-times "x_" 1 "optimized" } } */
 diff --git a/gcc/testsuite/gcc.dg/pragma-message.c b/gcc/testsuite/gcc.dg/pragma-message.c
 index 2f44b617710..1b7cf09de0a 100644
 --- a/gcc/testsuite/gcc.dg/pragma-message.c
@@ -21684,6 +21888,101 @@ index 00000000000..73a66a037b7
 +  if (f[2] != 0)
 +    __builtin_abort ();
 +}
+diff --git a/gcc/testsuite/gcc.dg/torture/pr107451.c b/gcc/testsuite/gcc.dg/torture/pr107451.c
+new file mode 100644
+index 00000000000..a17574c6896
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/torture/pr107451.c
+@@ -0,0 +1,27 @@
++/* { dg-do run } */
++/* { dg-additional-options "-ftree-vectorize -fno-vect-cost-model" } */
++/* { dg-additional-options "-mavx2" { target avx2_runtime } } */
++
++double getdot(int n, const double *x, int inc_x, const double *y)
++{
++  int i, ix = 0;
++  double dot[4] = { 0.0, 0.0, 0.0, 0.0 } ;
++
++  for(i = 0; i < n; i++) {
++      dot[0] += x[ix]   * y[ix]   ;
++      dot[1] += x[ix+1] * y[ix+1] ;
++      dot[2] += x[ix]   * y[ix+1] ;
++      dot[3] += x[ix+1] * y[ix]   ;
++      ix += inc_x ;
++  }
++
++  return dot[0] + dot[1] + dot[2] + dot[3];
++}
++
++int main()
++{
++  double x[2] = {0, 0}, y[2] = {0, 0};
++  if (getdot(1, x, 4096*4096, y) != 0.)
++    __builtin_abort ();
++  return 0;
++}
+diff --git a/gcc/testsuite/gcc.dg/torture/pr108076.c b/gcc/testsuite/gcc.dg/torture/pr108076.c
+new file mode 100644
+index 00000000000..ebe2e51bee0
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/torture/pr108076.c
+@@ -0,0 +1,17 @@
++/* { dg-do link } */
++
++static void *j;
++int v, g;
++__attribute__((__leaf__)) int atoi (const char *);
++
++int
++main ()
++{
++  j = &&lab1;
++  &&lab2;
++  atoi ("42");
++lab1:
++lab2:
++  if (v)
++    goto *j;
++}
+diff --git a/gcc/testsuite/gcc.dg/torture/pr109585.c b/gcc/testsuite/gcc.dg/torture/pr109585.c
+new file mode 100644
+index 00000000000..f92de7c1f2e
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/torture/pr109585.c
+@@ -0,0 +1,33 @@
++/* { dg-do run } */
++
++#include <stdlib.h>
++
++struct P {
++    long v;
++    struct P *n;
++};
++
++struct F {
++    long x;
++    struct P fam[];
++};
++
++int __attribute__((noipa))
++f(struct F *f, int i)
++{
++  struct P *p = f->fam;
++  asm("" : "+r"(f): "r"(p));
++  p->v = 0;
++  p->n = 0;
++  return f->fam->n != 0;
++}
++
++int
++main()
++{
++  struct F *m = malloc (sizeof (long) + 2 * sizeof (struct P));
++  m->fam[0].n = &m->fam[1];
++  if (f (m, 0))
++    abort ();
++  return 0;
++}
 diff --git a/gcc/testsuite/gcc.dg/tree-ssa/alias-access-path-13.c b/gcc/testsuite/gcc.dg/tree-ssa/alias-access-path-13.c
 new file mode 100644
 index 00000000000..87a94f5bf31
@@ -21829,6 +22128,37 @@ index 00000000000..1204b6e36d5
 +    __builtin_abort ();
 +  return 0;
 +}
+diff --git a/gcc/testsuite/gcc.dg/tree-ssa/ssa-lim-24.c b/gcc/testsuite/gcc.dg/tree-ssa/ssa-lim-24.c
+new file mode 100644
+index 00000000000..6b463490a91
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/tree-ssa/ssa-lim-24.c
+@@ -0,0 +1,25 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -fdump-tree-lim2-details -fdump-tree-optimized" } */
++
++extern volatile int *x;
++static int gCrc;
++
++static int __attribute__((noinline)) crc16Add(int crc, int b)
++{
++  return crc + b;
++}
++
++void f(int data, int dataSz)
++{
++  int i;
++
++  for(i=0;i<dataSz;i++)
++  {
++    gCrc = crc16Add(gCrc, data);
++    *x = data;
++  }
++}
++
++/* { dg-final { scan-tree-dump "Executing store motion of gCrc" "lim2" } } */
++/* { dg-final { scan-tree-dump-not "Re-issueing" "lim2" } } */
++/* { dg-final { scan-tree-dump-times "\\*x" 1 "optimized" } } */
 diff --git a/gcc/testsuite/gcc.dg/tree-ssa/ssa-sink-19.c b/gcc/testsuite/gcc.dg/tree-ssa/ssa-sink-19.c
 new file mode 100644
 index 00000000000..f3eb0ef3a4e
@@ -22269,6 +22599,55 @@ index 00000000000..109c2b991a6
 +  
 +  if (sum_0 < 100 || sum_0 > 200)
 +    __builtin_abort();
++  return 0;
++}
+diff --git a/gcc/testsuite/gcc.dg/vect/pr109473.c b/gcc/testsuite/gcc.dg/vect/pr109473.c
+new file mode 100644
+index 00000000000..9dee5515dc6
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/vect/pr109473.c
+@@ -0,0 +1,16 @@
++/* { dg-do compile } */
++/* { dg-additional-options "-O" } */
++
++struct spa_buffer {
++  __UINT32_TYPE__ *metas;
++};
++void do_port_use_buffers(struct spa_buffer **buffers, void *endptr, void *mem)
++{
++  for (int i = 0; i < 128; i++)
++    {
++      for (int j = 0; j < 128; j++)
++	endptr = (void *)((__UINTPTR_TYPE__)endptr + buffers[i]->metas[j]);
++      if (endptr > mem)
++	return;
++    }
++}
+diff --git a/gcc/testsuite/gcc.dg/vect/pr109502.c b/gcc/testsuite/gcc.dg/vect/pr109502.c
+new file mode 100644
+index 00000000000..970c63e931b
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/vect/pr109502.c
+@@ -0,0 +1,21 @@
++/* { dg-do run } */
++/* { dg-additional-options "-O" } */
++
++unsigned g;
++
++unsigned
++foo (void)
++{
++  unsigned a = !g;
++  a += !(a % 6);
++  return a;
++}
++
++int
++main ()
++{
++  unsigned x = foo ();
++  if (x != 1)
++    __builtin_abort ();
 +  return 0;
 +}
 diff --git a/gcc/testsuite/gcc.dg/vect/vect.exp b/gcc/testsuite/gcc.dg/vect/vect.exp
@@ -28171,6 +28550,42 @@ index 857e57218c1..a09606e4497 100644
      }]
  }
  
+diff --git a/gcc/tree-if-conv.c b/gcc/tree-if-conv.c
+index 716eae44a21..6493ccd3f0d 100644
+--- a/gcc/tree-if-conv.c
++++ b/gcc/tree-if-conv.c
+@@ -1419,10 +1419,20 @@ if_convertible_loop_p_1 (class loop *loop, vec<data_reference_p> *refs)
+       basic_block bb = ifc_bbs[i];
+       gimple_stmt_iterator gsi;
+ 
++      bool may_have_nonlocal_labels
++	= bb_with_exit_edge_p (loop, bb) || bb == loop->latch;
+       for (gsi = gsi_start_bb (bb); !gsi_end_p (gsi); gsi_next (&gsi))
+ 	switch (gimple_code (gsi_stmt (gsi)))
+ 	  {
+ 	  case GIMPLE_LABEL:
++	    if (!may_have_nonlocal_labels)
++	      {
++		tree label
++		  = gimple_label_label (as_a <glabel *> (gsi_stmt (gsi)));
++		if (DECL_NONLOCAL (label) || FORCED_LABEL (label))
++		  return false;
++	      }
++	    /* Fallthru.  */
+ 	  case GIMPLE_ASSIGN:
+ 	  case GIMPLE_CALL:
+ 	  case GIMPLE_DEBUG:
+@@ -2498,8 +2508,8 @@ remove_conditions_and_labels (loop_p loop)
+       basic_block bb = ifc_bbs[i];
+ 
+       if (bb_with_exit_edge_p (loop, bb)
+-        || bb == loop->latch)
+-      continue;
++	  || bb == loop->latch)
++	continue;
+ 
+       for (gsi = gsi_start_bb (bb); !gsi_end_p (gsi); )
+ 	switch (gimple_code (gsi_stmt (gsi)))
 diff --git a/gcc/tree-loop-distribution.c b/gcc/tree-loop-distribution.c
 index 65aa1df4aba..947326ab1e7 100644
 --- a/gcc/tree-loop-distribution.c
@@ -28375,6 +28790,38 @@ index 970ad386873..5a1fc81d301 100644
        sra_stats.exprs++;
      }
    else if (write && access->grp_to_be_debug_replaced)
+diff --git a/gcc/tree-ssa-alias.c b/gcc/tree-ssa-alias.c
+index 3e578e5d05f..c3f43dc8db2 100644
+--- a/gcc/tree-ssa-alias.c
++++ b/gcc/tree-ssa-alias.c
+@@ -1274,7 +1274,7 @@ aliasing_component_refs_p (tree ref1,
+   /* If we didn't find a common base, try the other way around.  */
+   if (cmp_outer <= 0 
+       || (end_struct_ref1
+-	  && compare_type_sizes (TREE_TYPE (end_struct_ref1), type1) <= 0))
++	  && compare_type_sizes (TREE_TYPE (end_struct_ref1), type2) <= 0))
+     {
+       int res = aliasing_component_refs_walk (ref2, type2, base2,
+ 					      offset2, max_size2,
+diff --git a/gcc/tree-ssa-loop-im.c b/gcc/tree-ssa-loop-im.c
+index 8b1b1b2bede..8ee6c1aca12 100644
+--- a/gcc/tree-ssa-loop-im.c
++++ b/gcc/tree-ssa-loop-im.c
+@@ -2463,6 +2463,14 @@ sm_seq_valid_bb (class loop *loop, basic_block bb, tree vdef,
+       gcc_assert (data);
+       if (data->ref == UNANALYZABLE_MEM_ID)
+ 	return -1;
++      /* Stop at memory references which we can't move.  */
++      else if (TREE_THIS_VOLATILE
++		 (memory_accesses.refs_list[data->ref]->mem.ref))
++	{
++	  /* Mark refs_not_in_seq as unsupported.  */
++	  bitmap_ior_into (refs_not_supported, refs_not_in_seq);
++	  return 1;
++	}
+       /* One of the stores we want to apply SM to and we've not yet seen.  */
+       else if (bitmap_clear_bit (refs_not_in_seq, data->ref))
+ 	{
 diff --git a/gcc/tree-ssa-loop-ivopts.c b/gcc/tree-ssa-loop-ivopts.c
 index 4012ae3f19d..913b3ad4258 100644
 --- a/gcc/tree-ssa-loop-ivopts.c
@@ -28861,10 +29308,25 @@ index 28a7f4f02c9..41959ca03f8 100644
  			     BITS_PER_UNIT) == 0)
  	return NULL_TREE;
 diff --git a/gcc/tree-vect-loop.c b/gcc/tree-vect-loop.c
-index 968087a9008..2c07fa38ff0 100644
+index 968087a9008..bb021ccf382 100644
 --- a/gcc/tree-vect-loop.c
 +++ b/gcc/tree-vect-loop.c
-@@ -6589,10 +6589,20 @@ vectorizable_reduction (loop_vec_info loop_vinfo,
+@@ -5945,9 +5945,12 @@ vect_create_epilog_for_reduction (loop_vec_info loop_vinfo,
+ 	{
+           new_temp = scalar_results[0];
+ 	  gcc_assert (TREE_CODE (TREE_TYPE (adjustment_def)) != VECTOR_TYPE);
+-	  adjustment_def = gimple_convert (&stmts, scalar_type, adjustment_def);
+-	  new_temp = gimple_build (&stmts, code, scalar_type,
++	  adjustment_def = gimple_convert (&stmts, TREE_TYPE (vectype),
++					   adjustment_def);
++	  new_temp = gimple_convert (&stmts, TREE_TYPE (vectype), new_temp);
++	  new_temp = gimple_build (&stmts, code, TREE_TYPE (vectype),
+ 				   new_temp, adjustment_def);
++	  new_temp = gimple_convert (&stmts, scalar_type, new_temp);
+ 	}
+ 
+       epilog_stmt = gimple_seq_last_stmt (stmts);
+@@ -6589,10 +6592,20 @@ vectorizable_reduction (loop_vec_info loop_vinfo,
  	}
        if (!REDUC_GROUP_FIRST_ELEMENT (vdef))
  	only_slp_reduc_chain = false;
@@ -28888,7 +29350,7 @@ index 968087a9008..2c07fa38ff0 100644
  	STMT_VINFO_REDUC_DEF (def) = phi_info;
        gassign *assign = dyn_cast <gassign *> (vdef->stmt);
        if (!assign)
-@@ -8578,10 +8588,6 @@ vectorizable_live_operation (vec_info *vinfo,
+@@ -8578,10 +8591,6 @@ vectorizable_live_operation (vec_info *vinfo,
  	     all involved stmts together.  */
  	  else if (slp_index != 0)
  	    return true;
@@ -28899,6 +29361,20 @@ index 968087a9008..2c07fa38ff0 100644
  	}
        stmt_vec_info reduc_info = info_for_reduction (loop_vinfo, stmt_info);
        gcc_assert (reduc_info->is_reduc_info);
+@@ -8864,9 +8873,10 @@ vectorizable_live_operation (vec_info *vinfo,
+ 						use_stmt))
+ 	      {
+ 		enum tree_code code = gimple_assign_rhs_code (use_stmt);
+-		gcc_assert (code == CONSTRUCTOR
+-			    || code == VIEW_CONVERT_EXPR
+-			    || CONVERT_EXPR_CODE_P (code));
++		gcc_checking_assert (code == SSA_NAME
++				     || code == CONSTRUCTOR
++				     || code == VIEW_CONVERT_EXPR
++				     || CONVERT_EXPR_CODE_P (code));
+ 		if (dump_enabled_p ())
+ 		  dump_printf_loc (MSG_MISSED_OPTIMIZATION, vect_location,
+ 				   "Using original scalar computation for "
 diff --git a/gcc/tree-vect-slp.c b/gcc/tree-vect-slp.c
 index 7289656db0f..7c75799f625 100644
 --- a/gcc/tree-vect-slp.c
@@ -28973,7 +29449,7 @@ index 7289656db0f..7c75799f625 100644
  }
  
 diff --git a/gcc/tree-vect-stmts.c b/gcc/tree-vect-stmts.c
-index 0d61b0f51d0..973c6dcea18 100644
+index 0d61b0f51d0..04f83c1127a 100644
 --- a/gcc/tree-vect-stmts.c
 +++ b/gcc/tree-vect-stmts.c
 @@ -2207,6 +2207,37 @@ get_group_load_store_type (vec_info *vinfo, stmt_vec_info stmt_info,
@@ -29014,6 +29490,50 @@ index 0d61b0f51d0..973c6dcea18 100644
  	}
      }
    else
+@@ -5232,8 +5263,7 @@ vectorizable_assignment (vec_info *vinfo,
+ 		       GET_MODE_SIZE (TYPE_MODE (vectype_in)))))
+     return false;
+ 
+-  if (VECTOR_BOOLEAN_TYPE_P (vectype)
+-      && !VECTOR_BOOLEAN_TYPE_P (vectype_in))
++  if (VECTOR_BOOLEAN_TYPE_P (vectype) != VECTOR_BOOLEAN_TYPE_P (vectype_in))
+     {
+       if (dump_enabled_p ())
+ 	dump_printf_loc (MSG_MISSED_OPTIMIZATION, vect_location,
+@@ -8911,6 +8941,7 @@ vectorizable_load (vec_info *vinfo,
+       unsigned int group_el = 0;
+       unsigned HOST_WIDE_INT
+ 	elsz = tree_to_uhwi (TYPE_SIZE_UNIT (TREE_TYPE (vectype)));
++      unsigned int n_groups = 0;
+       for (j = 0; j < ncopies; j++)
+ 	{
+ 	  if (nloads > 1)
+@@ -8932,12 +8963,19 @@ vectorizable_load (vec_info *vinfo,
+ 	      if (! slp
+ 		  || group_el == group_size)
+ 		{
+-		  tree newoff = copy_ssa_name (running_off);
+-		  gimple *incr = gimple_build_assign (newoff, POINTER_PLUS_EXPR,
+-						      running_off, stride_step);
+-		  vect_finish_stmt_generation (vinfo, stmt_info, incr, gsi);
+-
+-		  running_off = newoff;
++		  n_groups++;
++		  /* When doing SLP make sure to not load elements from
++		     the next vector iteration, those will not be accessed
++		     so just use the last element again.  See PR107451.  */
++		  if (!slp || known_lt (n_groups, vf))
++		    {
++		      tree newoff = copy_ssa_name (running_off);
++		      gimple *incr
++			= gimple_build_assign (newoff, POINTER_PLUS_EXPR,
++					       running_off, stride_step);
++		      vect_finish_stmt_generation (vinfo, stmt_info, incr, gsi);
++		      running_off = newoff;
++		    }
+ 		  group_el = 0;
+ 		}
+ 	    }
 diff --git a/gcc/value-prof.c b/gcc/value-prof.c
 index 42748771192..688089b04d2 100644
 --- a/gcc/value-prof.c
