@@ -20,8 +20,9 @@ Andrew Pinski (2):
 Anthony Sharp (1):
       call_summary: add missing template keyword
 
-Arsen Arsenović (1):
+Arsen Arsenović (2):
       c++: top level bind when rewriting coroutines [PR106188]
+      extend.texi: replace @itemx not preceded by @item.
 
 Christophe Lyon (1):
       aarch64: fix warning emission for ABI break since GCC 9.1
@@ -63,7 +64,8 @@ François Dumont (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (373):
+GCC Administrator (374):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -862,7 +864,7 @@ Qing Zhao (1):
 Rainer Orth (1):
       libstdc++: Fix 28_regex/basic_regex/84110.cc on Solaris
 
-Richard Biener (48):
+Richard Biener (49):
       Update BASE-VER to 11.3.1
       ipa/105598 - testcase for PR105598
       middle-end/105140 - fix bogus recursion in fold_convertible_p
@@ -911,6 +913,7 @@ Richard Biener (48):
       lto/109263 - lto-wrapper and -g0 -ggdb
       tree-optimization/108821 - store motion and volatiles
       tree-optimization/109473 - fix type mismatch in reduction vectorization
+      tree-optimization/109724 - new testcase
 
 Richard Earnshaw (3):
       arm: big-endian issue in gen_cpymem_ldrd_strd [PR105981]
@@ -1012,10 +1015,28 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..85fdac27cd3 100644
+index a0587d18824..4ca4dc03b0b 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,1905 @@
+@@ -1,3 +1,1923 @@
++2023-05-03  Arsen Arsenović  <arsen@aarsen.me>
++
++	* doc/extend.texi: Replace @itemx not being preceded by @item.
++
++2023-05-03  Anthony Sharp  <anthonysharp15@gmail.com>
++
++	Backported from master:
++	2021-08-27  Anthony Sharp  <anthonysharp15@gmail.com>
++
++	* symbol-summary.h: Added missing template keyword.
++
++2023-05-03  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/109473
++	* tree-vect-loop.c (get_initial_def_for_reduction):
++	Convert the scalar values to the vector component type
++	before using it to build the vector for the initial value.
++
 +2023-05-02  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -14754,7 +14775,7 @@ index b941de6df1b..03fd8084619 100644
  problems with encodings that do not fit exactly in @code{wchar_t}.
  
 diff --git a/gcc/doc/extend.texi b/gcc/doc/extend.texi
-index 689ec7de4d3..d6093397a61 100644
+index 689ec7de4d3..64bd4c1cb6c 100644
 --- a/gcc/doc/extend.texi
 +++ b/gcc/doc/extend.texi
 @@ -688,7 +688,7 @@ myprintf (FILE *f, const char *format, ...)
@@ -14766,6 +14787,15 @@ index 689ec7de4d3..d6093397a61 100644
  This built-in function returns the number of anonymous arguments of
  an inline function.  It can be used only in inline functions that
  are always inlined, never compiled as a separate function, such
+@@ -2487,7 +2487,7 @@ The following attributes are supported on most targets.
+ @table @code
+ @c Keep this table alphabetized by attribute name.  Treat _ as space.
+ 
+-@itemx access (@var{access-mode}, @var{ref-index})
++@item access (@var{access-mode}, @var{ref-index})
+ @itemx access (@var{access-mode}, @var{ref-index}, @var{size-index})
+ 
+ The @code{access} attribute enables the detection of invalid or unsafe
 diff --git a/gcc/doc/invoke.texi b/gcc/doc/invoke.texi
 index 35508efb4ef..3419483c532 100644
 --- a/gcc/doc/invoke.texi
@@ -23181,6 +23211,44 @@ index 00000000000..e110f4a8fe6
 +	f[i] = f[2];
 +      if (foo(f[i], f[1]) != 2)
 +	__builtin_abort();
++  }
++}
+diff --git a/gcc/testsuite/g++.dg/torture/pr109724.C b/gcc/testsuite/g++.dg/torture/pr109724.C
+new file mode 100644
+index 00000000000..4a88e1519d0
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/torture/pr109724.C
+@@ -0,0 +1,32 @@
++// { dg-do compile }
++
++double &SkTMax(double &a, double &b) { return a ?: b; }
++struct SkDPoint {
++  double fX;
++};
++struct SkDCubic {
++  SkDPoint &operator[](int n) { return fPts[n]; }
++  SkDPoint fPts[4];
++};
++struct SkDCurve {
++  SkDCubic fCubic;
++  SkDPoint &operator[](int n) { return fCubic[n]; }
++};
++struct SkDCurveSweep {
++  SkDCurve fCurve;
++};
++int endsIntersect_rPts;
++double endsIntersect_maxX;
++struct SkOpAngle {
++  void endsIntersect();
++  SkDCurveSweep fPart;
++} endsIntersect_rh;
++void SkOpAngle::endsIntersect() {
++  for (int index = 0;; ++index) {
++    SkDCurve &curve = index ? endsIntersect_rh.fPart.fCurve : fPart.fCurve;
++    for (int idx2 = 0; endsIntersect_rPts; ++idx2) {
++      SkDPoint &__trans_tmp_1 = curve[idx2];
++      endsIntersect_maxX = SkTMax(endsIntersect_maxX, __trans_tmp_1.fX);
++    }
 +  }
 +}
 diff --git a/gcc/testsuite/g++.dg/ubsan/pr105729.C b/gcc/testsuite/g++.dg/ubsan/pr105729.C
@@ -35671,10 +35739,48 @@ index 025e575b5bc..5743516c046 100644
    unsigned IOCTL_GIO_FONT = GIO_FONT;
    unsigned IOCTL_GIO_UNIMAP = GIO_UNIMAP;
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..2b6c1fed779 100644
+index 85e04c45288..36dffd68923 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,1222 @@
+@@ -1,3 +1,1260 @@
++2023-05-03  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/105844
++	* include/experimental/numeric (lcm): Use built-in instead of
++	__is_constant_evaluated.
++	* include/std/numeric (__abs_r, lcm): Likewise.
++	* testsuite/26_numerics/gcd/105844.cc: Add dg-prune-output.
++	* testsuite/26_numerics/lcm/105844.cc: Likewise.
++
++2023-05-03  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-06-10  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/105844
++	* include/experimental/numeric (experimental::gcd): Simplify
++	assertions. Use __abs_r instead of __absu.
++	(experimental::lcm): Likewise. Remove use of __detail::__lcm so
++	overflow can be detected.
++	* include/std/numeric (__detail::__absu): Rename to __abs_r and
++	change to allow signed result type, so overflow can be detected.
++	(__detail::__lcm): Remove.
++	(gcd): Simplify assertions. Use __abs_r instead of __absu.
++	(lcm): Likewise. Remove use of __detail::__lcm so overflow can
++	be detected.
++	* testsuite/26_numerics/gcd/gcd_neg.cc: Adjust dg-error lines.
++	* testsuite/26_numerics/lcm/lcm_neg.cc: Likewise.
++	* testsuite/26_numerics/gcd/105844.cc: New test.
++	* testsuite/26_numerics/lcm/105844.cc: New test.
++
++2023-05-03  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2023-04-28  Jonathan Wakely  <jwakely@redhat.com>
++
++	* doc/doxygen/user.cfg.in (STRIP_FROM_PATH): Remove prefixes
++	from header paths.
++
 +2023-04-27  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backported from master:
