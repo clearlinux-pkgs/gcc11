@@ -64,7 +64,10 @@ François Dumont (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (375):
+GCC Administrator (378):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1017,10 +1020,20 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..4ca4dc03b0b 100644
+index a0587d18824..2a05a4ccbb8 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,1923 @@
+@@ -1,3 +1,1933 @@
++2023-05-05  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2022-11-29  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/107898
++	* gimple-ssa-warn-alloca.c (alloca_call_type): Check
++	the type of the alloca argument is compatible with size_t
++	before querying ranges.
++
 +2023-05-03  Arsen Arsenović  <arsen@aarsen.me>
 +
 +	* doc/extend.texi: Replace @itemx not being preceded by @item.
