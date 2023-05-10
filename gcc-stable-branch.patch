@@ -64,7 +64,8 @@ François Dumont (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (379):
+GCC Administrator (380):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -872,7 +873,7 @@ Qing Zhao (1):
 Rainer Orth (1):
       libstdc++: Fix 28_regex/basic_regex/84110.cc on Solaris
 
-Richard Biener (51):
+Richard Biener (52):
       Update BASE-VER to 11.3.1
       ipa/105598 - testcase for PR105598
       middle-end/105140 - fix bogus recursion in fold_convertible_p
@@ -924,6 +925,7 @@ Richard Biener (51):
       tree-optimization/109724 - new testcase
       tree-optimization/107898 - ICE with -Walloca-larger-than
       tree-optimization/108950 - widen-sum reduction ICE
+      testsuite/108985 - missing vect_simd_clones target requirement on test
 
 Richard Earnshaw (3):
       arm: big-endian issue in gen_cpymem_ldrd_strd [PR105981]
@@ -1025,10 +1027,34 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..2a05a4ccbb8 100644
+index a0587d18824..5cd2e56d33e 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,1933 @@
+@@ -1,3 +1,1957 @@
++2023-05-09  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2023-05-09  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/109778
++	* wide-int.h (wi::lrotate, wi::rrotate): Call wi::lrshift on
++	wi::zext (x, width) rather than x if width != precision, rather
++	than using wi::zext (right, width) after the shift.
++	* tree-ssa-ccp.c (bit_value_binop): Call wi::ext on the results
++	of wi::lrotate or wi::rrotate.
++
++2023-05-09  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2023-03-01  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/108950
++	* tree-vect-patterns.c (vect_recog_widen_sum_pattern):
++	Check oprnd0 is defined in the loop.
++	* tree-vect-loop.c (vectorizable_reduction): Record all
++	operands vector types, compute that of invariants and
++	properly update their SLP nodes.
++
 +2023-05-05  Richard Biener  <rguenther@suse.de>
 +
 +	Backported from master:
@@ -12064,10 +12090,20 @@ index cdf22f14b94..fabc313197a 100644
  	}
  
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..f8aa8039227 100644
+index 85c8fdd38cd..ebb5de394dd 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,426 @@
+@@ -1,3 +1,436 @@
++2023-05-09  Jason Merrill  <jason@redhat.com>
++
++	PR c++/106740
++	PR c++/105852
++	* decl.c (duplicate_decls): Change non-templated friend
++	check to an assert.
++	* pt.c	(tsubst_function_decl): Don't set DECL_TEMPLATE_INFO
++	on non-templated friends.
++	(tsubst_friend_function): Adjust.
++
 +2023-05-02  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -18657,10 +18693,41 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..cd762b179f8 100644
+index 5fc23605244..09a2903841e 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2160 @@
+@@ -1,3 +1,2191 @@
++2023-05-09  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2023-05-09  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/109778
++	* gcc.dg/lto/pr109778_0.c: New test.
++	* gcc.dg/lto/pr109778_1.c: New file.
++
++2023-05-09  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2023-05-09  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/109778
++	* gcc.c-torture/execute/pr109778.c: New test.
++
++2023-05-09  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2023-03-01  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/108950
++	* gcc.dg/vect/pr108950.c: New testcase.
++
++2023-05-09  Jason Merrill  <jason@redhat.com>
++
++	PR c++/106740
++	PR c++/105852
++	* g++.dg/template/friend78.C: New test.
++
 +2023-05-04  Richard Biener  <rguenther@suse.de>
 +
 +	Backported from master:
@@ -26491,10 +26558,11 @@ index 00000000000..109c2b991a6
 +}
 diff --git a/gcc/testsuite/gcc.dg/vect/pr108950.c b/gcc/testsuite/gcc.dg/vect/pr108950.c
 new file mode 100644
-index 00000000000..2163866dfa7
+index 00000000000..ecf076c964b
 --- /dev/null
 +++ b/gcc/testsuite/gcc.dg/vect/pr108950.c
-@@ -0,0 +1,13 @@
+@@ -0,0 +1,14 @@
++/* { dg-require-effective-target vect_simd_clones } */
 +/* { dg-do compile } */
 +
 +int m;
