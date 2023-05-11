@@ -518,8 +518,9 @@ Iain Buclaw (14):
       d: Delay removing DECL_EXTERNAL from thunks until funcion has finished
       d: Fix undefined reference to lambda defined in private enum [PR109108]
 
-Ian Lance Taylor (1):
+Ian Lance Taylor (2):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
+      syscall: add prlimit
 
 Jakub Jelinek (81):
       emit-rtl: Fix -fcompare-debug bug with label references in debug insns [PR105203]
@@ -34908,6 +34909,25 @@ index 7629e23e289..9d701f27582 100644
      ret
  
  .Lset_0xffff:
+diff --git a/libgo/go/syscall/libcall_linux.go b/libgo/go/syscall/libcall_linux.go
+index 96974bd3269..a39f408151a 100644
+--- a/libgo/go/syscall/libcall_linux.go
++++ b/libgo/go/syscall/libcall_linux.go
+@@ -188,6 +188,14 @@ func Gettid() (tid int) {
+ //sys	PivotRoot(newroot string, putold string) (err error)
+ //pivot_root(newroot *byte, putold *byte) _C_int
+ 
++// Used by golang.org/x/sys/unix.
++//sys	prlimit(pid int, resource int, newlimit *Rlimit, oldlimit *Rlimit) (err error)
++//prlimit(pid Pid_t, resource _C_int, newlimit *Rlimit, oldlimit *Rlimit) _C_int
++
++func Prlimit(pid int, resource int, newlimit *Rlimit, oldlimit *Rlimit) error {
++	return prlimit(pid, resource, newlimit, oldlimit)
++}
++
+ //sys	Removexattr(path string, attr string) (err error)
+ //removexattr(path *byte, name *byte) _C_int
+ 
 diff --git a/libgo/sysinfo.c b/libgo/sysinfo.c
 index 8ce061e2f5f..336a5983750 100644
 --- a/libgo/sysinfo.c
