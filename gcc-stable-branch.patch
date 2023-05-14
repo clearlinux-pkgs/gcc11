@@ -64,7 +64,10 @@ François Dumont (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (381):
+GCC Administrator (384):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -832,7 +835,7 @@ Mikael Morin (3):
 Pat Haugen (1):
       Fix register count when not splitting Complex IEEE 128-bit args.
 
-Patrick Palka (7):
+Patrick Palka (8):
       c++: partial ordering with dependent NTTP type [PR105289]
       c++: ICE with requires-expr and -Wsequence-point [PR105304]
       c++: decltype of non-dependent call of class type [PR105386]
@@ -840,6 +843,7 @@ Patrick Palka (7):
       c++: deduction guides and ttp rewriting [PR102479]
       libstdc++: Fix backward compatibility of P2325R3 backport [PR106320]
       c++: quadratic constexpr behavior for left-assoc logical exprs [PR102780]
+      libstdc++: Fix __max_diff_type::operator>>= for negative values
 
 Paul A. Clarke (1):
       rs6000: __Uglify non-uglified local variables in headers
@@ -36149,10 +36153,22 @@ index 025e575b5bc..5743516c046 100644
    unsigned IOCTL_GIO_FONT = GIO_FONT;
    unsigned IOCTL_GIO_UNIMAP = GIO_UNIMAP;
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..36dffd68923 100644
+index 85e04c45288..fff0f4d6f87 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,1260 @@
+@@ -1,3 +1,1272 @@
++2023-05-12  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2023-04-24  Patrick Palka  <ppalka@redhat.com>
++
++	* include/bits/max_size_type.h (__max_diff_type::operator>>=):
++	Fix propagation of sign bit.
++	* testsuite/std/ranges/iota/max_size_type.cc: Avoid using the
++	non-standard 'signed typedef-name'.  Add some compile-time tests
++	for right-shifting a negative __max_diff_type value by more than
++	one.
++
 +2023-05-03  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	PR libstdc++/105844
@@ -38979,6 +38995,20 @@ index 3889bd151a6..fb861dac95b 100644
 +  /// @endcond
  
    /// @} group numeric_arrays
+ 
+diff --git a/libstdc++-v3/include/bits/max_size_type.h b/libstdc++-v3/include/bits/max_size_type.h
+index 153b1bff5f4..d6cdb72662e 100644
+--- a/libstdc++-v3/include/bits/max_size_type.h
++++ b/libstdc++-v3/include/bits/max_size_type.h
+@@ -559,7 +559,8 @@ namespace ranges
+ 	// Arithmetic right shift.
+ 	const auto __msb = _M_rep._M_msb;
+ 	_M_rep >>= __r._M_rep;
+-	_M_rep._M_msb |= __msb;
++	if (__msb)
++	  _M_rep |= ~(__max_size_type(-1) >> __r._M_rep);
+ 	return *this;
+       }
  
 diff --git a/libstdc++-v3/include/bits/random.tcc b/libstdc++-v3/include/bits/random.tcc
 index 22ae1f38ebb..2898f7f17e6 100644
@@ -45926,6 +45956,52 @@ index d774e8d9385..14e254bc734 100644
    test11();
 +  test13();
  }
+diff --git a/libstdc++-v3/testsuite/std/ranges/iota/max_size_type.cc b/libstdc++-v3/testsuite/std/ranges/iota/max_size_type.cc
+index 983bdfbdaa6..5130447103f 100644
+--- a/libstdc++-v3/testsuite/std/ranges/iota/max_size_type.cc
++++ b/libstdc++-v3/testsuite/std/ranges/iota/max_size_type.cc
+@@ -25,8 +25,14 @@
+ using max_size_t = std::ranges::__detail::__max_size_type;
+ using max_diff_t = std::ranges::__detail::__max_diff_type;
+ using rep_t = max_size_t::__rep;
++#if __SIZEOF_INT128__
++using signed_rep_t = __int128;
++#else
++using signed_rep_t = long long;
++#endif
+ 
+ static_assert(sizeof(max_size_t) == sizeof(max_diff_t));
++static_assert(sizeof(rep_t) == sizeof(signed_rep_t));
+ 
+ static_assert(std::regular<max_size_t>);
+ static_assert(std::totally_ordered<max_size_t>);
+@@ -53,6 +59,8 @@ test01()
+   static_assert(max_diff_t(3) % -2 == 1);
+   static_assert(max_diff_t(-3) << 1 == -6);
+   static_assert(max_diff_t(-3) >> 1 == -2);
++  static_assert(max_diff_t(-3) >> 2 == -1);
++  static_assert(max_diff_t(-3) >> 10 == -1);
+   static_assert(max_diff_t(3) >> 1 == 1);
+   static_assert(max_diff_t(3) >> 2 == 0);
+ 
+@@ -187,7 +195,7 @@ template<bool signed_p, bool shorten_p>
+ void
+ test02()
+ {
+-  using hw_type = std::conditional_t<signed_p, signed rep_t, rep_t>;
++  using hw_type = std::conditional_t<signed_p, signed_rep_t, rep_t>;
+   using max_type = std::conditional_t<signed_p, max_diff_t, max_size_t>;
+   using shorten_type = std::conditional_t<shorten_p, hw_type, max_type>;
+   const int hw_type_bit_size = sizeof(hw_type) * __CHAR_BIT__;
+@@ -245,7 +253,7 @@ template<bool signed_p, bool toggle_base_p>
+ void
+ test03()
+ {
+-  using hw_type = std::conditional_t<signed_p, signed rep_t, rep_t>;
++  using hw_type = std::conditional_t<signed_p, signed_rep_t, rep_t>;
+   using max_type = std::conditional_t<signed_p, max_diff_t, max_size_t>;
+   using base_type = std::conditional_t<toggle_base_p, hw_type, max_type>;
+   constexpr int hw_type_bit_size = sizeof(hw_type) * __CHAR_BIT__;
 diff --git a/libstdc++-v3/testsuite/std/ranges/p2325.cc b/libstdc++-v3/testsuite/std/ranges/p2325.cc
 index 205b3458928..ab743916f5b 100644
 --- a/libstdc++-v3/testsuite/std/ranges/p2325.cc
