@@ -64,7 +64,8 @@ François Dumont (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (384):
+GCC Administrator (385):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1021,9 +1022,10 @@ Uros Bizjak (2):
 Vladimir N. Makarov (1):
       [PR104637] LRA: Split hard regs as many as possible on one subpass
 
-liuhongt (2):
+liuhongt (3):
       Fix insn does not satisfy its constraints: sse2_lshrv1ti3
       Fix unrecognizable insn due to illegal immediate_operand (const_int 255) of QImode.
+      x86: Add a new option -mdaz-ftz to enable FTZ and DAZ flags in MXCSR.
 
 diff --git a/gcc/BASE-VER b/gcc/BASE-VER
 index f628d2eafc5..0a47c95bb14 100644
@@ -5504,6 +5506,47 @@ index 515ee0c1728..1ce6bade1b4 100644
  #endif
  
  #define _mm_mask_scalef_sd(W, U, A, B) \
+diff --git a/gcc/config/i386/cygwin.h b/gcc/config/i386/cygwin.h
+index 71fb6135c2c..596379e3120 100644
+--- a/gcc/config/i386/cygwin.h
++++ b/gcc/config/i386/cygwin.h
+@@ -57,7 +57,7 @@ along with GCC; see the file COPYING3.  If not see
+ 
+ #undef ENDFILE_SPEC
+ #define ENDFILE_SPEC \
+-  "%{Ofast|ffast-math|funsafe-math-optimizations:crtfastmath.o%s}\
++  "%{mdaz-ftz:crtfastmath.o%s;Ofast|ffast-math|funsafe-math-optimizations:%{!mno-daz-ftz:crtfastmath.o%s}} \
+    %{!shared:%:if-exists(default-manifest.o%s)}\
+    %{fvtable-verify=none:%s; \
+     fvtable-verify=preinit:vtv_end.o%s; \
+diff --git a/gcc/config/i386/darwin.h b/gcc/config/i386/darwin.h
+index d4a7520240f..eb652bdad8e 100644
+--- a/gcc/config/i386/darwin.h
++++ b/gcc/config/i386/darwin.h
+@@ -122,8 +122,8 @@ along with GCC; see the file COPYING3.  If not see
+ "%{!force_cpusubtype_ALL:-force_cpusubtype_ALL} "
+ 
+ #undef ENDFILE_SPEC
+-#define ENDFILE_SPEC \
+-  "%{Ofast|ffast-math|funsafe-math-optimizations:crtfastmath.o%s} \
++#define ENDFILE_SPEC
++\  "%{mdaz-ftz:crtfastmath.o%s;Ofast|ffast-math|funsafe-math-optimizations:%{!mno-daz-ftz:crtfastmath.o%s}} \
+    %{mpc32:crtprec32.o%s} \
+    %{mpc64:crtprec64.o%s} \
+    %{mpc80:crtprec80.o%s}" TM_DESTRUCTOR
+diff --git a/gcc/config/i386/gnu-user-common.h b/gcc/config/i386/gnu-user-common.h
+index 00226f5a455..f776c796934 100644
+--- a/gcc/config/i386/gnu-user-common.h
++++ b/gcc/config/i386/gnu-user-common.h
+@@ -47,7 +47,7 @@ along with GCC; see the file COPYING3.  If not see
+ 
+ /* Similar to standard GNU userspace, but adding -ffast-math support.  */
+ #define GNU_USER_TARGET_MATHFILE_SPEC \
+-  "%{Ofast|ffast-math|funsafe-math-optimizations:crtfastmath.o%s} \
++  "%{mdaz-ftz:crtfastmath.o%s;Ofast|ffast-math|funsafe-math-optimizations:%{!mno-daz-ftz:crtfastmath.o%s}} \
+    %{mpc32:crtprec32.o%s} \
+    %{mpc64:crtprec64.o%s} \
+    %{mpc80:crtprec80.o%s}"
 diff --git a/gcc/config/i386/i386-builtin.def b/gcc/config/i386/i386-builtin.def
 index ea509c67ddb..5c7f436ac17 100644
 --- a/gcc/config/i386/i386-builtin.def
@@ -5785,7 +5828,7 @@ index 48300af9a09..6c9c99ee50b 100644
    s->next = ix86_stack_locals;
    ix86_stack_locals = s;
 diff --git a/gcc/config/i386/i386.opt b/gcc/config/i386/i386.opt
-index f62b0ebd3b4..a40f3c4d3ea 100644
+index f62b0ebd3b4..098a9ca2073 100644
 --- a/gcc/config/i386/i386.opt
 +++ b/gcc/config/i386/i386.opt
 @@ -109,8 +109,8 @@ TargetVariable
@@ -5799,6 +5842,30 @@ index f62b0ebd3b4..a40f3c4d3ea 100644
  
  ;; -masm=
  TargetSave
+@@ -416,6 +416,10 @@ mpc80
+ Target RejectNegative
+ Set 80387 floating-point precision to 80-bit.
+ 
++mdaz-ftz
++Target
++Set the FTZ and DAZ Flags.
++
+ mpreferred-stack-boundary=
+ Target RejectNegative Joined UInteger Var(ix86_preferred_stack_boundary_arg)
+ Attempt to keep stack aligned to this power of 2.
+diff --git a/gcc/config/i386/mingw32.h b/gcc/config/i386/mingw32.h
+index 779c9335711..05ffcfec755 100644
+--- a/gcc/config/i386/mingw32.h
++++ b/gcc/config/i386/mingw32.h
+@@ -197,7 +197,7 @@ along with GCC; see the file COPYING3.  If not see
+ 
+ #undef ENDFILE_SPEC
+ #define ENDFILE_SPEC \
+-  "%{Ofast|ffast-math|funsafe-math-optimizations:crtfastmath.o%s} \
++  "%{mdaz-ftz:crtfastmath.o%s;Ofast|ffast-math|funsafe-math-optimizations:%{!mno-daz-ftz:crtfastmath.o%s}} \
+    %{!shared:%:if-exists(default-manifest.o%s)}\
+    %{fvtable-verify=none:%s; \
+     fvtable-verify=preinit:vtv_end.o%s; \
 diff --git a/gcc/config/i386/predicates.md b/gcc/config/i386/predicates.md
 index b815aca0da7..58aebd416f4 100644
 --- a/gcc/config/i386/predicates.md
@@ -14900,9 +14967,18 @@ index 689ec7de4d3..64bd4c1cb6c 100644
  
  The @code{access} attribute enables the detection of invalid or unsafe
 diff --git a/gcc/doc/invoke.texi b/gcc/doc/invoke.texi
-index 35508efb4ef..3419483c532 100644
+index 35508efb4ef..f1217812280 100644
 --- a/gcc/doc/invoke.texi
 +++ b/gcc/doc/invoke.texi
+@@ -1396,7 +1396,7 @@ See RS/6000 and PowerPC Options.
+ -m96bit-long-double  -mlong-double-64  -mlong-double-80  -mlong-double-128 @gol
+ -mregparm=@var{num}  -msseregparm @gol
+ -mveclibabi=@var{type}  -mvect8-ret-in-mem @gol
+--mpc32  -mpc64  -mpc80  -mstackrealign @gol
++-mpc32  -mpc64  -mpc80 -mdaz-ftz -mstackrealign @gol
+ -momit-leaf-frame-pointer  -mno-red-zone  -mno-tls-direct-seg-refs @gol
+ -mcmodel=@var{code-model}  -mabi=@var{name}  -maddress-mode=@var{mode} @gol
+ -m32  -m64  -mx32  -m16  -miamcu  -mlarge-data-threshold=@var{num} @gol
 @@ -18231,7 +18231,7 @@ performance of the code.  Permissible values for this option are:
  @samp{cortex-a78}, @samp{cortex-a78ae}, @samp{cortex-a78c},
  @samp{ares}, @samp{exynos-m1}, @samp{emag}, @samp{falkor},
@@ -14922,6 +14998,22 @@ index 35508efb4ef..3419483c532 100644
  
  The values @samp{cortex-a57.cortex-a53}, @samp{cortex-a72.cortex-a53},
  @samp{cortex-a73.cortex-a35}, @samp{cortex-a73.cortex-a53},
+@@ -30755,6 +30756,15 @@ are enabled by default; routines in such libraries could suffer significant
+ loss of accuracy, typically through so-called ``catastrophic cancellation'',
+ when this option is used to set the precision to less than extended precision.
+ 
++@item -mdaz-ftz
++@opindex mdaz-ftz
++
++The flush-to-zero (FTZ) and denormals-are-zero (DAZ) flags in the MXCSR register
++are used to control floating-point calculations.SSE and AVX instructions
++including scalar and vector instructions could benefit from enabling the FTZ
++and DAZ flags when @option{-mdaz-ftz} is specified. Don't set FTZ/DAZ flags
++when @option{-mno-daz-ftz} is specified.
++
+ @item -mstackrealign
+ @opindex mstackrealign
+ Realign the stack at entry.  On the x86, the @option{-mstackrealign}
 diff --git a/gcc/dse.c b/gcc/dse.c
 index b634429449c..dd99756d151 100644
 --- a/gcc/dse.c
