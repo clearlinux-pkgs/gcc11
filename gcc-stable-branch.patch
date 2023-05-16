@@ -64,7 +64,8 @@ François Dumont (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (385):
+GCC Administrator (386):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -522,6 +523,9 @@ Iain Buclaw (14):
       d: Delay removing DECL_EXTERNAL from thunks until funcion has finished
       d: Fix undefined reference to lambda defined in private enum [PR109108]
 
+Iain Sandoe (1):
+      Darwin: Fix bootstrap for X86.
+
 Ian Lance Taylor (2):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
       syscall: add prlimit
@@ -650,7 +654,7 @@ John David Anglin (2):
       Fix addvdi3 and subvdi3 patterns
       Skip guality tests on hppa-hpux.
 
-Jonathan Wakely (94):
+Jonathan Wakely (104):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -745,6 +749,16 @@ Jonathan Wakely (94):
       libstdc++: Strip absolute paths from files shown in Doxygen docs
       libstdc++: Make std::lcm and std::gcd detect overflow [PR105844]
       libstdc++: Fix broken backport for std::lcm [PR105844]
+      libstdc++: Fix std::chrono::hh_mm_ss with unsigned rep [PR108265]
+      libstdc++: Fix self-move for std::weak_ptr [PR108118]
+      libstdc++: Add missing move in ranges::copy
+      libstdc++: Fix reading UTF-8 characters for 16-bit targets [PR104875]
+      libstdc++: Fix tests with non-const operator==
+      libstdc++: Use emplace in std::variant::operator=(T&&) as per LWG 3585
+      libstdc++: Add nodiscard attribute to filesystem operations
+      libstdc++: Add always_inline attribute to std::byte operators
+      libstdc++: Fix std::is_nothrow_invocable_r for uncopyable prvalues [PR91456]
+      libstdc++: Fix pool resource build errors for H8 [PR107801]
 
 José Rui Faustino de Sousa (5):
       Fortran: Fix ICE with -fcheck=pointer [PR100136]
@@ -1035,10 +1049,26 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..5cd2e56d33e 100644
+index a0587d18824..2a54c860937 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,1957 @@
+@@ -1,3 +1,1973 @@
++2023-05-15  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* config/i386/darwin.h (ENDFILE_SPEC): Fix trailing '\'.
++
++2023-05-15  liuhongt  <hongtao.liu@intel.com>
++
++	* config/i386/cygwin.h (ENDFILE_SPEC): Link crtfastmath.o
++	whenever -mdaz-ftz is specified. Don't link crtfastmath.o
++	when -mno-daz-ftz is specified.
++	* config/i386/darwin.h (ENDFILE_SPEC): Ditto.
++	* config/i386/gnu-user-common.h
++	(GNU_USER_TARGET_MATHFILE_SPEC): Ditto.
++	* config/i386/mingw32.h (ENDFILE_SPEC): Ditto.
++	* config/i386/i386.opt (mdaz-ftz): New option.
++	* doc/invoke.texi (x86 options): Document mftz-daz.
++
 +2023-05-09  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -5520,17 +5550,15 @@ index 71fb6135c2c..596379e3120 100644
     %{fvtable-verify=none:%s; \
      fvtable-verify=preinit:vtv_end.o%s; \
 diff --git a/gcc/config/i386/darwin.h b/gcc/config/i386/darwin.h
-index d4a7520240f..eb652bdad8e 100644
+index d4a7520240f..7c2211ffaff 100644
 --- a/gcc/config/i386/darwin.h
 +++ b/gcc/config/i386/darwin.h
-@@ -122,8 +122,8 @@ along with GCC; see the file COPYING3.  If not see
- "%{!force_cpusubtype_ALL:-force_cpusubtype_ALL} "
+@@ -123,7 +123,7 @@ along with GCC; see the file COPYING3.  If not see
  
  #undef ENDFILE_SPEC
--#define ENDFILE_SPEC \
+ #define ENDFILE_SPEC \
 -  "%{Ofast|ffast-math|funsafe-math-optimizations:crtfastmath.o%s} \
-+#define ENDFILE_SPEC
-+\  "%{mdaz-ftz:crtfastmath.o%s;Ofast|ffast-math|funsafe-math-optimizations:%{!mno-daz-ftz:crtfastmath.o%s}} \
++  "%{mdaz-ftz:crtfastmath.o%s;Ofast|ffast-math|funsafe-math-optimizations:%{!mno-daz-ftz:crtfastmath.o%s}} \
     %{mpc32:crtprec32.o%s} \
     %{mpc64:crtprec64.o%s} \
     %{mpc80:crtprec80.o%s}" TM_DESTRUCTOR
@@ -38825,6 +38853,286 @@ index bd7a859091f..1145230b910 100644
  	_Node_base* __node = &this->_M_impl._M_head;
  	while (__node->_M_next && __list._M_impl._M_head._M_next)
  	  {
+diff --git a/libstdc++-v3/include/bits/fs_ops.h b/libstdc++-v3/include/bits/fs_ops.h
+index 5d7dfe155b5..ef01c1b824f 100644
+--- a/libstdc++-v3/include/bits/fs_ops.h
++++ b/libstdc++-v3/include/bits/fs_ops.h
+@@ -44,10 +44,16 @@ namespace filesystem
+    *  @{
+    */
+ 
++  [[nodiscard]]
+   path absolute(const path& __p);
++
++  [[nodiscard]]
+   path absolute(const path& __p, error_code& __ec);
+ 
++  [[nodiscard]]
+   path canonical(const path& __p);
++
++  [[nodiscard]]
+   path canonical(const path& __p, error_code& __ec);
+ 
+   inline void
+@@ -100,25 +106,34 @@ namespace filesystem
+   void create_symlink(const path& __to, const path& __new_symlink,
+ 		      error_code& __ec) noexcept;
+ 
++  [[nodiscard]]
+   path current_path();
++
++  [[nodiscard]]
+   path current_path(error_code& __ec);
++
+   void current_path(const path& __p);
+   void current_path(const path& __p, error_code& __ec) noexcept;
+ 
++  [[nodiscard]]
+   bool
+   equivalent(const path& __p1, const path& __p2);
+ 
++  [[nodiscard]]
+   bool
+   equivalent(const path& __p1, const path& __p2, error_code& __ec) noexcept;
+ 
++  [[nodiscard]]
+   inline bool
+   exists(file_status __s) noexcept
+   { return status_known(__s) && __s.type() != file_type::not_found; }
+ 
++  [[nodiscard]]
+   inline bool
+   exists(const path& __p)
+   { return exists(status(__p)); }
+ 
++  [[nodiscard]]
+   inline bool
+   exists(const path& __p, error_code& __ec) noexcept
+   {
+@@ -131,63 +146,85 @@ namespace filesystem
+     return false;
+   }
+ 
++  [[nodiscard]]
+   uintmax_t file_size(const path& __p);
++
++  [[nodiscard]]
+   uintmax_t file_size(const path& __p, error_code& __ec) noexcept;
+ 
++  [[nodiscard]]
+   uintmax_t hard_link_count(const path& __p);
++
++  [[nodiscard]]
+   uintmax_t hard_link_count(const path& __p, error_code& __ec) noexcept;
+ 
++  [[nodiscard]]
+   inline bool
+   is_block_file(file_status __s) noexcept
+   { return __s.type() == file_type::block; }
+ 
++  [[nodiscard]]
+   inline bool
+   is_block_file(const path& __p)
+   { return is_block_file(status(__p)); }
+ 
++  [[nodiscard]]
+   inline bool
+   is_block_file(const path& __p, error_code& __ec) noexcept
+   { return is_block_file(status(__p, __ec)); }
+ 
++  [[nodiscard]]
+   inline bool
+   is_character_file(file_status __s) noexcept
+   { return __s.type() == file_type::character; }
+ 
++  [[nodiscard]]
+   inline bool
+   is_character_file(const path& __p)
+   { return is_character_file(status(__p)); }
+ 
++  [[nodiscard]]
+   inline bool
+   is_character_file(const path& __p, error_code& __ec) noexcept
+   { return is_character_file(status(__p, __ec)); }
+ 
++  [[nodiscard]]
+   inline bool
+   is_directory(file_status __s) noexcept
+   { return __s.type() == file_type::directory; }
+ 
++  [[nodiscard]]
+   inline bool
+   is_directory(const path& __p)
+   { return is_directory(status(__p)); }
+ 
++  [[nodiscard]]
+   inline bool
+   is_directory(const path& __p, error_code& __ec) noexcept
+   { return is_directory(status(__p, __ec)); }
+ 
++  [[nodiscard]]
+   bool is_empty(const path& __p);
++
++  [[nodiscard]]
+   bool is_empty(const path& __p, error_code& __ec);
+ 
++  [[nodiscard]]
+   inline bool
+   is_fifo(file_status __s) noexcept
+   { return __s.type() == file_type::fifo; }
+ 
++  [[nodiscard]]
+   inline bool
+   is_fifo(const path& __p)
+   { return is_fifo(status(__p)); }
+ 
++  [[nodiscard]]
+   inline bool
+   is_fifo(const path& __p, error_code& __ec) noexcept
+   { return is_fifo(status(__p, __ec)); }
+ 
++  [[nodiscard]]
+   inline bool
+   is_other(file_status __s) noexcept
+   {
+@@ -195,52 +232,67 @@ namespace filesystem
+       && !is_symlink(__s);
+   }
+ 
++  [[nodiscard]]
+   inline bool
+   is_other(const path& __p)
+   { return is_other(status(__p)); }
+ 
++  [[nodiscard]]
+   inline bool
+   is_other(const path& __p, error_code& __ec) noexcept
+   { return is_other(status(__p, __ec)); }
+ 
++  [[nodiscard]]
+   inline bool
+   is_regular_file(file_status __s) noexcept
+   { return __s.type() == file_type::regular; }
+ 
++  [[nodiscard]]
+   inline bool
+   is_regular_file(const path& __p)
+   { return is_regular_file(status(__p)); }
+ 
++  [[nodiscard]]
+   inline bool
+   is_regular_file(const path& __p, error_code& __ec) noexcept
+   { return is_regular_file(status(__p, __ec)); }
+ 
++  [[nodiscard]]
+   inline bool
+   is_socket(file_status __s) noexcept
+   { return __s.type() == file_type::socket; }
+ 
++  [[nodiscard]]
+   inline bool
+   is_socket(const path& __p)
+   { return is_socket(status(__p)); }
+ 
++  [[nodiscard]]
+   inline bool
+   is_socket(const path& __p, error_code& __ec) noexcept
+   { return is_socket(status(__p, __ec)); }
+ 
++  [[nodiscard]]
+   inline bool
+   is_symlink(file_status __s) noexcept
+   { return __s.type() == file_type::symlink; }
+ 
++  [[nodiscard]]
+   inline bool
+   is_symlink(const path& __p)
+   { return is_symlink(symlink_status(__p)); }
+ 
++  [[nodiscard]]
+   inline bool
+   is_symlink(const path& __p, error_code& __ec) noexcept
+   { return is_symlink(symlink_status(__p, __ec)); }
+ 
++  [[nodiscard]]
+   file_time_type  last_write_time(const path& __p);
++
++  [[nodiscard]]
+   file_time_type  last_write_time(const path& __p, error_code& __ec) noexcept;
++
+   void last_write_time(const path& __p, file_time_type __new_time);
+   void last_write_time(const path& __p, file_time_type __new_time,
+ 		       error_code& __ec) noexcept;
+@@ -257,19 +309,30 @@ namespace filesystem
+   permissions(const path& __p, perms __prms, perm_options __opts,
+ 	      error_code& __ec) noexcept;
+ 
++  [[nodiscard]]
+   inline path proximate(const path& __p, error_code& __ec)
+   { return proximate(__p, current_path(), __ec); }
+ 
++  [[nodiscard]]
+   path proximate(const path& __p, const path& __base = current_path());
++
++  [[nodiscard]]
+   path proximate(const path& __p, const path& __base, error_code& __ec);
+ 
++  [[nodiscard]]
+   path read_symlink(const path& __p);
++
++  [[nodiscard]]
+   path read_symlink(const path& __p, error_code& __ec);
+ 
++  [[nodiscard]]
+   inline path relative(const path& __p, error_code& __ec)
+   { return relative(__p, current_path(), __ec); }
+ 
++  [[nodiscard]]
+   path relative(const path& __p, const path& __base = current_path());
++
++  [[nodiscard]]
+   path relative(const path& __p, const path& __base, error_code& __ec);
+ 
+   bool remove(const path& __p);
+@@ -284,22 +347,38 @@ namespace filesystem
+   void resize_file(const path& __p, uintmax_t __size);
+   void resize_file(const path& __p, uintmax_t __size, error_code& __ec) noexcept;
+ 
++  [[nodiscard]]
+   space_info space(const path& __p);
++
++  [[nodiscard]]
+   space_info space(const path& __p, error_code& __ec) noexcept;
+ 
++  [[nodiscard]]
+   file_status status(const path& __p);
++
++  [[nodiscard]]
+   file_status status(const path& __p, error_code& __ec) noexcept;
+ 
++  [[nodiscard]]
+   inline bool status_known(file_status __s) noexcept
+   { return __s.type() != file_type::none; }
+ 
++  [[nodiscard]]
+   file_status symlink_status(const path& __p);
++
++  [[nodiscard]]
+   file_status symlink_status(const path& __p, error_code& __ec) noexcept;
+ 
++  [[nodiscard]]
+   path temp_directory_path();
++
++  [[nodiscard]]
+   path temp_directory_path(error_code& __ec);
+ 
++  [[nodiscard]]
+   path weakly_canonical(const path& __p);
++
++  [[nodiscard]]
+   path weakly_canonical(const path& __p, error_code& __ec);
+ 
+   /// @} group filesystem
 diff --git a/libstdc++-v3/include/bits/fs_path.h b/libstdc++-v3/include/bits/fs_path.h
 index a1f780a9c9b..1188e585b14 100644
 --- a/libstdc++-v3/include/bits/fs_path.h
@@ -39115,6 +39423,19 @@ index 22ae1f38ebb..2898f7f17e6 100644
  	    {
  	      __x._M_saved_available = __saved_avail;
  	      __x.param(param_type(__mean, __stddev));
+diff --git a/libstdc++-v3/include/bits/ranges_algobase.h b/libstdc++-v3/include/bits/ranges_algobase.h
+index de8afd16582..08f536f4fce 100644
+--- a/libstdc++-v3/include/bits/ranges_algobase.h
++++ b/libstdc++-v3/include/bits/ranges_algobase.h
+@@ -238,7 +238,7 @@ namespace ranges
+ 	{
+ 	  auto [__in,__out]
+ 	    = ranges::__copy_or_move<_IsMove>(__first.base(), __last.base(),
+-					      __result);
++					      std::move(__result));
+ 	  return {decltype(__first){__in}, std::move(__out)};
+ 	}
+       else if constexpr (__is_normal_iterator<_Out>)
 diff --git a/libstdc++-v3/include/bits/ranges_base.h b/libstdc++-v3/include/bits/ranges_base.h
 index 87283b84028..2a525e421b9 100644
 --- a/libstdc++-v3/include/bits/ranges_base.h
@@ -40282,6 +40603,21 @@ index a3512083f0e..473dc888a20 100644
        else if (__c != ']' && __c != '}')
  	{
  	  auto __it = _M_token_tbl;
+diff --git a/libstdc++-v3/include/bits/shared_ptr_base.h b/libstdc++-v3/include/bits/shared_ptr_base.h
+index eb9ad23ba1e..611680692fd 100644
+--- a/libstdc++-v3/include/bits/shared_ptr_base.h
++++ b/libstdc++-v3/include/bits/shared_ptr_base.h
+@@ -1666,9 +1666,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       __weak_ptr&
+       operator=(__weak_ptr&& __r) noexcept
+       {
+-	_M_ptr = __r._M_ptr;
+-	_M_refcount = std::move(__r._M_refcount);
+-	__r._M_ptr = nullptr;
++	__weak_ptr(std::move(__r)).swap(*this);
+ 	return *this;
+       }
+ 
 diff --git a/libstdc++-v3/include/bits/slice_array.h b/libstdc++-v3/include/bits/slice_array.h
 index bdced19e789..1990a1cddb4 100644
 --- a/libstdc++-v3/include/bits/slice_array.h
@@ -40905,6 +41241,345 @@ index 044494aab05..40ef6843945 100644
      }
  
    template<typename _Tp, typename _Alloc, typename... _Args>
+diff --git a/libstdc++-v3/include/c_global/cstddef b/libstdc++-v3/include/c_global/cstddef
+index 13ef7f03c12..58bbdf66be9 100644
+--- a/libstdc++-v3/include/c_global/cstddef
++++ b/libstdc++-v3/include/c_global/cstddef
+@@ -121,55 +121,66 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     using __byte_op_t = typename __byte_operand<_IntegerType>::__type;
+ 
+   template<typename _IntegerType>
++    [[__gnu__::__always_inline__]]
+     constexpr __byte_op_t<_IntegerType>
+     operator<<(byte __b, _IntegerType __shift) noexcept
+     { return (byte)(unsigned char)((unsigned)__b << __shift); }
+ 
+   template<typename _IntegerType>
++    [[__gnu__::__always_inline__]]
+     constexpr __byte_op_t<_IntegerType>
+     operator>>(byte __b, _IntegerType __shift) noexcept
+     { return (byte)(unsigned char)((unsigned)__b >> __shift); }
+ 
++  [[__gnu__::__always_inline__]]
+   constexpr byte
+   operator|(byte __l, byte __r) noexcept
+   { return (byte)(unsigned char)((unsigned)__l | (unsigned)__r); }
+ 
++  [[__gnu__::__always_inline__]]
+   constexpr byte
+   operator&(byte __l, byte __r) noexcept
+   { return (byte)(unsigned char)((unsigned)__l & (unsigned)__r); }
+ 
++  [[__gnu__::__always_inline__]]
+   constexpr byte
+   operator^(byte __l, byte __r) noexcept
+   { return (byte)(unsigned char)((unsigned)__l ^ (unsigned)__r); }
+ 
++  [[__gnu__::__always_inline__]]
+   constexpr byte
+   operator~(byte __b) noexcept
+   { return (byte)(unsigned char)~(unsigned)__b; }
+ 
+   template<typename _IntegerType>
++    [[__gnu__::__always_inline__]]
+     constexpr __byte_op_t<_IntegerType>&
+     operator<<=(byte& __b, _IntegerType __shift) noexcept
+     { return __b = __b << __shift; }
+ 
+   template<typename _IntegerType>
++    [[__gnu__::__always_inline__]]
+     constexpr __byte_op_t<_IntegerType>&
+     operator>>=(byte& __b, _IntegerType __shift) noexcept
+     { return __b = __b >> __shift; }
+ 
++  [[__gnu__::__always_inline__]]
+   constexpr byte&
+   operator|=(byte& __l, byte __r) noexcept
+   { return __l = __l | __r; }
+ 
++  [[__gnu__::__always_inline__]]
+   constexpr byte&
+   operator&=(byte& __l, byte __r) noexcept
+   { return __l = __l & __r; }
+ 
++  [[__gnu__::__always_inline__]]
+   constexpr byte&
+   operator^=(byte& __l, byte __r) noexcept
+   { return __l = __l ^ __r; }
+ 
+   template<typename _IntegerType>
+-    [[nodiscard]]
++    [[nodiscard,__gnu__::__always_inline__]]
+     constexpr _IntegerType
+     to_integer(__byte_op_t<_IntegerType> __b) noexcept
+     { return _IntegerType(__b); }
+diff --git a/libstdc++-v3/include/experimental/bits/fs_ops.h b/libstdc++-v3/include/experimental/bits/fs_ops.h
+index 3231f50adac..e8278dd00c6 100644
+--- a/libstdc++-v3/include/experimental/bits/fs_ops.h
++++ b/libstdc++-v3/include/experimental/bits/fs_ops.h
+@@ -51,10 +51,16 @@ inline namespace v1
+    * @{
+    */
+ 
++  [[__nodiscard__]]
+   path absolute(const path& __p, const path& __base = current_path());
+ 
++  [[__nodiscard__]]
+   path canonical(const path& __p, const path& __base = current_path());
++
++  [[__nodiscard__]]
+   path canonical(const path& __p, error_code& __ec);
++
++  [[__nodiscard__]]
+   path canonical(const path& __p, const path& __base, error_code& __ec);
+ 
+   inline void
+@@ -66,6 +72,7 @@ inline namespace v1
+   { copy(__from, __to, copy_options::none, __ec); }
+ 
+   void copy(const path& __from, const path& __to, copy_options __options);
++
+   void copy(const path& __from, const path& __to, copy_options __options,
+ 	    error_code& __ec) noexcept;
+ 
+@@ -107,25 +114,34 @@ inline namespace v1
+   void create_symlink(const path& __to, const path& __new_symlink,
+ 		      error_code& __ec) noexcept;
+ 
++  [[__nodiscard__]]
+   path current_path();
++
++  [[__nodiscard__]]
+   path current_path(error_code& __ec);
++
+   void current_path(const path& __p);
+   void current_path(const path& __p, error_code& __ec) noexcept;
+ 
++  [[__nodiscard__]]
+   bool
+   equivalent(const path& __p1, const path& __p2);
+ 
++  [[__nodiscard__]]
+   bool
+   equivalent(const path& __p1, const path& __p2, error_code& __ec) noexcept;
+ 
++  [[__nodiscard__]]
+   inline bool
+   exists(file_status __s) noexcept
+   { return status_known(__s) && __s.type() != file_type::not_found; }
+ 
++  [[__nodiscard__]]
+   inline bool
+   exists(const path& __p)
+   { return exists(status(__p)); }
+ 
++  [[__nodiscard__]]
+   inline bool
+   exists(const path& __p, error_code& __ec) noexcept
+   {
+@@ -138,63 +154,84 @@ inline namespace v1
+     return false;
+   }
+ 
++  [[__nodiscard__]]
+   uintmax_t file_size(const path& __p);
++
++  [[__nodiscard__]]
+   uintmax_t file_size(const path& __p, error_code& __ec) noexcept;
+ 
++  [[__nodiscard__]]
+   uintmax_t hard_link_count(const path& __p);
++
++  [[__nodiscard__]]
+   uintmax_t hard_link_count(const path& __p, error_code& __ec) noexcept;
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_block_file(file_status __s) noexcept
+   { return __s.type() == file_type::block; }
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_block_file(const path& __p)
+   { return is_block_file(status(__p)); }
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_block_file(const path& __p, error_code& __ec) noexcept
+   { return is_block_file(status(__p, __ec)); }
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_character_file(file_status __s) noexcept
+   { return __s.type() == file_type::character; }
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_character_file(const path& __p)
+   { return is_character_file(status(__p)); }
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_character_file(const path& __p, error_code& __ec) noexcept
+   { return is_character_file(status(__p, __ec)); }
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_directory(file_status __s) noexcept
+   { return __s.type() == file_type::directory; }
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_directory(const path& __p)
+   { return is_directory(status(__p)); }
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_directory(const path& __p, error_code& __ec) noexcept
+   { return is_directory(status(__p, __ec)); }
+ 
++  [[__nodiscard__]]
+   bool is_empty(const path& __p);
++  [[__nodiscard__]]
+   bool is_empty(const path& __p, error_code& __ec) noexcept;
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_fifo(file_status __s) noexcept
+   { return __s.type() == file_type::fifo; }
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_fifo(const path& __p)
+   { return is_fifo(status(__p)); }
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_fifo(const path& __p, error_code& __ec) noexcept
+   { return is_fifo(status(__p, __ec)); }
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_other(file_status __s) noexcept
+   {
+@@ -202,52 +239,67 @@ inline namespace v1
+       && !is_symlink(__s);
+   }
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_other(const path& __p)
+   { return is_other(status(__p)); }
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_other(const path& __p, error_code& __ec) noexcept
+   { return is_other(status(__p, __ec)); }
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_regular_file(file_status __s) noexcept
+   { return __s.type() == file_type::regular; }
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_regular_file(const path& __p)
+   { return is_regular_file(status(__p)); }
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_regular_file(const path& __p, error_code& __ec) noexcept
+   { return is_regular_file(status(__p, __ec)); }
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_socket(file_status __s) noexcept
+   { return __s.type() == file_type::socket; }
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_socket(const path& __p)
+   { return is_socket(status(__p)); }
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_socket(const path& __p, error_code& __ec) noexcept
+   { return is_socket(status(__p, __ec)); }
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_symlink(file_status __s) noexcept
+   { return __s.type() == file_type::symlink; }
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_symlink(const path& __p)
+   { return is_symlink(symlink_status(__p)); }
+ 
++  [[__nodiscard__]]
+   inline bool
+   is_symlink(const path& __p, error_code& __ec) noexcept
+   { return is_symlink(symlink_status(__p, __ec)); }
+ 
++  [[__nodiscard__]]
+   file_time_type  last_write_time(const path& __p);
++
++  [[__nodiscard__]]
+   file_time_type  last_write_time(const path& __p, error_code& __ec) noexcept;
++
+   void last_write_time(const path& __p, file_time_type __new_time);
+   void last_write_time(const path& __p, file_time_type __new_time,
+ 		       error_code& __ec) noexcept;
+@@ -255,7 +307,10 @@ inline namespace v1
+   void permissions(const path& __p, perms __prms);
+   void permissions(const path& __p, perms __prms, error_code& __ec) noexcept;
+ 
++  [[__nodiscard__]]
+   path read_symlink(const path& __p);
++
++  [[__nodiscard__]]
+   path read_symlink(const path& __p, error_code& __ec);
+ 
+   bool remove(const path& __p);
+@@ -270,22 +325,38 @@ inline namespace v1
+   void resize_file(const path& __p, uintmax_t __size);
+   void resize_file(const path& __p, uintmax_t __size, error_code& __ec) noexcept;
+ 
++  [[__nodiscard__]]
+   space_info space(const path& __p);
++
++  [[__nodiscard__]]
+   space_info space(const path& __p, error_code& __ec) noexcept;
+ 
++  [[__nodiscard__]]
+   file_status status(const path& __p);
++
++  [[__nodiscard__]]
+   file_status status(const path& __p, error_code& __ec) noexcept;
+ 
++  [[__nodiscard__]]
+   inline bool status_known(file_status __s) noexcept
+   { return __s.type() != file_type::none; }
+ 
++  [[__nodiscard__]]
+   file_status symlink_status(const path& __p);
++
++  [[__nodiscard__]]
+   file_status symlink_status(const path& __p, error_code& __ec) noexcept;
+ 
++  [[__nodiscard__]]
+   path system_complete(const path& __p);
++
++  [[__nodiscard__]]
+   path system_complete(const path& __p, error_code& __ec);
+ 
++  [[__nodiscard__]]
+   path temp_directory_path();
++
++  [[__nodiscard__]]
+   path temp_directory_path(error_code& __ec);
+ 
+   /// @} group filesystem-ts
 diff --git a/libstdc++-v3/include/experimental/bits/fs_path.h b/libstdc++-v3/include/experimental/bits/fs_path.h
 index 1cc1b3bf686..830b51e45a0 100644
 --- a/libstdc++-v3/include/experimental/bits/fs_path.h
@@ -41622,6 +42297,62 @@ index 8572e376c92..65f923993fa 100644
  	    __c -= '0';
  	  else
  	    {
+diff --git a/libstdc++-v3/include/std/chrono b/libstdc++-v3/include/std/chrono
+index a52304b1738..ca89ce89d87 100644
+--- a/libstdc++-v3/include/std/chrono
++++ b/libstdc++-v3/include/std/chrono
+@@ -3083,6 +3083,29 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	  return __width;
+ 	}
+ 
++	constexpr
++	hh_mm_ss(_Duration __d, bool __is_neg)
++	: _M_is_neg(__is_neg),
++	  _M_h (duration_cast<chrono::hours>(__d)),
++	  _M_m (duration_cast<chrono::minutes>(__d - hours())),
++	  _M_s (duration_cast<chrono::seconds>(__d - hours() - minutes()))
++	{
++	  auto __ss = __d - hours() - minutes() - seconds();
++	  if constexpr (treat_as_floating_point_v<typename precision::rep>)
++	    _M_ss = __ss;
++	  else
++	    _M_ss = duration_cast<precision>(__ss);
++	}
++
++	static constexpr _Duration
++	_S_abs(_Duration __d)
++	{
++	  if constexpr (numeric_limits<typename _Duration::rep>::is_signed)
++	    return chrono::abs(__d);
++	  else
++	    return __d;
++	}
++
+       public:
+ 	static constexpr unsigned fractional_width = {_S_fractional_width()};
+ 
+@@ -3097,18 +3120,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	{ }
+ 
+ 	constexpr explicit
+-	hh_mm_ss(_Duration __d) noexcept
+-	: _M_is_neg (__d < _Duration::zero()),
+-	  _M_h (duration_cast<chrono::hours>(abs(__d))),
+-	  _M_m (duration_cast<chrono::minutes>(abs(__d) - hours())),
+-	  _M_s (duration_cast<chrono::seconds>(abs(__d) - hours() - minutes()))
+-	{
+-	  if constexpr (treat_as_floating_point_v<typename precision::rep>)
+-	    _M_ss = abs(__d) - hours() - minutes() - seconds();
+-	  else
+-	    _M_ss = duration_cast<precision>(abs(__d) - hours()
+-					     - minutes() - seconds());
+-	}
++	hh_mm_ss(_Duration __d)
++	: hh_mm_ss(_S_abs(__d), __d < _Duration::zero())
++	{ }
+ 
+ 	constexpr bool
+ 	is_negative() const noexcept
 diff --git a/libstdc++-v3/include/std/future b/libstdc++-v3/include/std/future
 index 09e54c3703b..7aa243eb625 100644
 --- a/libstdc++-v3/include/std/future
@@ -42101,6 +42832,102 @@ index dcf30bd9a8d..63bd68fbe43 100644
        // Constraint for a non-explicit constructor.
        // True iff each Ti in _Types... can be constructed from Ui in _UTypes...
        // and every Ui is implicitly convertible to Ti.
+diff --git a/libstdc++-v3/include/std/type_traits b/libstdc++-v3/include/std/type_traits
+index cccc6eed763..d544759f28e 100644
+--- a/libstdc++-v3/include/std/type_traits
++++ b/libstdc++-v3/include/std/type_traits
+@@ -1492,12 +1492,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     };
+ #pragma GCC diagnostic pop
+ 
+-  // is_nothrow_convertible for C++11
+-  template<typename _From, typename _To>
+-    struct __is_nothrow_convertible
+-    : public __is_nt_convertible_helper<_From, _To>::type
+-    { };
+-
+ #if __cplusplus > 201703L
+ #define __cpp_lib_is_nothrow_convertible 201806L
+   /// is_nothrow_convertible
+@@ -2881,7 +2875,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+   // The primary template is used for invalid INVOKE expressions.
+   template<typename _Result, typename _Ret,
+ 	   bool = is_void<_Ret>::value, typename = void>
+-    struct __is_invocable_impl : false_type { };
++    struct __is_invocable_impl
++    : false_type
++    {
++      using __nothrow_type = false_type; // For is_nothrow_invocable_r
++    };
+ 
+   // Used for valid INVOKE and INVOKE<void> expressions.
+   template<typename _Result, typename _Ret>
+@@ -2889,7 +2887,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 			       /* is_void<_Ret> = */ true,
+ 			       __void_t<typename _Result::type>>
+     : true_type
+-    { };
++    {
++      using __nothrow_type = true_type; // For is_nothrow_invocable_r
++    };
+ 
+ #pragma GCC diagnostic push
+ #pragma GCC diagnostic ignored "-Wctor-dtor-privacy"
+@@ -2901,23 +2901,30 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     {
+     private:
+       // The type of the INVOKE expression.
+-      // Unlike declval, this doesn't add_rvalue_reference.
+-      static typename _Result::type _S_get();
++      // Unlike declval, this doesn't add_rvalue_reference, so it respects
++      // guaranteed copy elision.
++      static typename _Result::type _S_get() noexcept;
+ 
+       template<typename _Tp>
+-	static void _S_conv(_Tp);
++	static void _S_conv(_Tp) noexcept;
+ 
+       // This overload is viable if INVOKE(f, args...) can convert to _Tp.
+-      template<typename _Tp, typename = decltype(_S_conv<_Tp>(_S_get()))>
+-	static true_type
++      template<typename _Tp, bool _Check_Noex = false,
++	       typename = decltype(_S_conv<_Tp>(_S_get())),
++	       bool _Noex = noexcept(_S_conv<_Tp>(_S_get()))>
++	static __bool_constant<_Check_Noex ? _Noex : true>
+ 	_S_test(int);
+ 
+-      template<typename _Tp>
++      template<typename _Tp, bool = false>
+ 	static false_type
+ 	_S_test(...);
+ 
+     public:
++      // For is_invocable_r
+       using type = decltype(_S_test<_Ret>(1));
++
++      // For is_nothrow_invocable_r
++      using __nothrow_type = decltype(_S_test<_Ret, true>(1));
+     };
+ #pragma GCC diagnostic pop
+ 
+@@ -3048,15 +3055,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     };
+ 
+   /// @cond undocumented
+-  template<typename _Result, typename _Ret, typename = void>
+-    struct __is_nt_invocable_impl : false_type { };
+-
+   template<typename _Result, typename _Ret>
+-    struct __is_nt_invocable_impl<_Result, _Ret,
+-				  __void_t<typename _Result::type>>
+-    : __or_<is_void<_Ret>,
+-	    __is_nothrow_convertible<typename _Result::type, _Ret>>
+-    { };
++    using __is_nt_invocable_impl
++      = typename __is_invocable_impl<_Result, _Ret>::__nothrow_type;
+   /// @endcond
+ 
+   /// std::is_nothrow_invocable_r
 diff --git a/libstdc++-v3/include/std/valarray b/libstdc++-v3/include/std/valarray
 index 72eb7a9d56d..458c7cd7811 100644
 --- a/libstdc++-v3/include/std/valarray
@@ -42122,7 +42949,7 @@ index 72eb7a9d56d..458c7cd7811 100644
  #if __cplusplus >= 201103L
    /**
 diff --git a/libstdc++-v3/include/std/variant b/libstdc++-v3/include/std/variant
-index c0585cb5999..285c5be6521 100644
+index c0585cb5999..922d2100c2f 100644
 --- a/libstdc++-v3/include/std/variant
 +++ b/libstdc++-v3/include/std/variant
 @@ -435,13 +435,6 @@ namespace __variant
@@ -42204,7 +43031,18 @@ index c0585cb5999..285c5be6521 100644
  
        static_assert(sizeof...(_Types) > 0,
  		    "variant must have at least one alternative");
-@@ -1521,12 +1505,13 @@ namespace __variant
+@@ -1488,7 +1472,9 @@ namespace __variant
+ 			    || !is_nothrow_move_constructible_v<_Tj>)
+ 		this->emplace<__index>(std::forward<_Tp>(__rhs));
+ 	      else
+-		operator=(variant(std::forward<_Tp>(__rhs)));
++		// _GLIBCXX_RESOLVE_LIB_DEFECTS
++		// 3585. converting assignment with immovable alternative
++		this->emplace<__index>(_Tj(std::forward<_Tp>(__rhs)));
+ 	    }
+ 	  return *this;
+ 	}
+@@ -1521,12 +1507,13 @@ namespace __variant
  	  static_assert(_Np < sizeof...(_Types),
  			"The index must be in [0, number of alternatives)");
  	  using type = variant_alternative_t<_Np, variant>;
@@ -42219,7 +43057,7 @@ index c0585cb5999..285c5be6521 100644
  		  std::forward<_Args>(__args)...);
  	    }
  	  else if constexpr (is_scalar_v<type>)
-@@ -1535,9 +1520,9 @@ namespace __variant
+@@ -1535,9 +1522,9 @@ namespace __variant
  	      const type __tmp(std::forward<_Args>(__args)...);
  	      // But these steps won't throw:
  	      this->_M_reset();
@@ -42231,7 +43069,7 @@ index c0585cb5999..285c5be6521 100644
  	      && _Traits::_S_move_assign)
  	    {
  	      // This construction might throw:
-@@ -1551,17 +1536,8 @@ namespace __variant
+@@ -1551,17 +1538,8 @@ namespace __variant
  	      // This case only provides the basic exception-safety guarantee,
  	      // i.e. the variant can become valueless.
  	      this->_M_reset();
@@ -42251,7 +43089,7 @@ index c0585cb5999..285c5be6521 100644
  	    }
  	  return std::get<_Np>(*this);
  	}
-@@ -1575,6 +1551,7 @@ namespace __variant
+@@ -1575,6 +1553,7 @@ namespace __variant
  	  static_assert(_Np < sizeof...(_Types),
  			"The index must be in [0, number of alternatives)");
  	  using type = variant_alternative_t<_Np, variant>;
@@ -42259,7 +43097,7 @@ index c0585cb5999..285c5be6521 100644
  	  // Provide the strong exception-safety guarantee when possible,
  	  // to avoid becoming valueless.
  	  if constexpr (is_nothrow_constructible_v<type,
-@@ -1582,10 +1559,10 @@ namespace __variant
+@@ -1582,10 +1561,10 @@ namespace __variant
  						   _Args...>)
  	    {
  	      this->_M_reset();
@@ -42272,7 +43110,7 @@ index c0585cb5999..285c5be6521 100644
  	      && _Traits::_S_move_assign)
  	    {
  	      // This construction might throw:
-@@ -1599,17 +1576,8 @@ namespace __variant
+@@ -1599,17 +1578,8 @@ namespace __variant
  	      // This case only provides the basic exception-safety guarantee,
  	      // i.e. the variant can become valueless.
  	      this->_M_reset();
@@ -42292,7 +43130,7 @@ index c0585cb5999..285c5be6521 100644
  	    }
  	  return std::get<_Np>(*this);
  	}
-@@ -1685,10 +1653,6 @@ namespace __variant
+@@ -1685,10 +1655,6 @@ namespace __variant
  	friend constexpr decltype(auto)
  	__detail::__variant::__get(_Vp&& __v) noexcept;
  
@@ -42484,6 +43322,64 @@ index 4df5c829a7f..2fff46209ad 100644
  
  @ENABLE_SYMVERS_TRUE@CLEANFILES = libstdc++-symbols.ver $(version_dep)
  @ENABLE_SYMVERS_DARWIN_TRUE@@ENABLE_SYMVERS_TRUE@version_arg = -Wl,-exported_symbols_list,libstdc++-symbols.explist
+diff --git a/libstdc++-v3/src/c++11/codecvt.cc b/libstdc++-v3/src/c++11/codecvt.cc
+index f8a50fb7150..04252d6dc2a 100644
+--- a/libstdc++-v3/src/c++11/codecvt.cc
++++ b/libstdc++-v3/src/c++11/codecvt.cc
+@@ -254,7 +254,7 @@ namespace
+     const size_t avail = from.size();
+     if (avail == 0)
+       return incomplete_mb_character;
+-    unsigned char c1 = from[0];
++    char32_t c1 = (unsigned char) from[0];
+     // https://en.wikipedia.org/wiki/UTF-8#Sample_code
+     if (c1 < 0x80)
+     {
+@@ -267,7 +267,7 @@ namespace
+     {
+       if (avail < 2)
+ 	return incomplete_mb_character;
+-      unsigned char c2 = from[1];
++      char32_t c2 = (unsigned char) from[1];
+       if ((c2 & 0xC0) != 0x80)
+ 	return invalid_mb_sequence;
+       char32_t c = (c1 << 6) + c2 - 0x3080;
+@@ -279,12 +279,12 @@ namespace
+     {
+       if (avail < 3)
+ 	return incomplete_mb_character;
+-      unsigned char c2 = from[1];
++      char32_t c2 = (unsigned char) from[1];
+       if ((c2 & 0xC0) != 0x80)
+ 	return invalid_mb_sequence;
+       if (c1 == 0xE0 && c2 < 0xA0) // overlong
+ 	return invalid_mb_sequence;
+-      unsigned char c3 = from[2];
++      char32_t c3 = (unsigned char) from[2];
+       if ((c3 & 0xC0) != 0x80)
+ 	return invalid_mb_sequence;
+       char32_t c = (c1 << 12) + (c2 << 6) + c3 - 0xE2080;
+@@ -296,17 +296,17 @@ namespace
+     {
+       if (avail < 4)
+ 	return incomplete_mb_character;
+-      unsigned char c2 = from[1];
++      char32_t c2 = (unsigned char) from[1];
+       if ((c2 & 0xC0) != 0x80)
+ 	return invalid_mb_sequence;
+       if (c1 == 0xF0 && c2 < 0x90) // overlong
+ 	return invalid_mb_sequence;
+       if (c1 == 0xF4 && c2 >= 0x90) // > U+10FFFF
+       return invalid_mb_sequence;
+-      unsigned char c3 = from[2];
++      char32_t c3 = (unsigned char) from[2];
+       if ((c3 & 0xC0) != 0x80)
+ 	return invalid_mb_sequence;
+-      unsigned char c4 = from[3];
++      char32_t c4 = (unsigned char) from[3];
+       if ((c4 & 0xC0) != 0x80)
+ 	return invalid_mb_sequence;
+       char32_t c = (c1 << 18) + (c2 << 12) + (c3 << 6) + c4 - 0x3C82080;
 diff --git a/libstdc++-v3/src/c++11/cxx11-ios_failure.cc b/libstdc++-v3/src/c++11/cxx11-ios_failure.cc
 index a918ab21015..e40685bf45a 100644
 --- a/libstdc++-v3/src/c++11/cxx11-ios_failure.cc
@@ -42840,6 +43736,23 @@ index 506ff25f9a6..5d3f40a9ddf 100644
  
    _Parser parser(_M_pathname);
  
+diff --git a/libstdc++-v3/src/c++17/memory_resource.cc b/libstdc++-v3/src/c++17/memory_resource.cc
+index 5dfc29fc0ec..154e334ba14 100644
+--- a/libstdc++-v3/src/c++17/memory_resource.cc
++++ b/libstdc++-v3/src/c++17/memory_resource.cc
+@@ -870,9 +870,11 @@ namespace pmr
+       256, 320, 384, 448,
+       512, 768,
+ #if __SIZE_WIDTH__ > 16
++      // Use bigger pools if size_t has at least 20 bits.
+       1024, 1536,
+       2048, 3072,
+-#if __SIZE_WIDTH__ > 20
++#if __INT_WIDTH__ >= 32
++      // Use even bigger pools if int has at least 32 bits.
+       1<<12, 1<<13, 1<<14,
+       1<<15, 1<<16, 1<<17,
+       1<<20, 1<<21, 1<<22 // 4MB should be enough for anybody
 diff --git a/libstdc++-v3/src/c++20/sstream-inst.cc b/libstdc++-v3/src/c++20/sstream-inst.cc
 index b3fbd6ead44..55d1fe5234d 100644
 --- a/libstdc++-v3/src/c++20/sstream-inst.cc
@@ -43297,6 +44210,55 @@ index 00000000000..ef24b4c5c7b
 +  std::from_chars(s.data(), s.data() + s.size(), d);
 +#endif
 +}
+diff --git a/libstdc++-v3/testsuite/20_util/is_nothrow_convertible/value.cc b/libstdc++-v3/testsuite/20_util/is_nothrow_convertible/value.cc
+index 22d7c8c1df6..18dd6a5e5dd 100644
+--- a/libstdc++-v3/testsuite/20_util/is_nothrow_convertible/value.cc
++++ b/libstdc++-v3/testsuite/20_util/is_nothrow_convertible/value.cc
+@@ -21,9 +21,7 @@
+ #include <type_traits>
+ #include <testsuite_tr1.h>
+ 
+-#ifndef IS_NT_CONVERTIBLE_DEFINED
+ using std::is_nothrow_convertible;
+-#endif
+ 
+ void test01()
+ {
+diff --git a/libstdc++-v3/testsuite/20_util/is_nothrow_convertible/value_ext.cc b/libstdc++-v3/testsuite/20_util/is_nothrow_invocable/91456.cc
+similarity index 59%
+rename from libstdc++-v3/testsuite/20_util/is_nothrow_convertible/value_ext.cc
+rename to libstdc++-v3/testsuite/20_util/is_nothrow_invocable/91456.cc
+index 9c4d19ef5ab..574233986f8 100644
+--- a/libstdc++-v3/testsuite/20_util/is_nothrow_convertible/value_ext.cc
++++ b/libstdc++-v3/testsuite/20_util/is_nothrow_invocable/91456.cc
+@@ -15,14 +15,21 @@
+ // with this library; see the file COPYING3.  If not see
+ // <http://www.gnu.org/licenses/>.
+ 
+-// { dg-do compile { target c++11 } }
++// { dg-do compile { target c++17 } }
++
++// PR 91456
++// std::function and std::is_invocable_r do not understand guaranteed elision
+ 
+ #include <type_traits>
+ 
+-// Test the non-standard __is_nothrow_convertible trait
++#include <functional>
+ 
+-template<typename From, typename To>
+-  using is_nothrow_convertible = std::__is_nothrow_convertible<From, To>;
++struct Immovable {
++  Immovable() = default;
++  Immovable(const Immovable&) = delete;
++  Immovable& operator=(const Immovable&) = delete;
++};
+ 
+-#define IS_NT_CONVERTIBLE_DEFINED
+-#include "value.cc"
++static_assert(std::is_nothrow_invocable_r_v<Immovable, Immovable(*)() noexcept>);
++static_assert(std::is_nothrow_invocable_r_v<const Immovable, Immovable(*)() noexcept>);
++static_assert(std::is_nothrow_invocable_r_v<Immovable, const Immovable(*)() noexcept>);
 diff --git a/libstdc++-v3/testsuite/20_util/monotonic_buffer_resource/allocate.cc b/libstdc++-v3/testsuite/20_util/monotonic_buffer_resource/allocate.cc
 index 40180223bae..a98815d932b 100644
 --- a/libstdc++-v3/testsuite/20_util/monotonic_buffer_resource/allocate.cc
@@ -43416,6 +44378,19 @@ index 00000000000..a6b9c67498c
 +  a.construct(p, std::move(rvals));
 +  a.deallocate(p, 1);
 +}
+diff --git a/libstdc++-v3/testsuite/20_util/tuple/swap.cc b/libstdc++-v3/testsuite/20_util/tuple/swap.cc
+index 06d14612176..7142e95c782 100644
+--- a/libstdc++-v3/testsuite/20_util/tuple/swap.cc
++++ b/libstdc++-v3/testsuite/20_util/tuple/swap.cc
+@@ -38,7 +38,7 @@ struct MoveOnly
+   MoveOnly(MoveOnly const&) = delete;
+   MoveOnly& operator=(MoveOnly const&) = delete;
+ 
+-  bool operator==(MoveOnly const& m)
++  bool operator==(MoveOnly const& m) const
+   { return i == m.i; }
+ 
+   void swap(MoveOnly& m)
 diff --git a/libstdc++-v3/testsuite/20_util/unsynchronized_pool_resource/allocate.cc b/libstdc++-v3/testsuite/20_util/unsynchronized_pool_resource/allocate.cc
 index a76afbe87a2..fe847dadd27 100644
 --- a/libstdc++-v3/testsuite/20_util/unsynchronized_pool_resource/allocate.cc
@@ -43461,6 +44436,53 @@ index 00000000000..ae377f4b5a3
 +  // for pair of rvalue references
 +  std::allocator<move_only> a;
 +  (void) std::uses_allocator_construction_args<P>(a, std::move(rvals));
++}
+diff --git a/libstdc++-v3/testsuite/20_util/variant/lwg3585.cc b/libstdc++-v3/testsuite/20_util/variant/lwg3585.cc
+new file mode 100644
+index 00000000000..0cbfc0db7f5
+--- /dev/null
++++ b/libstdc++-v3/testsuite/20_util/variant/lwg3585.cc
+@@ -0,0 +1,16 @@
++// { dg-do compile { target c++17 } }
++
++// LWG 3585. Variant converting assignment with immovable alternative
++
++#include <variant>
++#include <string>
++
++struct A {
++  A() = default;
++  A(A&&) = delete;
++};
++
++int main() {
++  std::variant<A, std::string> v;
++  v = "hello";
++}
+diff --git a/libstdc++-v3/testsuite/20_util/weak_ptr/cons/self_move.cc b/libstdc++-v3/testsuite/20_util/weak_ptr/cons/self_move.cc
+new file mode 100644
+index 00000000000..c890d2ba94d
+--- /dev/null
++++ b/libstdc++-v3/testsuite/20_util/weak_ptr/cons/self_move.cc
+@@ -0,0 +1,19 @@
++// { dg-do run { target c++11 } }
++
++#include <memory>
++#include <testsuite_hooks.h>
++
++void
++test_self_move()
++{
++  std::shared_ptr<int> sp(new int(66));
++  std::weak_ptr<int> wp(sp);
++  wp = std::move(wp); // PR libstdc++/108118
++  std::shared_ptr<int> sp2(wp);
++  VERIFY(sp2 == sp);
++}
++
++int main()
++{
++  test_self_move();
 +}
 diff --git a/libstdc++-v3/testsuite/21_strings/basic_string/cons/char/moveable.cc b/libstdc++-v3/testsuite/21_strings/basic_string/cons/char/moveable.cc
 index 5de2a5f9330..3ba39ec432d 100644
@@ -44114,6 +45136,46 @@ index 00000000000..0fadcd6e99a
 +    return std::ranges::advance(i, L::min(), I{-4}) == L::min() + 2;
 +}
 +static_assert(test());
+diff --git a/libstdc++-v3/testsuite/25_algorithms/copy/constrained.cc b/libstdc++-v3/testsuite/25_algorithms/copy/constrained.cc
+index a05948a49c6..91f742dca76 100644
+--- a/libstdc++-v3/testsuite/25_algorithms/copy/constrained.cc
++++ b/libstdc++-v3/testsuite/25_algorithms/copy/constrained.cc
+@@ -226,6 +226,29 @@ test06()
+   VERIFY( ranges::equal(v, (int[]){1,2,3,0}) );
+ }
+ 
++void
++test07()
++{
++  struct move_only_output_iterator
++  {
++    using value_type = int;
++    using difference_type = short;
++    using iterator_category = std::output_iterator_tag;
++
++    move_only_output_iterator() = default;
++    move_only_output_iterator(move_only_output_iterator&&) = default;
++    move_only_output_iterator& operator=(move_only_output_iterator&&) = default;
++
++    move_only_output_iterator& operator*() { return *this; }
++    move_only_output_iterator& operator++() { return *this; }
++    move_only_output_iterator operator++(int) { return std::move(*this); }
++
++    void operator=(int) { }
++  };
++
++  ranges::copy(std::vector<int>{1,2,3}, move_only_output_iterator{});
++}
++
+ int
+ main()
+ {
+@@ -235,4 +258,5 @@ main()
+   test04();
+   static_assert(test05());
+   test06();
++  test07();
+ }
 diff --git a/libstdc++-v3/testsuite/26_numerics/gcd/105844.cc b/libstdc++-v3/testsuite/26_numerics/gcd/105844.cc
 new file mode 100644
 index 00000000000..3be18330a0f
@@ -44270,6 +45332,19 @@ index f947f8ae848..e8705ca7879 100644
 -  return 0;
 +  test_pr105502();
  }
+diff --git a/libstdc++-v3/testsuite/26_numerics/valarray/87641.cc b/libstdc++-v3/testsuite/26_numerics/valarray/87641.cc
+index 391a288b349..c884688b9f6 100644
+--- a/libstdc++-v3/testsuite/26_numerics/valarray/87641.cc
++++ b/libstdc++-v3/testsuite/26_numerics/valarray/87641.cc
+@@ -39,7 +39,7 @@ struct X
+   X() : val(1) { }
+ 
+   X& operator+=(const X& x) { val += x.val; return *this; }
+-  bool operator==(const X& x) { return val == x.val; }
++  bool operator==(const X& x) const { return val == x.val; }
+ 
+   int val;
+ };
 diff --git a/libstdc++-v3/testsuite/27_io/basic_istream/extractors_character/char/pr106248.cc b/libstdc++-v3/testsuite/27_io/basic_istream/extractors_character/char/pr106248.cc
 new file mode 100644
 index 00000000000..6d89a0e5fef
@@ -44447,6 +45522,61 @@ index 1f297a731a3..a26b29f0974 100644
  }
  
  int
+diff --git a/libstdc++-v3/testsuite/27_io/filesystem/operations/absolute.cc b/libstdc++-v3/testsuite/27_io/filesystem/operations/absolute.cc
+index 24d59799ef1..2bd7f694b3c 100644
+--- a/libstdc++-v3/testsuite/27_io/filesystem/operations/absolute.cc
++++ b/libstdc++-v3/testsuite/27_io/filesystem/operations/absolute.cc
+@@ -84,7 +84,7 @@ test03()
+   VERIFY( eabs.empty() );
+ 
+   try {
+-    absolute(path{});
++    (void) absolute(path{});
+     VERIFY( false );
+   } catch (const std::filesystem::filesystem_error& e) {
+     VERIFY( e.code() == std::errc::invalid_argument );
+diff --git a/libstdc++-v3/testsuite/27_io/filesystem/operations/all.cc b/libstdc++-v3/testsuite/27_io/filesystem/operations/all.cc
+index 414c2d8d72c..9a922632eee 100644
+--- a/libstdc++-v3/testsuite/27_io/filesystem/operations/all.cc
++++ b/libstdc++-v3/testsuite/27_io/filesystem/operations/all.cc
+@@ -42,11 +42,11 @@ main()
+   bool b [[maybe_unused]];
+   std::uintmax_t size;
+ 
+-  std::filesystem::absolute(p);
+-  std::filesystem::absolute(p, ec);
++  p2 = std::filesystem::absolute(p);
++  p2 = std::filesystem::absolute(p, ec);
+ 
+-  std::filesystem::canonical(p);
+-  std::filesystem::canonical(p, ec);
++  p2 = std::filesystem::canonical(p);
++  p2 = std::filesystem::canonical(p, ec);
+ 
+   std::filesystem::copy(p, p);
+   std::filesystem::copy(p, p, ec);
+diff --git a/libstdc++-v3/testsuite/27_io/filesystem/operations/canonical.cc b/libstdc++-v3/testsuite/27_io/filesystem/operations/canonical.cc
+index 172ef09ee85..dd42ffd403b 100644
+--- a/libstdc++-v3/testsuite/27_io/filesystem/operations/canonical.cc
++++ b/libstdc++-v3/testsuite/27_io/filesystem/operations/canonical.cc
+@@ -31,7 +31,7 @@ test01()
+   const std::error_code bad_ec = make_error_code(std::errc::invalid_argument);
+   std::error_code ec;
+   auto p = __gnu_test::nonexistent_path();
+-  canonical( p, ec );
++  (void) canonical( p, ec );
+   VERIFY( ec );
+ 
+   create_directory(p);
+@@ -90,7 +90,7 @@ test02()
+ #if __cpp_exceptions
+   fs::path e1, e2;
+   try {
+-    canonical(p);
++    (void) canonical(p);
+   } catch (const fs::filesystem_error& e) {
+     e1 = e.path1();
+     e2 = e.path2();
 diff --git a/libstdc++-v3/testsuite/27_io/filesystem/operations/copy.cc b/libstdc++-v3/testsuite/27_io/filesystem/operations/copy.cc
 index 761cfc29b13..c00cf85641e 100644
 --- a/libstdc++-v3/testsuite/27_io/filesystem/operations/copy.cc
@@ -44492,8 +45622,82 @@ index 761cfc29b13..c00cf85641e 100644
    test05();
 +  test_pr99290();
  }
+diff --git a/libstdc++-v3/testsuite/27_io/filesystem/operations/exists.cc b/libstdc++-v3/testsuite/27_io/filesystem/operations/exists.cc
+index f99a3346ed0..e97c34343ef 100644
+--- a/libstdc++-v3/testsuite/27_io/filesystem/operations/exists.cc
++++ b/libstdc++-v3/testsuite/27_io/filesystem/operations/exists.cc
+@@ -95,7 +95,7 @@ test04()
+   ec.clear();
+   try
+   {
+-    exists(unr);
++    (void) exists(unr);
+   }
+   catch(const std::filesystem::filesystem_error& ex)
+   {
+diff --git a/libstdc++-v3/testsuite/27_io/filesystem/operations/is_empty.cc b/libstdc++-v3/testsuite/27_io/filesystem/operations/is_empty.cc
+index 11605748501..b2d021af90e 100644
+--- a/libstdc++-v3/testsuite/27_io/filesystem/operations/is_empty.cc
++++ b/libstdc++-v3/testsuite/27_io/filesystem/operations/is_empty.cc
+@@ -40,7 +40,7 @@ test01()
+   VERIFY( !result );
+ 
+   try {
+-    fs::is_empty(p);
++    (void) fs::is_empty(p);
+   } catch (const fs::filesystem_error& e) {
+     ec2 = e.code();
+   }
+@@ -51,7 +51,7 @@ test01()
+   VERIFY( !result );
+ 
+   try {
+-    fs::is_empty(p/"f");
++    (void) fs::is_empty(p/"f");
+   } catch (const fs::filesystem_error& e) {
+     ec2 = e.code();
+   }
+diff --git a/libstdc++-v3/testsuite/27_io/filesystem/operations/read_symlink.cc b/libstdc++-v3/testsuite/27_io/filesystem/operations/read_symlink.cc
+index 3a8244b8280..5221bf65082 100644
+--- a/libstdc++-v3/testsuite/27_io/filesystem/operations/read_symlink.cc
++++ b/libstdc++-v3/testsuite/27_io/filesystem/operations/read_symlink.cc
+@@ -31,7 +31,7 @@ test01()
+   auto p = __gnu_test::nonexistent_path();
+   std::error_code ec;
+ 
+-  read_symlink(p, ec);
++  (void) read_symlink(p, ec);
+   VERIFY( ec );
+ 
+   fs::path tgt = ".";
+diff --git a/libstdc++-v3/testsuite/27_io/filesystem/operations/status.cc b/libstdc++-v3/testsuite/27_io/filesystem/operations/status.cc
+index 4cabdcbe7f7..c2991f827ce 100644
+--- a/libstdc++-v3/testsuite/27_io/filesystem/operations/status.cc
++++ b/libstdc++-v3/testsuite/27_io/filesystem/operations/status.cc
+@@ -74,7 +74,7 @@ test03()
+   std::error_code ec2;
+   fs::path p, p2;
+   try {
+-    fs::symlink_status(f.path);
++    (void) fs::symlink_status(f.path);
+   } catch (const fs::filesystem_error& e) {
+     caught = true;
+     p = e.path1();
+diff --git a/libstdc++-v3/testsuite/27_io/filesystem/operations/symlink_status.cc b/libstdc++-v3/testsuite/27_io/filesystem/operations/symlink_status.cc
+index bb4c185dd33..775aa21f2d4 100644
+--- a/libstdc++-v3/testsuite/27_io/filesystem/operations/symlink_status.cc
++++ b/libstdc++-v3/testsuite/27_io/filesystem/operations/symlink_status.cc
+@@ -94,7 +94,7 @@ test03()
+   std::error_code ec2;
+   fs::path p, p2;
+   try {
+-    fs::symlink_status(f.path);
++    (void) fs::symlink_status(f.path);
+   } catch (const fs::filesystem_error& e) {
+     caught = true;
+     p = e.path1();
 diff --git a/libstdc++-v3/testsuite/27_io/filesystem/operations/temp_directory_path.cc b/libstdc++-v3/testsuite/27_io/filesystem/operations/temp_directory_path.cc
-index b55cd6c60b6..1cfda583be3 100644
+index b55cd6c60b6..22cb23ad81e 100644
 --- a/libstdc++-v3/testsuite/27_io/filesystem/operations/temp_directory_path.cc
 +++ b/libstdc++-v3/testsuite/27_io/filesystem/operations/temp_directory_path.cc
 @@ -20,6 +20,7 @@
@@ -44526,6 +45730,24 @@ index b55cd6c60b6..1cfda583be3 100644
  
    std::error_code ec;
    fs::path p = fs::temp_directory_path(ec);
+@@ -110,7 +117,7 @@ test03()
+ 
+   std::error_code ec2;
+   try {
+-    fs::temp_directory_path();
++    (void) fs::temp_directory_path();
+   } catch (const fs::filesystem_error& e) {
+     ec2 = e.code();
+   }
+@@ -134,7 +141,7 @@ test04()
+ 
+   std::error_code ec2;
+   try {
+-    fs::temp_directory_path();
++    (void) fs::temp_directory_path();
+   } catch (const fs::filesystem_error& e) {
+     ec2 = e.code();
+   }
 diff --git a/libstdc++-v3/testsuite/27_io/filesystem/path/108636.cc b/libstdc++-v3/testsuite/27_io/filesystem/path/108636.cc
 new file mode 100644
 index 00000000000..d58de461090
@@ -45739,6 +46961,33 @@ index 806c511ebef..aabed14679c 100644
  }
  
  int
+diff --git a/libstdc++-v3/testsuite/experimental/filesystem/operations/canonical.cc b/libstdc++-v3/testsuite/experimental/filesystem/operations/canonical.cc
+index e54bf7c1f91..e41027f39e7 100644
+--- a/libstdc++-v3/testsuite/experimental/filesystem/operations/canonical.cc
++++ b/libstdc++-v3/testsuite/experimental/filesystem/operations/canonical.cc
+@@ -30,11 +30,11 @@ test01()
+ {
+   std::error_code ec;
+   auto p = __gnu_test::nonexistent_path();
+-  canonical( p, ec );
++  (void) canonical( p, ec );
+   VERIFY( ec );
+ 
+   p = fs::current_path();
+-  canonical( p, ec );
++  (void) canonical( p, ec );
+   VERIFY( !ec );
+ 
+   const auto root = fs::absolute("/");
+@@ -67,7 +67,7 @@ test02()
+   fs::path p = "rel", base = __gnu_test::nonexistent_path();
+   fs::path e1, e2;
+   try {
+-    canonical(p, base);
++    (void) canonical(p, base);
+   } catch (const fs::filesystem_error& e) {
+     e1 = e.path1();
+     e2 = e.path2();
 diff --git a/libstdc++-v3/testsuite/experimental/filesystem/operations/copy.cc b/libstdc++-v3/testsuite/experimental/filesystem/operations/copy.cc
 index 947d270e6a4..817e51d2d21 100644
 --- a/libstdc++-v3/testsuite/experimental/filesystem/operations/copy.cc
@@ -45784,8 +47033,56 @@ index 947d270e6a4..817e51d2d21 100644
    test05();
 +  test_pr99290();
  }
+diff --git a/libstdc++-v3/testsuite/experimental/filesystem/operations/exists.cc b/libstdc++-v3/testsuite/experimental/filesystem/operations/exists.cc
+index 79fe970e9f3..39d99c7cece 100644
+--- a/libstdc++-v3/testsuite/experimental/filesystem/operations/exists.cc
++++ b/libstdc++-v3/testsuite/experimental/filesystem/operations/exists.cc
+@@ -89,7 +89,7 @@ test04()
+   ec.clear();
+   try
+   {
+-    exists(unr);
++    (void) exists(unr);
+   }
+   catch(const std::experimental::filesystem::filesystem_error& ex)
+   {
+diff --git a/libstdc++-v3/testsuite/experimental/filesystem/operations/is_empty.cc b/libstdc++-v3/testsuite/experimental/filesystem/operations/is_empty.cc
+index a474fa2a37f..21be254aad8 100644
+--- a/libstdc++-v3/testsuite/experimental/filesystem/operations/is_empty.cc
++++ b/libstdc++-v3/testsuite/experimental/filesystem/operations/is_empty.cc
+@@ -41,7 +41,7 @@ test01()
+   VERIFY( !result );
+ 
+   try {
+-    fs::is_empty(p);
++    (void) fs::is_empty(p);
+   } catch (const fs::filesystem_error& e) {
+     ec2 = e.code();
+   }
+@@ -52,7 +52,7 @@ test01()
+   VERIFY( !result );
+ 
+   try {
+-    fs::is_empty(p/"f");
++    (void) fs::is_empty(p/"f");
+   } catch (const fs::filesystem_error& e) {
+     ec2 = e.code();
+   }
+diff --git a/libstdc++-v3/testsuite/experimental/filesystem/operations/read_symlink.cc b/libstdc++-v3/testsuite/experimental/filesystem/operations/read_symlink.cc
+index 62bea22683c..a6ab109e30d 100644
+--- a/libstdc++-v3/testsuite/experimental/filesystem/operations/read_symlink.cc
++++ b/libstdc++-v3/testsuite/experimental/filesystem/operations/read_symlink.cc
+@@ -32,7 +32,7 @@ test01()
+   auto p = __gnu_test::nonexistent_path();
+   std::error_code ec;
+ 
+-  read_symlink(p, ec);
++  (void) read_symlink(p, ec);
+   VERIFY( ec );
+ 
+   fs::path tgt = ".";
 diff --git a/libstdc++-v3/testsuite/experimental/filesystem/operations/temp_directory_path.cc b/libstdc++-v3/testsuite/experimental/filesystem/operations/temp_directory_path.cc
-index 03e777b0041..b78f663dee9 100644
+index 03e777b0041..43f515d7f7c 100644
 --- a/libstdc++-v3/testsuite/experimental/filesystem/operations/temp_directory_path.cc
 +++ b/libstdc++-v3/testsuite/experimental/filesystem/operations/temp_directory_path.cc
 @@ -21,6 +21,7 @@
@@ -45829,6 +47126,15 @@ index 03e777b0041..b78f663dee9 100644
    auto p = __gnu_test::nonexistent_path();
    create_directories(p/"tmp");
    permissions(p, fs::perms::none);
+@@ -109,7 +118,7 @@ test03()
+ 
+   std::error_code ec2;
+   try {
+-    fs::temp_directory_path();
++    (void) fs::temp_directory_path();
+   } catch (const fs::filesystem_error& e) {
+     ec2 = e.code();
+   }
 @@ -122,8 +131,10 @@ test03()
  void
  test04()
@@ -45841,6 +47147,15 @@ index 03e777b0041..b78f663dee9 100644
    std::error_code ec;
    auto r = fs::temp_directory_path(ec);
    VERIFY( ec == std::make_error_code(std::errc::not_a_directory) );
+@@ -131,7 +142,7 @@ test04()
+ 
+   std::error_code ec2;
+   try {
+-    fs::temp_directory_path();
++    (void) fs::temp_directory_path();
+   } catch (const fs::filesystem_error& e) {
+     ec2 = e.code();
+   }
 diff --git a/libstdc++-v3/testsuite/experimental/simd/tests/bits/verify.h b/libstdc++-v3/testsuite/experimental/simd/tests/bits/verify.h
 index 82016c66802..ffa3e7f4cda 100644
 --- a/libstdc++-v3/testsuite/experimental/simd/tests/bits/verify.h
@@ -46138,3 +47453,66 @@ index 205b3458928..ab743916f5b 100644
  // { dg-bogus "static assertion failed" "" { xfail *-*-* } 124 }
  // { dg-bogus "static assertion failed" "" { xfail *-*-* } 126 }
  // { dg-bogus "static assertion failed" "" { xfail *-*-* } 128 }
+diff --git a/libstdc++-v3/testsuite/std/time/hh_mm_ss/1.cc b/libstdc++-v3/testsuite/std/time/hh_mm_ss/1.cc
+index d3374309034..a61f0095b06 100644
+--- a/libstdc++-v3/testsuite/std/time/hh_mm_ss/1.cc
++++ b/libstdc++-v3/testsuite/std/time/hh_mm_ss/1.cc
+@@ -59,5 +59,57 @@ constexpr_hh_mm_ss()
+ 
+   static_assert(seconds{hh_mm_ss{100min}} == 100min);
+ 
+-  // TODO: treat_as_floating_point_v
++  // treat_as_floating_point_v
++  using fseconds = duration<double, ratio<1>>;
++  constexpr hh_mm_ss<fseconds> fsec{0x123.0004p5s};
++  static_assert(std::is_same_v<hh_mm_ss<fseconds>::precision, fseconds>);
++  static_assert(fsec.hours() == 2h);
++  static_assert(fsec.minutes() == 35min);
++  static_assert(fsec.seconds() == 12s);
++  static_assert(fsec.subseconds() == 0x.0004p5s);
++  static_assert(!fsec.is_negative());
++  static_assert(fsec.to_duration() == 0x123.0004p5s);
++
++  using fminutes = duration<double, ratio<60>>;
++  constexpr hh_mm_ss<fminutes> fmin{-0x1.23p4min};
++  static_assert(std::is_same_v<hh_mm_ss<fminutes>::precision, fseconds>);
++  static_assert(fmin.hours() == 0h);
++  static_assert(fmin.minutes() == 18min);
++  static_assert(fmin.seconds() == 11s);
++  static_assert(fmin.subseconds() == 0.25s);
++  static_assert(fmin.is_negative());
++  static_assert(fmin.to_duration() == -0x1.23p4min);
++}
++
++constexpr void
++default_construction()
++{
++  using namespace std::chrono;
++
++  constexpr hh_mm_ss<seconds> s1;
++  static_assert(s1.to_duration() == s1.to_duration().zero());
++  constexpr hh_mm_ss<duration<char>> s2;
++  static_assert(s2.to_duration() == s2.to_duration().zero());
++  constexpr hh_mm_ss<duration<int, std::centi>> s3;
++  static_assert(s3.to_duration() == s3.to_duration().zero());
++  constexpr hh_mm_ss<duration<long long, std::femto>> s4;
++  static_assert(s4.to_duration() == s4.to_duration().zero());
++  constexpr hh_mm_ss<duration<double>> s5;
++  static_assert(s5.to_duration() == s5.to_duration().zero());
++}
++
++constexpr void
++unsigned_rep()
++{
++  using namespace std::chrono;
++
++  constexpr duration<unsigned, std::milli> ms(3690001);
++
++  constexpr hh_mm_ss hms(ms); // PR libstdc++/108265
++  static_assert( ! hms.is_negative() );
++  static_assert( hms.to_duration() == milliseconds(ms.count()) );
++  static_assert( hms.hours() == 1h );
++  static_assert( hms.minutes() == 1min );
++  static_assert( hms.seconds() == 30s );
++  static_assert( hms.subseconds() == 1ms );
+ }
