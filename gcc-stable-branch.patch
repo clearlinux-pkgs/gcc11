@@ -67,7 +67,9 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (389):
+GCC Administrator (391):
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -471,7 +473,7 @@ H.J. Lu (5):
 Haochen Gui (1):
       rs6000: correct vector sign extend builtins on Big Endian
 
-Harald Anlauf (37):
+Harald Anlauf (38):
       Fortran: improve error recovery on invalid array section
       Fortran: fix error recovery on invalid array section
       Fortran: fix checking of arguments to UNPACK when MASK is a variable [PR105813]
@@ -509,6 +511,7 @@ Harald Anlauf (37):
       Fortran: simplification of NEAREST for large argument [PR109186]
       Fortran: reject MODULE PROCEDURE outside generic module interface [PR99036]
       Fortran: fix compile-time simplification of SET_EXPONENT [PR109511]
+      Fortran: CLASS pointer function result in variable definition context [PR109846]
 
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
@@ -529,7 +532,7 @@ Iain Buclaw (14):
       d: Delay removing DECL_EXTERNAL from thunks until funcion has finished
       d: Fix undefined reference to lambda defined in private enum [PR109108]
 
-Iain Sandoe (11):
+Iain Sandoe (12):
       Darwin: Fix bootstrap for X86.
       Darwin: Update rules for handling alignment of globals.
       Darwin: Fix empty g++ command lines [PR105599].
@@ -541,6 +544,7 @@ Iain Sandoe (11):
       c++,coroutines: Stabilize names of promoted slot vars [PR101118].
       c++, coroutines: Fix block nests when the function has no top-level bind.
       c++tools, configury: Configure with C++; test checking status [PR98821].
+      Darwin, libgcc : Adjust min version supported for the OS.
 
 Ian Lance Taylor (2):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
@@ -17186,10 +17190,20 @@ index 70c5b3886ef..5b4053df520 100644
  
        if ((tem = fold_truth_andor (loc, code, type, arg0, arg1, op0, op1))
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..8fb645d6734 100644
+index ee1c7bb4b31..78cddcb8b74 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,516 @@
+@@ -1,3 +1,526 @@
++2023-05-20  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-05-15  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/109846
++	* expr.c (gfc_check_vardef_context): Check appropriate pointer
++	attribute for CLASS vs. non-CLASS function result in variable
++	definition context.
++
 +2023-05-02  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -17851,7 +17865,7 @@ index 059d8421bb5..4e210a0e87f 100644
  		*type_name = "signed char";
  	      else if (strcmp (*type_name, "size_t") == 0)
 diff --git a/gcc/fortran/expr.c b/gcc/fortran/expr.c
-index edacd974a21..0860df907c5 100644
+index edacd974a21..0b9458f82ac 100644
 --- a/gcc/fortran/expr.c
 +++ b/gcc/fortran/expr.c
 @@ -1549,6 +1549,16 @@ find_array_section (gfc_expr *expr, gfc_ref *ref)
@@ -17881,6 +17895,15 @@ index edacd974a21..0860df907c5 100644
  	{
  	  if (!simplify_parameter_variable (p, type))
  	    return false;
+@@ -6224,7 +6235,7 @@ gfc_check_vardef_context (gfc_expr* e, bool pointer, bool alloc_obj,
+       && !(sym->attr.flavor == FL_PROCEDURE && sym == sym->result)
+       && !(sym->attr.flavor == FL_PROCEDURE && sym->attr.proc_pointer)
+       && !(sym->attr.flavor == FL_PROCEDURE
+-	   && sym->attr.function && sym->attr.pointer))
++	   && sym->attr.function && attr.pointer))
+     {
+       if (context)
+ 	gfc_error ("%qs in variable definition context (%s) at %L is not"
 diff --git a/gcc/fortran/f95-lang.c b/gcc/fortran/f95-lang.c
 index a346457b5e0..b11cff6559b 100644
 --- a/gcc/fortran/f95-lang.c
@@ -20771,10 +20794,18 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..365ffbc1dad 100644
+index 5fc23605244..a7ce78c38f4 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2220 @@
+@@ -1,3 +1,2228 @@
++2023-05-20  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-05-15  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/109846
++	* gfortran.dg/ptr-func-5.f90: New test.
++
 +2023-05-16  Iain Sandoe  <iain@sandoe.co.uk>
 +
 +	Backported from master:
@@ -34298,6 +34329,51 @@ index 00000000000..a6e396f6f71
 +  module procedure s ! { dg-error "must be in a generic module interface" }
 +  end
 +end
+diff --git a/gcc/testsuite/gfortran.dg/ptr-func-5.f90 b/gcc/testsuite/gfortran.dg/ptr-func-5.f90
+new file mode 100644
+index 00000000000..05fd56703ca
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/ptr-func-5.f90
+@@ -0,0 +1,39 @@
++! { dg-do compile }
++! PR fortran/109846
++! CLASS pointer function result in variable definition context
++
++module foo
++  implicit none
++  type :: parameter_list
++  contains
++    procedure :: sublist, sublist_nores
++  end type
++contains
++  function sublist (this) result (slist)
++    class(parameter_list), intent(inout) :: this
++    class(parameter_list), pointer       :: slist
++    allocate (slist)
++  end function
++  function sublist_nores (this)
++    class(parameter_list), intent(inout) :: this
++    class(parameter_list), pointer       :: sublist_nores
++    allocate (sublist_nores)
++  end function
++end module
++
++program example
++  use foo
++  implicit none
++  type(parameter_list) :: plist
++  call sub1 (plist%sublist())
++  call sub1 (plist%sublist_nores())
++  call sub2 (plist%sublist())
++  call sub2 (plist%sublist_nores())
++contains
++  subroutine sub1 (plist)
++    type(parameter_list), intent(inout) :: plist
++  end subroutine
++  subroutine sub2 (plist)
++    type(parameter_list) :: plist
++  end subroutine
++end program
 diff --git a/gcc/testsuite/gfortran.dg/save_7.f90 b/gcc/testsuite/gfortran.dg/save_7.f90
 new file mode 100644
 index 00000000000..dfbef12bec0
@@ -36919,6 +36995,35 @@ index ceaa3e21b19..d8f23aba136 100644
  2022-04-21  Release Manager
  
  	* GCC 11.3.0 released.
+diff --git a/libgcc/config.host b/libgcc/config.host
+index f2dc7e266f4..45f8e19ada4 100644
+--- a/libgcc/config.host
++++ b/libgcc/config.host
+@@ -225,6 +225,24 @@ case ${host} in
+       ;;
+   esac
+   tmake_file="$tmake_file t-slibgcc-darwin"
++  # newer toolsets produce warnings when building for unsupported versions.
++  case ${host} in
++    *-*-darwin1[89]* | *-*-darwin2* )
++      tmake_file="t-darwin-min-8 $tmake_file"
++      ;;
++    *-*-darwin9* | *-*-darwin1[0-7]*)
++      tmake_file="t-darwin-min-5 $tmake_file"
++      ;;
++    *-*-darwin[4-8]*)
++      tmake_file="t-darwin-min-1 $tmake_file"
++      ;;
++    *)
++      # Fall back to configuring for the oldest system known to work with
++      # all archs and the current sources.
++      tmake_file="t-darwin-min-5 $tmake_file"
++      echo "Warning: libgcc configured to support macOS 10.5" 1>&2
++      ;;
++  esac
+   extra_parts="crt3.o libd10-uwfef.a crttms.o crttme.o libemutls_w.a"
+   ;;
+ *-*-dragonfly*)
 diff --git a/libgcc/config/aarch64/lse.S b/libgcc/config/aarch64/lse.S
 index df965b5a524..9215873842b 100644
 --- a/libgcc/config/aarch64/lse.S
@@ -37141,6 +37246,115 @@ index 7629e23e289..9d701f27582 100644
      ret
  
  .Lset_0xffff:
+diff --git a/libgcc/config/darwin10-unwind-find-enc-func.c b/libgcc/config/darwin10-unwind-find-enc-func.c
+index 882ec3a2372..b08396c5f1b 100644
+--- a/libgcc/config/darwin10-unwind-find-enc-func.c
++++ b/libgcc/config/darwin10-unwind-find-enc-func.c
+@@ -1,8 +1,34 @@
+-#include "tconfig.h"
+-#include "tsystem.h"
+-#include "unwind-dw2-fde.h"
+ #include "libgcc_tm.h"
+ 
++/* This shim is special, it needs to be built for Mac OSX 10.6
++   regardless of the current system version.
++   We must also build it to use the unwinder layout that was
++   present for 10.6 (and not update that).
++   So we copy the referenced structures from unwind-dw2-fde.h
++   to avoid pulling in newer system headers and/or changed
++   layouts.  */
++struct dwarf_eh_bases
++{
++  void *tbase;
++  void *dbase;
++  void *func;
++};
++
++typedef          int  sword __attribute__ ((mode (SI)));
++typedef unsigned int  uword __attribute__ ((mode (SI)));
++
++/* The first few fields of an FDE.  */
++struct dwarf_fde
++{
++  uword length;
++  sword CIE_delta;
++  unsigned char pc_begin[];
++} __attribute__ ((packed, aligned (__alignof__ (void *))));
++
++typedef struct dwarf_fde fde;
++
++extern const fde * _Unwind_Find_FDE (void *, struct dwarf_eh_bases *);
++
+ void *
+ _darwin10_Unwind_FindEnclosingFunction (void *pc)
+ {
+@@ -10,5 +36,5 @@ _darwin10_Unwind_FindEnclosingFunction (void *pc)
+   const struct dwarf_fde *fde = _Unwind_Find_FDE (pc-1, &bases);
+   if (fde)
+     return bases.func;
+-  return NULL;
++  return (void *) 0;
+ }
+diff --git a/libgcc/config/t-darwin b/libgcc/config/t-darwin
+index 299d26c2c96..a3bb70c6a0a 100644
+--- a/libgcc/config/t-darwin
++++ b/libgcc/config/t-darwin
+@@ -1,15 +1,15 @@
+ # Set this as a minimum (unless overriden by arch t-files) since it's a
+ # reasonable lowest common denominator that works for all our archs.
+-HOST_LIBGCC2_CFLAGS += -mmacosx-version-min=10.4
++HOST_LIBGCC2_CFLAGS += $(DARWIN_MIN_LIB_VERSION)
+ 
+ crt3.o: $(srcdir)/config/darwin-crt3.c
+-	$(crt_compile) -mmacosx-version-min=10.4 -c $<
++	$(crt_compile) $(DARWIN_MIN_CRT_VERSION) -c $<
+ 
+ crttms.o: $(srcdir)/config/darwin-crt-tm.c
+-	$(crt_compile) -mmacosx-version-min=10.4 -DSTART -c $<
++	$(crt_compile) $(DARWIN_MIN_CRT_VERSION) -DSTART -c $<
+ 
+ crttme.o: $(srcdir)/config/darwin-crt-tm.c
+-	$(crt_compile) -mmacosx-version-min=10.4 -DEND -c $<
++	$(crt_compile) $(DARWIN_MIN_CRT_VERSION) -DEND -c $<
+ 
+ # Make emutls weak so that we can deal with -static-libgcc, override the
+ # hidden visibility when this is present in libgcc_eh.
+@@ -25,6 +25,8 @@ libemutls_w.a: emutls_s.o
+ 	$(RANLIB_FOR_TARGET) $@
+ 
+ # Patch to __Unwind_Find_Enclosing_Function for Darwin10.
++# This needs to be built for darwin10, regardless of the current platform
++# version.
+ d10-uwfef.o: $(srcdir)/config/darwin10-unwind-find-enc-func.c libgcc_tm.h
+ 	$(crt_compile) -mmacosx-version-min=10.6 -c $<
+ 
+diff --git a/libgcc/config/t-darwin-min-1 b/libgcc/config/t-darwin-min-1
+new file mode 100644
+index 00000000000..8c2cf8acd39
+--- /dev/null
++++ b/libgcc/config/t-darwin-min-1
+@@ -0,0 +1,3 @@
++# Support building with -mmacosx-version-min back to 10.1.
++DARWIN_MIN_LIB_VERSION = -mmacosx-version-min=10.4
++DARWIN_MIN_CRT_VERSION = -mmacosx-version-min=10.1
+diff --git a/libgcc/config/t-darwin-min-5 b/libgcc/config/t-darwin-min-5
+new file mode 100644
+index 00000000000..138193151e7
+--- /dev/null
++++ b/libgcc/config/t-darwin-min-5
+@@ -0,0 +1,3 @@
++# Support building with -mmacosx-version-min back to 10.5.
++DARWIN_MIN_LIB_VERSION = -mmacosx-version-min=10.5
++DARWIN_MIN_CRT_VERSION = -mmacosx-version-min=10.5
+diff --git a/libgcc/config/t-darwin-min-8 b/libgcc/config/t-darwin-min-8
+new file mode 100644
+index 00000000000..9efc9dc0257
+--- /dev/null
++++ b/libgcc/config/t-darwin-min-8
+@@ -0,0 +1,3 @@
++# Support building with -mmacosx-version-min back to 10.8.
++DARWIN_MIN_LIB_VERSION = -mmacosx-version-min=10.8
++DARWIN_MIN_CRT_VERSION = -mmacosx-version-min=10.8
 diff --git a/libgcc/config/t-slibgcc-darwin b/libgcc/config/t-slibgcc-darwin
 index a8f69666a82..cb0cbbdb1c5 100644
 --- a/libgcc/config/t-slibgcc-darwin
