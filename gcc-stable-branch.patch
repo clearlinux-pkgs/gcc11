@@ -67,7 +67,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (392):
+GCC Administrator (393):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -859,11 +860,12 @@ Max Filippov (2):
       gcc: xtensa: fix PR target/105879
       gcc: fix PR rtl-optimization/107482
 
-Michael Meissner (4):
+Michael Meissner (5):
       rs6000: Ignore fusion option flags for inlining test [PR102059]
       [BACKPORT] Disable generating load/store vector pairs for block copies.
       Do not enable -mblock-ops-vector-pair.
       Backport from master
+      Do not generate vmaddfp and vnmsubfp
 
 Mikael Morin (3):
       fortran: Move the clobber generation code
@@ -2707,10 +2709,17 @@ index f628d2eafc5..0a47c95bb14 100644
 -11.3.0
 +11.3.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..0d3fcd24265 100644
+index a0587d18824..468378f69bf 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,2021 @@
+@@ -1,3 +1,2028 @@
++2023-05-22   Michael Meissner  <meissner@linux.ibm.com>
++
++	PR target/70243
++	* config/rs6000/vsx.md (vsx_fmav4sf4): Do not generate vmaddfp.  Back
++	port from master 04/10/2023.
++	(vsx_nfmsv4sf4): Do not generate vnmsubfp.
++
 +2023-05-16  Simon Wright  <simon@pushface.org>
 +
 +	Backported from master:
@@ -12137,7 +12146,7 @@ index 20b8ba1666f..d4f81abce1d 100644
  
  ;; Same size conversions
 diff --git a/gcc/config/rs6000/vsx.md b/gcc/config/rs6000/vsx.md
-index f2260badf70..bb44109c7bc 100644
+index f2260badf70..e7d40cb3cf9 100644
 --- a/gcc/config/rs6000/vsx.md
 +++ b/gcc/config/rs6000/vsx.md
 @@ -1145,10 +1145,10 @@
@@ -12153,7 +12162,63 @@ index f2260badf70..bb44109c7bc 100644
  
    else if (<MODE>mode == V8HImode)
      emit_insn (gen_altivec_vupkhsb  (op0, tmp));
-@@ -4892,27 +4892,9 @@
+@@ -1972,22 +1972,20 @@
+   "x<VSv>tsqrt<sd>p %0,%x1"
+   [(set_attr "type" "<VStype_simple>")])
+ 
+-;; Fused vector multiply/add instructions. Support the classical Altivec
+-;; versions of fma, which allows the target to be a separate register from the
+-;; 3 inputs.  Under VSX, the target must be either the addend or the first
+-;; multiply.
+-
++;; Fused vector multiply/add instructions. Do not generate the Altivec versions
++;; of fma (vmaddfp and vnmsubfp).  These instructions allows the target to be a
++;; separate register from the 3 inputs, but they have different rounding
++;; behaviors than the VSX instructions.
+ (define_insn "*vsx_fmav4sf4"
+-  [(set (match_operand:V4SF 0 "vsx_register_operand" "=wa,wa,v")
++  [(set (match_operand:V4SF 0 "vsx_register_operand" "=wa,wa")
+ 	(fma:V4SF
+-	  (match_operand:V4SF 1 "vsx_register_operand" "%wa,wa,v")
+-	  (match_operand:V4SF 2 "vsx_register_operand" "wa,0,v")
+-	  (match_operand:V4SF 3 "vsx_register_operand" "0,wa,v")))]
++	  (match_operand:V4SF 1 "vsx_register_operand" "%wa,wa")
++	  (match_operand:V4SF 2 "vsx_register_operand" "wa,0")
++	  (match_operand:V4SF 3 "vsx_register_operand" "0,wa")))]
+   "VECTOR_UNIT_VSX_P (V4SFmode)"
+   "@
+    xvmaddasp %x0,%x1,%x2
+-   xvmaddmsp %x0,%x1,%x3
+-   vmaddfp %0,%1,%2,%3"
++   xvmaddmsp %x0,%x1,%x3"
+   [(set_attr "type" "vecfloat")])
+ 
+ (define_insn "*vsx_fmav2df4"
+@@ -2029,18 +2027,17 @@
+   [(set_attr "type" "<VStype_mul>")])
+ 
+ (define_insn "*vsx_nfmsv4sf4"
+-  [(set (match_operand:V4SF 0 "vsx_register_operand" "=wa,wa,v")
++  [(set (match_operand:V4SF 0 "vsx_register_operand" "=wa,wa")
+ 	(neg:V4SF
+ 	 (fma:V4SF
+-	   (match_operand:V4SF 1 "vsx_register_operand" "%wa,wa,v")
+-	   (match_operand:V4SF 2 "vsx_register_operand" "wa,0,v")
++	   (match_operand:V4SF 1 "vsx_register_operand" "%wa,wa")
++	   (match_operand:V4SF 2 "vsx_register_operand" "wa,0")
+ 	   (neg:V4SF
+-	     (match_operand:V4SF 3 "vsx_register_operand" "0,wa,v")))))]
++	     (match_operand:V4SF 3 "vsx_register_operand" "0,wa")))))]
+   "VECTOR_UNIT_VSX_P (V4SFmode)"
+   "@
+    xvnmsubasp %x0,%x1,%x2
+-   xvnmsubmsp %x0,%x1,%x3
+-   vnmsubfp %0,%1,%2,%3"
++   xvnmsubmsp %x0,%x1,%x3"
+   [(set_attr "type" "vecfloat")])
+ 
+ (define_insn "*vsx_nfmsv2df4"
+@@ -4892,27 +4889,9 @@
   "vextsd2q %0,%1"
  [(set_attr "type" "vecexts")])
  
@@ -12182,7 +12247,7 @@ index f2260badf70..bb44109c7bc 100644
    [(set (match_operand:VSINT_84 0 "vsx_register_operand" "=v")
  	(unspec:VSINT_84
  	 [(match_operand:V16QI 1 "vsx_register_operand" "v")]
-@@ -4921,25 +4903,7 @@
+@@ -4921,25 +4900,7 @@
    "vextsb2<wd> %0,%1"
    [(set_attr "type" "vecexts")])
  
@@ -12209,7 +12274,7 @@ index f2260badf70..bb44109c7bc 100644
    [(set (match_operand:VSINT_84 0 "vsx_register_operand" "=v")
  	(unspec:VSINT_84
  	 [(match_operand:V8HI 1 "vsx_register_operand" "v")]
-@@ -4948,25 +4912,7 @@
+@@ -4948,25 +4909,7 @@
    "vextsh2<wd> %0,%1"
    [(set_attr "type" "vecexts")])
  
@@ -12236,7 +12301,7 @@ index f2260badf70..bb44109c7bc 100644
    [(set (match_operand:V2DI 0 "vsx_register_operand" "=v")
  	(unspec:V2DI [(match_operand:V4SI 1 "vsx_register_operand" "v")]
  		     UNSPEC_VSX_SIGN_EXTEND))]
-@@ -4974,24 +4920,6 @@
+@@ -4974,24 +4917,6 @@
    "vextsw2d %0,%1"
    [(set_attr "type" "vecexts")])
  
@@ -14126,10 +14191,95 @@ index 49f043ed29b..25a05978be9 100644
            gcc_cv_as_mllvm_x86_pad_for_align,,
            [-mllvm -x86-pad-for-align=false], [.text],,
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..26f43802d71 100644
+index 85c8fdd38cd..9ef295bf0ad 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,453 @@
+@@ -1,3 +1,538 @@
++2023-05-22  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2023-03-03  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/108998
++	* pt.c (el_data::skipped_trees): New data member.
++	(extract_locals_r): Push to skipped_trees any unevaluated
++	contexts that we skipped over.
++	(extract_local_specs): For the second walk, start from each
++	tree in skipped_trees.
++
++2023-05-22  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2022-12-15  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/100295
++	PR c++/107579
++	* pt.c (el_data::skip_unevaluated_operands): New data member.
++	(extract_locals_r): If skip_unevaluated_operands is true,
++	don't walk into unevaluated contexts.
++	(extract_local_specs): Walk the pattern twice, first with
++	skip_unevaluated_operands true followed by it set to false.
++
++2023-05-22  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2022-11-29  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/107864
++	* decl.c (function_requirements_equivalent_p): Don't check
++	DECL_TEMPLATE_SPECIALIZATION.
++	* pt.c (determine_specialization): Propagate constraints when
++	specializing a function template too.  Simplify by using
++	add_outermost_template_args.
++
++2023-05-22  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2022-11-03  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/107179
++	* constraint.cc (tsubst_requires_expr): Make sure we're not
++	deferring access checks.
++
++2023-05-22  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2022-03-30  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/100474
++	* constraint.cc (diagnose_trait_expr): Handle all remaining
++	traits appropriately.  Remove default case.
++
++2023-05-22  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2022-03-12  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/104527
++	* constraint.cc (normalize_atom): Set
++	ATOMIC_CONSTR_EXPR_FROM_CONCEPT_P appropriately.
++	(get_mapped_args):  Make static, adjust parameters.  Always
++	return a vector whose depth corresponds to the template depth of
++	the context of the atomic constraint expression.  Micro-optimize
++	by passing false as exact to safe_grow_cleared and by collapsing
++	a multi-level depth-one argument vector.
++	(satisfy_atom): Adjust call to get_mapped_args and
++	diagnose_atomic_constraint.
++	(diagnose_atomic_constraint): Replace map parameter with an args
++	parameter.
++	* cp-tree.h (ATOMIC_CONSTR_EXPR_FROM_CONCEPT_P): Define.
++	(get_mapped_args): Remove declaration.
++
++2023-05-22  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2022-01-28  Patrick Palka  <ppalka@redhat.com>
++		    Jason Merrill  <jason@redhat.com>
++
++	PR c++/92752
++	* typeck.c (build_ptrmemfunc): Cast a nullptr constant to the
++	unqualified pointer type not the qualified one.
++
 +2023-05-16  Iain Sandoe  <iain@sandoe.co.uk>
 +
 +	Backported from master:
@@ -21142,10 +21292,74 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..a7ce78c38f4 100644
+index 5fc23605244..016b75ea40e 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2228 @@
+@@ -1,3 +1,2292 @@
++2023-05-22   Michael Meissner  <meissner@linux.ibm.com>
++
++	PR target/70243
++	* gcc.target/powerpc/pr70243.c: New test.  Back port from master
++	04/10/2023.
++
++2023-05-22  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2023-03-03  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/108998
++	* g++.dg/cpp2a/lambda-generic11.C: New test.
++
++2023-05-22  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2022-12-15  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/100295
++	PR c++/107579
++	* g++.dg/cpp1z/constexpr-if-lambda5.C: New test.
++
++2023-05-22  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2022-11-29  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/107864
++	* g++.dg/concepts/explicit-spec1a.C: New test.
++
++2023-05-22  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2022-11-03  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/107179
++	* g++.dg/cpp2a/concepts-requires31.C: New test.
++
++2023-05-22  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2022-03-30  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/100474
++	* g++.dg/cpp2a/concepts-traits3.C: New test.
++
++2023-05-22  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2022-03-12  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/104527
++	* g++.dg/cpp2a/concepts-return-req4.C: New test.
++
++2023-05-22  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2022-01-28  Patrick Palka  <ppalka@redhat.com>
++		    Jason Merrill  <jason@redhat.com>
++
++	PR c++/92752
++	* g++.dg/warn/Wignored-qualifiers2.C: New test.
++
 +2023-05-20  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -32795,6 +33009,53 @@ index 00000000000..f02bac130cc
 +  return 0;
 +}
 +
+diff --git a/gcc/testsuite/gcc.target/powerpc/pr70243.c b/gcc/testsuite/gcc.target/powerpc/pr70243.c
+new file mode 100644
+index 00000000000..18a5ce78792
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/powerpc/pr70243.c
+@@ -0,0 +1,41 @@
++/* { dg-do compile */
++/* { dg-require-effective-target powerpc_vsx_ok } */
++/* { dg-options "-O2 -mvsx" } */
++
++/* PR 70423, Make sure we don't generate vmaddfp or vnmsubfp.  These
++   instructions have different rounding modes than the VSX instructions
++   xvmaddsp and xvnmsubsp.  These tests are written where the 3 inputs and
++   target are all separate registers.  Because vmaddfp and vnmsubfp are no
++   longer generated the compiler will have to generate an xsmaddsp or xsnmsubsp
++   instruction followed by a move operation.  */
++
++#include <altivec.h>
++
++vector float
++do_add1 (vector float dummy, vector float a, vector float b, vector float c)
++{
++  return (a * b) + c;
++}
++
++vector float
++do_nsub1 (vector float dummy, vector float a, vector float b, vector float c)
++{
++  return -((a * b) - c);
++}
++
++vector float
++do_add2 (vector float dummy, vector float a, vector float b, vector float c)
++{
++  return vec_madd (a, b, c);
++}
++
++vector float
++do_nsub2 (vector float dummy, vector float a, vector float b, vector float c)
++{
++  return vec_nmsub (a, b, c);
++}
++
++/* { dg-final { scan-assembler     {\mxvmadd[am]sp\M}  } } */
++/* { dg-final { scan-assembler     {\mxvnmsub[am]sp\M} } } */
++/* { dg-final { scan-assembler-not {\mvmaddfp\M}       } } */
++/* { dg-final { scan-assembler-not {\mvnmsubfp\M}      } } */
 diff --git a/gcc/testsuite/gcc.target/powerpc/pr96072.c b/gcc/testsuite/gcc.target/powerpc/pr96072.c
 new file mode 100644
 index 00000000000..10341c91d2f
@@ -39226,10 +39487,23 @@ index 025e575b5bc..5743516c046 100644
    unsigned IOCTL_GIO_FONT = GIO_FONT;
    unsigned IOCTL_GIO_UNIMAP = GIO_UNIMAP;
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..7d8156a424b 100644
+index 85e04c45288..69b58cdeadf 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,1411 @@
+@@ -1,3 +1,1424 @@
++2023-05-22  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2023-03-14  Patrick Palka  <ppalka@redhat.com>
++
++	* include/bits/stl_iterator.h (move_iterator::_S_iter_concept):
++	Define.
++	(__cpp_lib_move_iterator_concept): Define for C++20.
++	(move_iterator::iterator_concept): Strengthen as per P2520R0.
++	* include/std/version (__cpp_lib_move_iterator_concept): Define
++	for C++20.
++	* testsuite/24_iterators/move_iterator/p2520r0.cc: New test.
++
 +2023-05-16  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backported from master:
