@@ -67,7 +67,10 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (396):
+GCC Administrator (399):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -555,7 +558,7 @@ Ian Lance Taylor (2):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
       syscall: add prlimit
 
-Jakub Jelinek (81):
+Jakub Jelinek (83):
       emit-rtl: Fix -fcompare-debug bug with label references in debug insns [PR105203]
       sparc: Preserve ORIGINAL_REGNO in epilogue_renumber [PR105257]
       rtlanal: Fix up replace_rtx [PR105333]
@@ -637,6 +640,8 @@ Jakub Jelinek (81):
       reassoc: Fix up another ICE with returns_twice call [PR109410]
       tree-ssa-ccp, wide-int: Fix up handling of [LR]ROTATE_EXPR in bitwise ccp [PR109778]
       testsuite: Add further testcase for already fixed PR [PR109778]
+      Update ChangeLog and version files for release
+      Bump BASE-VER
 
 Jan Hubicka (2):
       Fix modref_tree::remap_params
@@ -1095,10 +1100,14 @@ liuhongt (3):
       x86: Add a new option -mdaz-ftz to enable FTZ and DAZ flags in MXCSR.
 
 diff --git a/ChangeLog b/ChangeLog
-index f612f0c1c5b..e0dd23c5c06 100644
+index f612f0c1c5b..48d69d2bf1c 100644
 --- a/ChangeLog
 +++ b/ChangeLog
-@@ -1,3 +1,11 @@
+@@ -1,3 +1,15 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
 +2023-05-16  Iain Sandoe  <iain@sandoe.co.uk>
 +
 +	Backported from master:
@@ -1111,10 +1120,14 @@ index f612f0c1c5b..e0dd23c5c06 100644
  
  	* GCC 11.3.0 released.
 diff --git a/c++tools/ChangeLog b/c++tools/ChangeLog
-index 0ccbd443fe7..4723804d438 100644
+index 0ccbd443fe7..46505bf853b 100644
 --- a/c++tools/ChangeLog
 +++ b/c++tools/ChangeLog
-@@ -1,3 +1,20 @@
+@@ -1,3 +1,24 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
 +2023-05-18  Iain Sandoe  <iain@sandoe.co.uk>
 +
 +	Backported from master:
@@ -2353,6 +2366,18 @@ index 6ba63fa8ed4..ebc1efbda94 100644
  
  /* Exploded on a signal.  */
  
+diff --git a/config/ChangeLog b/config/ChangeLog
+index f31a9d0be66..28b8a737fb3 100644
+--- a/config/ChangeLog
++++ b/config/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/configure b/configure
 index e218a19e333..74775c31c58 100755
 --- a/configure
@@ -2397,11 +2422,63 @@ index 7e8e628b325..3613860460e 100644
    x86_64-*-darwin* | aarch64-*-darwin*) host_shared=yes ;;
    *) host_shared=no ;;
   esac])
+diff --git a/contrib/ChangeLog b/contrib/ChangeLog
+index f8ba1872bd6..73ecfe5ddc7 100644
+--- a/contrib/ChangeLog
++++ b/contrib/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
+diff --git a/contrib/header-tools/ChangeLog b/contrib/header-tools/ChangeLog
+index 20964349a91..c6bf489533e 100644
+--- a/contrib/header-tools/ChangeLog
++++ b/contrib/header-tools/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
+diff --git a/contrib/reghunt/ChangeLog b/contrib/reghunt/ChangeLog
+index 1fbad2ead71..8c438a39a11 100644
+--- a/contrib/reghunt/ChangeLog
++++ b/contrib/reghunt/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
+diff --git a/contrib/regression/ChangeLog b/contrib/regression/ChangeLog
+index e1fab595ec4..5412df7fab5 100644
+--- a/contrib/regression/ChangeLog
++++ b/contrib/regression/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/fixincludes/ChangeLog b/fixincludes/ChangeLog
-index 0d936806ea0..037f291a328 100644
+index 0d936806ea0..9afb9b3031f 100644
 --- a/fixincludes/ChangeLog
 +++ b/fixincludes/ChangeLog
-@@ -1,3 +1,23 @@
+@@ -1,3 +1,27 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
 +2023-05-16  Iain Sandoe  <iain@sandoe.co.uk>
 +
 +	Backported from master:
@@ -2719,17 +2796,21 @@ index 491c75da6e5..38381bacb2d 100644
  #  define _iob __iob
  
 diff --git a/gcc/BASE-VER b/gcc/BASE-VER
-index f628d2eafc5..0a47c95bb14 100644
+index f628d2eafc5..a6e5b12f92f 100644
 --- a/gcc/BASE-VER
 +++ b/gcc/BASE-VER
 @@ -1 +1 @@
 -11.3.0
-+11.3.1
++11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..468378f69bf 100644
+index a0587d18824..326bcd31a3a 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,2028 @@
+@@ -1,3 +1,2032 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
 +2023-05-22   Michael Meissner  <meissner@linux.ibm.com>
 +
 +	PR target/70243
@@ -4758,6 +4839,18 @@ index a0587d18824..468378f69bf 100644
  2022-04-21  Release Manager
  
  	* GCC 11.3.0 released.
+diff --git a/gcc/ada/ChangeLog b/gcc/ada/ChangeLog
+index 9c36606130e..e14eb1cdf63 100644
+--- a/gcc/ada/ChangeLog
++++ b/gcc/ada/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/gcc/alias.c b/gcc/alias.c
 index 69e1eb89ac6..ba4aa4dc8d9 100644
 --- a/gcc/alias.c
@@ -4796,10 +4889,14 @@ index f427698a8e1..f38da75e040 100644
  /* This alias set can be used to force a memory to conflict with all
     other memories, creating a barrier across which no memory reference
 diff --git a/gcc/analyzer/ChangeLog b/gcc/analyzer/ChangeLog
-index 7ae3901445e..a051997909c 100644
+index 7ae3901445e..f3ca1866d56 100644
 --- a/gcc/analyzer/ChangeLog
 +++ b/gcc/analyzer/ChangeLog
-@@ -1,3 +1,20 @@
+@@ -1,3 +1,24 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
 +2022-04-28  David Malcolm  <dmalcolm@redhat.com>
 +
 +	PR analyzer/105365
@@ -4990,6 +5087,18 @@ index 58d585d8466..cde14eb3244 100644
  		    }
  		  else
  		    {
+diff --git a/gcc/brig/ChangeLog b/gcc/brig/ChangeLog
+index 840215c790b..77ce0c04a78 100644
+--- a/gcc/brig/ChangeLog
++++ b/gcc/brig/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/gcc/builtins.c b/gcc/builtins.c
 index 64f4999ab07..627a89b3c45 100644
 --- a/gcc/builtins.c
@@ -5030,10 +5139,14 @@ index 64f4999ab07..627a89b3c45 100644
    set_mem_alias_set (mem, 0);
    return mem;
 diff --git a/gcc/c-family/ChangeLog b/gcc/c-family/ChangeLog
-index dff48ba4655..98d82f55b15 100644
+index dff48ba4655..d781d0f18ca 100644
 --- a/gcc/c-family/ChangeLog
 +++ b/gcc/c-family/ChangeLog
-@@ -1,3 +1,61 @@
+@@ -1,3 +1,65 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
 +2023-05-02  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -5282,10 +5395,14 @@ index ac9a64108ec..3b85dd1aff8 100644
  		    "comparison of promoted bitwise complement "
  		    "of an unsigned value with unsigned");
 diff --git a/gcc/c/ChangeLog b/gcc/c/ChangeLog
-index 8d0dffcaa10..2e238018890 100644
+index 8d0dffcaa10..c6a2e86aa3f 100644
 --- a/gcc/c/ChangeLog
 +++ b/gcc/c/ChangeLog
-@@ -1,3 +1,31 @@
+@@ -1,3 +1,35 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
 +2022-11-04  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -14208,10 +14325,14 @@ index 49f043ed29b..25a05978be9 100644
            gcc_cv_as_mllvm_x86_pad_for_align,,
            [-mllvm -x86-pad-for-align=false], [.text],,
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..9ef295bf0ad 100644
+index 85c8fdd38cd..2592e347b1b 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,538 @@
+@@ -1,3 +1,542 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
 +2023-05-22  Patrick Palka  <ppalka@redhat.com>
 +
 +	Backported from master:
@@ -16618,10 +16739,14 @@ index af112fd0985..14478eec238 100644
  extern rtx cselib_expand_value_rtx (rtx, bitmap, int);
  typedef rtx (*cselib_expand_callback)(rtx, bitmap, int, void *);
 diff --git a/gcc/d/ChangeLog b/gcc/d/ChangeLog
-index 6021ffdbf78..22d1be907aa 100644
+index 6021ffdbf78..4d0ad3a0dde 100644
 --- a/gcc/d/ChangeLog
 +++ b/gcc/d/ChangeLog
-@@ -1,3 +1,110 @@
+@@ -1,3 +1,114 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
 +2023-03-14  Iain Buclaw  <ibuclaw@gdcproject.org>
 +
 +	Backported from master:
@@ -17705,10 +17830,14 @@ index 70c5b3886ef..5b4053df520 100644
  
        if ((tem = fold_truth_andor (loc, code, type, arg0, arg1, op0, op1))
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..78cddcb8b74 100644
+index ee1c7bb4b31..16ab8effecc 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,526 @@
+@@ -1,3 +1,530 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
 +2023-05-20  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -20097,6 +20226,18 @@ index ad37f20afaa..cfaa2179bb6 100644
      }
  
    if (TREE_CODE (ref) == COMPONENT_REF)
+diff --git a/gcc/go/ChangeLog b/gcc/go/ChangeLog
+index aa786cc1ef0..c801872ebd3 100644
+--- a/gcc/go/ChangeLog
++++ b/gcc/go/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/gcc/ifcvt.c b/gcc/ifcvt.c
 index 0439a8aacff..367d5c25c56 100644
 --- a/gcc/ifcvt.c
@@ -20202,6 +20343,18 @@ index b93588d8a9f..ad40506d2a9 100644
    };
  
    int max_regno_before_rm = max_reg_num ();
+diff --git a/gcc/jit/ChangeLog b/gcc/jit/ChangeLog
+index a6488d7c1db..8255ddde21f 100644
+--- a/gcc/jit/ChangeLog
++++ b/gcc/jit/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/gcc/loop-invariant.c b/gcc/loop-invariant.c
 index 633d35b1205..a3f2c0e8c93 100644
 --- a/gcc/loop-invariant.c
@@ -20414,6 +20567,18 @@ index 03a5922f8ea..038784ca2dc 100644
        if (parallel)
  	{
  	  makefile = make_temp_file (".mk");
+diff --git a/gcc/lto/ChangeLog b/gcc/lto/ChangeLog
+index 0a1fa489549..fe5c2a2123e 100644
+--- a/gcc/lto/ChangeLog
++++ b/gcc/lto/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/gcc/match.pd b/gcc/match.pd
 index e89601c0c14..91a3762e320 100644
 --- a/gcc/match.pd
@@ -20441,6 +20606,30 @@ index e89601c0c14..91a3762e320 100644
  	&& wi::leu_p (wi::to_wide (@rpos) + wi::to_wide (@rsize),
  		      wi::to_wide (@ipos) + isize))
      (BIT_FIELD_REF @1 @rsize { wide_int_to_tree (bitsizetype,
+diff --git a/gcc/objc/ChangeLog b/gcc/objc/ChangeLog
+index b3758fad724..789ae00d665 100644
+--- a/gcc/objc/ChangeLog
++++ b/gcc/objc/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
+diff --git a/gcc/objcp/ChangeLog b/gcc/objcp/ChangeLog
+index 5654106fb88..66c468bd675 100644
+--- a/gcc/objcp/ChangeLog
++++ b/gcc/objcp/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/gcc/omp-expand.c b/gcc/omp-expand.c
 index dc797f95154..72b0551b312 100644
 --- a/gcc/omp-expand.c
@@ -20721,6 +20910,18 @@ index 00000000000..98ea2579962
 +};
 +
 +#endif /* GCC_JOBSERVER_H */
+diff --git a/gcc/po/ChangeLog b/gcc/po/ChangeLog
+index a1e2b6802c2..d052046ac4b 100644
+--- a/gcc/po/ChangeLog
++++ b/gcc/po/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/gcc/postreload.c b/gcc/postreload.c
 index 60a622dbaf3..ed5f54aaeb0 100644
 --- a/gcc/postreload.c
@@ -21309,10 +21510,14 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..016b75ea40e 100644
+index 5fc23605244..eb6383443fa 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2292 @@
+@@ -1,3 +1,2296 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
 +2023-05-22   Michael Meissner  <meissner@linux.ibm.com>
 +
 +	PR target/70243
@@ -37313,10 +37518,14 @@ index 19bf65d999c..84c8fa36fb8 100644
  }
  
 diff --git a/gnattools/ChangeLog b/gnattools/ChangeLog
-index b57a967f2e2..5e145d6f99d 100644
+index b57a967f2e2..d30846dcb67 100644
 --- a/gnattools/ChangeLog
 +++ b/gnattools/ChangeLog
-@@ -1,3 +1,9 @@
+@@ -1,3 +1,13 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
 +2023-04-26  Eric Botcazou  <ebotcazou@adacore.com>
 +
 +	* configure.ac (TOOLS_TARGET_PAIRS): Remove obsolete settings.
@@ -37508,11 +37717,63 @@ index 40d015ce8b0..38a28b6ee62 100644
  # From user or toplevel makefile.
  AC_SUBST(ADA_CFLAGS)
  
+diff --git a/gotools/ChangeLog b/gotools/ChangeLog
+index f1c352d35c7..73ad23c091a 100644
+--- a/gotools/ChangeLog
++++ b/gotools/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
+diff --git a/include/ChangeLog b/include/ChangeLog
+index a3acc4b0ce1..3ca8a3f08de 100644
+--- a/include/ChangeLog
++++ b/include/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
+diff --git a/intl/ChangeLog b/intl/ChangeLog
+index 5cde4d88d86..e9f9f2498be 100644
+--- a/intl/ChangeLog
++++ b/intl/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
+diff --git a/libada/ChangeLog b/libada/ChangeLog
+index 9d825e942b4..59fd3c372eb 100644
+--- a/libada/ChangeLog
++++ b/libada/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/libatomic/ChangeLog b/libatomic/ChangeLog
-index ae629bf4079..927b378ab47 100644
+index ae629bf4079..d30915d5a95 100644
 --- a/libatomic/ChangeLog
 +++ b/libatomic/ChangeLog
-@@ -1,3 +1,21 @@
+@@ -1,3 +1,25 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
 +2023-03-03  Stefan Schulze Frielinghaus  <stefansf@linux.ibm.com>
 +
 +	Backported from master:
@@ -37747,11 +38008,51 @@ index 36e231c68cc..c9b474bda79 100644
  	FEAT1_REGISTER &= ~bit_AVX;
      }
  #endif
+diff --git a/libbacktrace/ChangeLog b/libbacktrace/ChangeLog
+index 25326ce0ef1..7f5c0dd0b79 100644
+--- a/libbacktrace/ChangeLog
++++ b/libbacktrace/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
+diff --git a/libcc1/ChangeLog b/libcc1/ChangeLog
+index 56402bc4ca1..a28d9c7223d 100644
+--- a/libcc1/ChangeLog
++++ b/libcc1/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
+diff --git a/libcody/ChangeLog b/libcody/ChangeLog
+index 35839598dfa..62eccb3888b 100644
+--- a/libcody/ChangeLog
++++ b/libcody/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/libcpp/ChangeLog b/libcpp/ChangeLog
-index 3f63896333e..b7feb1f443c 100644
+index 3f63896333e..8edf621d50d 100644
 --- a/libcpp/ChangeLog
 +++ b/libcpp/ChangeLog
-@@ -1,3 +1,22 @@
+@@ -1,3 +1,26 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
 +2022-08-02  Lewis Hyatt  <lhyatt@gmail.com>
 +
 +	Backported from master:
@@ -37801,11 +38102,51 @@ index dd5611dce0e..57db654ed31 100644
  	default:
  	  if ((int) op.op <= (int) CPP_EQ || (int) op.op >= (int) CPP_PLUS_EQ)
  	    SYNTAX_ERROR2_AT (op.loc,
+diff --git a/libcpp/po/ChangeLog b/libcpp/po/ChangeLog
+index 61c3a4c5a7c..009d268cab6 100644
+--- a/libcpp/po/ChangeLog
++++ b/libcpp/po/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
+diff --git a/libdecnumber/ChangeLog b/libdecnumber/ChangeLog
+index 0768a6ee414..ea72f994e33 100644
+--- a/libdecnumber/ChangeLog
++++ b/libdecnumber/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
+diff --git a/libffi/ChangeLog b/libffi/ChangeLog
+index bed6dadc0b1..1ee2653e366 100644
+--- a/libffi/ChangeLog
++++ b/libffi/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/libgcc/ChangeLog b/libgcc/ChangeLog
-index ceaa3e21b19..9f0f6ac559d 100644
+index ceaa3e21b19..df6eabe6bf7 100644
 --- a/libgcc/ChangeLog
 +++ b/libgcc/ChangeLog
-@@ -1,3 +1,34 @@
+@@ -1,3 +1,38 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
 +2023-05-21  Iain Sandoe  <iain@sandoe.co.uk>
 +
 +	Backported from master:
@@ -38000,10 +38341,14 @@ index 88d2d84d100..6ec6df79392 100644
  LSE_OBJS := $(O0) $(O1)
  
 diff --git a/libgcc/config/avr/libf7/ChangeLog b/libgcc/config/avr/libf7/ChangeLog
-index 7e06f52d415..9081ecd3bd1 100644
+index 7e06f52d415..786c2032ffc 100644
 --- a/libgcc/config/avr/libf7/ChangeLog
 +++ b/libgcc/config/avr/libf7/ChangeLog
-@@ -1,3 +1,12 @@
+@@ -1,3 +1,16 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
 +2022-09-19  Georg-Johann Lay  <avr@gjlay.de>
 +
 +	Backported from master:
@@ -38140,6 +38485,18 @@ index 882ec3a2372..b08396c5f1b 100644
 -  return NULL;
 +  return (void *) 0;
  }
+diff --git a/libgcc/config/libbid/ChangeLog b/libgcc/config/libbid/ChangeLog
+index 339bb243843..f78b4c72220 100644
+--- a/libgcc/config/libbid/ChangeLog
++++ b/libgcc/config/libbid/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/libgcc/config/t-darwin b/libgcc/config/t-darwin
 index 299d26c2c96..a3bb70c6a0a 100644
 --- a/libgcc/config/t-darwin
@@ -38243,6 +38600,18 @@ index a8f69666a82..cb0cbbdb1c5 100644
  
  else
  
+diff --git a/libgfortran/ChangeLog b/libgfortran/ChangeLog
+index a78ef862c96..cd63aae6c72 100644
+--- a/libgfortran/ChangeLog
++++ b/libgfortran/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/libgo/go/syscall/libcall_linux.go b/libgo/go/syscall/libcall_linux.go
 index 96974bd3269..a39f408151a 100644
 --- a/libgo/go/syscall/libcall_linux.go
@@ -38277,10 +38646,14 @@ index 8ce061e2f5f..336a5983750 100644
  #include <linux/reboot.h>
  #endif
 diff --git a/libgomp/ChangeLog b/libgomp/ChangeLog
-index 0fa2757d939..93961eb7d26 100644
+index 0fa2757d939..f214dbd9617 100644
 --- a/libgomp/ChangeLog
 +++ b/libgomp/ChangeLog
-@@ -1,3 +1,65 @@
+@@ -1,3 +1,69 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
 +2023-05-02  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -38858,11 +39231,27 @@ index 00000000000..b2a5c314685
 +!$omp target exit data map(delete: cp, p, a)
 +deallocate(p,a)
 +end
+diff --git a/libhsail-rt/ChangeLog b/libhsail-rt/ChangeLog
+index 8bca42d7614..07db466829c 100644
+--- a/libhsail-rt/ChangeLog
++++ b/libhsail-rt/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/libiberty/ChangeLog b/libiberty/ChangeLog
-index e150febed85..03061688beb 100644
+index e150febed85..4a80d292c07 100644
 --- a/libiberty/ChangeLog
 +++ b/libiberty/ChangeLog
-@@ -1,3 +1,26 @@
+@@ -1,3 +1,30 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
 +2023-05-02  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -39014,11 +39403,51 @@ index c6f68495a33..49209e8229f 100644
      }
    return (0);
  }
+diff --git a/libitm/ChangeLog b/libitm/ChangeLog
+index c29f72f1879..f9ba399fbb9 100644
+--- a/libitm/ChangeLog
++++ b/libitm/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
+diff --git a/libobjc/ChangeLog b/libobjc/ChangeLog
+index 19816bdde4a..2f5716dc5ae 100644
+--- a/libobjc/ChangeLog
++++ b/libobjc/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
+diff --git a/liboffloadmic/ChangeLog b/liboffloadmic/ChangeLog
+index 5e1f76a461d..36c5bdff4d9 100644
+--- a/liboffloadmic/ChangeLog
++++ b/liboffloadmic/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/libphobos/ChangeLog b/libphobos/ChangeLog
-index acd0b312ef2..9656a808272 100644
+index acd0b312ef2..6682b44d2a8 100644
 --- a/libphobos/ChangeLog
 +++ b/libphobos/ChangeLog
-@@ -1,3 +1,40 @@
+@@ -1,3 +1,44 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
 +2022-12-13  Iain Buclaw  <ibuclaw@gdcproject.org>
 +
 +	* libdruntime/core/stdc/fenv.d: Compile in MIPS uClibc bindings on
@@ -39283,10 +39712,14 @@ index bafd5ad4502..8e2f1eefd5b 100755
        echo ${GDCLDFLAGS}
        ;;
 diff --git a/libquadmath/ChangeLog b/libquadmath/ChangeLog
-index 6f7c20c430d..a178f78ed87 100644
+index 6f7c20c430d..8733d230628 100644
 --- a/libquadmath/ChangeLog
 +++ b/libquadmath/ChangeLog
-@@ -1,3 +1,18 @@
+@@ -1,3 +1,22 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
 +2023-05-02  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -39411,10 +39844,14 @@ index 0b0e85a3cf7..38602841cd7 100644
  	  return round_and_return (retval, exponent - 1, negative,
  				   quot, BITS_PER_MP_LIMB - 1 - used,
 diff --git a/libsanitizer/ChangeLog b/libsanitizer/ChangeLog
-index ded990acbcc..b9b96056a16 100644
+index ded990acbcc..8085bec0af0 100644
 --- a/libsanitizer/ChangeLog
 +++ b/libsanitizer/ChangeLog
-@@ -1,3 +1,20 @@
+@@ -1,3 +1,24 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
 +2023-05-16  Iain Sandoe  <iain@sandoe.co.uk>
 +
 +	Backported from master:
@@ -39503,11 +39940,27 @@ index 025e575b5bc..5743516c046 100644
    unsigned IOCTL_GIO_CMAP = GIO_CMAP;
    unsigned IOCTL_GIO_FONT = GIO_FONT;
    unsigned IOCTL_GIO_UNIMAP = GIO_UNIMAP;
+diff --git a/libssp/ChangeLog b/libssp/ChangeLog
+index 72119b01c69..2cc64a39649 100644
+--- a/libssp/ChangeLog
++++ b/libssp/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..da592314109 100644
+index 85e04c45288..19ca5d7af1d 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,1653 @@
+@@ -1,3 +1,1657 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
 +2023-05-25  Matthias Kretz  <m.kretz@gsi.de>
 +
 +	Backported from master:
@@ -58444,3 +58897,51 @@ index d3374309034..a61f0095b06 100644
 +  static_assert( hms.seconds() == 30s );
 +  static_assert( hms.subseconds() == 1ms );
  }
+diff --git a/libvtv/ChangeLog b/libvtv/ChangeLog
+index 645e54ac68a..461c60cc6a6 100644
+--- a/libvtv/ChangeLog
++++ b/libvtv/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
+diff --git a/lto-plugin/ChangeLog b/lto-plugin/ChangeLog
+index 8f6a82dcb30..c2b293754b8 100644
+--- a/lto-plugin/ChangeLog
++++ b/lto-plugin/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
+diff --git a/maintainer-scripts/ChangeLog b/maintainer-scripts/ChangeLog
+index fcc1d00c457..87162feab3a 100644
+--- a/maintainer-scripts/ChangeLog
++++ b/maintainer-scripts/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
+diff --git a/zlib/ChangeLog b/zlib/ChangeLog
+index 3fe844981d3..f58f57983c1 100644
+--- a/zlib/ChangeLog
++++ b/zlib/ChangeLog
+@@ -1,3 +1,7 @@
++2023-05-29  Release Manager
++
++	* GCC 11.4.0 released.
++
+ 2022-04-21  Release Manager
+ 
+ 	* GCC 11.3.0 released.
