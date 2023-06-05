@@ -67,7 +67,10 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (403):
+GCC Administrator (406):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1062,9 +1065,10 @@ Stefan Schulze Frielinghaus (2):
       IBM zSystems: Fix function_ok_for_sibcall [PR106355]
       s390: libatomic: Fix 16 byte atomic {cas,load,store}
 
-Steve Kargl (2):
+Steve Kargl (3):
       Fortran: do not generate conflicting results under -ff2c [PR104313]
       Fortran: error handling of global entity appearing in COMMON block [PR103259]
+      Fortran: fix diagnostics for SELECT RANK [PR100607]
 
 Surya Kumari Jangala (1):
       regrename: Fix -fcompare-debug issue in check_new_reg_p [PR105041]
@@ -2814,10 +2818,30 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..9cb4f2c0b34 100644
+index a0587d18824..ef6969157c2 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,2040 @@
+@@ -1,3 +1,2060 @@
++2023-06-02  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2023-05-21  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/109505
++	* match.pd ((x | CST1) & CST2 -> (x & CST2) | (CST1 & CST2),
++	Combine successive equal operations with constants,
++	(A +- CST1) +- CST2 -> A + CST3, (CST1 - A) +- CST2 -> CST3 - A,
++	CST1 - (CST2 - A) -> CST3 + A): Use ! on ops with 2 CONSTANT_CLASS_P
++	operands.
++
++2023-06-02  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/109505
++	* doc/match-and-simplify.texi: Amend ! documentation.
++	* genmatch.c (expr::gen_transform): Code-generate ! support
++	for GENERIC.
++	(parser::parse_expr): Allow ! for GENERIC.
++
 +2023-06-01  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backported from master:
@@ -17875,10 +17899,20 @@ index 70c5b3886ef..5b4053df520 100644
  
        if ((tem = fold_truth_andor (loc, code, type, arg0, arg1, op0, op1))
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..16ab8effecc 100644
+index ee1c7bb4b31..025fbfe5e93 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,530 @@
+@@ -1,3 +1,540 @@
++2023-06-04  Steve Kargl  <kargl@gcc.gnu.org>
++
++	Backported from master:
++	2023-06-02  Steve Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/100607
++	* resolve.c (resolve_select_rank): Remove duplicate error.
++	(resolve_fl_var_and_proc): Prevent NULL pointer dereference and
++	suppress error message for temporary.
++
 +2023-05-29  Release Manager
 +
 +	* GCC 11.4.0 released.
@@ -18880,7 +18914,7 @@ index 04501f44ef8..23602446b61 100644
  
      case ST_FORMAT:
 diff --git a/gcc/fortran/resolve.c b/gcc/fortran/resolve.c
-index a26a90993a7..155005d30bb 100644
+index a26a90993a7..bc38444ea75 100644
 --- a/gcc/fortran/resolve.c
 +++ b/gcc/fortran/resolve.c
 @@ -953,9 +953,15 @@ resolve_common_vars (gfc_common_head *common_block, bool named_common)
@@ -18976,7 +19010,31 @@ index a26a90993a7..155005d30bb 100644
  	    && sym == c->ts.u.derived)
  	  continue;
  
-@@ -13510,6 +13516,16 @@ check_formal:
+@@ -9858,11 +9864,6 @@ resolve_select_rank (gfc_code *code, gfc_namespace *old_ns)
+ 			       || gfc_expr_attr (code->expr1).pointer))
+ 	gfc_error ("RANK (*) at %L cannot be used with the pointer or "
+ 		   "allocatable selector at %L", &c->where, &code->expr1->where);
+-
+-      if (case_value == -1 && (gfc_expr_attr (code->expr1).allocatable
+-			       || gfc_expr_attr (code->expr1).pointer))
+-	gfc_error ("RANK (*) at %L cannot be used with the pointer or "
+-		   "allocatable selector at %L", &c->where, &code->expr1->where);
+     }
+ 
+   /* Add EXEC_SELECT to switch on rank.  */
+@@ -12800,7 +12801,10 @@ resolve_fl_var_and_proc (gfc_symbol *sym, int mp_flag)
+ 
+       if (allocatable)
+ 	{
+-	  if (dimension && as->type != AS_ASSUMED_RANK)
++	  if (dimension
++	      && as
++	      && as->type != AS_ASSUMED_RANK
++	      && !sym->attr.select_rank_temporary)
+ 	    {
+ 	      gfc_error ("Allocatable array %qs at %L must have a deferred "
+ 			 "shape or assumed rank", sym->name, &sym->declared_at);
+@@ -13510,6 +13514,16 @@ check_formal:
  	    }
  	}
      }
@@ -18993,7 +19051,7 @@ index a26a90993a7..155005d30bb 100644
    return true;
  }
  
-@@ -14741,6 +14757,19 @@ resolve_component (gfc_component *c, gfc_symbol *sym)
+@@ -14741,6 +14755,19 @@ resolve_component (gfc_component *c, gfc_symbol *sym)
                      c->ts.u.cl->length ? &c->ts.u.cl->length->where : &c->loc);
           return false;
         }
@@ -19013,7 +19071,7 @@ index a26a90993a7..155005d30bb 100644
      }
  
    if (c->ts.type == BT_CHARACTER && c->ts.deferred
-@@ -15759,8 +15788,8 @@ resolve_symbol (gfc_symbol *sym)
+@@ -15759,8 +15786,8 @@ resolve_symbol (gfc_symbol *sym)
  
        /* First, make sure the variable is declared at the
  	 module-level scope (J3/04-007, Section 15.3).	*/
@@ -19024,7 +19082,7 @@ index a26a90993a7..155005d30bb 100644
  	{
  	  gfc_error ("Variable %qs at %L cannot be BIND(C) because it "
  		     "is neither a COMMON block nor declared at the "
-@@ -17254,7 +17283,9 @@ resolve_fntype (gfc_namespace *ns)
+@@ -17254,7 +17281,9 @@ resolve_fntype (gfc_namespace *ns)
  	  }
        }
  
@@ -21656,10 +21714,26 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..eb6383443fa 100644
+index 5fc23605244..bc3755e7728 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2296 @@
+@@ -1,3 +1,2312 @@
++2023-06-04  Steve Kargl  <kargl@gcc.gnu.org>
++
++	Backported from master:
++	2023-06-02  Steve Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/100607
++	* gfortran.dg/select_rank_6.f90: New test.
++
++2023-06-02  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2023-05-21  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/109505
++	* gcc.target/aarch64/sve/pr109505.c: New test.
++
 +2023-05-29  Release Manager
 +
 +	* GCC 11.4.0 released.
@@ -35594,6 +35668,60 @@ index 00000000000..dfbef12bec0
 +  type(t2), save :: x
 +  associate (y => x%b)
 +  end associate
++end
+diff --git a/gcc/testsuite/gfortran.dg/select_rank_6.f90 b/gcc/testsuite/gfortran.dg/select_rank_6.f90
+new file mode 100644
+index 00000000000..d0121777bb5
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/select_rank_6.f90
+@@ -0,0 +1,48 @@
++! { dg-do compile }
++! PR fortran/100607 - fix diagnostics for SELECT RANK
++! Contributed by T.Burnus
++
++program p
++  implicit none
++  integer, allocatable :: A(:,:,:)
++
++  allocate(a(5:6,-2:2, 99:100))
++  call foo(a)
++  call bar(a)
++
++contains
++
++  subroutine foo(x)
++    integer, allocatable :: x(..)
++    if (rank(x) /= 3) stop 1
++    if (any (lbound(x) /= [5, -2, 99])) stop 2
++
++    select rank (x)
++    rank(3)
++      if (any (lbound(x) /= [5, -2, 99])) stop 3
++    end select
++
++    select rank (x) ! { dg-error "pointer or allocatable selector at .2." }
++    rank(*)         ! { dg-error "pointer or allocatable selector at .2." }
++      if (rank(x) /= 1) stop 4
++      if (lbound(x, 1) /= 1) stop 5
++    end select
++  end
++
++  subroutine bar(x)
++    integer :: x(..)
++    if (rank(x) /= 3) stop 6
++    if (any (lbound(x) /= 1)) stop 7
++
++    select rank (x)
++    rank(3)
++      if (any (lbound(x) /= 1)) stop 8
++    end select
++
++    select rank (x)
++    rank(*)
++      if (rank(x) /= 1) stop 9
++      if (lbound(x, 1) /= 1) stop 10
++    end select
++  end
 +end
 diff --git a/gcc/testsuite/gfortran.dg/set_exponent_1.f90 b/gcc/testsuite/gfortran.dg/set_exponent_1.f90
 new file mode 100644
