@@ -68,7 +68,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (413):
+GCC Administrator (414):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -2829,10 +2830,19 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..c8d120d5ea1 100644
+index a0587d18824..681673e844d 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,2082 @@
+@@ -1,3 +1,2091 @@
++2023-06-12  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2023-06-12  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/110200
++	* genmatch.c (expr::gen_transform): Put braces around
++	the if arm for the (convert ...) short-cut.
++
 +2023-06-09  Alex Coplan  <alex.coplan@arm.com>
 +
 +	Backported from master:
