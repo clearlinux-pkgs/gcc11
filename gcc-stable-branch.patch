@@ -68,7 +68,14 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (414):
+GCC Administrator (421):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -818,7 +825,7 @@ José Rui Faustino de Sousa (5):
       Fortran: Fix ICE and wrong code for assumed-rank arrays [PR100029, PR100040]
       Fortran: Add missing TKR initialization to class variables [PR100097, PR100098]
 
-Kewen Lin (10):
+Kewen Lin (12):
       testsuite: Skip pr105250.c for powerpc and s390 [PR105266]
       rs6000: Preserve REG_EH_REGION when replacing load/store [PR106091]
       rs6000/test: Fix empty TU in some cases of effective targets [PR106345]
@@ -829,6 +836,8 @@ Kewen Lin (10):
       rs6000/test: Adjust some test cases on partial vector [PR96373]
       rs6000: Fix vector_set_var_p9 by considering BE [PR108807]
       rs6000: Fix vector parity support [PR108699]
+      rs6000: Don't use TFmode for 128 bits fp constant in toc [PR110011]
+      rs6000: Guard __builtin_{un,}pack_vector_int128 with vsx [PR109932]
 
 Kewen.Lin (1):
       rs6000: Adjust mov optabs for opaque modes [PR103353]
@@ -11553,10 +11562,36 @@ index eab712fdfa6..4d7e14f312a 100644
  
  extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
 diff --git a/gcc/config/rs6000/rs6000-builtin.def b/gcc/config/rs6000/rs6000-builtin.def
-index 6270444ef70..b0f8c708698 100644
+index 6270444ef70..09098a70ff9 100644
 --- a/gcc/config/rs6000/rs6000-builtin.def
 +++ b/gcc/config/rs6000/rs6000-builtin.def
-@@ -2881,9 +2881,9 @@ BU_P9V_AV_1 (VCTZB,		"vctzb",		CONST,  ctzv16qi2)
+@@ -325,6 +325,14 @@
+ 		     | RS6000_BTC_SPECIAL),				\
+ 		    CODE_FOR_nothing)			/* ICODE */
+ 
++#define BU_VSX_MISC_2(ENUM, NAME, ATTR, ICODE)				\
++  RS6000_BUILTIN_2 (MISC_BUILTIN_ ## ENUM,		/* ENUM */	\
++		    "__builtin_" NAME,			/* NAME */	\
++		    RS6000_BTM_VSX,			/* MASK */	\
++		    (RS6000_BTC_ ## ATTR		/* ATTR */	\
++		     | RS6000_BTC_BINARY),				\
++		    CODE_FOR_ ## ICODE)			/* ICODE */
++
+ /* VSX overloaded builtin function macros.  */
+ #define BU_VSX_OVERLOAD_1(ENUM, NAME)					\
+   RS6000_BUILTIN_1 (VSX_BUILTIN_VEC_ ## ENUM,		/* ENUM */	\
+@@ -2843,8 +2851,8 @@ BU_LDBL128_2 (UNPACK_TF,	"unpack_longdouble",	CONST,	unpacktf)
+ BU_IBM128_2 (PACK_IF,		"pack_ibm128",		CONST,	packif)
+ BU_IBM128_2 (UNPACK_IF,		"unpack_ibm128",	CONST,	unpackif)
+ 
+-BU_P7_MISC_2 (PACK_V1TI,	"pack_vector_int128",	CONST,	packv1ti)
+-BU_P7_MISC_2 (UNPACK_V1TI,	"unpack_vector_int128",	CONST,	unpackv1ti)
++BU_VSX_MISC_2 (PACK_V1TI,	"pack_vector_int128",	CONST,	packv1ti)
++BU_VSX_MISC_2 (UNPACK_V1TI,	"unpack_vector_int128",	CONST,	unpackv1ti)
+ 
+ /* 2 argument DFP (Decimal Floating Point) functions added in ISA 3.0.  */
+ BU_P9_DFP_MISC_2 (TSTSFI_LT_DD, "dtstsfi_lt_dd", CONST, dfptstsfi_lt_dd)
+@@ -2881,9 +2889,9 @@ BU_P9V_AV_1 (VCTZB,		"vctzb",		CONST,  ctzv16qi2)
  BU_P9V_AV_1 (VCTZH,		"vctzh",		CONST,  ctzv8hi2)
  BU_P9V_AV_1 (VCTZW,		"vctzw",		CONST,  ctzv4si2)
  BU_P9V_AV_1 (VCTZD,		"vctzd",		CONST,  ctzv2di2)
@@ -11569,7 +11604,7 @@ index 6270444ef70..b0f8c708698 100644
  
  /* ISA 3.0 vector overloaded 1 argument functions.  */
  BU_P9V_OVERLOAD_1 (VCTZ,	"vctz")
-@@ -2910,11 +2910,11 @@ BU_P9_OVERLOAD_2 (CMPRB2,	"byte_in_either_range")
+@@ -2910,11 +2918,11 @@ BU_P9_OVERLOAD_2 (CMPRB2,	"byte_in_either_range")
  BU_P9_OVERLOAD_2 (CMPEQB,	"byte_in_set")
  
  
@@ -11586,7 +11621,7 @@ index 6270444ef70..b0f8c708698 100644
  
  /* Builtins for scalar instructions added in ISA 3.1 (power10).  */
  BU_P10V_AV_P (VCMPEQUT_P,	"vcmpequt_p",	CONST,	vector_eq_v1ti_p)
-@@ -2954,7 +2954,7 @@ BU_P10V_AV_2 (VNOR_V1TI,	"vnor_v1ti",	CONST,	norv1ti3)
+@@ -2954,7 +2962,7 @@ BU_P10V_AV_2 (VNOR_V1TI,	"vnor_v1ti",	CONST,	norv1ti3)
  BU_P10V_AV_2 (VCMPNET_P,	"vcmpnet_p",	CONST,	vector_ne_v1ti_p)
  BU_P10V_AV_2 (VCMPAET_P,	"vcmpaet_p",	CONST,	vector_ae_v1ti_p)
  
@@ -11689,7 +11724,7 @@ index a06a147c339..3ebfdc0b86f 100644
 +extern bool rs6000_opaque_type_invalid_use_p (gimple *);
  #endif  /* rs6000-protos.h */
 diff --git a/gcc/config/rs6000/rs6000.c b/gcc/config/rs6000/rs6000.c
-index 0421dc7adb3..c3854a931da 100644
+index 0421dc7adb3..ade91e213d4 100644
 --- a/gcc/config/rs6000/rs6000.c
 +++ b/gcc/config/rs6000/rs6000.c
 @@ -4147,14 +4147,6 @@ rs6000_option_override_internal (bool global_init_p)
@@ -11948,6 +11983,15 @@ index 0421dc7adb3..c3854a931da 100644
        set_optab_libfunc (add_optab, mode, "__addkf3");
        set_optab_libfunc (sub_optab, mode, "__subkf3");
        set_optab_libfunc (neg_optab, mode, "__negkf2");
+@@ -17050,7 +17042,7 @@ output_toc (FILE *file, rtx x, int labelno, machine_mode mode)
+       if (DECIMAL_FLOAT_MODE_P (GET_MODE (x)))
+ 	REAL_VALUE_TO_TARGET_DECIMAL128 (*CONST_DOUBLE_REAL_VALUE (x), k);
+       else
+-	REAL_VALUE_TO_TARGET_LONG_DOUBLE (*CONST_DOUBLE_REAL_VALUE (x), k);
++	real_to_target (k, CONST_DOUBLE_REAL_VALUE (x), GET_MODE (x));
+ 
+       if (TARGET_64BIT)
+ 	{
 @@ -25074,6 +25066,11 @@ rs6000_can_inline_p (tree caller, tree callee)
        else
  	caller_isa = rs6000_isa_flags;
@@ -33756,6 +33800,100 @@ index 00000000000..f02bac130cc
 +  for (int i = 0; i < N; i++)
 +    if (res[i] != expects[i])
 +      __builtin_abort();
++
++  return 0;
++}
++
+diff --git a/gcc/testsuite/gcc.target/powerpc/pr109932-1.c b/gcc/testsuite/gcc.target/powerpc/pr109932-1.c
+new file mode 100644
+index 00000000000..374d9f60618
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/powerpc/pr109932-1.c
+@@ -0,0 +1,17 @@
++/* { dg-require-effective-target int128 } */
++/* { dg-require-effective-target powerpc_altivec_ok } */
++/* { dg-options "-maltivec -mno-vsx" } */
++
++/* Verify there is no ICE but one expected error message instead.  */
++
++#include <altivec.h>
++
++extern vector signed __int128 res_vslll;
++extern unsigned long long aull[2];
++
++void
++testVectorInt128Pack ()
++{
++  res_vslll = __builtin_pack_vector_int128 (aull[0], aull[1]); /* { dg-error "'__builtin_pack_vector_int128' requires the '-mvsx' option" } */
++}
++
+diff --git a/gcc/testsuite/gcc.target/powerpc/pr109932-2.c b/gcc/testsuite/gcc.target/powerpc/pr109932-2.c
+new file mode 100644
+index 00000000000..374d9f60618
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/powerpc/pr109932-2.c
+@@ -0,0 +1,17 @@
++/* { dg-require-effective-target int128 } */
++/* { dg-require-effective-target powerpc_altivec_ok } */
++/* { dg-options "-maltivec -mno-vsx" } */
++
++/* Verify there is no ICE but one expected error message instead.  */
++
++#include <altivec.h>
++
++extern vector signed __int128 res_vslll;
++extern unsigned long long aull[2];
++
++void
++testVectorInt128Pack ()
++{
++  res_vslll = __builtin_pack_vector_int128 (aull[0], aull[1]); /* { dg-error "'__builtin_pack_vector_int128' requires the '-mvsx' option" } */
++}
++
+diff --git a/gcc/testsuite/gcc.target/powerpc/pr110011.c b/gcc/testsuite/gcc.target/powerpc/pr110011.c
+new file mode 100644
+index 00000000000..5b04d3e298a
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/powerpc/pr110011.c
+@@ -0,0 +1,42 @@
++/* { dg-do run } */
++/* { dg-require-effective-target float128_runtime } */
++/* Force long double to be with IBM format here, to verify
++   _Float128 constant still uses its own format (IEEE) for
++   encoding rather than IBM format.  */
++/* { dg-options "-mfp-in-toc -mabi=ibmlongdouble" } */
++/* { dg-add-options float128 } */
++
++#define MPFR_FLOAT128_MAX 0x1.ffffffffffffffffffffffffffffp+16383f128
++
++__attribute__ ((noipa))
++_Float128 f128_max ()
++{
++  return MPFR_FLOAT128_MAX;
++}
++
++typedef union
++{
++  int w[4];
++  _Float128 f128;
++} U;
++
++int main ()
++{
++
++  U umax;
++  umax.f128 = f128_max ();
++  /* ieee float128 max:
++     7ffeffff ffffffff ffffffff ffffffff.  */
++  if (umax.w[1] != 0xffffffff || umax.w[2] != 0xffffffff)
++    __builtin_abort ();
++#ifdef __LITTLE_ENDIAN__
++  if (umax.w[0] != 0xffffffff || umax.w[3] != 0x7ffeffff)
++    __builtin_abort ();
++#else
++  if (umax.w[3] != 0xffffffff || umax.w[0] != 0x7ffeffff)
++    __builtin_abort ();
++#endif
 +
 +  return 0;
 +}
