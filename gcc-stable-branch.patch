@@ -68,7 +68,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (421):
+GCC Administrator (422):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -2839,10 +2840,26 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..681673e844d 100644
+index a0587d18824..9f9687bb222 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,2091 @@
+@@ -1,3 +1,2107 @@
++2023-06-20  Kewen Lin  <linkw@linux.ibm.com>
++
++	PR target/109932
++	* config/rs6000/rs6000-builtin.def (BU_VSX_MISC_2): New macro.
++	({un,}pack_vector_int128): Use BU_VSX_MISC_2 instead of
++	BU_P7_MISC_2.
++
++2023-06-20  Kewen Lin  <linkw@linux.ibm.com>
++
++	Backported from master:
++	2023-06-12  Kewen Lin  <linkw@linux.ibm.com>
++
++	PR target/110011
++	* config/rs6000/rs6000.c (output_toc): Use the mode of the 128-bit
++	floating constant itself for real_to_target call.
++
 +2023-06-12  Richard Biener  <rguenther@suse.de>
 +
 +	Backported from master:
@@ -21890,10 +21907,24 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..0a2cd0dbd47 100644
+index 5fc23605244..18ecea9c0e8 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2331 @@
+@@ -1,3 +1,2345 @@
++2023-06-20  Kewen Lin  <linkw@linux.ibm.com>
++
++	PR target/109932
++	* gcc.target/powerpc/pr109932-1.c: New test.
++	* gcc.target/powerpc/pr109932-2.c: New test.
++
++2023-06-20  Kewen Lin  <linkw@linux.ibm.com>
++
++	Backported from master:
++	2023-06-12  Kewen Lin  <linkw@linux.ibm.com>
++
++	PR target/110011
++	* gcc.target/powerpc/pr110011.c: New test.
++
 +2023-06-09  Alex Coplan  <alex.coplan@arm.com>
 +
 +	Backported from master:
