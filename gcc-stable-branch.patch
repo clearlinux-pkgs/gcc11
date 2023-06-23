@@ -68,7 +68,9 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (422):
+GCC Administrator (424):
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -711,7 +713,7 @@ John David Anglin (2):
       Fix addvdi3 and subvdi3 patterns
       Skip guality tests on hppa-hpux.
 
-Jonathan Wakely (106):
+Jonathan Wakely (108):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -818,6 +820,8 @@ Jonathan Wakely (106):
       libstdc++: Fix pool resource build errors for H8 [PR107801]
       libstdc++: Fix src/c++17/memory_resource for H8 targets [PR107801]
       doc: Fix description of x86 -m32 option [PR109954]
+      libstdc++: Simplify constraints for std::any construction [PR104242]
+      libstdc++: Document removal of implicit allocator rebinding extensions
 
 José Rui Faustino de Sousa (5):
       Fortran: Fix ICE with -fcheck=pointer [PR100136]
@@ -42519,6 +42523,33 @@ index ed1a05f36f7..b118c214b47 100644
      Standard Contents
    </a></span></dt><dd><dl><dt><span class="chapter"><a href="manual/support.html">4. 
    Support
+diff --git a/libstdc++-v3/doc/html/manual/api.html b/libstdc++-v3/doc/html/manual/api.html
+index 70889a583f9..617c457e155 100644
+--- a/libstdc++-v3/doc/html/manual/api.html
++++ b/libstdc++-v3/doc/html/manual/api.html
+@@ -368,6 +368,11 @@ now defaults to zero.
+   For the non-default <code class="option">--enable-symvers=gnu-versioned-namespace</code>
+   configuration, the shared library SONAME has been changed to
+   <code class="filename">libstdc++.so.8</code>.
++</p><p>
++  The extension allowing containers to be instantiated with an allocator
++  that doesn't match the container's value type is no longer allowed in
++  strict (<code class="option">-std=c++NN</code>) modes, only in
++  <code class="option">-std=gnu++NN</code> modes.
+ </p></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="api.rel_91"></a><code class="constant">9</code></h3></div></div></div><p>
+   C++17 header
+   <code class="filename">&lt;memory_resource&gt;</code>
+@@ -423,6 +428,10 @@ now defaults to zero.
+   and
+   <code class="filename">&lt;stop_token&gt;</code>
+   added.
++</p><p>
++  The extension allowing containers to be instantiated with an allocator
++  that doesn't match the container's value type is no longer allowed in
++  C++20 mode, even in non-strict <code class="option">-std=gnu++20</code> mode.
+ </p></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="api.rel_111"></a><code class="constant">11</code></h3></div></div></div><p>
+   The <code class="option">--enable-cheaders=c_std</code> configuration
+   was deprecated.
 diff --git a/libstdc++-v3/doc/html/manual/bugs.html b/libstdc++-v3/doc/html/manual/bugs.html
 index 7e0837322e5..280aa77d311 100644
 --- a/libstdc++-v3/doc/html/manual/bugs.html
@@ -42902,6 +42933,37 @@ index 0a120b508e9..95626d46cba 100644
    <author><personname><firstname>Paolo</firstname><surname>Carlini</surname></personname><personblurb>
        <para>
  	TR1, LWG Active, Closed, Defects lists.
+diff --git a/libstdc++-v3/doc/xml/manual/evolution.xml b/libstdc++-v3/doc/xml/manual/evolution.xml
+index 55b8903baff..6ae6b5aec19 100644
+--- a/libstdc++-v3/doc/xml/manual/evolution.xml
++++ b/libstdc++-v3/doc/xml/manual/evolution.xml
+@@ -911,6 +911,13 @@ now defaults to zero.
+   <filename>libstdc++.so.8</filename>.
+ </para>
+ 
++<para>
++  The extension allowing containers to be instantiated with an allocator
++  that doesn't match the container's value type is no longer allowed in
++  strict (<option>-std=c++NN</option>) modes, only in
++  <option>-std=gnu++NN</option> modes.
++</para>
++
+ </section>
+ 
+ <section xml:id="api.rel_91"><info><title><constant>9</constant></title></info>
+@@ -994,6 +1001,12 @@ now defaults to zero.
+   added.
+ </para>
+ 
++<para>
++  The extension allowing containers to be instantiated with an allocator
++  that doesn't match the container's value type is no longer allowed in
++  C++20 mode, even in non-strict <option>-std=gnu++20</option> mode.
++</para>
++
+ </section>
+ 
+ <section xml:id="api.rel_111"><info><title><constant>11</constant></title></info>
 diff --git a/libstdc++-v3/doc/xml/manual/extensions.xml b/libstdc++-v3/doc/xml/manual/extensions.xml
 index 86e92beffd3..196b55d8347 100644
 --- a/libstdc++-v3/doc/xml/manual/extensions.xml
@@ -53966,6 +54028,21 @@ index c1d61d6a0d7..2d934115923 100644
  
  // Copyright (C) 2013-2021 Free Software Foundation, Inc.
  //
+diff --git a/libstdc++-v3/include/std/any b/libstdc++-v3/include/std/any
+index d96ea06c1ae..5aec4040064 100644
+--- a/libstdc++-v3/include/std/any
++++ b/libstdc++-v3/include/std/any
+@@ -184,8 +184,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     /// Construct with a copy of @p __value as the contained object.
+     template <typename _Tp, typename _VTp = _Decay_if_not_any<_Tp>,
+ 	      typename _Mgr = _Manager<_VTp>,
+-	      typename = _Require<__not_<__is_in_place_type<_VTp>>,
+-				  is_copy_constructible<_VTp>>>
++	      enable_if_t<is_copy_constructible_v<_VTp>
++			  && !__is_in_place_type_v<_VTp>, bool> = true>
+       any(_Tp&& __value)
+       : _M_manager(&_Mgr::_S_manage)
+       {
 diff --git a/libstdc++-v3/include/std/atomic b/libstdc++-v3/include/std/atomic
 index fdffacc35df..83102d02b4a 100644
 --- a/libstdc++-v3/include/std/atomic
@@ -56122,6 +56199,24 @@ index e3d024d525b..3720774abaf 100644
    test01();
 +  test02();
  }
+diff --git a/libstdc++-v3/testsuite/20_util/any/cons/104242.cc b/libstdc++-v3/testsuite/20_util/any/cons/104242.cc
+new file mode 100644
+index 00000000000..8d5868b7ff9
+--- /dev/null
++++ b/libstdc++-v3/testsuite/20_util/any/cons/104242.cc
+@@ -0,0 +1,12 @@
++// { dg-do compile { target c++17 } }
++
++// PR libstdc++/104242 - Class with constructor from std::any is not copyable
++
++#include <any>
++#include <type_traits>
++
++struct A {
++    A(const A&) = default;
++    explicit A(std::any value);
++};
++static_assert(std::is_copy_constructible_v<A>);
 diff --git a/libstdc++-v3/testsuite/20_util/from_chars/4.cc b/libstdc++-v3/testsuite/20_util/from_chars/4.cc
 index 7cee4dcbc23..4064f1d4177 100644
 --- a/libstdc++-v3/testsuite/20_util/from_chars/4.cc
