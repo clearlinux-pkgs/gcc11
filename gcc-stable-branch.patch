@@ -68,7 +68,10 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (424):
+GCC Administrator (427):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -550,7 +553,7 @@ Harald Anlauf (38):
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
 
-Iain Buclaw (14):
+Iain Buclaw (15):
       libphobos: Don't call free on the TLS array in the emutls destroy function.
       libphobos: Give _Unwind_Exception an alignment that best resembles __attribute__((aligned))
       darwin, d: Support outfile substitution for libphobos
@@ -565,6 +568,7 @@ Iain Buclaw (14):
       d: Refactor DECL_ARGUMENT and DECL_RESULT generation to own function
       d: Delay removing DECL_EXTERNAL from thunks until funcion has finished
       d: Fix undefined reference to lambda defined in private enum [PR109108]
+      d: Suboptimal codegen for __builtin_expect(cond, false)
 
 Iain Sandoe (13):
       Darwin: Fix bootstrap for X86.
@@ -17057,7 +17061,7 @@ index 6021ffdbf78..4d0ad3a0dde 100644
  
  	* GCC 11.3.0 released.
 diff --git a/gcc/d/d-convert.cc b/gcc/d/d-convert.cc
-index d43485dca77..cd6551e64f3 100644
+index d43485dca77..135aaf7e049 100644
 --- a/gcc/d/d-convert.cc
 +++ b/gcc/d/d-convert.cc
 @@ -502,6 +502,15 @@ convert_expr (tree exp, Type *etype, Type *totype)
@@ -17076,7 +17080,51 @@ index d43485dca77..cd6551e64f3 100644
        else
  	{
  	  error ("cannot cast expression of type %qs to type %qs",
-@@ -636,6 +645,39 @@ convert_for_rvalue (tree expr, Type *etype, Type *totype)
+@@ -602,7 +611,7 @@ convert_expr (tree exp, Type *etype, Type *totype)
+   return result ? result : convert (build_ctype (totype), exp);
+ }
+ 
+-/* Return a TREE represenwation of EXPR, whose type has been converted from
++/* Return a TREE representation of EXPR, whose type has been converted from
+  * ETYPE to TOTYPE, and is being used in an rvalue context.  */
+ 
+ tree
+@@ -618,24 +627,64 @@ convert_for_rvalue (tree expr, Type *etype, Type *totype)
+     case Tbool:
+       /* If casting from bool, the result is either 0 or 1, any other value
+ 	 violates @safe code, so enforce that it is never invalid.  */
+-      if (CONSTANT_CLASS_P (expr))
+-	result = d_truthvalue_conversion (expr);
+-      else
++      for (tree ref = expr; TREE_CODE (ref) == COMPONENT_REF;
++	   ref = TREE_OPERAND (ref, 0))
+ 	{
+-	  /* Reinterpret the boolean as an integer and test the first bit.
+-	     The generated code should end up being equivalent to:
++	  /* If the expression is a field that's part of a union, reinterpret
++	     the boolean as an integer and test the first bit.  The generated
++	     code should end up being equivalent to:
+ 		*cast(ubyte *)&expr & 1;  */
+-	  machine_mode bool_mode = TYPE_MODE (TREE_TYPE (expr));
+-	  tree mtype = lang_hooks.types.type_for_mode (bool_mode, 1);
+-	  result = fold_build2 (BIT_AND_EXPR, mtype,
+-				build_vconvert (mtype, expr),
+-				build_one_cst (mtype));
++	  if (TREE_CODE (TREE_TYPE (TREE_OPERAND (ref, 0))) == UNION_TYPE)
++	    {
++	      machine_mode bool_mode = TYPE_MODE (TREE_TYPE (expr));
++	      tree mtype = lang_hooks.types.type_for_mode (bool_mode, 1);
++	      result = fold_build2 (BIT_AND_EXPR, mtype,
++				    build_vconvert (mtype, expr),
++				    build_one_cst (mtype));
++	      break;
++	    }
+ 	}
+ 
++      if (result == NULL_TREE)
++	result = d_truthvalue_conversion (expr);
++
+       result = convert (build_ctype (tbtype), result);
        break;
      }
  
@@ -17116,7 +17164,7 @@ index d43485dca77..cd6551e64f3 100644
    return result ? result : convert_expr (expr, etype, totype);
  }
  
-@@ -696,7 +738,7 @@ convert_for_assignment (tree expr, Type *etype, Type *totype)
+@@ -696,7 +745,7 @@ convert_for_assignment (tree expr, Type *etype, Type *totype)
        return expr;
      }
  
@@ -17125,6 +17173,15 @@ index d43485dca77..cd6551e64f3 100644
  }
  
  /* Return a TREE representation of EXPR converted to represent
+@@ -796,7 +845,7 @@ convert_for_condition (tree expr, Type *type)
+       break;
+ 
+     default:
+-      result = expr;
++      result = convert_for_rvalue (expr, type, type);
+       break;
+     }
+ 
 diff --git a/gcc/d/d-spec.cc b/gcc/d/d-spec.cc
 index b12d28f1047..1304126a675 100644
 --- a/gcc/d/d-spec.cc
@@ -34573,6 +34630,34 @@ index 00000000000..710551f3f9a
 +    ConstC,
 +    ImmutableE,
 +    ConstE;
+diff --git a/gcc/testsuite/gdc.dg/pr110359.d b/gcc/testsuite/gdc.dg/pr110359.d
+new file mode 100644
+index 00000000000..bf69201d9a5
+--- /dev/null
++++ b/gcc/testsuite/gdc.dg/pr110359.d
+@@ -0,0 +1,22 @@
++// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=110359
++// { dg-do compile }
++// { dg-options "-fdump-tree-original" }
++double pow(in double x, in ulong p)
++{
++    import gcc.builtins : __builtin_expect;
++    if (__builtin_expect(p == 0, false))
++        return 1;
++    if (__builtin_expect(p == 1, false))
++        return x;
++
++    double s = x;
++    double v = 1;
++    for (ulong i = p; i > 1; i >>= 1)
++    {
++        v = (i & 0x1) ? s * v : v;
++        s = s * s;
++    }
++    return v * s;
++}
++// { dg-final { scan-tree-dump "if \\(__builtin_expect \\(p == 0, 0\\) != 0\\)" "original" } }
++// { dg-final { scan-tree-dump "if \\(__builtin_expect \\(p == 1, 0\\) != 0\\)" "original" } }
 diff --git a/gcc/testsuite/gdc.dg/torture/imports/pr109108.d b/gcc/testsuite/gdc.dg/torture/imports/pr109108.d
 new file mode 100644
 index 00000000000..cec5274098c
@@ -40709,10 +40794,28 @@ index 72119b01c69..2cc64a39649 100644
  
  	* GCC 11.3.0 released.
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..a810cb4e260 100644
+index 85e04c45288..2041fb7219a 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,1696 @@
+@@ -1,3 +1,1714 @@
++2023-06-23  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2023-06-01  Jonathan Wakely  <jwakely@redhat.com>
++
++	* doc/xml/manual/evolution.xml: Document removal of implicit
++	allocator rebinding extensions in strict mode and for C++20.
++	* doc/html/*: Regenerate.
++
++2023-06-23  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-03-18  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/104242
++	* include/std/any (any(T&&)): Revert change to constraints.
++	* testsuite/20_util/any/cons/104242.cc: New test.
++
 +2023-05-30  Matthias Kretz  <m.kretz@gsi.de>
 +
 +	Backported from master:
