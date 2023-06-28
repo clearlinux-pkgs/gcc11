@@ -68,7 +68,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (428):
+GCC Administrator (429):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -989,8 +990,9 @@ Philipp Tomsich (6):
 Qing Zhao (1):
       i386: Adjust -fzero-call-used-regs to always use XOR [PR101891]
 
-Rainer Orth (1):
+Rainer Orth (2):
       libstdc++: Fix 28_regex/basic_regex/84110.cc on Solaris
+      Support parallel testing in libgomp, part I [PR66005]
 
 Richard Biener (54):
       Update BASE-VER to 11.3.1
@@ -1113,9 +1115,11 @@ Thomas Koenig (1):
 Thomas Rodgers (1):
       libstdc++: Minor codegen improvement for atomic wait spinloop
 
-Thomas Schwinge (2):
+Thomas Schwinge (4):
       nvptx: Define (dummy) 'TARGET_PTX_6_0'
       nvptx: In 'STARTFILE_SPEC', fix 'crt0.o' for '-mmainkernel'
+      Support parallel testing in libgomp, part II [PR66005]
+      Support parallel testing in libgomp: fallback Perl 'flock' [PR66005]
 
 Thomas W Rodgers (3):
       libstdc++: Make atomic notify_one and notify_all non-const
@@ -1140,10 +1144,11 @@ Uros Bizjak (2):
 Vladimir N. Makarov (1):
       [PR104637] LRA: Split hard regs as many as possible on one subpass
 
-liuhongt (3):
+liuhongt (4):
       Fix insn does not satisfy its constraints: sse2_lshrv1ti3
       Fix unrecognizable insn due to illegal immediate_operand (const_int 255) of QImode.
       x86: Add a new option -mdaz-ftz to enable FTZ and DAZ flags in MXCSR.
+      Make option mvzeroupper independent of optimization level.
 
 diff --git a/ChangeLog b/ChangeLog
 index f612f0c1c5b..48d69d2bf1c 100644
@@ -7852,8 +7857,34 @@ index 31eae75d277..d95adaf962b 100644
      op1 = convert_modes (mode1, GET_MODE (op1), op1, true);
  
    op0 = force_reg (tmode, op0);
+diff --git a/gcc/config/i386/i386-features.c b/gcc/config/i386/i386-features.c
+index 77783a154b6..19033dc3df5 100644
+--- a/gcc/config/i386/i386-features.c
++++ b/gcc/config/i386/i386-features.c
+@@ -1837,9 +1837,7 @@ ix86_add_reg_usage_to_vzerouppers (void)
+ static unsigned int
+ rest_of_handle_insert_vzeroupper (void)
+ {
+-  if (TARGET_VZEROUPPER
+-      && flag_expensive_optimizations
+-      && !optimize_size)
++  if (TARGET_VZEROUPPER)
+     {
+       /* vzeroupper instructions are inserted immediately after reload to
+ 	 account for possible spills from 256bit or 512bit registers.  The pass
+@@ -1883,9 +1881,7 @@ public:
+   virtual bool gate (function *)
+     {
+       return TARGET_AVX
+-	     && ((TARGET_VZEROUPPER
+-		  && flag_expensive_optimizations
+-		  && !optimize_size)
++	     && (TARGET_VZEROUPPER
+ 		 || cfun->machine->has_explicit_vzeroupper);
+     }
+ 
 diff --git a/gcc/config/i386/i386-options.c b/gcc/config/i386/i386-options.c
-index 19632b5fd6b..b74df4d549e 100644
+index 19632b5fd6b..d47a5433126 100644
 --- a/gcc/config/i386/i386-options.c
 +++ b/gcc/config/i386/i386-options.c
 @@ -656,7 +656,6 @@ ix86_function_specific_save (struct cl_target_option *ptr,
@@ -7872,6 +7903,17 @@ index 19632b5fd6b..b74df4d549e 100644
    opts->x_ix86_asm_dialect = ptr->x_ix86_asm_dialect;
    opts->x_ix86_branch_cost = ptr->x_ix86_branch_cost;
    opts->x_ix86_dump_tunes = ptr->x_ix86_dump_tunes;
+@@ -2851,7 +2849,9 @@ ix86_option_override_internal (bool main_args_p,
+     sorry ("%<-mcall-ms2sysv-xlogues%> isn%'t currently supported with SEH");
+ 
+   if (!(opts_set->x_target_flags & MASK_VZEROUPPER)
+-      && TARGET_EMIT_VZEROUPPER)
++      && TARGET_EMIT_VZEROUPPER
++      && flag_expensive_optimizations
++      && !optimize_size)
+     opts->x_target_flags |= MASK_VZEROUPPER;
+   if (!(opts_set->x_target_flags & MASK_STV))
+     opts->x_target_flags |= MASK_STV;
 diff --git a/gcc/config/i386/i386.c b/gcc/config/i386/i386.c
 index 48300af9a09..6c9c99ee50b 100644
 --- a/gcc/config/i386/i386.c
@@ -17857,6 +17899,20 @@ index 689ec7de4d3..64bd4c1cb6c 100644
  @itemx access (@var{access-mode}, @var{ref-index}, @var{size-index})
  
  The @code{access} attribute enables the detection of invalid or unsafe
+diff --git a/gcc/doc/install.texi b/gcc/doc/install.texi
+index 4b05ccfaffb..68a0f2b04e9 100644
+--- a/gcc/doc/install.texi
++++ b/gcc/doc/install.texi
+@@ -363,6 +363,9 @@ tables.
+ 
+ Used by @command{automake}.
+ 
++If available, enables parallel testing of @samp{libgomp} in case that
++@command{flock} is not available.
++
+ @end table
+ 
+ Several support libraries are necessary to build GCC, some are required,
 diff --git a/gcc/doc/invoke.texi b/gcc/doc/invoke.texi
 index 35508efb4ef..fffa899585e 100644
 --- a/gcc/doc/invoke.texi
@@ -32152,6 +32208,26 @@ index 00000000000..d797b790232
 +/* { dg-require-effective-target arm_hard_ok } */
 +/* { dg-options "-O2 -march=armv7-m -mfloat-abi=hard -mfpu=fpv4-sp-d16 -mbig-endian -mpure-code" } */
 +double f() { return 5.0; }
+diff --git a/gcc/testsuite/gcc.target/i386/avx-vzeroupper-29.c b/gcc/testsuite/gcc.target/i386/avx-vzeroupper-29.c
+new file mode 100644
+index 00000000000..4af637757f7
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/i386/avx-vzeroupper-29.c
+@@ -0,0 +1,14 @@
++/* { dg-do compile } */
++/* { dg-options "-O0 -mavx -mtune=generic -mvzeroupper -dp" } */
++
++#include <immintrin.h>
++
++extern __m256 x, y;
++
++void
++foo ()
++{
++  x = y;
++}
++
++/* { dg-final { scan-assembler-times "avx_vzeroupper" 1 } } */
 diff --git a/gcc/testsuite/gcc.target/i386/avx512bf16-pr108881.c b/gcc/testsuite/gcc.target/i386/avx512bf16-pr108881.c
 new file mode 100644
 index 00000000000..9428c53abec
@@ -39579,6 +39655,158 @@ index 0fa2757d939..f214dbd9617 100644
  2022-04-21  Release Manager
  
  	* GCC 11.3.0 released.
+diff --git a/libgomp/Makefile.in b/libgomp/Makefile.in
+index eb868b36704..0fdfb2fe73f 100644
+--- a/libgomp/Makefile.in
++++ b/libgomp/Makefile.in
+@@ -384,6 +384,7 @@ EXEEXT = @EXEEXT@
+ FC = @FC@
+ FCFLAGS = @FCFLAGS@
+ FGREP = @FGREP@
++FLOCK = @FLOCK@
+ GREP = @GREP@
+ HSA_RUNTIME_INCLUDE = @HSA_RUNTIME_INCLUDE@
+ HSA_RUNTIME_LIB = @HSA_RUNTIME_LIB@
+diff --git a/libgomp/configure b/libgomp/configure
+index 718a76b4a40..6aee94291ea 100755
+--- a/libgomp/configure
++++ b/libgomp/configure
+@@ -656,6 +656,7 @@ tmake_file
+ XLDFLAGS
+ XCFLAGS
+ config_path
++FLOCK
+ CPU_COUNT
+ LIBGOMP_BUILD_VERSIONED_SHLIB_SUN_FALSE
+ LIBGOMP_BUILD_VERSIONED_SHLIB_SUN_TRUE
+@@ -11421,7 +11422,7 @@ else
+   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
+   lt_status=$lt_dlunknown
+   cat > conftest.$ac_ext <<_LT_EOF
+-#line 11424 "configure"
++#line 11425 "configure"
+ #include "confdefs.h"
+ 
+ #if HAVE_DLFCN_H
+@@ -11527,7 +11528,7 @@ else
+   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
+   lt_status=$lt_dlunknown
+   cat > conftest.$ac_ext <<_LT_EOF
+-#line 11530 "configure"
++#line 11531 "configure"
+ #include "confdefs.h"
+ 
+ #if HAVE_DLFCN_H
+@@ -16643,6 +16644,91 @@ $as_echo "unable to detect (assuming 1)" >&6; }
+ fi
+ 
+ 
++{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for flock implementation" >&5
++$as_echo "$as_me: checking for flock implementation" >&6;}
++for ac_prog in flock
++do
++  # Extract the first word of "$ac_prog", so it can be a program name with args.
++set dummy $ac_prog; ac_word=$2
++{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
++$as_echo_n "checking for $ac_word... " >&6; }
++if ${ac_cv_prog_FLOCK+:} false; then :
++  $as_echo_n "(cached) " >&6
++else
++  if test -n "$FLOCK"; then
++  ac_cv_prog_FLOCK="$FLOCK" # Let the user override the test.
++else
++as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
++for as_dir in $PATH
++do
++  IFS=$as_save_IFS
++  test -z "$as_dir" && as_dir=.
++    for ac_exec_ext in '' $ac_executable_extensions; do
++  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
++    ac_cv_prog_FLOCK="$ac_prog"
++    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
++    break 2
++  fi
++done
++  done
++IFS=$as_save_IFS
++
++fi
++fi
++FLOCK=$ac_cv_prog_FLOCK
++if test -n "$FLOCK"; then
++  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $FLOCK" >&5
++$as_echo "$FLOCK" >&6; }
++else
++  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
++$as_echo "no" >&6; }
++fi
++
++
++  test -n "$FLOCK" && break
++done
++
++# Fallback if 'perl' is available.
++if test -z "$FLOCK"; then
++  # Extract the first word of "perl", so it can be a program name with args.
++set dummy perl; ac_word=$2
++{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
++$as_echo_n "checking for $ac_word... " >&6; }
++if ${ac_cv_prog_FLOCK+:} false; then :
++  $as_echo_n "(cached) " >&6
++else
++  if test -n "$FLOCK"; then
++  ac_cv_prog_FLOCK="$FLOCK" # Let the user override the test.
++else
++as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
++for as_dir in $PATH
++do
++  IFS=$as_save_IFS
++  test -z "$as_dir" && as_dir=.
++    for ac_exec_ext in '' $ac_executable_extensions; do
++  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
++    ac_cv_prog_FLOCK="$srcdir/testsuite/flock"
++    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
++    break 2
++  fi
++done
++  done
++IFS=$as_save_IFS
++
++fi
++fi
++FLOCK=$ac_cv_prog_FLOCK
++if test -n "$FLOCK"; then
++  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $FLOCK" >&5
++$as_echo "$FLOCK" >&6; }
++else
++  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
++$as_echo "no" >&6; }
++fi
++
++
++fi
++
+ # Get target configury.
+ . ${srcdir}/configure.tgt
+ CFLAGS="$save_CFLAGS $XCFLAGS"
+diff --git a/libgomp/configure.ac b/libgomp/configure.ac
+index 0e238b6a559..78a253c0f93 100644
+--- a/libgomp/configure.ac
++++ b/libgomp/configure.ac
+@@ -331,6 +331,13 @@ fi
+ AX_COUNT_CPUS
+ AC_SUBST(CPU_COUNT)
+ 
++AC_MSG_NOTICE([checking for flock implementation])
++AC_CHECK_PROGS(FLOCK, flock)
++# Fallback if 'perl' is available.
++if test -z "$FLOCK"; then
++  AC_CHECK_PROG(FLOCK, perl, $srcdir/testsuite/flock)
++fi
++
+ # Get target configury.
+ . ${srcdir}/configure.tgt
+ CFLAGS="$save_CFLAGS $XCFLAGS"
 diff --git a/libgomp/libgomp.texi b/libgomp/libgomp.texi
 index 2c1f1b5968b..ec86f44a8ea 100644
 --- a/libgomp/libgomp.texi
@@ -39716,6 +39944,324 @@ index f5d26873d5b..80274e950be 100644
  }
  
  /* The format of data is:
+diff --git a/libgomp/testsuite/Makefile.am b/libgomp/testsuite/Makefile.am
+index 655a413c160..0cc91ccc4d1 100644
+--- a/libgomp/testsuite/Makefile.am
++++ b/libgomp/testsuite/Makefile.am
+@@ -12,6 +12,8 @@ _RUNTEST = $(shell if test -f $(top_srcdir)/../dejagnu/runtest; then \
+ 	     echo $(top_srcdir)/../dejagnu/runtest; else echo runtest; fi)
+ RUNTESTDEFAULTFLAGS = --tool $$tool --srcdir $$srcdir
+ 
++PWD_COMMAND = $${PWDCMD-pwd}
++
+ EXTRA_DEJAGNU_SITE_CONFIG = libgomp-site-extra.exp
+ 
+ # Instead of directly in ../testsuite/libgomp-test-support.exp.in, the
+@@ -25,17 +27,6 @@ libgomp-test-support.exp: libgomp-test-support.pt.exp Makefile
+ 	  'set offload_additional_lib_paths "$(offload_additional_lib_paths)"'
+ 	mv $@.tmp $@
+ 
+-check-DEJAGNU: site.exp
+-	srcdir='$(srcdir)'; export srcdir; \
+-	EXPECT=$(EXPECT); export EXPECT; \
+-	if $(SHELL) -c "$(_RUNTEST) --version" > /dev/null 2>&1; then \
+-	  exit_status=0; l='$(PACKAGE)'; for tool in $$l; do \
+-	    if $(_RUNTEST) $(AM_RUNTESTFLAGS) $(RUNTESTDEFAULTFLAGS) $(RUNTESTFLAGS); \
+-	    then :; else exit_status=1; fi; \
+-	  done; \
+-	else echo "WARNING: could not find '$(_RUNTEST)'" 1>&2; :;\
+-	fi; \
+-	exit $$exit_status
+ site.exp: Makefile $(EXTRA_DEJAGNU_SITE_CONFIG)
+ 	@echo 'Making a new site.exp file ...'
+ 	@echo '## these variables are automatically generated by make ##' >site.tmp
+@@ -63,6 +54,72 @@ site.exp: Makefile $(EXTRA_DEJAGNU_SITE_CONFIG)
+ 	@test ! -f site.exp || mv site.exp site.bak
+ 	@mv site.tmp site.exp
+ 
++%/site.exp: site.exp
++	-@test -d $* || mkdir $*
++	@srcdir=`cd $(srcdir); ${PWD_COMMAND}`;
++	@objdir=`${PWD_COMMAND}`/$*; \
++	sed -e "s|^set srcdir .*$$|set srcdir $$srcdir|" \
++	    -e "s|^set objdir .*$$|set objdir $$objdir|" \
++	    site.exp > $*/site.exp.tmp
++	@-rm -f $*/site.bak
++	@test ! -f $*/site.exp || mv $*/site.exp $*/site.bak
++	@mv $*/site.exp.tmp $*/site.exp
++
++check_p_numbers0:=1 2 3 4 5 6 7 8 9
++check_p_numbers1:=0 $(check_p_numbers0)
++check_p_numbers2:=$(foreach i,$(check_p_numbers0),$(addprefix $(i),$(check_p_numbers1)))
++check_p_numbers3:=$(addprefix 0,$(check_p_numbers1)) $(check_p_numbers2)
++check_p_numbers4:=$(foreach i,$(check_p_numbers0),$(addprefix $(i),$(check_p_numbers3)))
++check_p_numbers5:=$(addprefix 0,$(check_p_numbers3)) $(check_p_numbers4)
++check_p_numbers6:=$(foreach i,$(check_p_numbers0),$(addprefix $(i),$(check_p_numbers5)))
++check_p_numbers:=$(check_p_numbers0) $(check_p_numbers2) $(check_p_numbers4) $(check_p_numbers6)
++# If unable to serialize execution testing, use just one parallel slot.
++gcc_test_parallel_slots:=$(if $(FLOCK),$(if $(GCC_TEST_PARALLEL_SLOTS),$(GCC_TEST_PARALLEL_SLOTS),19),1)
++check_p_subdirs=$(wordlist 1,$(gcc_test_parallel_slots),$(check_p_numbers))
++check_DEJAGNU_libgomp_targets = $(addprefix check-DEJAGNUlibgomp,$(check_p_subdirs))
++$(check_DEJAGNU_libgomp_targets): check-DEJAGNUlibgomp%: libgomp%/site.exp
++
++check-DEJAGNU $(check_DEJAGNU_libgomp_targets): check-DEJAGNU%: site.exp
++	$(if $*,@)AR="$(AR)"; export AR; \
++	RANLIB="$(RANLIB)"; export RANLIB; \
++	if [ -z "$*" ] && [ -n "$(filter -j%, $(MFLAGS))" ]; then \
++	  rm -rf libgomp-parallel || true; \
++	  mkdir libgomp-parallel; \
++	  $(MAKE) $(AM_MAKEFLAGS) $(check_DEJAGNU_libgomp_targets); \
++	  rm -rf libgomp-parallel || true; \
++	  for idx in $(check_p_subdirs); do \
++	    if [ -d libgomp$$idx ]; then \
++	      mv -f libgomp$$idx/libgomp.sum libgomp$$idx/libgomp.sum.sep; \
++	      mv -f libgomp$$idx/libgomp.log libgomp$$idx/libgomp.log.sep; \
++	    fi; \
++	  done; \
++	  $(SHELL) $(srcdir)/../../contrib/dg-extract-results.sh \
++	    libgomp[0-9]*/libgomp.sum.sep > libgomp.sum; \
++	  $(SHELL) $(srcdir)/../../contrib/dg-extract-results.sh -L \
++	    libgomp[0-9]*/libgomp.log.sep > libgomp.log; \
++	  exit 0; \
++	fi; \
++	srcdir=`$(am__cd) $(srcdir) && pwd`; export srcdir; \
++	EXPECT=$(EXPECT); export EXPECT; \
++	runtest=$(_RUNTEST); \
++	if [ -z "$$runtest" ]; then runtest=runtest; fi; \
++	tool=libgomp; \
++	if [ -n "$*" ]; then \
++	  if [ -f libgomp-parallel/finished ]; then rm -rf "$*"; exit 0; fi; \
++	  GCC_RUNTEST_PARALLELIZE_DIR=`${PWD_COMMAND}`/libgomp-parallel; \
++	  export GCC_RUNTEST_PARALLELIZE_DIR; \
++	  cd "$*"; \
++	fi; \
++	if $(SHELL) -c "$$runtest --version" > /dev/null 2>&1; then \
++	  $$runtest $(AM_RUNTESTFLAGS) $(RUNTESTDEFAULTFLAGS) \
++		    $(RUNTESTFLAGS); \
++	  if [ -n "$*" ]; then \
++	    touch $$GCC_RUNTEST_PARALLELIZE_DIR/finished; \
++	  fi; \
++	else \
++	  echo "WARNING: could not find \`runtest'" 1>&2; :;\
++	fi
++
+ distclean-DEJAGNU:
+ 	-rm -f site.exp site.bak
+ 	-l='$(PACKAGE)'; for tool in $$l; do \
+diff --git a/libgomp/testsuite/Makefile.in b/libgomp/testsuite/Makefile.in
+index e48c3f2f9b0..cd318e3c392 100644
+--- a/libgomp/testsuite/Makefile.in
++++ b/libgomp/testsuite/Makefile.in
+@@ -162,6 +162,7 @@ EXEEXT = @EXEEXT@
+ FC = @FC@
+ FCFLAGS = @FCFLAGS@
+ FGREP = @FGREP@
++FLOCK = @FLOCK@
+ GREP = @GREP@
+ HSA_RUNTIME_INCLUDE = @HSA_RUNTIME_INCLUDE@
+ HSA_RUNTIME_LIB = @HSA_RUNTIME_LIB@
+@@ -310,7 +311,20 @@ _RUNTEST = $(shell if test -f $(top_srcdir)/../dejagnu/runtest; then \
+ 	     echo $(top_srcdir)/../dejagnu/runtest; else echo runtest; fi)
+ 
+ RUNTESTDEFAULTFLAGS = --tool $$tool --srcdir $$srcdir
++PWD_COMMAND = $${PWDCMD-pwd}
+ EXTRA_DEJAGNU_SITE_CONFIG = libgomp-site-extra.exp
++check_p_numbers0 := 1 2 3 4 5 6 7 8 9
++check_p_numbers1 := 0 $(check_p_numbers0)
++check_p_numbers2 := $(foreach i,$(check_p_numbers0),$(addprefix $(i),$(check_p_numbers1)))
++check_p_numbers3 := $(addprefix 0,$(check_p_numbers1)) $(check_p_numbers2)
++check_p_numbers4 := $(foreach i,$(check_p_numbers0),$(addprefix $(i),$(check_p_numbers3)))
++check_p_numbers5 := $(addprefix 0,$(check_p_numbers3)) $(check_p_numbers4)
++check_p_numbers6 := $(foreach i,$(check_p_numbers0),$(addprefix $(i),$(check_p_numbers5)))
++check_p_numbers := $(check_p_numbers0) $(check_p_numbers2) $(check_p_numbers4) $(check_p_numbers6)
++# If unable to serialize execution testing, use just one parallel slot.
++gcc_test_parallel_slots := $(if $(FLOCK),$(if $(GCC_TEST_PARALLEL_SLOTS),$(GCC_TEST_PARALLEL_SLOTS),19),1)
++check_p_subdirs = $(wordlist 1,$(gcc_test_parallel_slots),$(check_p_numbers))
++check_DEJAGNU_libgomp_targets = $(addprefix check-DEJAGNUlibgomp,$(check_p_subdirs))
+ all: all-am
+ 
+ .SUFFIXES:
+@@ -485,17 +499,6 @@ libgomp-test-support.exp: libgomp-test-support.pt.exp Makefile
+ 	  'set offload_additional_lib_paths "$(offload_additional_lib_paths)"'
+ 	mv $@.tmp $@
+ 
+-check-DEJAGNU: site.exp
+-	srcdir='$(srcdir)'; export srcdir; \
+-	EXPECT=$(EXPECT); export EXPECT; \
+-	if $(SHELL) -c "$(_RUNTEST) --version" > /dev/null 2>&1; then \
+-	  exit_status=0; l='$(PACKAGE)'; for tool in $$l; do \
+-	    if $(_RUNTEST) $(AM_RUNTESTFLAGS) $(RUNTESTDEFAULTFLAGS) $(RUNTESTFLAGS); \
+-	    then :; else exit_status=1; fi; \
+-	  done; \
+-	else echo "WARNING: could not find '$(_RUNTEST)'" 1>&2; :;\
+-	fi; \
+-	exit $$exit_status
+ site.exp: Makefile $(EXTRA_DEJAGNU_SITE_CONFIG)
+ 	@echo 'Making a new site.exp file ...'
+ 	@echo '## these variables are automatically generated by make ##' >site.tmp
+@@ -523,6 +526,59 @@ site.exp: Makefile $(EXTRA_DEJAGNU_SITE_CONFIG)
+ 	@test ! -f site.exp || mv site.exp site.bak
+ 	@mv site.tmp site.exp
+ 
++%/site.exp: site.exp
++	-@test -d $* || mkdir $*
++	@srcdir=`cd $(srcdir); ${PWD_COMMAND}`;
++	@objdir=`${PWD_COMMAND}`/$*; \
++	sed -e "s|^set srcdir .*$$|set srcdir $$srcdir|" \
++	    -e "s|^set objdir .*$$|set objdir $$objdir|" \
++	    site.exp > $*/site.exp.tmp
++	@-rm -f $*/site.bak
++	@test ! -f $*/site.exp || mv $*/site.exp $*/site.bak
++	@mv $*/site.exp.tmp $*/site.exp
++$(check_DEJAGNU_libgomp_targets): check-DEJAGNUlibgomp%: libgomp%/site.exp
++
++check-DEJAGNU $(check_DEJAGNU_libgomp_targets): check-DEJAGNU%: site.exp
++	$(if $*,@)AR="$(AR)"; export AR; \
++	RANLIB="$(RANLIB)"; export RANLIB; \
++	if [ -z "$*" ] && [ -n "$(filter -j%, $(MFLAGS))" ]; then \
++	  rm -rf libgomp-parallel || true; \
++	  mkdir libgomp-parallel; \
++	  $(MAKE) $(AM_MAKEFLAGS) $(check_DEJAGNU_libgomp_targets); \
++	  rm -rf libgomp-parallel || true; \
++	  for idx in $(check_p_subdirs); do \
++	    if [ -d libgomp$$idx ]; then \
++	      mv -f libgomp$$idx/libgomp.sum libgomp$$idx/libgomp.sum.sep; \
++	      mv -f libgomp$$idx/libgomp.log libgomp$$idx/libgomp.log.sep; \
++	    fi; \
++	  done; \
++	  $(SHELL) $(srcdir)/../../contrib/dg-extract-results.sh \
++	    libgomp[0-9]*/libgomp.sum.sep > libgomp.sum; \
++	  $(SHELL) $(srcdir)/../../contrib/dg-extract-results.sh -L \
++	    libgomp[0-9]*/libgomp.log.sep > libgomp.log; \
++	  exit 0; \
++	fi; \
++	srcdir=`$(am__cd) $(srcdir) && pwd`; export srcdir; \
++	EXPECT=$(EXPECT); export EXPECT; \
++	runtest=$(_RUNTEST); \
++	if [ -z "$$runtest" ]; then runtest=runtest; fi; \
++	tool=libgomp; \
++	if [ -n "$*" ]; then \
++	  if [ -f libgomp-parallel/finished ]; then rm -rf "$*"; exit 0; fi; \
++	  GCC_RUNTEST_PARALLELIZE_DIR=`${PWD_COMMAND}`/libgomp-parallel; \
++	  export GCC_RUNTEST_PARALLELIZE_DIR; \
++	  cd "$*"; \
++	fi; \
++	if $(SHELL) -c "$$runtest --version" > /dev/null 2>&1; then \
++	  $$runtest $(AM_RUNTESTFLAGS) $(RUNTESTDEFAULTFLAGS) \
++		    $(RUNTESTFLAGS); \
++	  if [ -n "$*" ]; then \
++	    touch $$GCC_RUNTEST_PARALLELIZE_DIR/finished; \
++	  fi; \
++	else \
++	  echo "WARNING: could not find \`runtest'" 1>&2; :;\
++	fi
++
+ distclean-DEJAGNU:
+ 	-rm -f site.exp site.bak
+ 	-l='$(PACKAGE)'; for tool in $$l; do \
+diff --git a/libgomp/testsuite/config/default.exp b/libgomp/testsuite/config/default.exp
+index 20546e371fd..0b383cc83e1 100644
+--- a/libgomp/testsuite/config/default.exp
++++ b/libgomp/testsuite/config/default.exp
+@@ -13,5 +13,3 @@
+ # You should have received a copy of the GNU General Public License
+ # along with this program; see the file COPYING3.  If not see
+ # <http://www.gnu.org/licenses/>.
+-
+-load_lib "standard.exp"
+diff --git a/libgomp/testsuite/flock b/libgomp/testsuite/flock
+new file mode 100755
+index 00000000000..71878b104f1
+--- /dev/null
++++ b/libgomp/testsuite/flock
+@@ -0,0 +1,17 @@
++#!/usr/bin/env perl
++
++use strict;
++use warnings;
++
++# Only arguments '--exclusive 1' exactly are supported.
++(@ARGV == 2) or die;
++my $mode = shift;
++($mode eq "--exclusive") or die;
++my $fd = shift;
++($fd eq "1") or die;
++
++use Fcntl ':flock';
++
++open(my $fh, '>&=', 1) or die "open: $!";
++
++flock($fh, LOCK_EX) or die "flock: $!";
+diff --git a/libgomp/testsuite/lib/libgomp.exp b/libgomp/testsuite/lib/libgomp.exp
+index 46cce9b8445..512a5146ac6 100644
+--- a/libgomp/testsuite/lib/libgomp.exp
++++ b/libgomp/testsuite/lib/libgomp.exp
+@@ -9,6 +9,7 @@ proc load_gcc_lib { filename } {
+ }
+ 
+ load_lib dg.exp
++load_lib standard.exp
+ 
+ # Required to use gcc-dg.exp - however, the latter should NOT be
+ # loaded until ${tool}_target_compile is defined since it uses that
+@@ -40,7 +41,12 @@ load_gcc_lib torture-options.exp
+ load_gcc_lib fortran-modules.exp
+ 
+ # Try to load a test support file, built during libgomp configuration.
+-load_file libgomp-test-support.exp
++# Search in '..' vs. '.' to support parallel vs. sequential testing.
++if [info exists ::env(GCC_RUNTEST_PARALLELIZE_DIR)] {
++    load_file ../libgomp-test-support.exp
++} else {
++    load_file libgomp-test-support.exp
++}
+ 
+ set dg-do-what-default run
+ 
+@@ -318,6 +324,36 @@ proc libgomp_option_proc { option } {
+     }
+ }
+ 
++if ![info exists ::env(GCC_RUNTEST_PARALLELIZE_DIR)] {
++    # No parallel testing.
++} elseif { $FLOCK == "" } {
++    # Using just one parallel slot.
++} else {
++    # Using several parallel slots.  Override DejaGnu
++    # 'standard.exp:${tool}_load'...
++    rename libgomp_load standard_libgomp_load
++    proc libgomp_load { program args } {
++	# ... in order to serialize execution testing via an exclusive lock.
++	# We use stdout, as per <https://perldoc.perl.org/functions/flock>
++	# "[...] FILEHANDLE [...] be open with write intent to use LOCK_EX".
++	set lock_file ../lock
++	set lock_kind --exclusive
++	set lock_fd [open $lock_file a+]
++	set lock_clock_begin [clock seconds]
++	global FLOCK
++	exec $FLOCK $lock_kind 1 >@ $lock_fd
++	set lock_clock_end [clock seconds]
++	verbose -log "Got ${FLOCK}('$lock_file', '$lock_kind') at [clock format $lock_clock_end] after [expr $lock_clock_end - $lock_clock_begin] s" 2
++
++	set result [standard_libgomp_load $program $args]
++
++	# Unlock (implicit with 'close').
++	close $lock_fd
++
++	return $result
++    }
++}
++
+ # Translate offload target to OpenACC device type.  Return the empty string if
+ # not supported, and 'host' for offload target 'disable'.
+ proc offload_target_to_openacc_device_type { offload_target } {
+diff --git a/libgomp/testsuite/libgomp-site-extra.exp.in b/libgomp/testsuite/libgomp-site-extra.exp.in
+index c0d26660bad..0a3ba059c21 100644
+--- a/libgomp/testsuite/libgomp-site-extra.exp.in
++++ b/libgomp/testsuite/libgomp-site-extra.exp.in
+@@ -1 +1,2 @@
++set FLOCK {@FLOCK@}
+ set GCC_UNDER_TEST {@CC@}
 diff --git a/libgomp/testsuite/libgomp.c++/pr108180.C b/libgomp/testsuite/libgomp.c++/pr108180.C
 new file mode 100644
 index 00000000000..452910cebeb
