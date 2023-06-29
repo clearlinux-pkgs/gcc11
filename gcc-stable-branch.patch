@@ -963,6 +963,9 @@ Patrick Palka (16):
 Paul A. Clarke (1):
       rs6000: __Uglify non-uglified local variables in headers
 
+Paul E. Murphy (1):
+      go: Update usage of TARGET_AIX to TARGET_AIX_OS
+
 Paul Thomas (1):
       Fortran: ICE on recursive derived types with allocatable components [PR107872]
 
@@ -20838,6 +20841,57 @@ index aa786cc1ef0..c801872ebd3 100644
  2022-04-21  Release Manager
  
  	* GCC 11.3.0 released.
+diff --git a/gcc/go/go-backend.c b/gcc/go/go-backend.c
+index 7a223e51b00..4655fee6ece 100644
+--- a/gcc/go/go-backend.c
++++ b/gcc/go/go-backend.c
+@@ -45,8 +45,8 @@ along with GCC; see the file COPYING3.  If not see
+ #define GO_EXPORT_SECTION_NAME ".go_export"
+ #endif
+ 
+-#ifndef TARGET_AIX
+-#define TARGET_AIX 0
++#ifndef TARGET_AIX_OS
++#define TARGET_AIX_OS 0
+ #endif
+ 
+ /* This file holds all the cases where the Go frontend needs
+@@ -107,7 +107,7 @@ go_write_export_data (const char *bytes, unsigned int size)
+     {
+       gcc_assert (targetm_common.have_named_sections);
+       sec = get_section (GO_EXPORT_SECTION_NAME,
+-			 TARGET_AIX ? SECTION_EXCLUDE : SECTION_DEBUG,
++			 TARGET_AIX_OS ? SECTION_EXCLUDE : SECTION_DEBUG,
+ 			 NULL);
+     }
+ 
+diff --git a/gcc/go/go-lang.c b/gcc/go/go-lang.c
+index a01db8dbdcd..249ecf2503f 100644
+--- a/gcc/go/go-lang.c
++++ b/gcc/go/go-lang.c
+@@ -39,8 +39,8 @@ along with GCC; see the file COPYING3.  If not see
+ #include "go-c.h"
+ #include "go-gcc.h"
+ 
+-#ifndef TARGET_AIX
+-#define TARGET_AIX 0
++#ifndef TARGET_AIX_OS
++#define TARGET_AIX_OS 0
+ #endif
+ 
+ /* Language-dependent contents of a type.  */
+@@ -119,9 +119,9 @@ go_langhook_init (void)
+   args.compiling_runtime = go_compiling_runtime;
+   args.debug_escape_level = go_debug_escape_level;
+   args.debug_escape_hash = go_debug_escape_hash;
+-  args.nil_check_size_threshold = TARGET_AIX ? -1 : 4096;
++  args.nil_check_size_threshold = TARGET_AIX_OS ? -1 : 4096;
+   args.debug_optimization = go_debug_optimization;
+-  args.need_eqtype = TARGET_AIX ? true : false;
++  args.need_eqtype = TARGET_AIX_OS ? true : false;
+   args.linemap = go_get_linemap();
+   args.backend = go_get_backend();
+   go_create_gogo (&args);
 diff --git a/gcc/ifcvt.c b/gcc/ifcvt.c
 index 0439a8aacff..367d5c25c56 100644
 --- a/gcc/ifcvt.c
