@@ -68,7 +68,10 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (431):
+GCC Administrator (434):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -557,7 +560,7 @@ Harald Anlauf (38):
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
 
-Iain Buclaw (15):
+Iain Buclaw (17):
       libphobos: Don't call free on the TLS array in the emutls destroy function.
       libphobos: Give _Unwind_Exception an alignment that best resembles __attribute__((aligned))
       darwin, d: Support outfile substitution for libphobos
@@ -573,6 +576,8 @@ Iain Buclaw (15):
       d: Delay removing DECL_EXTERNAL from thunks until funcion has finished
       d: Fix undefined reference to lambda defined in private enum [PR109108]
       d: Suboptimal codegen for __builtin_expect(cond, false)
+      d: Fix ICE in setValue, at d/dmd/dinterpret.c:7013
+      d: Fix core.volatile.volatileLoad discarded if result is unused
 
 Iain Sandoe (13):
       Darwin: Fix bootstrap for X86.
@@ -17142,10 +17147,26 @@ index af112fd0985..14478eec238 100644
  extern rtx cselib_expand_value_rtx (rtx, bitmap, int);
  typedef rtx (*cselib_expand_callback)(rtx, bitmap, int, void *);
 diff --git a/gcc/d/ChangeLog b/gcc/d/ChangeLog
-index 6021ffdbf78..36e2ba84ff7 100644
+index 6021ffdbf78..ef7b93950a7 100644
 --- a/gcc/d/ChangeLog
 +++ b/gcc/d/ChangeLog
-@@ -1,3 +1,124 @@
+@@ -1,3 +1,140 @@
++2023-07-02  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2023-07-02  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	PR d/110516
++	* intrinsics.cc (expand_volatile_load): Set TREE_SIDE_EFFECTS on the
++	expanded expression.
++	(expand_volatile_store): Likewise.
++
++2023-07-01  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	PR d/110511
++	* dmd/dinterpret.c (Interpreter::visit (CastExp *)): Handle casting
++	null to int or float.
++
 +2023-06-26  Iain Buclaw  <ibuclaw@gdcproject.org>
 +
 +	Backported from master:
@@ -17832,6 +17853,34 @@ index a30549ce8e0..bc494d3e7ca 100644
    /* If all instantiations must go in COMDAT, give them that linkage.
       This also applies to other extern declarations, so that it is possible
       for them to override template declarations.  */
+diff --git a/gcc/d/dmd/dinterpret.c b/gcc/d/dmd/dinterpret.c
+index ab9d88c660c..d4cfb0caacb 100644
+--- a/gcc/d/dmd/dinterpret.c
++++ b/gcc/d/dmd/dinterpret.c
+@@ -5792,12 +5792,22 @@ public:
+         }
+         if (e->to->ty == Tsarray)
+             e1 = resolveSlice(e1);
+-        if (e->to->toBasetype()->ty == Tbool && e1->type->ty == Tpointer)
++        Type *tobt = e->to->toBasetype();
++        if (tobt->ty == Tbool && e1->type->ty == Tpointer)
+         {
+             new(pue) IntegerExp(e->loc, e1->op != TOKnull, e->to);
+             result = pue->exp();
+             return;
+         }
++        else if (tobt->isTypeBasic() && e1->op == TOKnull)
++        {
++            if (tobt->isintegral())
++                new(pue) IntegerExp(e->loc, 0, e->to);
++            else if (tobt->isreal())
++                new(pue) RealExp(e->loc, CTFloat::zero, e->to);
++            result = pue->exp();
++            return;
++        }
+         result = ctfeCast(pue, e->loc, e->type, e->to, e1);
+     }
+ 
 diff --git a/gcc/d/dmd/expressionsem.c b/gcc/d/dmd/expressionsem.c
 index 5ae5fe6a717..fe90039d6f0 100644
 --- a/gcc/d/dmd/expressionsem.c
@@ -17951,6 +18000,26 @@ index 2288843c61a..289bd5e6c49 100644
    /* Function aliases are the same as alias symbols.  */
    void visit (FuncAliasDeclaration *d)
    {
+diff --git a/gcc/d/intrinsics.cc b/gcc/d/intrinsics.cc
+index 539dc0c1f37..5788f5cb4ad 100644
+--- a/gcc/d/intrinsics.cc
++++ b/gcc/d/intrinsics.cc
+@@ -721,6 +721,7 @@ expand_volatile_load (tree callexp)
+   tree type = build_qualified_type (TREE_TYPE (ptrtype), TYPE_QUAL_VOLATILE);
+   tree result = indirect_ref (type, ptr);
+   TREE_THIS_VOLATILE (result) = 1;
++  TREE_SIDE_EFFECTS (result) = 1;
+ 
+   return result;
+ }
+@@ -748,6 +749,7 @@ expand_volatile_store (tree callexp)
+   tree type = build_qualified_type (TREE_TYPE (ptrtype), TYPE_QUAL_VOLATILE);
+   tree result = indirect_ref (type, ptr);
+   TREE_THIS_VOLATILE (result) = 1;
++  TREE_SIDE_EFFECTS (result) = 1;
+ 
+   /* (*(volatile T *) ptr) = value;  */
+   tree value = CALL_EXPR_ARG (callexp, 1);
 diff --git a/gcc/d/toir.cc b/gcc/d/toir.cc
 index eaee6f7e803..1db50b8cfbe 100644
 --- a/gcc/d/toir.cc
@@ -22251,10 +22320,24 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..29f2e12fa8f 100644
+index 5fc23605244..b6e7bf626b6 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2357 @@
+@@ -1,3 +1,2371 @@
++2023-07-02  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2023-07-02  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	PR d/110516
++	* gdc.dg/torture/pr110516a.d: New test.
++	* gdc.dg/torture/pr110516b.d: New test.
++
++2023-07-01  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	PR d/110511
++	* gdc.test/compilable/test21794.d: New test.
++
 +2023-06-28  liuhongt  <hongtao.liu@intel.com>
 +
 +	* gcc.target/i386/avx-vzeroupper-29.c: New testcase.
@@ -35006,6 +35089,42 @@ index 00000000000..4a428bf85a6
 +{
 +    return test109108(0);
 +}
+diff --git a/gcc/testsuite/gdc.dg/torture/pr110516a.d b/gcc/testsuite/gdc.dg/torture/pr110516a.d
+new file mode 100644
+index 00000000000..276455ae408
+--- /dev/null
++++ b/gcc/testsuite/gdc.dg/torture/pr110516a.d
+@@ -0,0 +1,12 @@
++// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=110516
++// { dg-do compile }
++// { dg-options "-fno-moduleinfo -fdump-tree-optimized" }
++void fn110516(ubyte* ptr)
++{
++    import core.volatile : volatileLoad;
++    volatileLoad(ptr);
++    volatileLoad(ptr);
++    volatileLoad(ptr);
++    volatileLoad(ptr);
++}
++// { dg-final { scan-tree-dump-times " ={v} " 4 "optimized" } }
+diff --git a/gcc/testsuite/gdc.dg/torture/pr110516b.d b/gcc/testsuite/gdc.dg/torture/pr110516b.d
+new file mode 100644
+index 00000000000..b7a67e716a5
+--- /dev/null
++++ b/gcc/testsuite/gdc.dg/torture/pr110516b.d
+@@ -0,0 +1,12 @@
++// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=110516
++// { dg-do compile }
++// { dg-options "-fno-moduleinfo -fdump-tree-optimized" }
++void fn110516(ubyte* ptr)
++{
++    import core.volatile : volatileStore;
++    volatileStore(ptr, 0);
++    volatileStore(ptr, 0);
++    volatileStore(ptr, 0);
++    volatileStore(ptr, 0);
++}
++// { dg-final { scan-tree-dump-times " ={v} " 4 "optimized" } }
 diff --git a/gcc/testsuite/gdc.dg/torture/torture.exp b/gcc/testsuite/gdc.dg/torture/torture.exp
 index da3297b47b2..13be801823e 100644
 --- a/gcc/testsuite/gdc.dg/torture/torture.exp
@@ -35026,6 +35145,64 @@ index da3297b47b2..13be801823e 100644
  # The default option list can be overridden by
  # TORTURE_OPTIONS="{ { list1 } ... { listN } }"
  
+diff --git a/gcc/testsuite/gdc.test/compilable/test21794.d b/gcc/testsuite/gdc.test/compilable/test21794.d
+new file mode 100644
+index 00000000000..68e504bce56
+--- /dev/null
++++ b/gcc/testsuite/gdc.test/compilable/test21794.d
+@@ -0,0 +1,52 @@
++// https://issues.dlang.org/show_bug.cgi?id=21794
++/*
++TEST_OUTPUT:
++---
++0
++0u
++0L
++0LU
++0.0F
++0.0
++0.0L
++---
++*/
++
++bool fun(void* p) {
++    const x = cast(ulong)p;
++    return 1;
++}
++
++static assert(fun(null));
++
++T fun2(T)(void* p) {
++    const x = cast(T)p;
++    return x;
++}
++
++// These were an error before, they were returning a NullExp instead of IntegerExp/RealExp
++
++static assert(fun2!int(null)    == 0);
++static assert(fun2!uint(null)   == 0);
++static assert(fun2!long(null)   == 0);
++static assert(fun2!ulong(null)  == 0);
++static assert(fun2!float(null)  == 0);
++static assert(fun2!double(null) == 0);
++static assert(fun2!real(null)   == 0);
++
++// These were printing 'null' instead of the corresponding number
++
++const i = cast(int)null;
++const ui = cast(uint)null;
++const l = cast(long)null;
++const ul = cast(ulong)null;
++const f = cast(float)null;
++const d = cast(double)null;
++const r = cast(real)null;
++pragma(msg, i);
++pragma(msg, ui);
++pragma(msg, l);
++pragma(msg, ul);
++pragma(msg, f);
++pragma(msg, d);
++pragma(msg, r);
 diff --git a/gcc/testsuite/gdc.test/fail_compilation/ice20264.d b/gcc/testsuite/gdc.test/fail_compilation/ice20264.d
 new file mode 100644
 index 00000000000..0d697e22c9f
