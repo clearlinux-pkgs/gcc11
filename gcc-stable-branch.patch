@@ -68,7 +68,12 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (437):
+GCC Administrator (442):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -520,7 +525,7 @@ H.J. Lu (5):
 Haochen Gui (1):
       rs6000: correct vector sign extend builtins on Big Endian
 
-Harald Anlauf (38):
+Harald Anlauf (39):
       Fortran: improve error recovery on invalid array section
       Fortran: fix error recovery on invalid array section
       Fortran: fix checking of arguments to UNPACK when MASK is a variable [PR105813]
@@ -559,11 +564,12 @@ Harald Anlauf (38):
       Fortran: reject MODULE PROCEDURE outside generic module interface [PR99036]
       Fortran: fix compile-time simplification of SET_EXPONENT [PR109511]
       Fortran: CLASS pointer function result in variable definition context [PR109846]
+      Fortran: simplification of FINDLOC for constant complex arguments [PR110585]
 
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
 
-Iain Buclaw (17):
+Iain Buclaw (18):
       libphobos: Don't call free on the TLS array in the emutls destroy function.
       libphobos: Give _Unwind_Exception an alignment that best resembles __attribute__((aligned))
       darwin, d: Support outfile substitution for libphobos
@@ -581,6 +587,7 @@ Iain Buclaw (17):
       d: Suboptimal codegen for __builtin_expect(cond, false)
       d: Fix ICE in setValue, at d/dmd/dinterpret.c:7013
       d: Fix core.volatile.volatileLoad discarded if result is unused
+      d: Fix PR 108842: Cannot use enum array with -fno-druntime
 
 Iain Sandoe (13):
       Darwin: Fix bootstrap for X86.
@@ -729,7 +736,7 @@ John David Anglin (2):
       Fix addvdi3 and subvdi3 patterns
       Skip guality tests on hppa-hpux.
 
-Jonathan Wakely (108):
+Jonathan Wakely (109):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -838,6 +845,7 @@ Jonathan Wakely (108):
       doc: Fix description of x86 -m32 option [PR109954]
       libstdc++: Simplify constraints for std::any construction [PR104242]
       libstdc++: Document removal of implicit allocator rebinding extensions
+      libstdc++: Fix wstring conversions in filesystem::path [PR95048]
 
 José Rui Faustino de Sousa (5):
       Fortran: Fix ICE with -fcheck=pointer [PR100136]
@@ -17543,10 +17551,22 @@ index af112fd0985..14478eec238 100644
  extern rtx cselib_expand_value_rtx (rtx, bitmap, int);
  typedef rtx (*cselib_expand_callback)(rtx, bitmap, int, void *);
 diff --git a/gcc/d/ChangeLog b/gcc/d/ChangeLog
-index 6021ffdbf78..ef7b93950a7 100644
+index 6021ffdbf78..091a7fafaf0 100644
 --- a/gcc/d/ChangeLog
 +++ b/gcc/d/ChangeLog
-@@ -1,3 +1,140 @@
+@@ -1,3 +1,152 @@
++2023-07-07  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2023-07-07  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	PR d/108842
++	* decl.cc (DeclVisitor::visit (VarDeclaration *)): Only emit scalar
++	manifest constants.
++	(get_symbol_decl): Don't generate CONST_DECL for non-scalar manifest
++	constants.
++	* imports.cc (ImportVisitor::visit (VarDeclaration *)): New method.
++
 +2023-07-02  Iain Buclaw  <ibuclaw@gdcproject.org>
 +
 +	Backported from master:
@@ -17860,7 +17880,7 @@ index b12d28f1047..1304126a675 100644
        if (saw_libcxx)
  	new_decoded_options[j++] = *saw_libcxx;
 diff --git a/gcc/d/decl.cc b/gcc/d/decl.cc
-index a30549ce8e0..bc494d3e7ca 100644
+index a30549ce8e0..477e8d880d9 100644
 --- a/gcc/d/decl.cc
 +++ b/gcc/d/decl.cc
 @@ -116,6 +116,107 @@ gcc_attribute_p (Dsymbol *decl)
@@ -17990,6 +18010,15 @@ index a30549ce8e0..bc494d3e7ca 100644
  	  }
        }
      else
+@@ -646,7 +755,7 @@ public:
+       {
+ 	/* Do not store variables we cannot take the address of,
+ 	   but keep the values for purposes of debugging.  */
+-	if (!d->type->isscalar ())
++	if (d->type->isscalar () && !d->type->hasPointers ())
+ 	  {
+ 	    tree decl = get_symbol_decl (d);
+ 	    d_pushdecl (decl);
 @@ -824,59 +933,17 @@ public:
      d->semanticRun = PASSobj;
  
@@ -18072,7 +18101,58 @@ index a30549ce8e0..bc494d3e7ca 100644
  	declare_local_var (d->v_argptr);
  	add_stmt (init);
  
-@@ -1253,6 +1320,12 @@ get_symbol_decl (Declaration *decl)
+@@ -1031,6 +1098,20 @@ get_symbol_decl (Declaration *decl)
+       return decl->csym;
+     }
+ 
++  if (VarDeclaration *vd = decl->isVarDeclaration ())
++    {
++      /* CONST_DECL was initially intended for enumerals and may be used for
++	 scalars in general, but not for aggregates.  Here a non-constant
++	 value is generated anyway so as its value can be used.  */
++      if (!vd->canTakeAddressOf () && !vd->type->isscalar ())
++	{
++	  gcc_assert (vd->_init && !vd->_init->isVoidInitializer ());
++	  Expression *ie = initializerToExpression (vd->_init);
++	  decl->csym = build_expr (ie, false);
++	  return decl->csym;
++	}
++    }
++
+   /* Build the tree for the symbol.  */
+   FuncDeclaration *fd = decl->isFuncDeclaration ();
+   if (fd)
+@@ -1078,23 +1159,15 @@ get_symbol_decl (Declaration *decl)
+       if (vd->storage_class & STCextern)
+ 	DECL_EXTERNAL (decl->csym) = 1;
+ 
+-      /* CONST_DECL was initially intended for enumerals and may be used for
+-	 scalars in general, but not for aggregates.  Here a non-constant
+-	 value is generated anyway so as the CONST_DECL only serves as a
+-	 placeholder for the value, however the DECL itself should never be
+-	 referenced in any generated code, or passed to the back-end.  */
+-      if (vd->storage_class & STCmanifest)
++      if (!vd->canTakeAddressOf ())
+ 	{
+ 	  /* Cannot make an expression out of a void initializer.  */
+-	  if (vd->_init && !vd->_init->isVoidInitializer ())
+-	    {
+-	      Expression *ie = initializerToExpression (vd->_init);
++	  gcc_assert (vd->_init && !vd->_init->isVoidInitializer ());
++	  /* Non-scalar manifest constants have already been dealt with.  */
++	  gcc_assert (vd->type->isscalar ());
+ 
+-	      if (!vd->type->isscalar ())
+-		DECL_INITIAL (decl->csym) = build_expr (ie, false);
+-	      else
+-		DECL_INITIAL (decl->csym) = build_expr (ie, true);
+-	    }
++	  Expression *ie = initializerToExpression (vd->_init);
++	  DECL_INITIAL (decl->csym) = build_expr (ie, true);
+ 	}
+     }
+ 
+@@ -1253,6 +1326,12 @@ get_symbol_decl (Declaration *decl)
  	  DECL_NO_INSTRUMENT_FUNCTION_ENTRY_EXIT (decl->csym) = 1;
  	}
  
@@ -18085,7 +18165,7 @@ index a30549ce8e0..bc494d3e7ca 100644
        /* Mark compiler generated functions as artificial.  */
        if (fd->generated)
  	DECL_ARTIFICIAL (decl->csym) = 1;
-@@ -1640,6 +1713,7 @@ finish_thunk (tree thunk, tree function)
+@@ -1640,6 +1719,7 @@ finish_thunk (tree thunk, tree function)
  
    TREE_ADDRESSABLE (function) = 1;
    TREE_USED (function) = 1;
@@ -18093,7 +18173,7 @@ index a30549ce8e0..bc494d3e7ca 100644
  
    if (flag_syntax_only)
      {
-@@ -1711,43 +1785,14 @@ make_thunk (FuncDeclaration *decl, int offset)
+@@ -1711,43 +1791,14 @@ make_thunk (FuncDeclaration *decl, int offset)
  
    if (!DECL_ARGUMENTS (function) || !DECL_RESULT (function))
      {
@@ -18145,7 +18225,7 @@ index a30549ce8e0..bc494d3e7ca 100644
      }
  
    /* Don't build the thunk if the compilation step failed.  */
-@@ -1773,11 +1818,10 @@ make_thunk (FuncDeclaration *decl, int offset)
+@@ -1773,11 +1824,10 @@ make_thunk (FuncDeclaration *decl, int offset)
  
    DECL_CONTEXT (thunk) = d_decl_context (decl);
  
@@ -18160,7 +18240,7 @@ index a30549ce8e0..bc494d3e7ca 100644
  
    /* Thunks are always addressable.  */
    TREE_ADDRESSABLE (thunk) = 1;
-@@ -1812,6 +1856,8 @@ make_thunk (FuncDeclaration *decl, int offset)
+@@ -1812,6 +1862,8 @@ make_thunk (FuncDeclaration *decl, int offset)
    d_keep (thunk);
    free (CONST_CAST (char *, ident));
  
@@ -18169,7 +18249,7 @@ index a30549ce8e0..bc494d3e7ca 100644
    if (!DECL_EXTERNAL (function))
      finish_thunk (thunk, function);
  
-@@ -1833,9 +1879,10 @@ start_function (FuncDeclaration *fd)
+@@ -1833,9 +1885,10 @@ start_function (FuncDeclaration *fd)
  {
    tree fndecl = get_symbol_decl (fd);
  
@@ -18183,7 +18263,7 @@ index a30549ce8e0..bc494d3e7ca 100644
    TemplateInstance *ti = fd->isInstantiated ();
    if (ti && ti->needsCodegen ())
      {
-@@ -1845,14 +1892,6 @@ start_function (FuncDeclaration *fd)
+@@ -1845,14 +1898,6 @@ start_function (FuncDeclaration *fd)
  	  warning (OPT_Wtemplates, "%s %qs instantiated",
  		   ti->kind (), ti->toPrettyChars (false));
  	}
@@ -18198,7 +18278,7 @@ index a30549ce8e0..bc494d3e7ca 100644
      }
  
    DECL_INITIAL (fndecl) = error_mark_node;
-@@ -1869,14 +1908,8 @@ start_function (FuncDeclaration *fd)
+@@ -1869,14 +1914,8 @@ start_function (FuncDeclaration *fd)
    /* Let GCC know the current scope is this function.  */
    current_function_decl = fndecl;
  
@@ -18215,7 +18295,7 @@ index a30549ce8e0..bc494d3e7ca 100644
  
    /* Initialize the RTL code for the function.  */
    allocate_struct_function (fndecl, false);
-@@ -1943,6 +1976,10 @@ finish_function (tree old_context)
+@@ -1943,6 +1982,10 @@ finish_function (tree old_context)
  
    DECL_SAVED_TREE (fndecl) = bind;
  
@@ -18226,7 +18306,7 @@ index a30549ce8e0..bc494d3e7ca 100644
    if (!errorcount && !global.errors)
      {
        /* Dump the D-specific tree IR.  */
-@@ -2375,16 +2412,17 @@ set_linkage_for_decl (tree decl)
+@@ -2375,16 +2418,17 @@ set_linkage_for_decl (tree decl)
    if (!TREE_PUBLIC (decl))
      return;
  
@@ -18345,7 +18425,7 @@ index 095f7ecca41..0976aebd7d4 100644
  List all non-mutable fields which occupy an object instance.
  @item nogc
 diff --git a/gcc/d/imports.cc b/gcc/d/imports.cc
-index 2288843c61a..289bd5e6c49 100644
+index 2288843c61a..51ed5e0260a 100644
 --- a/gcc/d/imports.cc
 +++ b/gcc/d/imports.cc
 @@ -97,12 +97,17 @@ public:
@@ -18367,7 +18447,7 @@ index 2288843c61a..289bd5e6c49 100644
      d->isym = this->make_import (TYPE_STUB_DECL (type));
    }
  
-@@ -110,6 +115,7 @@ public:
+@@ -110,9 +115,19 @@ public:
    {
      /* Want the RECORD_TYPE, not POINTER_TYPE.  */
      tree type = TREE_TYPE (build_ctype (d->type));
@@ -18375,7 +18455,19 @@ index 2288843c61a..289bd5e6c49 100644
      d->isym = this->make_import (TYPE_STUB_DECL (type));
    }
  
-@@ -157,6 +163,20 @@ public:
++  void visit (VarDeclaration *d)
++  {
++    /* Not all kinds of manifest constants create a CONST_DECL.  */
++    if (!d->canTakeAddressOf () && !d->type->isscalar ())
++      return;
++
++    visit ((Declaration *) d);
++  }
++
+   /* For now, ignore importing other kinds of dsymbols.  */
+   void visit (ScopeDsymbol *)
+   {
+@@ -157,6 +172,20 @@ public:
        }
    }
  
@@ -18801,10 +18893,19 @@ index 70c5b3886ef..5b4053df520 100644
  
        if ((tem = fold_truth_andor (loc, code, type, arg0, arg1, op0, op1))
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..e7b9d5c735f 100644
+index ee1c7bb4b31..f60f324aea7 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,550 @@
+@@ -1,3 +1,559 @@
++2023-07-08  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-07-08  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/110585
++	* arith.c (gfc_compare_expr): Handle equality comparison of constant
++	complex gfc_expr arguments.
++
 +2023-06-09  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -19355,6 +19456,22 @@ index ee1c7bb4b31..e7b9d5c735f 100644
  2022-04-21  Release Manager
  
  	* GCC 11.3.0 released.
+diff --git a/gcc/fortran/arith.c b/gcc/fortran/arith.c
+index 8a0d70d23ba..aed449ede89 100644
+--- a/gcc/fortran/arith.c
++++ b/gcc/fortran/arith.c
+@@ -1080,6 +1080,11 @@ gfc_compare_expr (gfc_expr *op1, gfc_expr *op2, gfc_intrinsic_op op)
+ 	    || (op1->value.logical && !op2->value.logical));
+       break;
+ 
++    case BT_COMPLEX:
++      gcc_assert (op == INTRINSIC_EQ);
++      rc = mpc_cmp (op1->value.complex, op2->value.complex);
++      break;
++
+     default:
+       gfc_internal_error ("gfc_compare_expr(): Bad basic type");
+     }
 diff --git a/gcc/fortran/array.c b/gcc/fortran/array.c
 index b406f6d1f6e..bb6f2bb9045 100644
 --- a/gcc/fortran/array.c
@@ -22716,10 +22833,27 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..e6678cb2b74 100644
+index 5fc23605244..f5fb43e4bf4 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2381 @@
+@@ -1,3 +1,2398 @@
++2023-07-08  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-07-08  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/110585
++	* gfortran.dg/findloc_9.f90: New test.
++
++2023-07-07  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2023-07-07  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	PR d/108842
++	* gdc.dg/pr98277.d: Add more tests.
++	* gdc.dg/pr108842.d: New test.
++
 +2023-07-05  Michael Meissner  <meissner@linux.ibm.com>
 +
 +	Backported from master:
@@ -35490,6 +35624,16 @@ index 00000000000..69134e73137
 +// { dg-additional-sources "imports/pr108050/package.d imports/pr108050/mod1.d imports/pr108050/mod2.d" }
 +// { dg-options "-g" }
 +import imports.pr108050 : split;
+diff --git a/gcc/testsuite/gdc.dg/pr108842.d b/gcc/testsuite/gdc.dg/pr108842.d
+new file mode 100644
+index 00000000000..5aae9e5000d
+--- /dev/null
++++ b/gcc/testsuite/gdc.dg/pr108842.d
+@@ -0,0 +1,4 @@
++// { dg-do compile }
++// { dg-options "-fno-rtti" }
++module object;
++enum int[] x = [0, 1, 2];
 diff --git a/gcc/testsuite/gdc.dg/pr108877.d b/gcc/testsuite/gdc.dg/pr108877.d
 new file mode 100644
 index 00000000000..710551f3f9a
@@ -35533,6 +35677,25 @@ index 00000000000..bf69201d9a5
 +}
 +// { dg-final { scan-tree-dump "if \\(__builtin_expect \\(p == 0, 0\\) != 0\\)" "original" } }
 +// { dg-final { scan-tree-dump "if \\(__builtin_expect \\(p == 1, 0\\) != 0\\)" "original" } }
+diff --git a/gcc/testsuite/gdc.dg/pr98277.d b/gcc/testsuite/gdc.dg/pr98277.d
+index d3b859fcbda..33b15e9e435 100644
+--- a/gcc/testsuite/gdc.dg/pr98277.d
++++ b/gcc/testsuite/gdc.dg/pr98277.d
+@@ -11,3 +11,14 @@ ref int getSide(Side side, ref int left, ref int right)
+ {
+     return side == Side.left ? left : right;
+ }
++
++enum SideA : int[]
++{
++    left = [0],
++    right = [1],
++}
++
++int getSideA(SideA side, ref int left, ref int right)
++{
++    return side == SideA.left ? left : right;
++}
 diff --git a/gcc/testsuite/gdc.dg/torture/imports/pr109108.d b/gcc/testsuite/gdc.dg/torture/imports/pr109108.d
 new file mode 100644
 index 00000000000..cec5274098c
@@ -36204,6 +36367,31 @@ index 00000000000..64373322387
 +   class(t) :: y               ! { dg-error "dummy, allocatable or pointer" }
 +   stop extends_type_of (x, y) ! { dg-error "STOP code" }
 +end
+diff --git a/gcc/testsuite/gfortran.dg/findloc_9.f90 b/gcc/testsuite/gfortran.dg/findloc_9.f90
+new file mode 100644
+index 00000000000..05974476cb3
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/findloc_9.f90
+@@ -0,0 +1,19 @@
++! { dg-do compile }
++! { dg-options "-fdump-tree-original" }
++! PR fortran/110585 - simplification of FINDLOC for constant complex arguments
++
++program mvce
++  implicit none
++  integer, parameter :: a(*) = findloc([(1.,0.),(2.,1.)], (2.,0.))
++  integer, parameter :: b(*) = findloc([(1.,0.),(2.,1.)], (2.,0.), back=.true.)
++  integer, parameter :: c(*) = findloc([(1.,0.),(2.,1.)], (2.,1.))
++  integer, parameter :: d(*) = findloc([(1.,0.),(2.,1.)], (2.,1.), back=.true.)
++  integer, parameter :: e    = findloc([(1.,0.),(2.,1.)], (2.,1.), dim=1)
++  if (a(1) /= 0) stop 1
++  if (b(1) /= 0) stop 2
++  if (c(1) /= 2) stop 3
++  if (d(1) /= 2) stop 4
++  if (e    /= 2) stop 5
++end
++
++! { dg-final { scan-tree-dump-not "_gfortran_stop_numeric" "original" } }
 diff --git a/gcc/testsuite/gfortran.dg/g77/pr105203.f b/gcc/testsuite/gfortran.dg/g77/pr105203.f
 new file mode 100644
 index 00000000000..3b47210fb40
@@ -42282,10 +42470,33 @@ index 72119b01c69..2cc64a39649 100644
  
  	* GCC 11.3.0 released.
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..2041fb7219a 100644
+index 85e04c45288..600a0706404 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,1714 @@
+@@ -1,3 +1,1737 @@
++2023-07-10  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-11-11  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/95048
++	* include/bits/fs_path.h (path::_Codecvt): New class template
++	that selects the kind of code conversion done.
++	(path::_Codecvt<wchar_t>): Select based on sizeof(wchar_t).
++	(_GLIBCXX_CONV_FROM_UTF8): New macro to allow the same code to
++	be used for Windows and POSIX.
++	(path::_S_convert(const EcharT*, const EcharT*)): Simplify by
++	using _Codecvt and _GLIBCXX_CONV_FROM_UTF8 abstractions.
++	(path::_S_str_convert(basic_string_view<value_type>, const A&)):
++	Simplify nested conditions.
++	* include/experimental/bits/fs_path.h (path::_Cvt): Define
++	nested typedef controlling type of code conversion done.
++	(path::_Cvt::_S_wconvert): Use new typedef.
++	(path::string(const A&)): Likewise.
++	* testsuite/27_io/filesystem/path/construct/95048.cc: New test.
++	* testsuite/experimental/filesystem/path/construct/95048.cc: New
++	test.
++
 +2023-06-23  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backported from master:
@@ -45643,7 +45854,7 @@ index 5d7dfe155b5..ef01c1b824f 100644
  
    /// @} group filesystem
 diff --git a/libstdc++-v3/include/bits/fs_path.h b/libstdc++-v3/include/bits/fs_path.h
-index a1f780a9c9b..1188e585b14 100644
+index a1f780a9c9b..029a6f365b3 100644
 --- a/libstdc++-v3/include/bits/fs_path.h
 +++ b/libstdc++-v3/include/bits/fs_path.h
 @@ -558,12 +558,7 @@ namespace __detail
@@ -45660,7 +45871,16 @@ index a1f780a9c9b..1188e585b14 100644
  
      enum class _Split { _Stem, _Extension };
  
-@@ -809,8 +804,7 @@ namespace __detail
+@@ -689,6 +684,8 @@ namespace __detail
+     _List _M_cmpts;
+ 
+     struct _Parser;
++
++    template<typename _EcharT> struct _Codecvt;
+   };
+ 
+   /// @{
+@@ -809,63 +806,79 @@ namespace __detail
  
    struct path::_Cmpt : path
    {
@@ -45670,7 +45890,176 @@ index a1f780a9c9b..1188e585b14 100644
  
      _Cmpt() : _M_pos(-1) { }
  
-@@ -1211,9 +1205,9 @@ namespace __detail
+     size_t _M_pos;
+   };
+ 
++  // path::_Codecvt<C> Performs conversions between C and path::string_type.
++  // The native encoding of char strings is the OS-dependent current
++  // encoding for pathnames. FIXME: We assume this is UTF-8 everywhere,
++  // but should use a Windows API to query it.
++
++  // Converts between native pathname encoding and char16_t or char32_t.
++  template<typename _EcharT>
++    struct path::_Codecvt
++    // Need derived class here because std::codecvt has protected destructor.
++    : std::codecvt<_EcharT, char, mbstate_t>
++    { };
++
++  // Converts between native pathname encoding and native wide encoding.
++  // The native encoding for wide strings is the execution wide-character
++  // set encoding. FIXME: We assume that this is either UTF-32 or UTF-16
++  // (depending on the width of wchar_t). That matches GCC's default,
++  // but can be changed with -fwide-exec-charset.
++  // We need a custom codecvt converting the native pathname encoding
++  // to/from the native wide encoding.
++  template<>
++    struct path::_Codecvt<wchar_t>
++    : conditional_t<sizeof(wchar_t) == sizeof(char32_t),
++		    std::codecvt_utf8<wchar_t>,       // UTF-8 <-> UTF-32
++		    std::codecvt_utf8_utf16<wchar_t>> // UTF-8 <-> UTF-16
++    { };
++
+   template<typename _EcharT>
+     auto
+     path::_S_convert(const _EcharT* __f, const _EcharT* __l)
+     {
+       static_assert(__detail::__is_encoded_char<_EcharT>);
+ 
++#ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
++# define _GLIBCXX_CONV_FROM_UTF8(S) __detail::__wstr_from_utf8(S)
++#else
++# define _GLIBCXX_CONV_FROM_UTF8(S) S
++#endif
++
+       if constexpr (is_same_v<_EcharT, value_type>)
+ 	return basic_string_view<value_type>(__f, __l - __f);
+-#if !defined _GLIBCXX_FILESYSTEM_IS_WINDOWS && defined _GLIBCXX_USE_CHAR8_T
++#ifdef _GLIBCXX_USE_CHAR8_T
+       else if constexpr (is_same_v<_EcharT, char8_t>)
+-	// For POSIX converting from char8_t to char is also 'noconv'
+-	return string_view(reinterpret_cast<const char*>(__f), __l - __f);
++	{
++	  string_view __str(reinterpret_cast<const char*>(__f), __l - __f);
++	  return _GLIBCXX_CONV_FROM_UTF8(__str);
++	}
+ #endif
+-      else
+-	{
+ #ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
++      else if constexpr (is_same_v<_EcharT, char>)
++	{
+ 	  std::wstring __wstr;
+-	  if constexpr (is_same_v<_EcharT, char>)
+-	    {
+-	      struct _UCvt : std::codecvt<wchar_t, char, std::mbstate_t>
+-	      { } __cvt;
+-	      if (__str_codecvt_in_all(__f, __l, __wstr, __cvt))
+-		return __wstr;
+-	    }
+-#ifdef _GLIBCXX_USE_CHAR8_T
+-	  else if constexpr (is_same_v<_EcharT, char8_t>)
+-	    {
+-	      const auto __f2 = reinterpret_cast<const char*>(__f);
+-	      return __detail::__wstr_from_utf8(string_view(__f2, __l - __f));
+-	    }
++	  path::_Codecvt<wchar_t> __cvt;
++	  if (__str_codecvt_in_all(__f, __l, __wstr, __cvt))
++	    return __wstr;
++	}
+ #endif
+-	  else // char16_t or char32_t
+-	    {
+-	      struct _UCvt : std::codecvt<_EcharT, char, std::mbstate_t>
+-	      { } __cvt;
+-	      std::string __str;
+-	      if (__str_codecvt_out_all(__f, __l, __str, __cvt))
+-		return __detail::__wstr_from_utf8(__str);
+-	    }
+-#else // ! windows
+-	  struct _UCvt : std::codecvt<_EcharT, char, std::mbstate_t>
+-	  { } __cvt;
++      else
++	{
++	  path::_Codecvt<_EcharT> __cvt;
+ 	  std::string __str;
+ 	  if (__str_codecvt_out_all(__f, __l, __str, __cvt))
+-	    return __str;
+-#endif
+-	  __detail::__throw_conversion_error();
++	    return _GLIBCXX_CONV_FROM_UTF8(__str);
+ 	}
++      __detail::__throw_conversion_error();
+     }
++#undef _GLIBCXX_CONV_FROM_UTF8
+ 
+   /// @endcond
+ 
+@@ -1034,7 +1047,9 @@ namespace __detail
+       if (__str.size() == 0)
+ 	return _WString(__a);
+ 
+-#ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
++#ifndef _GLIBCXX_FILESYSTEM_IS_WINDOWS
++      string_view __u8str = __str;
++#else
+       // First convert native string from UTF-16 to to UTF-8.
+       // XXX This assumes that the execution wide-character set is UTF-16.
+       std::codecvt_utf8_utf16<value_type> __cvt;
+@@ -1044,35 +1059,30 @@ namespace __detail
+       _String __u8str{_CharAlloc{__a}};
+       const value_type* __wfirst = __str.data();
+       const value_type* __wlast = __wfirst + __str.size();
+-      if (__str_codecvt_out_all(__wfirst, __wlast, __u8str, __cvt)) {
++      if (!__str_codecvt_out_all(__wfirst, __wlast, __u8str, __cvt))
++	__detail::__throw_conversion_error();
+       if constexpr (is_same_v<_CharT, char>)
+ 	return __u8str; // XXX assumes native ordinary encoding is UTF-8.
+-      else {
+-
+-      const char* __first = __u8str.data();
+-      const char* __last = __first + __u8str.size();
+-#else
+-      const value_type* __first = __str.data();
+-      const value_type* __last = __first + __str.size();
+-#endif
+-
+-      // Convert UTF-8 string to requested format.
+-#ifdef _GLIBCXX_USE_CHAR8_T
+-      if constexpr (is_same_v<_CharT, char8_t>)
+-	return _WString(__first, __last, __a);
+       else
+ #endif
+ 	{
+-	  // Convert UTF-8 to wide string.
+-	  _WString __wstr(__a);
+-	  struct _UCvt : std::codecvt<_CharT, char, std::mbstate_t> { } __cvt;
+-	  if (__str_codecvt_in_all(__first, __last, __wstr, __cvt))
+-	    return __wstr;
++	  const char* __first = __u8str.data();
++	  const char* __last = __first + __u8str.size();
++
++	  // Convert UTF-8 string to requested format.
++#ifdef _GLIBCXX_USE_CHAR8_T
++	  if constexpr (is_same_v<_CharT, char8_t>)
++	    return _WString(__first, __last, __a);
++	  else
++#endif
++	    {
++	      // Convert UTF-8 to wide string.
++	      _WString __wstr(__a);
++	      path::_Codecvt<_CharT> __cvt;
++	      if (__str_codecvt_in_all(__first, __last, __wstr, __cvt))
++		return __wstr;
++	    }
+ 	}
+-
+-#ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
+-      } }
+-#endif
+       __detail::__throw_conversion_error();
+     }
+   /// @endcond
+@@ -1211,9 +1221,9 @@ namespace __detail
        {
  	if (_M_pathname.back() == preferred_separator)
  	  return {};
@@ -45683,7 +46072,7 @@ index a1f780a9c9b..1188e585b14 100644
        }
      return {};
    }
-@@ -1361,6 +1355,16 @@ extern template class __shared_ptr<const filesystem::filesystem_error::_Impl>;
+@@ -1361,6 +1371,16 @@ extern template class __shared_ptr<const filesystem::filesystem_error::_Impl>;
  
  /// @endcond
  
@@ -48121,7 +48510,7 @@ index 3231f50adac..e8278dd00c6 100644
  
    /// @} group filesystem-ts
 diff --git a/libstdc++-v3/include/experimental/bits/fs_path.h b/libstdc++-v3/include/experimental/bits/fs_path.h
-index 1cc1b3bf686..830b51e45a0 100644
+index 1cc1b3bf686..65d63e433e0 100644
 --- a/libstdc++-v3/include/experimental/bits/fs_path.h
 +++ b/libstdc++-v3/include/experimental/bits/fs_path.h
 @@ -140,10 +140,10 @@ namespace __detail
@@ -48180,6 +48569,123 @@ index 1cc1b3bf686..830b51e45a0 100644
  		     const std::locale& __loc)
        {
  	const std::string __s = _S_string_from_iter(__src);
+@@ -748,15 +748,48 @@ namespace __detail
+   template<>
+     struct path::_Cvt<path::value_type>
+     {
++      // We need this type to be defined because we don't have `if constexpr`
++      // in C++11 and so path::string<C,T,A>(const A&) needs to be able to
++      // declare a variable of this type and pass it to __str_codecvt_in_all.
++      using __codecvt_utf8_to_wide = _Cvt;
++      // Dummy overload used for unreachable calls in path::string<C,T,A>.
++      template<typename _WStr>
++	friend bool
++	__str_codecvt_in_all(const char*, const char*,
++			     _WStr&, __codecvt_utf8_to_wide&) noexcept
++	{ return true; }
++
+       template<typename _Iter>
+ 	static string_type
+ 	_S_convert(_Iter __first, _Iter __last)
+ 	{ return string_type{__first, __last}; }
+     };
+ 
++  // Performs conversions from _CharT to path::string_type.
+   template<typename _CharT>
+     struct path::_Cvt
+     {
++      // FIXME: We currently assume that the native wide encoding for wchar_t
++      // is either UTF-32 or UTF-16 (depending on the width of wchar_t).
++      // See comments in <bits/fs_path.h> for further details.
++      using __codecvt_utf8_to_wchar
++	= typename conditional<sizeof(wchar_t) == sizeof(char32_t),
++			       std::codecvt_utf8<wchar_t>,      // from UTF-32
++			       std::codecvt_utf8_utf16<wchar_t> // from UTF-16
++			      >::type;
++
++      // Converts from char16_t or char32_t using std::codecvt<charNN_t, char>.
++      // Need derived class here because std::codecvt has protected destructor.
++      struct __codecvt_utf8_to_utfNN : std::codecvt<_CharT, char, mbstate_t>
++      { };
++
++      // Convert from native pathname format (assumed to be UTF-8 everywhere)
++      // to the encoding implied by the wide character type _CharT.
++      using __codecvt_utf8_to_wide
++	= typename conditional<is_same<_CharT, wchar_t>::value,
++			       __codecvt_utf8_to_wchar,
++			       __codecvt_utf8_to_utfNN>::type;
++
+ #ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
+ #ifdef _GLIBCXX_USE_CHAR8_T
+       static string_type
+@@ -774,8 +807,7 @@ namespace __detail
+       static string_type
+       _S_wconvert(const char* __f, const char* __l, const char*)
+       {
+-	using _Cvt = std::codecvt<wchar_t, char, mbstate_t>;
+-	const auto& __cvt = std::use_facet<_Cvt>(std::locale{});
++	std::codecvt_utf8_utf16<wchar_t> __cvt;
+ 	std::wstring __wstr;
+ 	if (__str_codecvt_in_all(__f, __l, __wstr, __cvt))
+ 	    return __wstr;
+@@ -787,8 +819,7 @@ namespace __detail
+       static string_type
+       _S_wconvert(const _CharT* __f, const _CharT* __l, const void*)
+       {
+-	struct _UCvt : std::codecvt<_CharT, char, std::mbstate_t>
+-	{ } __cvt;
++	__codecvt_utf8_to_wide __cvt;
+ 	std::string __str;
+ 	if (__str_codecvt_out_all(__f, __l, __str, __cvt))
+ 	  {
+@@ -819,8 +850,7 @@ namespace __detail
+ 	else
+ #endif
+ 	  {
+-	    struct _UCvt : std::codecvt<_CharT, char, std::mbstate_t>
+-	    { } __cvt;
++	    __codecvt_utf8_to_wide __cvt;
+ 	    std::string __str;
+ 	    if (__str_codecvt_out_all(__f, __l, __str, __cvt))
+ 	      return __str;
+@@ -990,7 +1020,7 @@ namespace __detail
+     inline std::basic_string<_CharT, _Traits, _Allocator>
+     path::string(const _Allocator& __a) const
+     {
+-      if (is_same<_CharT, value_type>::value)
++      if _GLIBCXX_CONSTEXPR (is_same<_CharT, value_type>::value)
+ 	return { _M_pathname.begin(), _M_pathname.end(), __a };
+ 
+       using _WString = basic_string<_CharT, _Traits, _Allocator>;
+@@ -1026,9 +1056,8 @@ namespace __detail
+ 	      else
+ #endif
+ 	        {
+-	          // Convert UTF-8 to wide string.
+-	          struct _UCvt : std::codecvt<_CharT, char, std::mbstate_t>
+-		  { } __cvt;
++		  // Convert UTF-8 to char16_t or char32_t string.
++		  typename path::_Cvt<_CharT>::__codecvt_utf8_to_wide __cvt;
+ 	          const char* __f = __from.data();
+ 	          const char* __l = __f + __from.size();
+ 	          if (__str_codecvt_in_all(__f, __l, __to, __cvt))
+@@ -1041,14 +1070,14 @@ namespace __detail
+ 	  if (auto* __p = __dispatch(__u8str, __wstr, is_same<_CharT, char>{}))
+ 	    return *__p;
+ 	}
+-#else
++#else // ! Windows
+ #ifdef _GLIBCXX_USE_CHAR8_T
+       if constexpr (is_same<_CharT, char8_t>::value)
+           return _WString(__first, __last, __a);
+       else
+ #endif
+         {
+-          struct _UCvt : std::codecvt<_CharT, char, std::mbstate_t> { } __cvt;
++	  typename path::_Cvt<_CharT>::__codecvt_utf8_to_wide __cvt;
+           _WString __wstr(__a);
+           if (__str_codecvt_in_all(__first, __last, __wstr, __cvt))
+ 	    return __wstr;
 diff --git a/libstdc++-v3/include/experimental/bits/simd.h b/libstdc++-v3/include/experimental/bits/simd.h
 index 421c923e7b0..d5683bfcacb 100644
 --- a/libstdc++-v3/include/experimental/bits/simd.h
@@ -59441,6 +59947,57 @@ index 00000000000..d58de461090
 +{
 +  // PR libstdc++/108636 - link failure with -fkeep-inline-functions
 +}
+diff --git a/libstdc++-v3/testsuite/27_io/filesystem/path/construct/95048.cc b/libstdc++-v3/testsuite/27_io/filesystem/path/construct/95048.cc
+new file mode 100644
+index 00000000000..c1a382d1420
+--- /dev/null
++++ b/libstdc++-v3/testsuite/27_io/filesystem/path/construct/95048.cc
+@@ -0,0 +1,45 @@
++// { dg-do run { target c++17 } }
++
++// C++17 30.10.8.4.1 path constructors [fs.path.construct]
++
++#include <filesystem>
++#include <testsuite_hooks.h>
++
++using std::filesystem::path;
++
++#define CHECK(E, S) (path(E##S) == path(u8##S))
++
++void
++test_wide()
++{
++  VERIFY( CHECK(L, "\u00E4") ); // PR libstdc++/95048
++  VERIFY( CHECK(L, "\U0001F4C1") ); // folder
++  VERIFY( CHECK(L, "\U0001F4C2") ); // open folder
++  VERIFY( CHECK(L, "\U0001F4C4") ); // filing cabient
++}
++
++void
++test_u16()
++{
++  VERIFY( CHECK(u, "\u00E4") ); // PR libstdc++/95048
++  VERIFY( CHECK(u, "\U0001F4C1") ); // folder
++  VERIFY( CHECK(u, "\U0001F4C2") ); // open folder
++  VERIFY( CHECK(u, "\U0001F4C4") ); // filing cabient
++}
++
++void
++test_u32()
++{
++  VERIFY( CHECK(U, "\u00E4") ); // PR libstdc++/95048
++  VERIFY( CHECK(U, "\U0001F4C1") ); // folder
++  VERIFY( CHECK(U, "\U0001F4C2") ); // open folder
++  VERIFY( CHECK(U, "\U0001F4C4") ); // filing cabient
++}
++
++int
++main()
++{
++  test_wide();
++  test_u16();
++  test_u32();
++}
 diff --git a/libstdc++-v3/testsuite/27_io/filesystem/path/nonmember/hash_value.cc b/libstdc++-v3/testsuite/27_io/filesystem/path/nonmember/hash_value.cc
 index 7b7c912a6df..be15b314149 100644
 --- a/libstdc++-v3/testsuite/27_io/filesystem/path/nonmember/hash_value.cc
@@ -60835,6 +61392,59 @@ index 03e777b0041..43f515d7f7c 100644
    } catch (const fs::filesystem_error& e) {
      ec2 = e.code();
    }
+diff --git a/libstdc++-v3/testsuite/experimental/filesystem/path/construct/95048.cc b/libstdc++-v3/testsuite/experimental/filesystem/path/construct/95048.cc
+new file mode 100644
+index 00000000000..b7a93f3c985
+--- /dev/null
++++ b/libstdc++-v3/testsuite/experimental/filesystem/path/construct/95048.cc
+@@ -0,0 +1,47 @@
++// { dg-options "-lstdc++fs" }
++// { dg-do run { target c++11 } }
++// { dg-require-filesystem-ts "" }
++
++// 8.4.1 path constructors [path.construct]
++
++#include <experimental/filesystem>
++#include <testsuite_hooks.h>
++
++using std::experimental::filesystem::path;
++
++#define CHECK(E, S) (path(E##S) == path(u8##S))
++
++void
++test_wide()
++{
++  VERIFY( CHECK(L, "\u00E4") ); // PR libstdc++/95048
++  VERIFY( CHECK(L, "\U0001F4C1") ); // folder
++  VERIFY( CHECK(L, "\U0001F4C2") ); // open folder
++  VERIFY( CHECK(L, "\U0001F4C4") ); // filing cabient
++}
++
++void
++test_u16()
++{
++  VERIFY( CHECK(u, "\u00E4") ); // PR libstdc++/95048
++  VERIFY( CHECK(u, "\U0001F4C1") ); // folder
++  VERIFY( CHECK(u, "\U0001F4C2") ); // open folder
++  VERIFY( CHECK(u, "\U0001F4C4") ); // filing cabient
++}
++
++void
++test_u32()
++{
++  VERIFY( CHECK(U, "\u00E4") ); // PR libstdc++/95048
++  VERIFY( CHECK(U, "\U0001F4C1") ); // folder
++  VERIFY( CHECK(U, "\U0001F4C2") ); // open folder
++  VERIFY( CHECK(U, "\U0001F4C4") ); // filing cabient
++}
++
++int
++main()
++{
++  test_wide();
++  test_u16();
++  test_u32();
++}
 diff --git a/libstdc++-v3/testsuite/experimental/simd/pr109261_constexpr_simd.cc b/libstdc++-v3/testsuite/experimental/simd/pr109261_constexpr_simd.cc
 new file mode 100644
 index 00000000000..43b47a614e7
