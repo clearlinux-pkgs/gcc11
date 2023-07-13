@@ -68,7 +68,9 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (442):
+GCC Administrator (444):
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -736,7 +738,7 @@ John David Anglin (2):
       Fix addvdi3 and subvdi3 patterns
       Skip guality tests on hppa-hpux.
 
-Jonathan Wakely (109):
+Jonathan Wakely (110):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -846,6 +848,7 @@ Jonathan Wakely (109):
       libstdc++: Simplify constraints for std::any construction [PR104242]
       libstdc++: Document removal of implicit allocator rebinding extensions
       libstdc++: Fix wstring conversions in filesystem::path [PR95048]
+      libstdc++: Check conversion from filesystem::path to wide strings [PR95048]
 
 José Rui Faustino de Sousa (5):
       Fortran: Fix ICE with -fcheck=pointer [PR100136]
@@ -42470,10 +42473,21 @@ index 72119b01c69..2cc64a39649 100644
  
  	* GCC 11.3.0 released.
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..600a0706404 100644
+index 85e04c45288..dda5eaf798e 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,1737 @@
+@@ -1,3 +1,1748 @@
++2023-07-12  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2023-07-12  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/95048
++	* testsuite/27_io/filesystem/path/construct/95048.cc: Check
++	conversions to wide strings.
++	* testsuite/experimental/filesystem/path/construct/95048.cc:
++	Likewise.
++
 +2023-07-10  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backported from master:
@@ -59949,10 +59963,10 @@ index 00000000000..d58de461090
 +}
 diff --git a/libstdc++-v3/testsuite/27_io/filesystem/path/construct/95048.cc b/libstdc++-v3/testsuite/27_io/filesystem/path/construct/95048.cc
 new file mode 100644
-index 00000000000..c1a382d1420
+index 00000000000..cd80d668b23
 --- /dev/null
 +++ b/libstdc++-v3/testsuite/27_io/filesystem/path/construct/95048.cc
-@@ -0,0 +1,45 @@
+@@ -0,0 +1,51 @@
 +// { dg-do run { target c++17 } }
 +
 +// C++17 30.10.8.4.1 path constructors [fs.path.construct]
@@ -59971,6 +59985,8 @@ index 00000000000..c1a382d1420
 +  VERIFY( CHECK(L, "\U0001F4C1") ); // folder
 +  VERIFY( CHECK(L, "\U0001F4C2") ); // open folder
 +  VERIFY( CHECK(L, "\U0001F4C4") ); // filing cabient
++
++  VERIFY( path(u8"\U0001D11E").wstring() == L"\U0001D11E" ); // G Clef
 +}
 +
 +void
@@ -59980,6 +59996,8 @@ index 00000000000..c1a382d1420
 +  VERIFY( CHECK(u, "\U0001F4C1") ); // folder
 +  VERIFY( CHECK(u, "\U0001F4C2") ); // open folder
 +  VERIFY( CHECK(u, "\U0001F4C4") ); // filing cabient
++
++  VERIFY( path(u8"\U0001D11E").u16string() == u"\U0001D11E" ); // G Clef
 +}
 +
 +void
@@ -59989,6 +60007,8 @@ index 00000000000..c1a382d1420
 +  VERIFY( CHECK(U, "\U0001F4C1") ); // folder
 +  VERIFY( CHECK(U, "\U0001F4C2") ); // open folder
 +  VERIFY( CHECK(U, "\U0001F4C4") ); // filing cabient
++
++  VERIFY( path(u8"\U0001D11E").u32string() == U"\U0001D11E" ); // G Clef
 +}
 +
 +int
@@ -61394,10 +61414,10 @@ index 03e777b0041..43f515d7f7c 100644
    }
 diff --git a/libstdc++-v3/testsuite/experimental/filesystem/path/construct/95048.cc b/libstdc++-v3/testsuite/experimental/filesystem/path/construct/95048.cc
 new file mode 100644
-index 00000000000..b7a93f3c985
+index 00000000000..fc65bfecd4d
 --- /dev/null
 +++ b/libstdc++-v3/testsuite/experimental/filesystem/path/construct/95048.cc
-@@ -0,0 +1,47 @@
+@@ -0,0 +1,53 @@
 +// { dg-options "-lstdc++fs" }
 +// { dg-do run { target c++11 } }
 +// { dg-require-filesystem-ts "" }
@@ -61418,6 +61438,8 @@ index 00000000000..b7a93f3c985
 +  VERIFY( CHECK(L, "\U0001F4C1") ); // folder
 +  VERIFY( CHECK(L, "\U0001F4C2") ); // open folder
 +  VERIFY( CHECK(L, "\U0001F4C4") ); // filing cabient
++
++  VERIFY( path(u8"\U0001D11E").wstring() == L"\U0001D11E" ); // G Clef
 +}
 +
 +void
@@ -61427,6 +61449,8 @@ index 00000000000..b7a93f3c985
 +  VERIFY( CHECK(u, "\U0001F4C1") ); // folder
 +  VERIFY( CHECK(u, "\U0001F4C2") ); // open folder
 +  VERIFY( CHECK(u, "\U0001F4C4") ); // filing cabient
++
++  VERIFY( path(u8"\U0001D11E").u16string() == u"\U0001D11E" ); // G Clef
 +}
 +
 +void
@@ -61436,6 +61460,8 @@ index 00000000000..b7a93f3c985
 +  VERIFY( CHECK(U, "\U0001F4C1") ); // folder
 +  VERIFY( CHECK(U, "\U0001F4C2") ); // open folder
 +  VERIFY( CHECK(U, "\U0001F4C4") ); // filing cabient
++
++  VERIFY( path(u8"\U0001D11E").u32string() == U"\U0001D11E" ); // G Clef
 +}
 +
 +int
