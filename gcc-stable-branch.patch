@@ -68,7 +68,10 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (445):
+GCC Administrator (448):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -528,7 +531,7 @@ H.J. Lu (5):
 Haochen Gui (1):
       rs6000: correct vector sign extend builtins on Big Endian
 
-Harald Anlauf (39):
+Harald Anlauf (40):
       Fortran: improve error recovery on invalid array section
       Fortran: fix error recovery on invalid array section
       Fortran: fix checking of arguments to UNPACK when MASK is a variable [PR105813]
@@ -568,6 +571,7 @@ Harald Anlauf (39):
       Fortran: fix compile-time simplification of SET_EXPONENT [PR109511]
       Fortran: CLASS pointer function result in variable definition context [PR109846]
       Fortran: simplification of FINDLOC for constant complex arguments [PR110585]
+      Fortran: formal symbol attributes for intrinsic procedures [PR110288]
 
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
@@ -2886,10 +2890,16 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..00a1676698d 100644
+index a0587d18824..28855046707 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,2167 @@
+@@ -1,3 +1,2173 @@
++2023-07-14  Oleg Endo  <olegendo@gcc.gnu.org>
++
++	PR target/101469
++	* config/sh/sh.md (peephole2): Handle case where eliminated reg
++	is also	used by the address of the following memory operand.
++
 +2023-07-05  Michael Meissner  <meissner@linux.ibm.com>
 +
 +	Backported from master:
@@ -18950,10 +18960,21 @@ index 70c5b3886ef..5b4053df520 100644
  
        if ((tem = fold_truth_andor (loc, code, type, arg0, arg1, op0, op1))
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..f60f324aea7 100644
+index ee1c7bb4b31..d2403cb3c30 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,559 @@
+@@ -1,3 +1,570 @@
++2023-07-14  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-07-11  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/110288
++	* symbol.c (gfc_copy_formal_args_intr): When deriving the formal
++	argument attributes from the actual ones for intrinsic procedure
++	calls, take special care of CHARACTER arguments that we do not
++	wrongly treat them formally as deferred-length.
++
 +2023-07-08  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -20473,10 +20494,24 @@ index 3599e1b3194..885f672e389 100644
        else if (field->expr_type == EXPR_ARRAY)
  	e = gfc_copy_expr (field_ctor->expr);
 diff --git a/gcc/fortran/symbol.c b/gcc/fortran/symbol.c
-index c2dad08d878..c164e94bec0 100644
+index c2dad08d878..56ad114d84f 100644
 --- a/gcc/fortran/symbol.c
 +++ b/gcc/fortran/symbol.c
-@@ -5146,6 +5146,10 @@ gfc_type_compatible (gfc_typespec *ts1, gfc_typespec *ts2)
+@@ -4705,6 +4705,13 @@ gfc_copy_formal_args_intr (gfc_symbol *dest, gfc_intrinsic_sym *src,
+       formal_arg->sym->attr.flavor = FL_VARIABLE;
+       formal_arg->sym->attr.dummy = 1;
+ 
++      /* Do not treat an actual deferred-length character argument wrongly
++	 as template for the formal argument.  */
++      if (formal_arg->sym->ts.type == BT_CHARACTER
++	  && !(formal_arg->sym->attr.allocatable
++	       || formal_arg->sym->attr.pointer))
++	formal_arg->sym->ts.deferred = false;
++
+       if (formal_arg->sym->ts.type == BT_CHARACTER)
+ 	formal_arg->sym->ts.u.cl = gfc_new_charlen (gfc_current_ns, NULL);
+ 
+@@ -5146,6 +5153,10 @@ gfc_type_compatible (gfc_typespec *ts1, gfc_typespec *ts2)
    bool is_union1 = (ts1->type == BT_UNION);
    bool is_union2 = (ts2->type == BT_UNION);
  
@@ -22890,10 +22925,18 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..f5fb43e4bf4 100644
+index 5fc23605244..ebba869e7e1 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2398 @@
+@@ -1,3 +1,2406 @@
++2023-07-14  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-07-11  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/110288
++	* gfortran.dg/findloc_10.f90: New test.
++
 +2023-07-08  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -36424,6 +36467,25 @@ index 00000000000..64373322387
 +   class(t) :: y               ! { dg-error "dummy, allocatable or pointer" }
 +   stop extends_type_of (x, y) ! { dg-error "STOP code" }
 +end
+diff --git a/gcc/testsuite/gfortran.dg/findloc_10.f90 b/gcc/testsuite/gfortran.dg/findloc_10.f90
+new file mode 100644
+index 00000000000..4d5ecd2306a
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/findloc_10.f90
+@@ -0,0 +1,13 @@
++! { dg-do run }
++! { dg-options "-fdump-tree-original" }
++! PR fortran/110288 - FINDLOC and deferred-length character arguments
++
++program test
++  character(len=:), allocatable :: array(:)
++  character(len=:), allocatable :: value
++  array = ["bb", "aa"]
++  value = "aa"
++  if (findloc (array, value, dim=1) /= 2) stop 1
++end program test
++
++! { dg-final { scan-tree-dump "_gfortran_findloc2_s1 \\(.*, \\.array, \\.value\\)" "original" } }
 diff --git a/gcc/testsuite/gfortran.dg/findloc_9.f90 b/gcc/testsuite/gfortran.dg/findloc_9.f90
 new file mode 100644
 index 00000000000..05974476cb3
