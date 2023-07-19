@@ -68,7 +68,9 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (448):
+GCC Administrator (450):
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -888,8 +890,9 @@ Kyrylo Tkachov (1):
 Lewis Hyatt (1):
       c: Fix location for _Pragma tokens [PR97498]
 
-Maciej W. Rozycki (1):
+Maciej W. Rozycki (2):
       RISC-V: Remove duplicate backslashes from `stack_protect_set_<mode>'
+      testsuite: Require vectors of doubles for pr97428.c
 
 Marek Polacek (7):
       c++: ambiguous call not diagnosed after DR2352 [PR97296]
@@ -31383,6 +31386,16 @@ index 00000000000..970c63e931b
 +    __builtin_abort ();
 +  return 0;
 +}
+diff --git a/gcc/testsuite/gcc.dg/vect/pr97428.c b/gcc/testsuite/gcc.dg/vect/pr97428.c
+index bbd743a76c4..ad6416096aa 100644
+--- a/gcc/testsuite/gcc.dg/vect/pr97428.c
++++ b/gcc/testsuite/gcc.dg/vect/pr97428.c
+@@ -1,4 +1,5 @@
+ /* { dg-do compile } */
++/* { dg-require-effective-target vect_double } */
+ 
+ typedef struct { double re, im; } dcmlx_t;
+ typedef struct { double re[4], im[4]; } dcmlx4_t;
 diff --git a/gcc/testsuite/gcc.dg/vect/vect.exp b/gcc/testsuite/gcc.dg/vect/vect.exp
 index dca9a4db6f6..3c60eff7072 100644
 --- a/gcc/testsuite/gcc.dg/vect/vect.exp
