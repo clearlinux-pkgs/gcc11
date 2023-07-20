@@ -534,7 +534,7 @@ H.J. Lu (5):
 Haochen Gui (1):
       rs6000: correct vector sign extend builtins on Big Endian
 
-Harald Anlauf (40):
+Harald Anlauf (41):
       Fortran: improve error recovery on invalid array section
       Fortran: fix error recovery on invalid array section
       Fortran: fix checking of arguments to UNPACK when MASK is a variable [PR105813]
@@ -575,6 +575,7 @@ Harald Anlauf (40):
       Fortran: CLASS pointer function result in variable definition context [PR109846]
       Fortran: simplification of FINDLOC for constant complex arguments [PR110585]
       Fortran: formal symbol attributes for intrinsic procedures [PR110288]
+      Fortran: intrinsics and deferred-length character arguments [PR95947,PR110658]
 
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
@@ -20659,7 +20660,7 @@ index 95af7d93162..b4fc4afdda3 100644
  	      result = gfc_get_fake_result_decl (sym, 0);
  	      result = fold_build2_loc (input_location, MODIFY_EXPR,
 diff --git a/gcc/fortran/trans-expr.c b/gcc/fortran/trans-expr.c
-index a5c391d077e..35d3c8897e2 100644
+index a5c391d077e..5adee114157 100644
 --- a/gcc/fortran/trans-expr.c
 +++ b/gcc/fortran/trans-expr.c
 @@ -1136,8 +1136,10 @@ gfc_conv_class_to_class (gfc_se *parmse, gfc_expr *e, gfc_typespec class_ts,
@@ -20854,7 +20855,21 @@ index a5c391d077e..35d3c8897e2 100644
    gfc_finish_interface_mapping (&mapping, &se->pre, &se->post);
  
    if (comp)
-@@ -8782,8 +8805,8 @@ gfc_trans_structure_assign (tree dest, gfc_expr * expr, bool init, bool coarray)
+@@ -6993,7 +7016,12 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
+ 	     (and other intrinsics?) and dummy functions.  In the case of SPREAD,
+ 	     we take the character length of the first argument for the result.
+ 	     For dummies, we have to look through the formal argument list for
+-	     this function and use the character length found there.*/
++	     this function and use the character length found there.
++	     Likewise, we handle the case of deferred-length character dummy
++	     arguments to intrinsics that determine the characteristics of
++	     the result, which cannot be deferred-length.  */
++	  if (expr->value.function.isym)
++	    ts.deferred = false;
+ 	  if (ts.deferred)
+ 	    cl.backend_decl = gfc_create_var (gfc_charlen_type_node, "slen");
+ 	  else if (!sym->attr.dummy)
+@@ -8782,8 +8810,8 @@ gfc_trans_structure_assign (tree dest, gfc_expr * expr, bool init, bool coarray)
    return gfc_finish_block (&block);
  }
  
@@ -20865,7 +20880,7 @@ index a5c391d077e..35d3c8897e2 100644
                              gfc_component *un, gfc_expr *init)
  {
    gfc_constructor *ctor;
-@@ -9066,7 +9089,7 @@ gfc_conv_expr_type (gfc_se * se, gfc_expr * expr, tree type)
+@@ -9066,7 +9094,7 @@ gfc_conv_expr_type (gfc_se * se, gfc_expr * expr, tree type)
     values only.  */
  
  void
@@ -20874,7 +20889,7 @@ index a5c391d077e..35d3c8897e2 100644
  {
    gfc_ss *ss;
    tree var;
-@@ -9106,16 +9129,6 @@ gfc_conv_expr_reference (gfc_se * se, gfc_expr * expr, bool add_clobber)
+@@ -9106,16 +9134,6 @@ gfc_conv_expr_reference (gfc_se * se, gfc_expr * expr, bool add_clobber)
  	  gfc_add_block_to_block (&se->pre, &se->post);
  	  se->expr = var;
  	}
@@ -20891,7 +20906,7 @@ index a5c391d077e..35d3c8897e2 100644
        return;
      }
  
-@@ -11021,6 +11034,9 @@ trans_class_assignment (stmtblock_t *block, gfc_expr *lhs, gfc_expr *rhs,
+@@ -11021,6 +11039,9 @@ trans_class_assignment (stmtblock_t *block, gfc_expr *lhs, gfc_expr *rhs,
        class_han = GFC_CLASS_TYPE_P (TREE_TYPE (lse->expr))
  	  ? gfc_class_data_get (lse->expr) : lse->expr;
  
@@ -36461,6 +36476,100 @@ index 00000000000..26671230b05
 +  bar8u.a = 1
 +  bar16u.a = 1
 +  bar32u.a = 1
++end
+diff --git a/gcc/testsuite/gfortran.dg/deferred_character_37.f90 b/gcc/testsuite/gfortran.dg/deferred_character_37.f90
+new file mode 100644
+index 00000000000..8a5a8c5daf8
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/deferred_character_37.f90
+@@ -0,0 +1,88 @@
++! { dg-do run }
++! PR fortran/95947
++! PR fortran/110658
++!
++! Test deferred-length character arguments to selected intrinsics
++! that may return a character result of same length as first argument:
++! CSHIFT, EOSHIFT, MAXVAL, MERGE, MINVAL, PACK, SPREAD, TRANSPOSE, UNPACK
++
++program p
++  implicit none
++  call pr95947 ()
++  call pr110658 ()
++  call s ()
++
++contains
++
++  subroutine pr95947
++    character(len=:), allocatable :: m(:)
++
++    m = [ character(len=10) :: 'ape','bat','cat','dog','eel','fly','gnu']
++    m = pack (m, mask=(m(:)(2:2) == 'a'))
++
++!   print *, "m = '", m,"' ",               "; expected is ['bat','cat']"
++    if (.not. all (m == ['bat','cat'])) stop 1
++   
++!   print *, "size(m) =     ", size(m),     "; expected is 2"
++    if (size (m) /= 2) stop 2
++   
++!   print *, "len(m) =      ", len(m),      "; expected is 10"
++    if (len (m) /= 10) stop 3
++   
++!   print *, "len_trim(m) = ", len_trim(m), "; expected is 3 3"
++    if (.not. all (len_trim(m) == [3,3])) stop 4
++  end
++
++  subroutine pr110658
++    character(len=:), allocatable :: array(:), array2(:,:)
++    character(len=:), allocatable :: res, res1(:), res2(:)
++
++    array = ["bb", "aa", "cc"]
++
++    res = minval (array)
++    if (res /= "aa") stop 11
++
++    res = maxval (array, mask=[.true.,.true.,.false.])
++    if (res /= "bb") stop 12
++
++    res1 = cshift (array, 1)
++    if (any (res1 /= ["aa","cc","bb"])) stop 13
++
++    res2 = eoshift (res1, -1)
++    if (any (res2 /= ["  ", "aa", "cc"])) stop 14
++
++    res2 = pack (array, mask=[.true.,.false.,.true.])
++    if (any (res2 /= ["bb","cc"])) stop 15
++
++    res2 = unpack (res2, mask=[.true.,.false.,.true.], field="aa")
++    if (any (res2 /= array)) stop 16
++
++    res2 = merge (res2, array, [.true.,.false.,.true.])
++    if (any (res2 /= array)) stop 17
++
++    array2 = spread (array, dim=2, ncopies=2)
++    array2 = transpose (array2)
++    if (any (shape (array2) /= [2,3])) stop 18
++    if (any (array2(2,:) /= array))    stop 19
++  end
++
++  subroutine s
++    character(:), allocatable :: array1(:), array2(:)
++    array1 = ["aa","cc","bb"]
++    array2 = copy (array1)
++    if (any (array1 /= array2)) stop 20
++  end
++
++  function copy (arg) result (res)
++    character(:), allocatable :: res(:)
++    character(*), intent(in)  :: arg(:)
++    integer :: i, k, n
++    k = len (arg)
++    n = size (arg)
++    allocate (character(k) :: res(n))
++    do i = 1, n
++       res(i) = arg(i)
++    end do
++  end
++
 +end
 diff --git a/gcc/testsuite/gfortran.dg/extends_type_of_4.f90 b/gcc/testsuite/gfortran.dg/extends_type_of_4.f90
 new file mode 100644
