@@ -68,7 +68,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (450):
+GCC Administrator (451):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -22928,10 +22929,17 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..ebba869e7e1 100644
+index 5fc23605244..02ec7dee6a4 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2406 @@
+@@ -1,3 +1,2413 @@
++2023-07-19  Maciej W. Rozycki  <macro@embecosm.com>
++
++	Backported from master:
++	2023-07-11  Maciej W. Rozycki  <macro@embecosm.com>
++
++	* gcc.dg/vect/pr97428.c: Limit to `vect_double' targets.
++
 +2023-07-14  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
