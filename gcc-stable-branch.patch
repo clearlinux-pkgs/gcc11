@@ -68,7 +68,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (451):
+GCC Administrator (452):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -18965,10 +18966,21 @@ index 70c5b3886ef..5b4053df520 100644
  
        if ((tem = fold_truth_andor (loc, code, type, arg0, arg1, op0, op1))
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..d2403cb3c30 100644
+index ee1c7bb4b31..431c1351189 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,570 @@
+@@ -1,3 +1,581 @@
++2023-07-20  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-07-17  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/95947
++	PR fortran/110658
++	* trans-expr.c (gfc_conv_procedure_call): For intrinsic procedures
++	whose result characteristics depends on the first argument and which
++	can be of type character, the character length will not be deferred.
++
 +2023-07-14  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -22944,10 +22956,19 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..02ec7dee6a4 100644
+index 5fc23605244..3e2b87e98a9 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2413 @@
+@@ -1,3 +1,2422 @@
++2023-07-20  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-07-17  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/95947
++	PR fortran/110658
++	* gfortran.dg/deferred_character_37.f90: New test.
++
 +2023-07-19  Maciej W. Rozycki  <macro@embecosm.com>
 +
 +	Backported from master:
