@@ -68,7 +68,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (463):
+GCC Administrator (464):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -2908,10 +2909,19 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..28855046707 100644
+index a0587d18824..f2f4d39a04b 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,2173 @@
+@@ -1,3 +1,2182 @@
++2023-08-01  Kewen Lin  <linkw@linux.ibm.com>
++
++	Backported from master:
++	2023-07-26  Kewen Lin  <linkw@linux.ibm.com>
++
++	PR target/110741
++	* config/rs6000/altivec.md (define_insn xxeval): Correct vsx
++	operands output with "x".
++
 +2023-07-14  Oleg Endo  <olegendo@gcc.gnu.org>
 +
 +	PR target/101469
@@ -22977,10 +22987,18 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..3e2b87e98a9 100644
+index 5fc23605244..7842dafdcd7 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2422 @@
+@@ -1,3 +1,2430 @@
++2023-08-01  Kewen Lin  <linkw@linux.ibm.com>
++
++	Backported from master:
++	2023-07-26  Kewen Lin  <linkw@linux.ibm.com>
++
++	PR target/110741
++	* g++.target/powerpc/pr110741.C: New test.
++
 +2023-07-20  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
