@@ -68,7 +68,12 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (464):
+GCC Administrator (469):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -632,7 +637,7 @@ Ian Lance Taylor (2):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
       syscall: add prlimit
 
-Jakub Jelinek (85):
+Jakub Jelinek (86):
       emit-rtl: Fix -fcompare-debug bug with label references in debug insns [PR105203]
       sparc: Preserve ORIGINAL_REGNO in epilogue_renumber [PR105257]
       rtlanal: Fix up replace_rtx [PR105333]
@@ -718,6 +723,7 @@ Jakub Jelinek (85):
       Bump BASE-VER
       match.pd: Ensure (op CONSTANT_CLASS_P CONSTANT_CLASS_P) is simplified [PR109505]
       fortran: Fix ICE on pr96024.f90 on big-endian hosts [PR96024]
+      testsuite: Fix up pr107397.f90 test [PR107397]
 
 Jan Hubicka (2):
       Fix modref_tree::remap_params
@@ -755,6 +761,9 @@ Jason Merrill (28):
 
 Jeff Law (1):
       [committed] Fix more problems with new linker warnings
+
+Jerry DeLisle (1):
+      ICE in gfc_free_namespace. ice-on-invalid.
 
 John David Anglin (2):
       Fix addvdi3 and subvdi3 patterns
@@ -1151,10 +1160,11 @@ Stefan Schulze Frielinghaus (2):
       IBM zSystems: Fix function_ok_for_sibcall [PR106355]
       s390: libatomic: Fix 16 byte atomic {cas,load,store}
 
-Steve Kargl (3):
+Steve Kargl (4):
       Fortran: do not generate conflicting results under -ff2c [PR104313]
       Fortran: error handling of global entity appearing in COMMON block [PR103259]
       Fortran: fix diagnostics for SELECT RANK [PR100607]
+      Add a check for invalid use of BOZ with a derived type.
 
 Surya Kumari Jangala (1):
       regrename: Fix -fcompare-debug issue in check_new_reg_p [PR105041]
@@ -18997,10 +19007,27 @@ index 70c5b3886ef..5b4053df520 100644
  
        if ((tem = fold_truth_andor (loc, code, type, arg0, arg1, op0, op1))
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..431c1351189 100644
+index ee1c7bb4b31..3a953220c3a 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,581 @@
+@@ -1,3 +1,598 @@
++2023-08-06  Steve Kargl  <kargl@gcc.gnu.org>
++
++	Backported from master:
++	2022-12-18  Steve Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/107397
++	* decl.c (add_init_expr_to_sym): Add check with new error message.
++
++2023-08-05  Jerry DeLisle  <jvdelisle@gcc.gnu.org>
++
++	Backported from master:
++	2023-01-29  Jerry DeLisle  <jvdelisle@gcc.gnu.org>
++
++	PR fortran/103506
++	* parse.c (parse_module): Remove use of a bool error value
++	that prevented proper setting of the namespace pointer.
++
 +2023-07-20  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -19634,7 +19661,7 @@ index 1add9436dce..4e2736fef1e 100644
        && gfc_array_size (vector, &vector_size))
      {
 diff --git a/gcc/fortran/decl.c b/gcc/fortran/decl.c
-index 602ad3e59bd..efe3a2285a7 100644
+index 602ad3e59bd..f21504b939b 100644
 --- a/gcc/fortran/decl.c
 +++ b/gcc/fortran/decl.c
 @@ -2050,10 +2050,21 @@ add_init_expr_to_sym (const char *name, gfc_expr **initp, locus *var_locus)
@@ -19661,7 +19688,22 @@ index 602ad3e59bd..efe3a2285a7 100644
  	    }
  
  	  for (dim = 0; dim < sym->as->rank; ++dim)
-@@ -2696,6 +2707,18 @@ variable_decl (int elem)
+@@ -2130,6 +2141,14 @@ add_init_expr_to_sym (const char *name, gfc_expr **initp, locus *var_locus)
+ 	    sym->ts.f90_type = init->ts.f90_type;
+ 	}
+ 
++      /* Catch the case:  type(t), parameter :: x = z'1'.  */
++      if (sym->ts.type == BT_DERIVED && init->ts.type == BT_BOZ)
++	{
++	  gfc_error ("Entity %qs at %L is incompatible with a BOZ "
++		     "literal constant", name, &sym->declared_at);
++	  return false;
++	}
++
+       /* Add initializer.  Make sure we keep the ranks sane.  */
+       if (sym->attr.dimension && init->rank == 0)
+ 	{
+@@ -2696,6 +2715,18 @@ variable_decl (int elem)
  		  else
  		    gfc_free_expr (n);
  		}
@@ -19680,7 +19722,7 @@ index 602ad3e59bd..efe3a2285a7 100644
  	    }
  	}
      }
-@@ -6169,6 +6192,14 @@ gfc_match_data_decl (void)
+@@ -6169,6 +6200,14 @@ gfc_match_data_decl (void)
        goto cleanup;
      }
  
@@ -19695,7 +19737,7 @@ index 602ad3e59bd..efe3a2285a7 100644
    if (current_ts.type == BT_CLASS
  	&& current_ts.u.derived->attr.unlimited_polymorphic)
      goto ok;
-@@ -9871,9 +9902,10 @@ gfc_match_modproc (void)
+@@ -9871,9 +9910,10 @@ gfc_match_modproc (void)
    gfc_namespace *module_ns;
    gfc_interface *old_interface_head, *interface;
  
@@ -20007,7 +20049,7 @@ index 860b6567d2a..91b31e06e56 100644
  	     symbol name.  */
  	  m = gfc_match_array_spec (&as, true, true);
 diff --git a/gcc/fortran/parse.c b/gcc/fortran/parse.c
-index 04501f44ef8..23602446b61 100644
+index 04501f44ef8..6893557733b 100644
 --- a/gcc/fortran/parse.c
 +++ b/gcc/fortran/parse.c
 @@ -3747,21 +3747,30 @@ match_deferred_characteristics (gfc_typespec * ts)
@@ -20068,6 +20110,40 @@ index 04501f44ef8..23602446b61 100644
        goto declSt;
  
      case ST_FORMAT:
+@@ -6157,7 +6160,6 @@ parse_module (void)
+ {
+   gfc_statement st;
+   gfc_gsymbol *s;
+-  bool error;
+ 
+   s = gfc_get_gsymbol (gfc_new_block->name, false);
+   if (s->defined || (s->type != GSYM_UNKNOWN && s->type != GSYM_MODULE))
+@@ -6180,7 +6182,6 @@ parse_module (void)
+ 
+   st = parse_spec (ST_NONE);
+ 
+-  error = false;
+ loop:
+   switch (st)
+     {
+@@ -6199,16 +6200,11 @@ loop:
+     default:
+       gfc_error ("Unexpected %s statement in MODULE at %C",
+ 		 gfc_ascii_statement (st));
+-
+-      error = true;
+       reject_statement ();
+       st = next_statement ();
+       goto loop;
+     }
+-
+-  /* Make sure not to free the namespace twice on error.  */
+-  if (!error)
+-    s->ns = gfc_current_ns;
++  s->ns = gfc_current_ns;
+ }
+ 
+ 
 diff --git a/gcc/fortran/primary.c b/gcc/fortran/primary.c
 index 1b93f96367f..5cad2d2682b 100644
 --- a/gcc/fortran/primary.c
@@ -22987,10 +23063,35 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..7842dafdcd7 100644
+index 5fc23605244..2bed2786406 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2430 @@
+@@ -1,3 +1,2455 @@
++2023-08-06  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2022-12-19  Jakub Jelinek  <jakub@redhat.com>
++
++	PR fortran/107397
++	* gfortran.dg/pr107397.f90: Adjust expected diagnostic wording and
++	add space between dg-error string and closing }.
++
++2023-08-06  Steve Kargl  <kargl@gcc.gnu.org>
++
++	Backported from master:
++	2022-12-18  Steve Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/107397
++	* gfortran.dg/pr107397.f90: New test.
++
++2023-08-05  Jerry DeLisle  <jvdelisle@gcc.gnu.org>
++
++	Backported from master:
++	2023-01-29  Jerry DeLisle  <jvdelisle@gcc.gnu.org>
++
++	PR fortran/103506
++	* gfortran.dg/pr103506_1.f90: New test.
++
 +2023-08-01  Kewen Lin  <linkw@linux.ibm.com>
 +
 +	Backported from master:
@@ -37628,6 +37729,21 @@ index 522e53efcb2..01308019b2c 100644
  end
 +
 +! { dg-prune-output "Parameter array" }
+diff --git a/gcc/testsuite/gfortran.dg/pr103506_1.f90 b/gcc/testsuite/gfortran.dg/pr103506_1.f90
+new file mode 100644
+index 00000000000..3f57809e099
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/pr103506_1.f90
+@@ -0,0 +1,9 @@
++! { dg-do compile }
++! PR103506 ICE in gfc_free_namespace. ice-on-invalid
++! Test case from the PR.
++module m ! { dg-error "is already being used as a MODULE" }
++stop ! { dg-error "Unexpected STOP statement in MODULE" }
++end
++program p
++call m ! { dg-error "is already being used as a MODULE" }
++end
 diff --git a/gcc/testsuite/gfortran.dg/pr103694.f90 b/gcc/testsuite/gfortran.dg/pr103694.f90
 new file mode 100644
 index 00000000000..3ed8b2088da
@@ -37859,6 +37975,21 @@ index 00000000000..bbfe646beba
 +  type(t), parameter :: b(4) = reshape(a,[2]) ! { dg-error "Different shape" }
 +  type(t), parameter :: c(2) = pack(b,[.false.,.true.,.false.,.true.]) ! { dg-error "Different shape" }
 +  type(t), parameter :: d(4) = unpack(c,[.false.,.true.,.false.,.true.],a)
++end
+diff --git a/gcc/testsuite/gfortran.dg/pr107397.f90 b/gcc/testsuite/gfortran.dg/pr107397.f90
+new file mode 100644
+index 00000000000..fd59bf16007
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/pr107397.f90
+@@ -0,0 +1,9 @@
++!{ dg-do compile }
++!
++program p
++  type t
++    real :: a = 1.0
++  end type
++  type(t), parameter :: x = z'1' ! { dg-error "incompatible with a BOZ" }
++  x%a = x%a + 2 ! { dg-error "has no IMPLICIT type" }
 +end
 diff --git a/gcc/testsuite/gfortran.dg/pr107872.f90 b/gcc/testsuite/gfortran.dg/pr107872.f90
 new file mode 100644
