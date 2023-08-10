@@ -68,7 +68,10 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (469):
+GCC Administrator (472):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -999,7 +1002,7 @@ Oleg Endo (1):
 Pat Haugen (1):
       Fix register count when not splitting Complex IEEE 128-bit args.
 
-Patrick Palka (16):
+Patrick Palka (17):
       c++: partial ordering with dependent NTTP type [PR105289]
       c++: ICE with requires-expr and -Wsequence-point [PR105304]
       c++: decltype of non-dependent call of class type [PR105386]
@@ -1016,6 +1019,7 @@ Patrick Palka (16):
       c++: extract_local_specs and unevaluated contexts [PR100295]
       c++: thinko in extract_local_specs [PR108998]
       libstdc++: Implement P2520R0 changes to move_iterator's iterator_concept
+      c++: noexcept-spec from nested class confusion [PR109761]
 
 Paul A. Clarke (1):
       rs6000: __Uglify non-uglified local variables in headers
@@ -1207,13 +1211,14 @@ Uros Bizjak (2):
 Vladimir N. Makarov (1):
       [PR104637] LRA: Split hard regs as many as possible on one subpass
 
-liuhongt (6):
+liuhongt (7):
       Fix insn does not satisfy its constraints: sse2_lshrv1ti3
       Fix unrecognizable insn due to illegal immediate_operand (const_int 255) of QImode.
       x86: Add a new option -mdaz-ftz to enable FTZ and DAZ flags in MXCSR.
       Make option mvzeroupper independent of optimization level.
       Refine maskloadmn pattern with UNSPEC_MASKLOAD.
       Refine maskstore patterns with UNSPEC_MASKMOV.
+      Workaround possible CPUID bug in Sandy Bridge.
 
 diff --git a/ChangeLog b/ChangeLog
 index f612f0c1c5b..48d69d2bf1c 100644
@@ -2919,10 +2924,15 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..f2f4d39a04b 100644
+index a0587d18824..f8fc510a5cf 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,2182 @@
+@@ -1,3 +1,2187 @@
++2023-08-09  liuhongt  <hongtao.liu@intel.com>
++
++	* common/config/i386/cpuinfo.h (get_available_features): Check
++	max_subleaf_level for valid subleaf before use CPUID.
++
 +2023-08-01  Kewen Lin  <linkw@linux.ibm.com>
 +
 +	Backported from master:
@@ -5987,7 +5997,7 @@ index a75b44ee47e..4a3f09d9e1f 100644
  Driver
  
 diff --git a/gcc/common/config/i386/cpuinfo.h b/gcc/common/config/i386/cpuinfo.h
-index 58294b7d7ac..00b5eee21d4 100644
+index 58294b7d7ac..d42cdecdd26 100644
 --- a/gcc/common/config/i386/cpuinfo.h
 +++ b/gcc/common/config/i386/cpuinfo.h
 @@ -606,8 +606,6 @@ get_available_features (struct __processor_model *cpu_model,
@@ -5999,7 +6009,7 @@ index 58294b7d7ac..00b5eee21d4 100644
    if (ecx & bit_RDRND)
      set_feature (FEATURE_RDRND);
    if (ecx & bit_XSAVE)
-@@ -618,6 +616,8 @@ get_available_features (struct __processor_model *cpu_model,
+@@ -618,12 +616,16 @@ get_available_features (struct __processor_model *cpu_model,
  	set_feature (FEATURE_AVX);
        if (ecx & bit_FMA)
  	set_feature (FEATURE_FMA);
@@ -6008,7 +6018,16 @@ index 58294b7d7ac..00b5eee21d4 100644
      }
  
    /* Get Advanced Features at level 7 (eax = 7, ecx = 0/1). */
-@@ -638,6 +638,8 @@ get_available_features (struct __processor_model *cpu_model,
+   if (max_cpuid_level >= 7)
+     {
+-      __cpuid_count (7, 0, eax, ebx, ecx, edx);
++      unsigned int max_subleaf_level;
++
++      __cpuid_count (7, 0, max_subleaf_level, ebx, ecx, edx);
+       if (ebx & bit_BMI)
+ 	set_feature (FEATURE_BMI);
+       if (ebx & bit_SGX)
+@@ -638,6 +640,8 @@ get_available_features (struct __processor_model *cpu_model,
  	    set_feature (FEATURE_AVX2);
  	  if (ecx & bit_VPCLMULQDQ)
  	    set_feature (FEATURE_VPCLMULQDQ);
@@ -6017,7 +6036,7 @@ index 58294b7d7ac..00b5eee21d4 100644
  	}
        if (ebx & bit_BMI2)
  	set_feature (FEATURE_BMI2);
-@@ -660,8 +662,6 @@ get_available_features (struct __processor_model *cpu_model,
+@@ -660,8 +664,6 @@ get_available_features (struct __processor_model *cpu_model,
  	set_feature (FEATURE_PKU);
        if (ecx & bit_RDPID)
  	set_feature (FEATURE_RDPID);
@@ -6026,7 +6045,40 @@ index 58294b7d7ac..00b5eee21d4 100644
        if (ecx & bit_GFNI)
  	set_feature (FEATURE_GFNI);
        if (ecx & bit_MOVDIRI)
-@@ -882,6 +882,10 @@ cpu_indicator_init (struct __processor_model *cpu_model,
+@@ -733,18 +735,21 @@ get_available_features (struct __processor_model *cpu_model,
+ 	    set_feature (FEATURE_AVX512VP2INTERSECT);
+ 	}
+ 
+-      __cpuid_count (7, 1, eax, ebx, ecx, edx);
+-      if (eax & bit_HRESET)
+-	set_feature (FEATURE_HRESET);
+-      if (avx_usable)
++      if (max_subleaf_level >= 1)
+ 	{
+-	  if (eax & bit_AVXVNNI)
+-	    set_feature (FEATURE_AVXVNNI);
+-	}
+-      if (avx512_usable)
+-	{
+-	  if (eax & bit_AVX512BF16)
+-	    set_feature (FEATURE_AVX512BF16);
++	  __cpuid_count (7, 1, eax, ebx, ecx, edx);
++	  if (eax & bit_HRESET)
++	    set_feature (FEATURE_HRESET);
++	  if (avx_usable)
++	    {
++	      if (eax & bit_AVXVNNI)
++		set_feature (FEATURE_AVXVNNI);
++	    }
++	  if (avx512_usable)
++	    {
++	      if (eax & bit_AVX512BF16)
++		set_feature (FEATURE_AVX512BF16);
++	    }
+ 	}
+     }
+ 
+@@ -882,6 +887,10 @@ cpu_indicator_init (struct __processor_model *cpu_model,
    extended_model = (eax >> 12) & 0xf0;
    extended_family = (eax >> 20) & 0xff;
  
@@ -6037,7 +6089,7 @@ index 58294b7d7ac..00b5eee21d4 100644
    if (vendor == signature_INTEL_ebx)
      {
        /* Adjust model and family for Intel CPUS. */
-@@ -896,9 +900,6 @@ cpu_indicator_init (struct __processor_model *cpu_model,
+@@ -896,9 +905,6 @@ cpu_indicator_init (struct __processor_model *cpu_model,
        cpu_model2->__cpu_family = family;
        cpu_model2->__cpu_model = model;
  
@@ -6047,7 +6099,7 @@ index 58294b7d7ac..00b5eee21d4 100644
        /* Get CPU type.  */
        get_intel_cpu (cpu_model, cpu_model2, cpu_features2);
        cpu_model->__cpu_vendor = VENDOR_INTEL;
-@@ -915,9 +916,6 @@ cpu_indicator_init (struct __processor_model *cpu_model,
+@@ -915,9 +921,6 @@ cpu_indicator_init (struct __processor_model *cpu_model,
        cpu_model2->__cpu_family = family;
        cpu_model2->__cpu_model = model;
  
@@ -15251,10 +15303,21 @@ index 49f043ed29b..25a05978be9 100644
            gcc_cv_as_mllvm_x86_pad_for_align,,
            [-mllvm -x86-pad-for-align=false], [.text],,
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..2592e347b1b 100644
+index 85c8fdd38cd..666e1712eb8 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,542 @@
+@@ -1,3 +1,553 @@
++2023-08-09  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2023-05-09  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/109761
++	* parser.c (cp_parser_class_specifier): Don't pass a class
++	context to noexcept_override_late_checks.
++	(noexcept_override_late_checks): Remove 'type' parameter
++	and use DECL_CONTEXT of 'fndecl' instead.
++
 +2023-05-29  Release Manager
 +
 +	* GCC 11.4.0 released.
@@ -16930,9 +16993,18 @@ index b97b1bcb2f8..6cb926c044a 100644
  			       || !DECL_TEMPLATE_INFO (decl));
  
 diff --git a/gcc/cp/parser.c b/gcc/cp/parser.c
-index 90d119eaa28..98f266192fb 100644
+index 90d119eaa28..8287934a679 100644
 --- a/gcc/cp/parser.c
 +++ b/gcc/cp/parser.c
+@@ -249,7 +249,7 @@ static cp_token_cache *cp_token_cache_new
+ static tree cp_parser_late_noexcept_specifier
+   (cp_parser *, tree);
+ static void noexcept_override_late_checks
+-  (tree, tree);
++  (tree);
+ 
+ static void cp_parser_initial_pragma
+   (cp_token *);
 @@ -9968,7 +9968,10 @@ cp_parser_binary_expression (cp_parser* parser, bool cast_p,
  		      || (TREE_CODE (TREE_TYPE (TREE_OPERAND (current.lhs, 0)))
  			  != BOOLEAN_TYPE))))
@@ -17040,7 +17112,35 @@ index 90d119eaa28..98f266192fb 100644
          want_semicolon = false;
          break;
  
-@@ -29419,9 +29437,12 @@ cp_parser_lookup_name (cp_parser *parser, tree name,
+@@ -25175,7 +25193,7 @@ cp_parser_class_specifier_1 (cp_parser* parser)
+ 	  /* The finish_struct call above performed various override checking,
+ 	     but it skipped unparsed noexcept-specifier operands.  Now that we
+ 	     have resolved them, check again.  */
+-	  noexcept_override_late_checks (type, decl);
++	  noexcept_override_late_checks (decl);
+ 
+ 	  /* Remove any member-function parameters from the symbol table.  */
+ 	  pop_injected_parms ();
+@@ -26859,14 +26877,13 @@ cp_parser_late_noexcept_specifier (cp_parser *parser, tree default_arg)
+ }
+ 
+ /* Perform late checking of overriding function with respect to their
+-   noexcept-specifiers.  TYPE is the class and FNDECL is the function
+-   that potentially overrides some virtual function with the same
+-   signature.  */
++   noexcept-specifiers.  FNDECL is the member function that potentially
++   overrides some virtual function with the same signature.  */
+ 
+ static void
+-noexcept_override_late_checks (tree type, tree fndecl)
++noexcept_override_late_checks (tree fndecl)
+ {
+-  tree binfo = TYPE_BINFO (type);
++  tree binfo = TYPE_BINFO (DECL_CONTEXT (fndecl));
+   tree base_binfo;
+ 
+   if (DECL_STATIC_FUNCTION_P (fndecl))
+@@ -29419,9 +29436,12 @@ cp_parser_lookup_name (cp_parser *parser, tree name,
      }
    else if (object_type)
      {
@@ -17054,7 +17154,7 @@ index 90d119eaa28..98f266192fb 100644
  	/* If the OBJECT_TYPE is a template specialization, it may
  	   be instantiated during name lookup.  In that case, errors
  	   may be issued.  Even if we rollback the current tentative
-@@ -32308,7 +32329,8 @@ class_decl_loc_t::add (cp_parser *parser, location_t key_loc,
+@@ -32308,7 +32328,8 @@ class_decl_loc_t::add (cp_parser *parser, location_t key_loc,
    bool key_redundant = (!def_p && !decl_p
  			&& (decl == type_decl
  			    || TREE_CODE (decl) == TEMPLATE_DECL
@@ -17064,7 +17164,7 @@ index 90d119eaa28..98f266192fb 100644
  
    if (key_redundant
        && class_key != class_type
-@@ -32346,7 +32368,7 @@ class_decl_loc_t::add (cp_parser *parser, location_t key_loc,
+@@ -32346,7 +32367,7 @@ class_decl_loc_t::add (cp_parser *parser, location_t key_loc,
  	}
        else
  	{
@@ -23063,10 +23163,18 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..2bed2786406 100644
+index 5fc23605244..8271811c4b7 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2455 @@
+@@ -1,3 +1,2463 @@
++2023-08-09  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2023-05-09  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/109761
++	* g++.dg/cpp0x/noexcept78.C: New test.
++
 +2023-08-06  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -26317,6 +26425,28 @@ index 00000000000..a6631c5ca99
 +};
 +
 +int main() { }
+diff --git a/gcc/testsuite/g++.dg/cpp0x/noexcept78.C b/gcc/testsuite/g++.dg/cpp0x/noexcept78.C
+new file mode 100644
+index 00000000000..e8156eb7c6f
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp0x/noexcept78.C
+@@ -0,0 +1,16 @@
++// PR c++/109761
++// { dg-do compile { target c++11 } }
++
++struct base {
++  virtual void foo() noexcept { }
++  virtual ~base() { }
++};
++
++struct outer : base {
++  struct nested {
++    void foo() noexcept(noexcept(g())); // { dg-bogus "looser" }
++    ~nested() noexcept(noexcept(g()));  // { dg-bogus "looser" }
++  };
++  static void g();
++};
++
 diff --git a/gcc/testsuite/g++.dg/cpp0x/overload-conv-5.C b/gcc/testsuite/g++.dg/cpp0x/overload-conv-5.C
 new file mode 100644
 index 00000000000..b1e7766e42b
