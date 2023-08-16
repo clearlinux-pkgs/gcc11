@@ -37,7 +37,6 @@ Patch16  : 0001-Always-use-z-now-when-linking-with-pie.patch
 Patch19  : tune-inline.patch
 Patch20  : vectorcost.patch
 
-Patch30  : gcc-hj-latest.patch
 
 # cves: 1xx
 
@@ -106,7 +105,6 @@ GNU cc and gcc C compilers.
 %patch19 -p1
 %patch20 -p1
 
-%patch30 -p1
 
 
 %build
