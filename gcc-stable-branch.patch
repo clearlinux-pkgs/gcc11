@@ -68,7 +68,13 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (472):
+GCC Administrator (478):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1211,7 +1217,7 @@ Uros Bizjak (2):
 Vladimir N. Makarov (1):
       [PR104637] LRA: Split hard regs as many as possible on one subpass
 
-liuhongt (7):
+liuhongt (9):
       Fix insn does not satisfy its constraints: sse2_lshrv1ti3
       Fix unrecognizable insn due to illegal immediate_operand (const_int 255) of QImode.
       x86: Add a new option -mdaz-ftz to enable FTZ and DAZ flags in MXCSR.
@@ -1219,6 +1225,8 @@ liuhongt (7):
       Refine maskloadmn pattern with UNSPEC_MASKLOAD.
       Refine maskstore patterns with UNSPEC_MASKMOV.
       Workaround possible CPUID bug in Sandy Bridge.
+      Software mitigation: Disable gather generation in vectorization for GDS affected Intel Processors.
+      Support -m[no-]gather to enable/disable vectorization for all gather instructions
 
 diff --git a/ChangeLog b/ChangeLog
 index f612f0c1c5b..48d69d2bf1c 100644
@@ -8076,10 +8084,22 @@ index 77783a154b6..19033dc3df5 100644
      }
  
 diff --git a/gcc/config/i386/i386-options.c b/gcc/config/i386/i386-options.c
-index 19632b5fd6b..d47a5433126 100644
+index 19632b5fd6b..e3450345b5a 100644
 --- a/gcc/config/i386/i386-options.c
 +++ b/gcc/config/i386/i386-options.c
-@@ -656,7 +656,6 @@ ix86_function_specific_save (struct cl_target_option *ptr,
+@@ -137,6 +137,11 @@ along with GCC; see the file COPYING3.  If not see
+ #define m_GOLDMONT_PLUS (HOST_WIDE_INT_1U<<PROCESSOR_GOLDMONT_PLUS)
+ #define m_TREMONT (HOST_WIDE_INT_1U<<PROCESSOR_TREMONT)
+ #define m_INTEL (HOST_WIDE_INT_1U<<PROCESSOR_INTEL)
++/* Gather Data Sampling / CVE-2022-40982 / INTEL-SA-00828.
++   Software mitigation.  */
++#define m_GDS (m_SKYLAKE | m_SKYLAKE_AVX512 | m_CANNONLAKE \
++	       | m_ICELAKE_CLIENT | m_ICELAKE_SERVER | m_CASCADELAKE \
++	       | m_TIGERLAKE | m_COOPERLAKE | m_ROCKETLAKE)
+ 
+ #define m_GEODE (HOST_WIDE_INT_1U<<PROCESSOR_GEODE)
+ #define m_K6 (HOST_WIDE_INT_1U<<PROCESSOR_K6)
+@@ -656,7 +661,6 @@ ix86_function_specific_save (struct cl_target_option *ptr,
    ptr->x_recip_mask_explicit = opts->x_recip_mask_explicit;
    ptr->x_ix86_arch_string = opts->x_ix86_arch_string;
    ptr->x_ix86_tune_string = opts->x_ix86_tune_string;
@@ -8087,7 +8107,7 @@ index 19632b5fd6b..d47a5433126 100644
    ptr->x_ix86_asm_dialect = opts->x_ix86_asm_dialect;
    ptr->x_ix86_branch_cost = opts->x_ix86_branch_cost;
    ptr->x_ix86_dump_tunes = opts->x_ix86_dump_tunes;
-@@ -787,7 +786,6 @@ ix86_function_specific_restore (struct gcc_options *opts,
+@@ -787,7 +791,6 @@ ix86_function_specific_restore (struct gcc_options *opts,
    opts->x_recip_mask_explicit = ptr->x_recip_mask_explicit;
    opts->x_ix86_arch_string = ptr->x_ix86_arch_string;
    opts->x_ix86_tune_string = ptr->x_ix86_tune_string;
@@ -8095,7 +8115,7 @@ index 19632b5fd6b..d47a5433126 100644
    opts->x_ix86_asm_dialect = ptr->x_ix86_asm_dialect;
    opts->x_ix86_branch_cost = ptr->x_ix86_branch_cost;
    opts->x_ix86_dump_tunes = ptr->x_ix86_dump_tunes;
-@@ -2851,7 +2849,9 @@ ix86_option_override_internal (bool main_args_p,
+@@ -2851,7 +2854,9 @@ ix86_option_override_internal (bool main_args_p,
      sorry ("%<-mcall-ms2sysv-xlogues%> isn%'t currently supported with SEH");
  
    if (!(opts_set->x_target_flags & MASK_VZEROUPPER)
@@ -8301,7 +8321,7 @@ index 48300af9a09..6c9c99ee50b 100644
    s->next = ix86_stack_locals;
    ix86_stack_locals = s;
 diff --git a/gcc/config/i386/i386.opt b/gcc/config/i386/i386.opt
-index f62b0ebd3b4..098a9ca2073 100644
+index f62b0ebd3b4..9381025b667 100644
 --- a/gcc/config/i386/i386.opt
 +++ b/gcc/config/i386/i386.opt
 @@ -109,8 +109,8 @@ TargetVariable
@@ -8326,6 +8346,14 @@ index f62b0ebd3b4..098a9ca2073 100644
  mpreferred-stack-boundary=
  Target RejectNegative Joined UInteger Var(ix86_preferred_stack_boundary_arg)
  Attempt to keep stack aligned to this power of 2.
+@@ -1190,3 +1194,7 @@ Emit GNU_PROPERTY_X86_ISA_1_NEEDED GNU property.
+ mmwait
+ Target Mask(ISA2_MWAIT) Var(ix86_isa_flags2) Save
+ Support MWAIT and MONITOR built-in functions and code generation.
++
++mgather
++Target Alias(mtune-ctrl=, use_gather, ^use_gather)
++Enable vectorization for gather instruction.
 diff --git a/gcc/config/i386/mingw32.h b/gcc/config/i386/mingw32.h
 index 779c9335711..05ffcfec755 100644
 --- a/gcc/config/i386/mingw32.h
@@ -8581,6 +8609,19 @@ index 66d5a8cd79b..04b54252222 100644
  
  i386-builtin-types.inc: s-i386-bt ; @true
  s-i386-bt: $(srcdir)/config/i386/i386-builtin-types.awk \
+diff --git a/gcc/config/i386/x86-tune.def b/gcc/config/i386/x86-tune.def
+index eb057a67750..b390b29843a 100644
+--- a/gcc/config/i386/x86-tune.def
++++ b/gcc/config/i386/x86-tune.def
+@@ -442,7 +442,7 @@ DEF_TUNE (X86_TUNE_AVOID_4BYTE_PREFIXES, "avoid_4byte_prefixes",
+ 
+ /* X86_TUNE_USE_GATHER: Use gather instructions.  */
+ DEF_TUNE (X86_TUNE_USE_GATHER, "use_gather",
+-	  ~(m_ZNVER1 | m_ZNVER2 | m_GENERIC))
++	  ~(m_ZNVER1 | m_ZNVER2 | m_GENERIC | m_GDS))
+ 
+ /* X86_TUNE_AVOID_128FMA_CHAINS: Avoid creating loops with tight 128bit or
+    smaller FMA chain.  */
 diff --git a/gcc/config/nvptx/nvptx.c b/gcc/config/nvptx/nvptx.c
 index 7a7a9130e84..d25ddf45408 100644
 --- a/gcc/config/nvptx/nvptx.c
@@ -34090,6 +34131,28 @@ index 00000000000..4af637757f7
 +}
 +
 +/* { dg-final { scan-assembler-times "avx_vzeroupper" 1 } } */
+diff --git a/gcc/testsuite/gcc.target/i386/avx2-gather-2.c b/gcc/testsuite/gcc.target/i386/avx2-gather-2.c
+index 1a704afd834..a8bcd0eb3f1 100644
+--- a/gcc/testsuite/gcc.target/i386/avx2-gather-2.c
++++ b/gcc/testsuite/gcc.target/i386/avx2-gather-2.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O3 -mavx2 -fdump-tree-vect-details -mtune=skylake" } */
++/* { dg-options "-O3 -fdump-tree-vect-details -march=skylake -mtune=haswell" } */
+ 
+ #include "avx2-gather-1.c"
+ 
+diff --git a/gcc/testsuite/gcc.target/i386/avx2-gather-6.c b/gcc/testsuite/gcc.target/i386/avx2-gather-6.c
+index b9119581ae2..067b251e393 100644
+--- a/gcc/testsuite/gcc.target/i386/avx2-gather-6.c
++++ b/gcc/testsuite/gcc.target/i386/avx2-gather-6.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O3 -mavx2 -fno-common -fdump-tree-vect-details -mtune=skylake" } */
++/* { dg-options "-O3 -mavx2 -fno-common -fdump-tree-vect-details  -mtune=haswell" } */
+ 
+ #include "avx2-gather-5.c"
+ 
 diff --git a/gcc/testsuite/gcc.target/i386/avx512bf16-pr108881.c b/gcc/testsuite/gcc.target/i386/avx512bf16-pr108881.c
 new file mode 100644
 index 00000000000..9428c53abec
@@ -34110,6 +34173,78 @@ index 00000000000..9428c53abec
 +{
 +  a = __builtin_ia32_cvtne2ps2bf16_v16hi (b, c);	/* { dg-warning "implicit declaration of function" } */
 +}							/* { dg-error "incompatible types when assigning to type" "" { target *-*-* } .-1 } */
+diff --git a/gcc/testsuite/gcc.target/i386/avx512f-pr88464-1.c b/gcc/testsuite/gcc.target/i386/avx512f-pr88464-1.c
+index 06d21bb0129..d1a2298618e 100644
+--- a/gcc/testsuite/gcc.target/i386/avx512f-pr88464-1.c
++++ b/gcc/testsuite/gcc.target/i386/avx512f-pr88464-1.c
+@@ -1,6 +1,6 @@
+ /* PR tree-optimization/88464 */
+ /* { dg-do compile } */
+-/* { dg-options "-O3 -mavx512f -mprefer-vector-width=512 -mtune=skylake-avx512 -fdump-tree-vect-details" } */
++/* { dg-options "-O3 -mavx512f -mprefer-vector-width=512 -mtune=haswell -fdump-tree-vect-details" } */
+ /* { dg-final { scan-tree-dump-times "loop vectorized using 64 byte vectors" 4 "vect" } } */
+ /* { dg-final { scan-tree-dump-times "vectorized 1 loops in function" 4 "vect" } } */
+ 
+diff --git a/gcc/testsuite/gcc.target/i386/avx512f-pr88464-5.c b/gcc/testsuite/gcc.target/i386/avx512f-pr88464-5.c
+index 462e951fdc1..d7b0b2b28cb 100644
+--- a/gcc/testsuite/gcc.target/i386/avx512f-pr88464-5.c
++++ b/gcc/testsuite/gcc.target/i386/avx512f-pr88464-5.c
+@@ -1,6 +1,6 @@
+ /* PR tree-optimization/88464 */
+ /* { dg-do compile } */
+-/* { dg-options "-O3 -mavx512f -mprefer-vector-width=512 -mtune=skylake-avx512 -fdump-tree-vect-details" } */
++/* { dg-options "-O3 -mavx512f -mprefer-vector-width=512 -mtune=haswell -fdump-tree-vect-details" } */
+ /* { dg-final { scan-tree-dump-times "loop vectorized using 64 byte vectors" 4 "vect" } } */
+ /* { dg-final { scan-tree-dump-times "vectorized 1 loops in function" 4 "vect" } } */
+ 
+diff --git a/gcc/testsuite/gcc.target/i386/avx512vl-pr88464-1.c b/gcc/testsuite/gcc.target/i386/avx512vl-pr88464-1.c
+index 55a28dddbf8..07439185ec1 100644
+--- a/gcc/testsuite/gcc.target/i386/avx512vl-pr88464-1.c
++++ b/gcc/testsuite/gcc.target/i386/avx512vl-pr88464-1.c
+@@ -1,6 +1,6 @@
+ /* PR tree-optimization/88464 */
+ /* { dg-do compile } */
+-/* { dg-options "-O3 -mavx512vl -mprefer-vector-width=256 -mtune=skylake-avx512 -fdump-tree-vect-details" } */
++/* { dg-options "-O3 -mavx512vl -mprefer-vector-width=256 -mtune=haswell -fdump-tree-vect-details" } */
+ /* { dg-final { scan-tree-dump-times "loop vectorized using 32 byte vectors" 4 "vect" } } */
+ /* { dg-final { scan-tree-dump-times "vectorized 1 loops in function" 4 "vect" } } */
+ 
+diff --git a/gcc/testsuite/gcc.target/i386/avx512vl-pr88464-11.c b/gcc/testsuite/gcc.target/i386/avx512vl-pr88464-11.c
+index 9696008855d..3a98108279a 100644
+--- a/gcc/testsuite/gcc.target/i386/avx512vl-pr88464-11.c
++++ b/gcc/testsuite/gcc.target/i386/avx512vl-pr88464-11.c
+@@ -1,6 +1,6 @@
+ /* PR tree-optimization/88464 */
+ /* { dg-do compile } */
+-/* { dg-options "-O3 -mavx512vl -mprefer-vector-width=128 -mtune=skylake-avx512 -fdump-tree-vect-details" } */
++/* { dg-options "-O3 -mavx512vl -mprefer-vector-width=128 -mtune=haswell -fdump-tree-vect-details" } */
+ /* { dg-final { scan-tree-dump-times "loop vectorized using 16 byte vectors" 4 "vect" } } */
+ /* { dg-final { scan-tree-dump-times "vectorized 1 loops in function" 4 "vect" } } */
+ 
+diff --git a/gcc/testsuite/gcc.target/i386/avx512vl-pr88464-3.c b/gcc/testsuite/gcc.target/i386/avx512vl-pr88464-3.c
+index 6b0c8a85957..ac669e04812 100644
+--- a/gcc/testsuite/gcc.target/i386/avx512vl-pr88464-3.c
++++ b/gcc/testsuite/gcc.target/i386/avx512vl-pr88464-3.c
+@@ -1,6 +1,6 @@
+ /* PR tree-optimization/88464 */
+ /* { dg-do compile } */
+-/* { dg-options "-O3 -mavx512vl -mprefer-vector-width=128 -mtune=skylake-avx512 -fdump-tree-vect-details" } */
++/* { dg-options "-O3 -mavx512vl -mprefer-vector-width=128 -mtune=haswell -fdump-tree-vect-details" } */
+ /* { dg-final { scan-tree-dump-times "loop vectorized using 16 byte vectors" 4 "vect" } } */
+ /* { dg-final { scan-tree-dump-times "vectorized 1 loops in function" 4 "vect" } } */
+ 
+diff --git a/gcc/testsuite/gcc.target/i386/avx512vl-pr88464-9.c b/gcc/testsuite/gcc.target/i386/avx512vl-pr88464-9.c
+index 3af568ab323..14a1083b6d1 100644
+--- a/gcc/testsuite/gcc.target/i386/avx512vl-pr88464-9.c
++++ b/gcc/testsuite/gcc.target/i386/avx512vl-pr88464-9.c
+@@ -1,6 +1,6 @@
+ /* PR tree-optimization/88464 */
+ /* { dg-do compile } */
+-/* { dg-options "-O3 -mavx512vl -mprefer-vector-width=256 -mtune=skylake-avx512 -fdump-tree-vect-details" } */
++/* { dg-options "-O3 -mavx512vl -mprefer-vector-width=256 -mtune=haswell -fdump-tree-vect-details" } */
+ /* { dg-final { scan-tree-dump-times "loop vectorized using 32 byte vectors" 4 "vect" } } */
+ /* { dg-final { scan-tree-dump-times "vectorized 1 loops in function" 4 "vect" } } */
+ 
 diff --git a/gcc/testsuite/gcc.target/i386/iamcu/asm-support.S b/gcc/testsuite/gcc.target/i386/iamcu/asm-support.S
 index b4a4a140e54..9d6be88e7d5 100644
 --- a/gcc/testsuite/gcc.target/i386/iamcu/asm-support.S
