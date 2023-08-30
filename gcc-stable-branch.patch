@@ -68,7 +68,20 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (479):
+GCC Administrator (492):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -647,7 +660,7 @@ Ian Lance Taylor (2):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
       syscall: add prlimit
 
-Jakub Jelinek (86):
+Jakub Jelinek (88):
       emit-rtl: Fix -fcompare-debug bug with label references in debug insns [PR105203]
       sparc: Preserve ORIGINAL_REGNO in epilogue_renumber [PR105257]
       rtlanal: Fix up replace_rtx [PR105333]
@@ -734,6 +747,8 @@ Jakub Jelinek (86):
       match.pd: Ensure (op CONSTANT_CLASS_P CONSTANT_CLASS_P) is simplified [PR109505]
       fortran: Fix ICE on pr96024.f90 on big-endian hosts [PR96024]
       testsuite: Fix up pr107397.f90 test [PR107397]
+      store-merging: Fix up >= 64 bit insertion [PR111015]
+      tree-ssa-strlen: Fix up handling of conditionally zero memcpy [PR110914]
 
 Jan Hubicka (2):
       Fix modref_tree::remap_params
@@ -21721,7 +21736,7 @@ index 2c78a08d3f1..a055cbecd0c 100644
  
  }; // class pass_gimple_isel
 diff --git a/gcc/gimple-ssa-store-merging.c b/gcc/gimple-ssa-store-merging.c
-index 0a74b025d00..629d9ad9ab6 100644
+index 0a74b025d00..288a73d68a6 100644
 --- a/gcc/gimple-ssa-store-merging.c
 +++ b/gcc/gimple-ssa-store-merging.c
 @@ -263,7 +263,7 @@ do_shift_rotate (enum tree_code code,
@@ -21762,6 +21777,24 @@ index 0a74b025d00..629d9ad9ab6 100644
    if (group->stores[0]->rhs_code == LROTATE_EXPR
        || group->stores[0]->rhs_code == NOP_EXPR
        || group->string_concatenation)
+@@ -4515,12 +4519,13 @@ imm_store_chain_info::output_merged_store (merged_store_group *group)
+ 		    }
+ 		  else if ((BYTES_BIG_ENDIAN ? start_gap : end_gap) > 0)
+ 		    {
+-		      const unsigned HOST_WIDE_INT imask
+-			= (HOST_WIDE_INT_1U << info->bitsize) - 1;
++		      wide_int imask
++			= wi::mask (info->bitsize, false,
++				    TYPE_PRECISION (TREE_TYPE (tem)));
+ 		      tem = gimple_build (&seq, loc,
+ 					  BIT_AND_EXPR, TREE_TYPE (tem), tem,
+-					  build_int_cst (TREE_TYPE (tem),
+-							 imask));
++					  wide_int_to_tree (TREE_TYPE (tem),
++							    imask));
+ 		    }
+ 		  const HOST_WIDE_INT shift
+ 		    = (BYTES_BIG_ENDIAN ? end_gap : start_gap);
 diff --git a/gcc/gimple-ssa-warn-alloca.c b/gcc/gimple-ssa-warn-alloca.c
 index 42c0ba1d87b..69c2583f090 100644
 --- a/gcc/gimple-ssa-warn-alloca.c
@@ -30379,6 +30412,34 @@ index 00000000000..309fbf413e0
 +  if (c != 1)
 +    __builtin_abort ();
 +}
+diff --git a/gcc/testsuite/gcc.c-torture/execute/pr110914.c b/gcc/testsuite/gcc.c-torture/execute/pr110914.c
+new file mode 100644
+index 00000000000..ccc04e1bdd4
+--- /dev/null
++++ b/gcc/testsuite/gcc.c-torture/execute/pr110914.c
+@@ -0,0 +1,22 @@
++/* PR tree-optimization/110914 */
++
++__attribute__ ((noipa)) int
++foo (const char *s, unsigned long l)
++{
++  unsigned char r = 0;
++  __builtin_memcpy (&r, s, l != 0);
++  return r;
++}
++
++int
++main ()
++{
++  const char *p = "123456";
++  int a = foo (p, __builtin_strlen (p) - 5);
++  int b = foo (p, __builtin_strlen (p) - 6);
++  if (a != '1')
++    __builtin_abort ();
++  if (b != 0)
++    __builtin_abort ();
++  return 0;
++}
 diff --git a/gcc/testsuite/gcc.dg/analyzer/pr105252.c b/gcc/testsuite/gcc.dg/analyzer/pr105252.c
 new file mode 100644
 index 00000000000..a093eababc5
@@ -31210,6 +31271,40 @@ index 00000000000..a6401fc100c
 +  baz (x, y);
 +  int a = bar (x);
 +  return y || a == 42 || a > 42;
++}
+diff --git a/gcc/testsuite/gcc.dg/pr111015.c b/gcc/testsuite/gcc.dg/pr111015.c
+new file mode 100644
+index 00000000000..599a14e6ecc
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/pr111015.c
+@@ -0,0 +1,28 @@
++/* PR tree-optimization/111015 */
++/* { dg-do run { target int128 } } */
++/* { dg-options "-O2" } */
++
++struct S { unsigned a : 4, b : 4; unsigned __int128 c : 70; } d;
++
++__attribute__((noipa)) void
++foo (unsigned __int128 x, unsigned char y, unsigned char z)
++{
++  d.a = y;
++  d.b = z;
++  d.c = x;
++}
++
++int
++main ()
++{
++  foo (-1, 12, 5);
++  if (d.a != 12
++      || d.b != 5
++      || d.c != (-1ULL | (((unsigned __int128) 0x3f) << 64)))
++    __builtin_abort ();
++  foo (0x123456789abcdef0ULL | (((unsigned __int128) 26) << 64), 7, 11);
++  if (d.a != 7
++      || d.b != 11
++      || d.c != (0x123456789abcdef0ULL | (((unsigned __int128) 26) << 64)))
++    __builtin_abort ();
 +}
 diff --git a/gcc/testsuite/gcc.dg/pr64536.c b/gcc/testsuite/gcc.dg/pr64536.c
 index f2728fbc938..18afa9d0232 100644
@@ -40231,10 +40326,20 @@ index 3c2ed795f85..b3097531203 100644
  		     location we can disregard it.  But make sure it is not
  		     dominating it as well as can happen in a CFG cycle.  */
 diff --git a/gcc/tree-ssa-strlen.c b/gcc/tree-ssa-strlen.c
-index cccd4a06771..9f317a190ee 100644
+index cccd4a06771..cfffc220073 100644
 --- a/gcc/tree-ssa-strlen.c
 +++ b/gcc/tree-ssa-strlen.c
-@@ -4523,7 +4523,7 @@ count_nonzero_bytes (tree exp, unsigned HOST_WIDE_INT offset,
+@@ -3231,7 +3231,8 @@ handle_builtin_memcpy (enum built_in_function bcode, gimple_stmt_iterator *gsi,
+       && !integer_zerop (len))
+     {
+       maybe_warn_overflow (stmt, len, ptr_qry, olddsi, false, true);
+-      adjust_last_stmt (olddsi, stmt, false, ptr_qry);
++      if (tree_fits_uhwi_p (len))
++	adjust_last_stmt (olddsi, stmt, false, ptr_qry);
+     }
+ 
+   int idx = get_stridx (src);
+@@ -4523,7 +4524,7 @@ count_nonzero_bytes (tree exp, unsigned HOST_WIDE_INT offset,
  
    /* Compute the number of leading nonzero bytes in the representation
       and update the minimum and maximum.  */
