@@ -68,7 +68,19 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (493):
+GCC Administrator (505):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -573,8 +585,9 @@ H.J. Lu (5):
       i386: Mark XMM4-XMM6 as clobbered by encodekey128/encodekey256
       Always use TYPE_MODE instead of DECL_MODE for vector field
 
-Haochen Gui (1):
+Haochen Gui (2):
       rs6000: correct vector sign extend builtins on Big Endian
+      rs6000: call vector load/store with length only on 64-bit Power10
 
 Harald Anlauf (41):
       Fortran: improve error recovery on invalid array section
@@ -755,7 +768,7 @@ Jan Hubicka (2):
       Fix modref_tree::remap_params
       Fix ipa-cp wrt volatile loads
 
-Jason Merrill (28):
+Jason Merrill (30):
       c++: rodata and defaulted ctor [PR104142]
       c++: low -faligned-new [PR102071]
       c++: local function versioning [PR104669]
@@ -784,6 +797,8 @@ Jason Merrill (28):
       c++: constexpr PMF conversion [PR105996]
       c-family: -Wsequence-point and COMPONENT_REF [PR107163]
       c++: non-templated friends [PR105852]
+      c++: array DMI and member fn [PR109666]
+      c++: member vs global template [PR106310]
 
 Jeff Law (1):
       [committed] Fix more problems with new linker warnings
@@ -12546,6 +12561,32 @@ index a06a147c339..3ebfdc0b86f 100644
 +extern gimple *currently_expanding_gimple_stmt;
 +extern bool rs6000_opaque_type_invalid_use_p (gimple *);
  #endif  /* rs6000-protos.h */
+diff --git a/gcc/config/rs6000/rs6000-string.c b/gcc/config/rs6000/rs6000-string.c
+index cc75ca5848e..b7c77372c70 100644
+--- a/gcc/config/rs6000/rs6000-string.c
++++ b/gcc/config/rs6000/rs6000-string.c
+@@ -2811,11 +2811,17 @@ expand_block_move (rtx operands[], bool might_overlap)
+ 	  gen_func.mov = gen_vsx_movv2di_64bit;
+ 	}
+       else if (TARGET_BLOCK_OPS_UNALIGNED_VSX
+-	       && TARGET_POWER10 && bytes < 16
++	       /* Only use lxvl/stxvl on 64bit POWER10.  */
++	       && TARGET_POWER10
++	       && TARGET_64BIT
++	       && bytes < 16
+ 	       && orig_bytes > 16
+-	       && !(bytes == 1 || bytes == 2
+-		    || bytes == 4 || bytes == 8)
+-	       && (align >= 128 || !STRICT_ALIGNMENT))
++	       && !(bytes == 1
++		    || bytes == 2
++		    || bytes == 4
++		    || bytes == 8)
++	       && (align >= 128
++		   || !STRICT_ALIGNMENT))
+ 	{
+ 	  /* Only use lxvl/stxvl if it could replace multiple ordinary
+ 	     loads+stores.  Also don't use it unless we likely already
 diff --git a/gcc/config/rs6000/rs6000.c b/gcc/config/rs6000/rs6000.c
 index 0421dc7adb3..ade91e213d4 100644
 --- a/gcc/config/rs6000/rs6000.c
@@ -15394,10 +15435,27 @@ index 49f043ed29b..25a05978be9 100644
            gcc_cv_as_mllvm_x86_pad_for_align,,
            [-mllvm -x86-pad-for-align=false], [.text],,
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..666e1712eb8 100644
+index 85c8fdd38cd..0668df8fda6 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,553 @@
+@@ -1,3 +1,570 @@
++2023-09-11  Jason Merrill  <jason@redhat.com>
++
++	PR c++/106310
++	* parser.c (cp_parser_template_name): Skip non-member
++	lookup after the template keyword.
++	(cp_parser_lookup_name): Pass down template_keyword_p.
++
++2023-09-11  Jason Merrill  <jason@redhat.com>
++
++	PR c++/106890
++	PR c++/109666
++	* name-lookup.c (maybe_push_to_top_level)
++	(maybe_pop_from_top_level): Split out...
++	* pt.c (instantiate_body): ...from here.
++	* init.c (maybe_instantiate_nsdmi_init): Use them.
++	* name-lookup.h: Declare them..
++
 +2023-08-09  Patrick Palka  <ppalka@redhat.com>
 +
 +	Backported from master:
@@ -16943,10 +17001,38 @@ index ee73adb1677..e41def3a2ea 100644
  	    decl = pushdecl (decl, /*hiding=*/true);
  	  else
 diff --git a/gcc/cp/init.c b/gcc/cp/init.c
-index bd27c92324b..f694c9a5776 100644
+index bd27c92324b..08b26ba9a17 100644
 --- a/gcc/cp/init.c
 +++ b/gcc/cp/init.c
-@@ -911,7 +911,7 @@ perform_member_init (tree member, tree init)
+@@ -597,15 +597,9 @@ get_nsdmi (tree member, bool in_ctor, tsubst_flags_t complain)
+ 	  bool pushed = false;
+ 	  tree ctx = DECL_CONTEXT (member);
+ 
+-	  processing_template_decl_sentinel ptds (/*reset*/false);
++	  bool push_to_top = maybe_push_to_top_level (member);
+ 	  if (!currently_open_class (ctx))
+ 	    {
+-	      if (!LOCAL_CLASS_P (ctx))
+-		push_to_top_level ();
+-	      else
+-		/* push_to_top_level would lose the necessary function context,
+-		   just reset processing_template_decl.  */
+-		processing_template_decl = 0;
+ 	      push_nested_class (ctx);
+ 	      push_deferring_access_checks (dk_no_deferred);
+ 	      pushed = true;
+@@ -633,9 +627,8 @@ get_nsdmi (tree member, bool in_ctor, tsubst_flags_t complain)
+ 	    {
+ 	      pop_deferring_access_checks ();
+ 	      pop_nested_class ();
+-	      if (!LOCAL_CLASS_P (ctx))
+-		pop_from_top_level ();
+ 	    }
++	  maybe_pop_from_top_level (push_to_top);
+ 
+ 	  input_location = sloc;
+ 	}
+@@ -911,7 +904,7 @@ perform_member_init (tree member, tree init)
        init = build2 (INIT_EXPR, type, decl, init);
        finish_expr_stmt (init);
        FOR_EACH_VEC_ELT (*cleanups, i, t)
@@ -16955,7 +17041,7 @@ index bd27c92324b..f694c9a5776 100644
      }
    else if (type_build_ctor_call (type)
  	   || (init && CLASS_TYPE_P (strip_array_types (type))))
-@@ -3079,7 +3079,13 @@ build_new_1 (vec<tree, va_gc> **placement, tree type, tree nelts,
+@@ -3079,7 +3072,13 @@ build_new_1 (vec<tree, va_gc> **placement, tree type, tree nelts,
  
    tree align_arg = NULL_TREE;
    if (type_has_new_extended_alignment (elt_type))
@@ -16970,7 +17056,7 @@ index bd27c92324b..f694c9a5776 100644
  
    alloc_fn = NULL_TREE;
  
-@@ -3261,18 +3267,19 @@ build_new_1 (vec<tree, va_gc> **placement, tree type, tree nelts,
+@@ -3261,18 +3260,19 @@ build_new_1 (vec<tree, va_gc> **placement, tree type, tree nelts,
  	}
      }
  
@@ -17083,8 +17169,69 @@ index b97b1bcb2f8..6cb926c044a 100644
  			       || !DECL_LANG_SPECIFIC (decl)
  			       || !DECL_TEMPLATE_INFO (decl));
  
+diff --git a/gcc/cp/name-lookup.c b/gcc/cp/name-lookup.c
+index 2901e048b8d..98b1993e127 100644
+--- a/gcc/cp/name-lookup.c
++++ b/gcc/cp/name-lookup.c
+@@ -8520,6 +8520,43 @@ do_pop_from_top_level (void)
+   free_saved_scope = s;
+ }
+ 
++/* Like push_to_top_level, but not if D is function-local.  Returns whether we
++   did push to top.  */
++
++bool
++maybe_push_to_top_level (tree d)
++{
++  /* Push if D isn't function-local, or is a lambda function, for which name
++     resolution is already done.  */
++  bool push_to_top
++    = !(current_function_decl
++	&& !LAMBDA_FUNCTION_P (d)
++	&& decl_function_context (d) == current_function_decl);
++
++  if (push_to_top)
++    push_to_top_level ();
++  else
++    {
++      gcc_assert (!processing_template_decl);
++      push_function_context ();
++      cp_unevaluated_operand = 0;
++      c_inhibit_evaluation_warnings = 0;
++    }
++
++  return push_to_top;
++}
++
++/* Return from whatever maybe_push_to_top_level did.  */
++
++void
++maybe_pop_from_top_level (bool push_to_top)
++{
++  if (push_to_top)
++    pop_from_top_level ();
++  else
++    pop_function_context ();
++}
++
+ /* Push into the scope of the namespace NS, even if it is deeply
+    nested within another namespace.  */
+ 
+diff --git a/gcc/cp/name-lookup.h b/gcc/cp/name-lookup.h
+index c6d0aa96b55..350a9c05cfe 100644
+--- a/gcc/cp/name-lookup.h
++++ b/gcc/cp/name-lookup.h
+@@ -470,6 +470,8 @@ extern void push_to_top_level (void);
+ extern void pop_from_top_level (void);
+ extern void maybe_save_operator_binding (tree);
+ extern void push_operator_bindings (void);
++extern bool maybe_push_to_top_level (tree);
++extern void maybe_pop_from_top_level (bool);
+ extern void push_using_decl_bindings (tree, tree);
+ extern void discard_operator_bindings (tree);
+ 
 diff --git a/gcc/cp/parser.c b/gcc/cp/parser.c
-index 90d119eaa28..8287934a679 100644
+index 90d119eaa28..8df715596eb 100644
 --- a/gcc/cp/parser.c
 +++ b/gcc/cp/parser.c
 @@ -249,7 +249,7 @@ static cp_token_cache *cp_token_cache_new
@@ -17096,6 +17243,15 @@ index 90d119eaa28..8287934a679 100644
  
  static void cp_parser_initial_pragma
    (cp_token *);
+@@ -2610,7 +2610,7 @@ static tree cp_parser_objc_struct_declaration
+ /* Utility Routines */
+ 
+ static cp_expr cp_parser_lookup_name
+-  (cp_parser *, tree, enum tag_types, bool, bool, bool, tree *, location_t);
++  (cp_parser *, tree, enum tag_types, int, bool, bool, tree *, location_t);
+ static tree cp_parser_lookup_name_simple
+   (cp_parser *, tree, location_t);
+ static tree cp_parser_maybe_treat_template_as_class
 @@ -9968,7 +9968,10 @@ cp_parser_binary_expression (cp_parser* parser, bool cast_p,
  		      || (TREE_CODE (TREE_TYPE (TREE_OPERAND (current.lhs, 0)))
  			  != BOOLEAN_TYPE))))
@@ -17117,7 +17273,7 @@ index 90d119eaa28..8287934a679 100644
  	    {
  	      /* We're optimizing away the call to cp_parser_lookup_name, but
  		 we still need to do this.  */
-@@ -17739,8 +17742,8 @@ cp_parser_template_name (cp_parser* parser,
+@@ -17739,13 +17742,13 @@ cp_parser_template_name (cp_parser* parser,
      }
  
    /* cp_parser_lookup_name clears OBJECT_TYPE.  */
@@ -17128,6 +17284,12 @@ index 90d119eaa28..8287934a679 100644
  
    /* Look up the name.  */
    decl = cp_parser_lookup_name (parser, identifier,
+ 				tag_type,
+-				/*is_template=*/true,
++				/*is_template=*/1 + template_keyword_p,
+ 				/*is_namespace=*/false,
+ 				check_dependency_p,
+ 				/*ambiguous_decls=*/NULL,
 @@ -17753,6 +17756,19 @@ cp_parser_template_name (cp_parser* parser,
  
    decl = strip_using_decl (decl);
@@ -17231,6 +17393,24 @@ index 90d119eaa28..8287934a679 100644
    tree base_binfo;
  
    if (DECL_STATIC_FUNCTION_P (fndecl))
+@@ -29237,7 +29254,7 @@ prefer_type_arg (tag_types tag_type)
+    refer to types are ignored.
+ 
+    If IS_TEMPLATE is TRUE, bindings that do not refer to templates are
+-   ignored.
++   ignored.  If IS_TEMPLATE IS 2, the 'template' keyword was specified.
+ 
+    If IS_NAMESPACE is TRUE, bindings that do not refer to namespaces
+    are ignored.
+@@ -29252,7 +29269,7 @@ prefer_type_arg (tag_types tag_type)
+ static cp_expr
+ cp_parser_lookup_name (cp_parser *parser, tree name,
+ 		       enum tag_types tag_type,
+-		       bool is_template,
++		       int is_template,
+ 		       bool is_namespace,
+ 		       bool check_dependency,
+ 		       tree *ambiguous_decls,
 @@ -29419,9 +29436,12 @@ cp_parser_lookup_name (cp_parser *parser, tree name,
      }
    else if (object_type)
@@ -17245,7 +17425,23 @@ index 90d119eaa28..8287934a679 100644
  	/* If the OBJECT_TYPE is a template specialization, it may
  	   be instantiated during name lookup.  In that case, errors
  	   may be issued.  Even if we rollback the current tentative
-@@ -32308,7 +32328,8 @@ class_decl_loc_t::add (cp_parser *parser, location_t key_loc,
+@@ -29434,7 +29454,14 @@ cp_parser_lookup_name (cp_parser *parser, tree name,
+       else
+ 	decl = NULL_TREE;
+ 
+-      if (!decl)
++      /* If we didn't find a member and have dependent bases, the member lookup
++	 is now dependent.  */
++      if (!dep && !decl && any_dependent_bases_p (object_type))
++	dep = true;
++
++      if (dep && is_template == 2)
++	/* The template keyword specifies a dependent template.  */;
++      else if (!decl)
+ 	/* Look it up in the enclosing context.  DR 141: When looking for a
+ 	   template-name after -> or ., only consider class templates.  */
+ 	decl = lookup_name (name, is_namespace ? LOOK_want::NAMESPACE
+@@ -32308,7 +32335,8 @@ class_decl_loc_t::add (cp_parser *parser, location_t key_loc,
    bool key_redundant = (!def_p && !decl_p
  			&& (decl == type_decl
  			    || TREE_CODE (decl) == TEMPLATE_DECL
@@ -17255,7 +17451,7 @@ index 90d119eaa28..8287934a679 100644
  
    if (key_redundant
        && class_key != class_type
-@@ -32346,7 +32367,7 @@ class_decl_loc_t::add (cp_parser *parser, location_t key_loc,
+@@ -32346,7 +32374,7 @@ class_decl_loc_t::add (cp_parser *parser, location_t key_loc,
  	}
        else
  	{
@@ -17265,7 +17461,7 @@ index 90d119eaa28..8287934a679 100644
  	     proceed below to add a reference to it at the current location.
  	     (Declarations in precompiled headers that are not definitions
 diff --git a/gcc/cp/pt.c b/gcc/cp/pt.c
-index 318d42d800d..c010392418f 100644
+index 318d42d800d..0304eb759e8 100644
 --- a/gcc/cp/pt.c
 +++ b/gcc/cp/pt.c
 @@ -2524,17 +2524,14 @@ determine_specialization (tree template_id,
@@ -17520,7 +17716,41 @@ index 318d42d800d..c010392418f 100644
  	      --processing_template_decl;
  	      if (uses_template_parms (tparm))
  		return unify_success (explain_p);
-@@ -28726,7 +28802,7 @@ rewrite_template_parm (tree olddecl, unsigned index, unsigned level,
+@@ -25930,20 +26006,7 @@ instantiate_body (tree pattern, tree args, tree d, bool nested_p)
+   if (current_function_decl)
+     save_omp_privatization_clauses (omp_privatization_save);
+ 
+-  bool push_to_top
+-    = !(current_function_decl
+-	&& !LAMBDA_FUNCTION_P (d)
+-	&& decl_function_context (d) == current_function_decl);
+-
+-  if (push_to_top)
+-    push_to_top_level ();
+-  else
+-    {
+-      gcc_assert (!processing_template_decl);
+-      push_function_context ();
+-      cp_unevaluated_operand = 0;
+-      c_inhibit_evaluation_warnings = 0;
+-    }
++  bool push_to_top = maybe_push_to_top_level (d);
+ 
+   if (VAR_P (d))
+     {
+@@ -26056,10 +26119,7 @@ instantiate_body (tree pattern, tree args, tree d, bool nested_p)
+   if (!nested_p)
+     TI_PENDING_TEMPLATE_FLAG (DECL_TEMPLATE_INFO (d)) = 0;
+ 
+-  if (push_to_top)
+-    pop_from_top_level ();
+-  else
+-    pop_function_context ();
++  maybe_pop_from_top_level (push_to_top);
+ 
+   if (current_function_decl)
+     restore_omp_privatization_clauses (omp_privatization_save);
+@@ -28726,7 +28786,7 @@ rewrite_template_parm (tree olddecl, unsigned index, unsigned level,
  	  const int depth = TMPL_ARGS_DEPTH (tsubst_args);
  	  tree ttargs = make_tree_vec (depth + 1);
  	  for (int i = 0; i < depth; ++i)
@@ -17529,7 +17759,7 @@ index 318d42d800d..c010392418f 100644
  	  TREE_VEC_ELT (ttargs, depth)
  	    = template_parms_level_to_args (ttparms);
  	  // Substitute ttargs into ttparms to fix references to
-@@ -28739,8 +28815,17 @@ rewrite_template_parm (tree olddecl, unsigned index, unsigned level,
+@@ -28739,8 +28799,17 @@ rewrite_template_parm (tree olddecl, unsigned index, unsigned level,
  	  ttparms = tsubst_template_parms_level (ttparms, ttargs,
  						 complain);
  	  // Finally, tack the adjusted parms onto tparms.
@@ -17549,7 +17779,7 @@ index 318d42d800d..c010392418f 100644
  	  DECL_TEMPLATE_PARMS (newdecl) = ttparms;
  	}
      }
-@@ -29238,6 +29323,11 @@ alias_ctad_tweaks (tree tmpl, tree uguides)
+@@ -29238,6 +29307,11 @@ alias_ctad_tweaks (tree tmpl, tree uguides)
  	      ++ndlen;
  	  tree gtparms = make_tree_vec (natparms + ndlen);
  
@@ -23272,10 +23502,22 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..9d49e1ee2a0 100644
+index 5fc23605244..e13eddf174d 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2494 @@
+@@ -1,3 +1,2506 @@
++2023-09-11  Jason Merrill  <jason@redhat.com>
++
++	PR c++/106310
++	* g++.dg/template/template-keyword4.C: New test.
++
++2023-09-11  Jason Merrill  <jason@redhat.com>
++
++	PR c++/106890
++	PR c++/109666
++	* g++.dg/cpp0x/nsdmi-array2.C: New test.
++	* g++.dg/cpp0x/nsdmi-template25.C: New test.
++
 +2023-08-30  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -26587,6 +26829,51 @@ index 00000000000..e8156eb7c6f
 +  static void g();
 +};
 +
+diff --git a/gcc/testsuite/g++.dg/cpp0x/nsdmi-array2.C b/gcc/testsuite/g++.dg/cpp0x/nsdmi-array2.C
+new file mode 100644
+index 00000000000..5ad60f56510
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp0x/nsdmi-array2.C
+@@ -0,0 +1,15 @@
++// PR c++/109666
++// { dg-do compile { target c++11 } }
++
++struct Point {
++  int value_;
++};
++template <int n> struct StaticVector {
++  static StaticVector create() {
++    StaticVector output;
++    return output;
++  }
++  Point _M_elems[n]{};
++
++};
++void f() { StaticVector<3>::create(); }
+diff --git a/gcc/testsuite/g++.dg/cpp0x/nsdmi-template25.C b/gcc/testsuite/g++.dg/cpp0x/nsdmi-template25.C
+new file mode 100644
+index 00000000000..368e745540e
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp0x/nsdmi-template25.C
+@@ -0,0 +1,18 @@
++// PR c++/106890
++// { dg-do compile { target c++11 } }
++
++struct A
++{
++  int p;
++};
++
++template<typename T>
++struct B : virtual public A
++{
++  B() { }
++  B(int) { }
++
++  int k = this->p;
++};
++
++template struct B<int>;
 diff --git a/gcc/testsuite/g++.dg/cpp0x/overload-conv-5.C b/gcc/testsuite/g++.dg/cpp0x/overload-conv-5.C
 new file mode 100644
 index 00000000000..b1e7766e42b
@@ -28270,6 +28557,30 @@ index 00000000000..5f51e8a27de
 +
 +template<template<class X, X...> class XList, class T, T Arg, T... Vs>
 +struct push_front_vlist<XList<T, Vs...>, Arg> { }; // { dg-error "not more specialized" }
+diff --git a/gcc/testsuite/g++.dg/template/template-keyword4.C b/gcc/testsuite/g++.dg/template/template-keyword4.C
+new file mode 100644
+index 00000000000..a7ab9bb8ca6
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/template/template-keyword4.C
+@@ -0,0 +1,18 @@
++// PR c++/106310
++
++template <class T>
++struct set{};
++
++template< typename T >
++struct Base
++{
++  template< int > int set(T const &);
++};
++
++template< typename T >
++struct Derived : Base< T >
++{
++  void f(T const &arg) {
++    this->template set< 0 >(arg);
++  }
++};
 diff --git a/gcc/testsuite/g++.dg/tls/thread_local13-aux.cc b/gcc/testsuite/g++.dg/tls/thread_local13-aux.cc
 new file mode 100644
 index 00000000000..691f308cff1
@@ -36383,6 +36694,25 @@ index 00000000000..f0471b6f68b
 +  __builtin_printf("\n");
 +
 +  return 0;
++}
+diff --git a/gcc/testsuite/gcc.target/powerpc/pr96762.c b/gcc/testsuite/gcc.target/powerpc/pr96762.c
+new file mode 100644
+index 00000000000..a59deb42738
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/powerpc/pr96762.c
+@@ -0,0 +1,13 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -mdejagnu-cpu=power10" } */
++
++/* Verify there is no ICE on ilp32 env.  */
++
++extern void foo (char *);
++
++void
++bar (void)
++{
++  char zj[] = "XXXXXXXXXXXXXXXX";
++  foo (zj);
 +}
 diff --git a/gcc/testsuite/gcc.target/powerpc/test_mffsl.c b/gcc/testsuite/gcc.target/powerpc/test_mffsl.c
 index 41377efba1a..045d0bfa349 100644
