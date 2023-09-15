@@ -68,7 +68,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (507):
+GCC Administrator (508):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -45839,10 +45840,19 @@ index 72119b01c69..2cc64a39649 100644
  
  	* GCC 11.3.0 released.
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..dda5eaf798e 100644
+index 85e04c45288..a6bc6595d55 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,1748 @@
+@@ -1,3 +1,1757 @@
++2023-09-14  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2023-09-14  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR c++/111357
++	* include/std/utility (make_integer_sequence): Add cast.
++	* testsuite/20_util/integer_sequence/pr111357.cc: New test.
++
 +2023-07-12  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backported from master:
