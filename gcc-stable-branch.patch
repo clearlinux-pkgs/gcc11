@@ -68,7 +68,18 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (508):
+GCC Administrator (519):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -813,7 +824,7 @@ John David Anglin (2):
       Fix addvdi3 and subvdi3 patterns
       Skip guality tests on hppa-hpux.
 
-Jonathan Wakely (111):
+Jonathan Wakely (112):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -925,6 +936,7 @@ Jonathan Wakely (111):
       libstdc++: Fix wstring conversions in filesystem::path [PR95048]
       libstdc++: Check conversion from filesystem::path to wide strings [PR95048]
       libstdc++: Add workaround for std::make_integer_sequence bug [PR111357]
+      libstdc++: Prevent unwanted ADL in std::to_array [PR111512]
 
 José Rui Faustino de Sousa (5):
       Fortran: Fix ICE with -fcheck=pointer [PR100136]
@@ -59530,6 +59542,28 @@ index d96ea06c1ae..5aec4040064 100644
        any(_Tp&& __value)
        : _M_manager(&_Mgr::_S_manage)
        {
+diff --git a/libstdc++-v3/include/std/array b/libstdc++-v3/include/std/array
+index 0c6f33e3276..95c9b688cdc 100644
+--- a/libstdc++-v3/include/std/array
++++ b/libstdc++-v3/include/std/array
+@@ -409,7 +409,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       static_assert(!is_array_v<_Tp>);
+       static_assert(is_constructible_v<_Tp, _Tp&>);
+       if constexpr (is_constructible_v<_Tp, _Tp&>)
+-	return __to_array(__a, make_index_sequence<_Nm>{});
++	return std::__to_array(__a, make_index_sequence<_Nm>{});
+       __builtin_unreachable(); // FIXME: see PR c++/91388
+     }
+ 
+@@ -421,7 +421,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       static_assert(!is_array_v<_Tp>);
+       static_assert(is_move_constructible_v<_Tp>);
+       if constexpr (is_move_constructible_v<_Tp>)
+-	return __to_array<1>(__a, make_index_sequence<_Nm>{});
++	return std::__to_array<1>(__a, make_index_sequence<_Nm>{});
+       __builtin_unreachable(); // FIXME: see PR c++/91388
+     }
+ #endif // C++20
 diff --git a/libstdc++-v3/include/std/atomic b/libstdc++-v3/include/std/atomic
 index fdffacc35df..83102d02b4a 100644
 --- a/libstdc++-v3/include/std/atomic
@@ -62346,6 +62380,37 @@ index f467d114c24..7ae3ccda22f 100644
  # error "Feature test macro for constexpr copy has wrong value in <string_view>"
  #endif
  
+diff --git a/libstdc++-v3/testsuite/23_containers/array/creation/111512.cc b/libstdc++-v3/testsuite/23_containers/array/creation/111512.cc
+new file mode 100644
+index 00000000000..f510480ae4b
+--- /dev/null
++++ b/libstdc++-v3/testsuite/23_containers/array/creation/111512.cc
+@@ -0,0 +1,25 @@
++// { dg-options "-std=gnu++20" }
++// { dg-do compile { target c++20 } }
++
++// Bug libstdc++/111511 - Incorrect ADL in std::to_array in GCC 11/12/13
++// Bug c++/111512 - GCC's __builtin_memcpy can trigger ADL
++
++#include <array>
++#include <utility>
++
++struct incomplete;
++
++template<class T>
++struct holder {
++    T t; // { dg-bogus "'holder<T>::t' has incomplete type" }
++};
++
++// A complete type that cannot be used as an associated type for ADL.
++using adl_bomb = holder<incomplete>*;
++
++int main()
++{
++    adl_bomb a[1]{};
++    (void) std::to_array(a);
++    (void) std::to_array(std::move(a));
++}
 diff --git a/libstdc++-v3/testsuite/23_containers/forward_list/operations/merge.cc b/libstdc++-v3/testsuite/23_containers/forward_list/operations/merge.cc
 new file mode 100644
 index 00000000000..0f6f520c33b
