@@ -68,7 +68,12 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (520):
+GCC Administrator (525):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1055,8 +1060,9 @@ Mikael Morin (3):
 Oleg Endo (1):
       SH: Fix PR101469 peephole bug
 
-Pat Haugen (1):
+Pat Haugen (2):
       Fix register count when not splitting Complex IEEE 128-bit args.
+      Disable generation of scalar modulo instructions.
 
 Patrick Palka (17):
       c++: partial ordering with dependent NTTP type [PR105289]
@@ -1267,6 +1273,9 @@ Thomas W Rodgers (3):
       libstdc++: Make atomic notify_one and notify_all non-const
       libstdc++: Add missing free functions for atomic_flag [PR103934]
       libstdc++: Add missing free functions for atomic_flag [PR103934]
+
+Tim Song (1):
+      libstdc++: Force _Hash_node_value_base methods inline to fix abi (PR111050)
 
 Tobias Burnus (2):
       OpenMP: Fix folding with simd's linear clause [PR106492]
@@ -3002,10 +3011,24 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..ce8754ef219 100644
+index a0587d18824..baf2160d75b 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,2382 @@
+@@ -1,3 +1,2396 @@
++2023-10-02  Pat Haugen  <pthaugen@linux.ibm.com>
++
++	Backported from master:
++	2023-09-19  Pat Haugen  <pthaugen@linux.ibm.com>
++
++	* config/rs6000/rs6000.c (rs6000_rtx_costs): Check whether the
++	modulo instruction is disabled.
++	* config/rs6000/rs6000.h (RS6000_DISABLE_SCALAR_MODULO): New.
++	* config/rs6000/rs6000.md (mod<mode>3, *mod<mode>3): Check it.
++	(define_expand umod<mode>3): New.
++	(define_insn umod<mode>3): Rename to *umod<mode>3 and check if the modulo
++	instruction is disabled.
++	(umodti3, modti3): Check if the modulo instruction is disabled.
++
 +2023-09-12  Uros Bizjak  <ubizjak@gmail.com>
 +
 +	Backported from master:
@@ -13815,7 +13838,7 @@ index cc75ca5848e..b7c77372c70 100644
  	  /* Only use lxvl/stxvl if it could replace multiple ordinary
  	     loads+stores.  Also don't use it unless we likely already
 diff --git a/gcc/config/rs6000/rs6000.c b/gcc/config/rs6000/rs6000.c
-index 0421dc7adb3..ade91e213d4 100644
+index 0421dc7adb3..3e5281c0f05 100644
 --- a/gcc/config/rs6000/rs6000.c
 +++ b/gcc/config/rs6000/rs6000.c
 @@ -4147,14 +4147,6 @@ rs6000_option_override_internal (bool global_init_p)
@@ -14083,7 +14106,18 @@ index 0421dc7adb3..ade91e213d4 100644
  
        if (TARGET_64BIT)
  	{
-@@ -25074,6 +25066,11 @@ rs6000_can_inline_p (tree caller, tree callee)
+@@ -21768,7 +21760,9 @@ rs6000_rtx_costs (rtx x, machine_mode mode, int outer_code,
+ 	    *total = rs6000_cost->divsi;
+ 	}
+       /* Add in shift and subtract for MOD unless we have a mod instruction. */
+-      if (!TARGET_MODULO && (code == MOD || code == UMOD))
++      if ((!TARGET_MODULO
++	   || (RS6000_DISABLE_SCALAR_MODULO && SCALAR_INT_MODE_P (mode)))
++	 && (code == MOD || code == UMOD))
+ 	*total += COSTS_N_INSNS (2);
+       return false;
+ 
+@@ -25074,6 +25068,11 @@ rs6000_can_inline_p (tree caller, tree callee)
        else
  	caller_isa = rs6000_isa_flags;
  
@@ -14095,7 +14129,7 @@ index 0421dc7adb3..ade91e213d4 100644
        /* The callee's options must be a subset of the caller's options, i.e.
  	 a vsx function may inline an altivec function, but a no-vsx function
  	 must not inline a vsx function.  However, for those options that the
-@@ -27795,6 +27792,27 @@ rs6000_starting_frame_offset (void)
+@@ -27795,6 +27794,27 @@ rs6000_starting_frame_offset (void)
    return RS6000_STARTING_FRAME_OFFSET;
  }
  
@@ -14123,7 +14157,7 @@ index 0421dc7adb3..ade91e213d4 100644
  
  /* On 64-bit Linux and Freebsd systems, possibly switch the long double library
     function names from <foo>l to <foo>f128 if the default long double type is
-@@ -27813,11 +27831,53 @@ rs6000_starting_frame_offset (void)
+@@ -27813,11 +27833,53 @@ rs6000_starting_frame_offset (void)
     only do this transformation if the __float128 type is enabled.  This
     prevents us from doing the transformation on older 32-bit ports that might
     have enabled using IEEE 128-bit floating point as the default long double
@@ -14178,7 +14212,7 @@ index 0421dc7adb3..ade91e213d4 100644
    if (TARGET_FLOAT128_TYPE && TARGET_IEEEQUAD && TARGET_LONG_DOUBLE_128
        && TREE_CODE (decl) == FUNCTION_DECL
        && DECL_IS_UNDECLARED_BUILTIN (decl)
-@@ -28000,28 +28060,6 @@ rs6000_invalid_conversion (const_tree fromtype, const_tree totype)
+@@ -28000,28 +28062,6 @@ rs6000_invalid_conversion (const_tree fromtype, const_tree totype)
        if (tomode == OOmode)
  	return N_("invalid conversion to type %<__vector_pair%>");
      }
@@ -14207,7 +14241,7 @@ index 0421dc7adb3..ade91e213d4 100644
  
    /* Conversion allowed.  */
    return NULL;
-@@ -28068,6 +28106,87 @@ rs6000_output_addr_vec_elt (FILE *file, int value)
+@@ -28068,6 +28108,87 @@ rs6000_output_addr_vec_elt (FILE *file, int value)
    fprintf (file, "\n");
  }
  
@@ -14296,7 +14330,7 @@ index 0421dc7adb3..ade91e213d4 100644
  
  #include "gt-rs6000.h"
 diff --git a/gcc/config/rs6000/rs6000.h b/gcc/config/rs6000/rs6000.h
-index 4ca6372435d..3b3dea5114a 100644
+index 4ca6372435d..5a6f9bf4aa2 100644
 --- a/gcc/config/rs6000/rs6000.h
 +++ b/gcc/config/rs6000/rs6000.h
 @@ -81,12 +81,15 @@
@@ -14319,8 +14353,18 @@ index 4ca6372435d..3b3dea5114a 100644
    "%{mdejagnu-tune=*: %<mtune=* -mtune=%*}", \
    "%{mdejagnu-*: %<mdejagnu-*}", \
     SUBTARGET_DRIVER_SELF_SPECS
+@@ -2607,3 +2610,9 @@ while (0)
+        rs6000_asm_output_opcode (STREAM);				\
+     }									\
+   while (0)
++
++/* Disable generation of scalar modulo instructions due to performance issues
++   with certain input values.  This can be removed in the future when the
++   issues have been resolved.  */
++#define RS6000_DISABLE_SCALAR_MODULO 1
++
 diff --git a/gcc/config/rs6000/rs6000.md b/gcc/config/rs6000/rs6000.md
-index a4a7d105f5e..55fdf0eedc6 100644
+index a4a7d105f5e..e74222c5f3e 100644
 --- a/gcc/config/rs6000/rs6000.md
 +++ b/gcc/config/rs6000/rs6000.md
 @@ -287,7 +287,7 @@
@@ -14372,7 +14416,83 @@ index a4a7d105f5e..55fdf0eedc6 100644
    ""
    "@
     lwz%U1%X1 %0,%1
-@@ -7312,7 +7312,7 @@
+@@ -3359,6 +3359,17 @@
+ 	FAIL;
+ 
+       operands[2] = force_reg (<MODE>mode, operands[2]);
++
++      if (RS6000_DISABLE_SCALAR_MODULO)
++	{
++	  temp1 = gen_reg_rtx (<MODE>mode);
++	  temp2 = gen_reg_rtx (<MODE>mode);
++
++	  emit_insn (gen_div<mode>3 (temp1, operands[1], operands[2]));
++	  emit_insn (gen_mul<mode>3 (temp2, temp1, operands[2]));
++	  emit_insn (gen_sub<mode>3 (operands[0], operands[1], temp2));
++	  DONE;
++	}
+     }
+   else
+     {
+@@ -3378,17 +3389,36 @@
+   [(set (match_operand:GPR 0 "gpc_reg_operand" "=&r")
+         (mod:GPR (match_operand:GPR 1 "gpc_reg_operand" "r")
+ 		 (match_operand:GPR 2 "gpc_reg_operand" "r")))]
+-  "TARGET_MODULO"
++  "TARGET_MODULO && !RS6000_DISABLE_SCALAR_MODULO"
+   "mods<wd> %0,%1,%2"
+   [(set_attr "type" "div")
+    (set_attr "size" "<bits>")])
+ 
++;; This define_expand can be removed when RS6000_DISABLE_SCALAR_MODULO is
++;; removed.
++(define_expand "umod<mode>3"
++  [(set (match_operand:GPR 0 "gpc_reg_operand")
++	(umod:GPR (match_operand:GPR 1 "gpc_reg_operand")
++		  (match_operand:GPR 2 "gpc_reg_operand")))]
++  "TARGET_MODULO"
++{
++  if (RS6000_DISABLE_SCALAR_MODULO)
++    {
++      rtx temp1 = gen_reg_rtx (<MODE>mode);
++      rtx temp2 = gen_reg_rtx (<MODE>mode);
+ 
+-(define_insn "umod<mode>3"
++      emit_insn (gen_udiv<mode>3 (temp1, operands[1], operands[2]));
++      emit_insn (gen_mul<mode>3 (temp2, temp1, operands[2]));
++      emit_insn (gen_sub<mode>3 (operands[0], operands[1], temp2));
++      DONE;
++    }
++})
++
++(define_insn "*umod<mode>3"
+   [(set (match_operand:GPR 0 "gpc_reg_operand" "=&r")
+         (umod:GPR (match_operand:GPR 1 "gpc_reg_operand" "r")
+ 		  (match_operand:GPR 2 "gpc_reg_operand" "r")))]
+-  "TARGET_MODULO"
++  "TARGET_MODULO && !RS6000_DISABLE_SCALAR_MODULO"
+   "modu<wd> %0,%1,%2"
+   [(set_attr "type" "div")
+    (set_attr "size" "<bits>")])
+@@ -3445,7 +3475,7 @@
+   [(set (match_operand:TI 0 "altivec_register_operand" "=v")
+ 	(umod:TI (match_operand:TI 1 "altivec_register_operand" "v")
+ 		 (match_operand:TI 2 "altivec_register_operand" "v")))]
+-  "TARGET_POWER10 && TARGET_POWERPC64"
++  "TARGET_POWER10 && TARGET_POWERPC64 && !RS6000_DISABLE_SCALAR_MODULO"
+   "vmoduq %0,%1,%2"
+   [(set_attr "type" "vecdiv")
+    (set_attr "size" "128")])
+@@ -3454,7 +3484,7 @@
+   [(set (match_operand:TI 0 "altivec_register_operand" "=v")
+ 	(mod:TI (match_operand:TI 1 "altivec_register_operand" "v")
+ 		(match_operand:TI 2 "altivec_register_operand" "v")))]
+-  "TARGET_POWER10 && TARGET_POWERPC64"
++  "TARGET_POWER10 && TARGET_POWERPC64 && !RS6000_DISABLE_SCALAR_MODULO"
+   "vmodsq %0,%1,%2"
+   [(set_attr "type" "vecdiv")
+    (set_attr "size" "128")])
+@@ -7312,7 +7342,7 @@
    [(set (match_operand:SI 0 "nonimmediate_operand"
  	  "=r,         r,
  	   r,          d,          v,
@@ -14381,7 +14501,7 @@ index a4a7d105f5e..55fdf0eedc6 100644
  	   r,          r,          r,          r,
  	   wa,         wa,         wa,         v,
  	   wa,         v,          v,
-@@ -7320,7 +7320,7 @@
+@@ -7320,7 +7350,7 @@
  	   r,          *h,         *h")
  	(match_operand:SI 1 "input_operand"
  	  "r,          U,
@@ -14390,7 +14510,7 @@ index a4a7d105f5e..55fdf0eedc6 100644
  	   r,          d,          v,
  	   I,          L,          eI,         n,
  	   wa,         O,          wM,         wB,
-@@ -7557,7 +7557,7 @@
+@@ -7557,7 +7587,7 @@
    rtx op0_v16qi = gen_rtx_REG (V16QImode, r);
  
    emit_insn (gen_xxspltib_v16qi (op0_v16qi, op1));
@@ -14399,7 +14519,7 @@ index a4a7d105f5e..55fdf0eedc6 100644
    DONE;
  })
  
-@@ -7601,11 +7601,11 @@
+@@ -7601,11 +7631,11 @@
  ;;		MTVSRWZ     MF%1       MT%1       NOP
  (define_insn "*mov<mode>_internal"
    [(set (match_operand:QHI 0 "nonimmediate_operand"
@@ -14413,7 +14533,7 @@ index a4a7d105f5e..55fdf0eedc6 100644
  		 wa,        O,         wM,        wB,        wS,        wa,
  		 r,         *h,        r,         0"))]
    "gpc_reg_operand (operands[0], <MODE>mode)
-@@ -7784,10 +7784,10 @@
+@@ -7784,10 +7814,10 @@
  ;;	FMR          MR         MT%0       MF%1       NOP
  (define_insn "movsd_hardfloat"
    [(set (match_operand:SD 0 "nonimmediate_operand"
@@ -14426,7 +14546,7 @@ index a4a7d105f5e..55fdf0eedc6 100644
  	  f,         r,         r,         *h,        0"))]
    "(register_operand (operands[0], SDmode)
     || register_operand (operands[1], SDmode))
-@@ -9452,9 +9452,9 @@
+@@ -9452,9 +9482,9 @@
  
    emit_insn (gen_xxspltib_v16qi (op0_v16qi, op1));
    if (<MODE>mode == DImode)
@@ -24729,10 +24849,21 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..ee3bfddb72f 100644
+index 5fc23605244..5cd30ba79bc 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2545 @@
+@@ -1,3 +1,2556 @@
++2023-10-02  Pat Haugen  <pthaugen@linux.ibm.com>
++
++	Backported from master:
++	2023-09-19  Pat Haugen  <pthaugen@linux.ibm.com>
++
++	* gcc.target/powerpc/clone1.c: Add xfails.
++	* gcc.target/powerpc/clone3.c: Likewise.
++	* gcc.target/powerpc/mod-1.c: Update scan strings and add xfails.
++	* gcc.target/powerpc/mod-2.c: Likewise.
++	* gcc.target/powerpc/p10-vdivq-vmodq.c: Add xfails.
++
 +2023-09-12  Uros Bizjak  <ubizjak@gmail.com>
 +
 +	Backported from master:
@@ -37069,6 +37200,37 @@ index b3f923eea84..0ed2a7bd1d2 100644
 +  /* { dg-final { scan-assembler {\mxxbrw\M} {xfail {has_arch_pwr10 && {! has_arch_ppc64}}} } } */
    return (double) __builtin_bswap32 (b);
  }
+diff --git a/gcc/testsuite/gcc.target/powerpc/clone1.c b/gcc/testsuite/gcc.target/powerpc/clone1.c
+index c69fd2aa1b8..74323ca0e8c 100644
+--- a/gcc/testsuite/gcc.target/powerpc/clone1.c
++++ b/gcc/testsuite/gcc.target/powerpc/clone1.c
+@@ -21,6 +21,7 @@ long mod_func_or (long a, long b, long c)
+   return mod_func (a, b) | c;
+ }
+ 
+-/* { dg-final { scan-assembler-times {\mdivd\M}  1 } } */
+-/* { dg-final { scan-assembler-times {\mmulld\M} 1 } } */
+-/* { dg-final { scan-assembler-times {\mmodsd\M} 1 } } */
++/* { Fail due to RS6000_DISABLE_SCALAR_MODULO. */
++/* { dg-final { scan-assembler-times {\mdivd\M}  1 { xfail *-*-* } } } */
++/* { dg-final { scan-assembler-times {\mmulld\M} 1 { xfail *-*-* } } } */
++/* { dg-final { scan-assembler-times {\mmodsd\M} 1 { xfail *-*-* } } } */
+diff --git a/gcc/testsuite/gcc.target/powerpc/clone3.c b/gcc/testsuite/gcc.target/powerpc/clone3.c
+index 911b88b781d..d3eb4dd2378 100644
+--- a/gcc/testsuite/gcc.target/powerpc/clone3.c
++++ b/gcc/testsuite/gcc.target/powerpc/clone3.c
+@@ -27,7 +27,8 @@ long mod_func_or (long a, long b, long c)
+   return mod_func (a, b) | c;
+ }
+ 
+-/* { dg-final { scan-assembler-times {\mdivd\M}  1 } } */
+-/* { dg-final { scan-assembler-times {\mmulld\M} 1 } } */
+-/* { dg-final { scan-assembler-times {\mmodsd\M} 2 } } */
++/* { Fail due to RS6000_DISABLE_SCALAR_MODULO. */
++/* { dg-final { scan-assembler-times {\mdivd\M}  1 { xfail *-*-* } } } */
++/* { dg-final { scan-assembler-times {\mmulld\M} 1 { xfail *-*-* } } } */
++/* { dg-final { scan-assembler-times {\mmodsd\M} 2 { xfail *-*-* } } } */
+ /* { dg-final { scan-assembler-times {\mpld\M}   1 } } */
 diff --git a/gcc/testsuite/gcc.target/powerpc/darwin-abi-13-0.c b/gcc/testsuite/gcc.target/powerpc/darwin-abi-13-0.c
 new file mode 100644
 index 00000000000..d8d3c63a083
@@ -37355,6 +37517,54 @@ index 1255ee9f0ab..9d216799a0f 100644
  
    vec_result = vec_signextq (vec_arg1_di);
  
+diff --git a/gcc/testsuite/gcc.target/powerpc/mod-1.c b/gcc/testsuite/gcc.target/powerpc/mod-1.c
+index 861ba670af4..8720ffb3346 100644
+--- a/gcc/testsuite/gcc.target/powerpc/mod-1.c
++++ b/gcc/testsuite/gcc.target/powerpc/mod-1.c
+@@ -7,13 +7,14 @@ long lsmod (long a, long b) { return a%b; }
+ unsigned int iumod (unsigned int a, unsigned int b) { return a%b; }
+ unsigned long lumod (unsigned long a, unsigned long b) { return a%b; }
+ 
+-/* { dg-final { scan-assembler-times "modsw " 1 } } */
+-/* { dg-final { scan-assembler-times "modsd " 1 } } */
+-/* { dg-final { scan-assembler-times "moduw " 1 } } */
+-/* { dg-final { scan-assembler-times "modud " 1 } } */
+-/* { dg-final { scan-assembler-not   "mullw "   } } */
+-/* { dg-final { scan-assembler-not   "mulld "   } } */
+-/* { dg-final { scan-assembler-not   "divw "    } } */
+-/* { dg-final { scan-assembler-not   "divd "    } } */
+-/* { dg-final { scan-assembler-not   "divwu "   } } */
+-/* { dg-final { scan-assembler-not   "divdu "   } } */
++/* { Fail due to RS6000_DISABLE_SCALAR_MODULO. */
++/* { dg-final { scan-assembler-times {\mmodsw\M} 1 { xfail *-*-* } } } */
++/* { dg-final { scan-assembler-times {\mmodsd\M} 1 { xfail *-*-* } } } */
++/* { dg-final { scan-assembler-times {\mmoduw\M} 1 { xfail *-*-* } } } */
++/* { dg-final { scan-assembler-times {\mmodud\M} 1 { xfail *-*-* } } } */
++/* { dg-final { scan-assembler-not   {\mmullw\M}   { xfail *-*-* } } } */
++/* { dg-final { scan-assembler-not   {\mmulld\M}   { xfail *-*-* } } } */
++/* { dg-final { scan-assembler-not   {\mdivw\M}    { xfail *-*-* } } } */
++/* { dg-final { scan-assembler-not   {\mdivd\M}    { xfail *-*-* } } } */
++/* { dg-final { scan-assembler-not   {\mdivwu\M}   { xfail *-*-* } } } */
++/* { dg-final { scan-assembler-not   {\mdivdu\M}   { xfail *-*-* } } } */
+diff --git a/gcc/testsuite/gcc.target/powerpc/mod-2.c b/gcc/testsuite/gcc.target/powerpc/mod-2.c
+index 441ec5878f1..54bdca88607 100644
+--- a/gcc/testsuite/gcc.target/powerpc/mod-2.c
++++ b/gcc/testsuite/gcc.target/powerpc/mod-2.c
+@@ -5,8 +5,9 @@
+ int ismod (int a, int b) { return a%b; }
+ unsigned int iumod (unsigned int a, unsigned int b) { return a%b; }
+ 
+-/* { dg-final { scan-assembler-times "modsw " 1 } } */
+-/* { dg-final { scan-assembler-times "moduw " 1 } } */
+-/* { dg-final { scan-assembler-not   "mullw "   } } */
+-/* { dg-final { scan-assembler-not   "divw "    } } */
+-/* { dg-final { scan-assembler-not   "divwu "   } } */
++/* { Fail due to RS6000_DISABLE_SCALAR_MODULO. */
++/* { dg-final { scan-assembler-times {\mmodsw\M} 1 { xfail *-*-* } } } */
++/* { dg-final { scan-assembler-times {\mmoduw\M} 1 { xfail *-*-* } } } */
++/* { dg-final { scan-assembler-not   {\mmullw\M}   { xfail *-*-* } } } */
++/* { dg-final { scan-assembler-not   {\mdivw\M}    { xfail *-*-* } } } */
++/* { dg-final { scan-assembler-not   {\mdivwu\M}   { xfail *-*-* } } } */
 diff --git a/gcc/testsuite/gcc.target/powerpc/mulic3-1.c b/gcc/testsuite/gcc.target/powerpc/mulic3-1.c
 new file mode 100644
 index 00000000000..664f7118167
@@ -37413,6 +37623,19 @@ index 00000000000..c2c12dcd817
 +}
 +
 +/* { dg-final { scan-assembler {\mbl .*__multc3\M} } } */
+diff --git a/gcc/testsuite/gcc.target/powerpc/p10-vdivq-vmodq.c b/gcc/testsuite/gcc.target/powerpc/p10-vdivq-vmodq.c
+index 84685e5ff43..148998c8c9d 100644
+--- a/gcc/testsuite/gcc.target/powerpc/p10-vdivq-vmodq.c
++++ b/gcc/testsuite/gcc.target/powerpc/p10-vdivq-vmodq.c
+@@ -23,5 +23,6 @@ __int128 s_mod(__int128 a, __int128 b)
+ 
+ /* { dg-final { scan-assembler {\mvdivsq\M} } } */
+ /* { dg-final { scan-assembler {\mvdivuq\M} } } */
+-/* { dg-final { scan-assembler {\mvmodsq\M} } } */
+-/* { dg-final { scan-assembler {\mvmoduq\M} } } */
++/* { Fail due to RS6000_DISABLE_SCALAR_MODULO. */
++/* { dg-final { scan-assembler {\mvmodsq\M} { xfail *-*-* } } } */
++/* { dg-final { scan-assembler {\mvmoduq\M} { xfail *-*-* } } } */
 diff --git a/gcc/testsuite/gcc.target/powerpc/p9-sign_extend-runnable.c b/gcc/testsuite/gcc.target/powerpc/p9-sign_extend-runnable.c
 index fdcad019b96..03c0f1201e4 100644
 --- a/gcc/testsuite/gcc.target/powerpc/p9-sign_extend-runnable.c
@@ -45854,10 +46077,20 @@ index 72119b01c69..2cc64a39649 100644
  
  	* GCC 11.3.0 released.
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..987628afc21 100644
+index 85e04c45288..fa2d9e3c93b 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,1777 @@
+@@ -1,3 +1,1787 @@
++2023-10-02  Tim Song  <t.canens.cpp@gmail.com>
++
++	Backported from master:
++	2023-09-28  Tim Song  <t.canens.cpp@gmail.com>
++
++	PR libstdc++/111050
++	* include/bits/hashtable_policy.h
++	(_Hash_node_value_base<>::_M_valptr(), _Hash_node_value_base<>::_M_v())
++	Add [[__gnu__::__always_inline__]].
++
 +2023-09-27  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backported from master:
@@ -49533,6 +49766,33 @@ index 4f3309d842e..f8d11855699 100644
  
    /// @} group numeric_arrays
  
+diff --git a/libstdc++-v3/include/bits/hashtable_policy.h b/libstdc++-v3/include/bits/hashtable_policy.h
+index b97c07cb42e..1fdd351cb56 100644
+--- a/libstdc++-v3/include/bits/hashtable_policy.h
++++ b/libstdc++-v3/include/bits/hashtable_policy.h
+@@ -233,18 +233,22 @@ namespace __detail
+ 
+       __gnu_cxx::__aligned_buffer<_Value> _M_storage;
+ 
++      [[__gnu__::__always_inline__]]
+       _Value*
+       _M_valptr() noexcept
+       { return _M_storage._M_ptr(); }
+ 
++      [[__gnu__::__always_inline__]]
+       const _Value*
+       _M_valptr() const noexcept
+       { return _M_storage._M_ptr(); }
+ 
++      [[__gnu__::__always_inline__]]
+       _Value&
+       _M_v() noexcept
+       { return *_M_valptr(); }
+ 
++      [[__gnu__::__always_inline__]]
+       const _Value&
+       _M_v() const noexcept
+       { return *_M_valptr(); }
 diff --git a/libstdc++-v3/include/bits/indirect_array.h b/libstdc++-v3/include/bits/indirect_array.h
 index a3dc6059988..bb47855ecea 100644
 --- a/libstdc++-v3/include/bits/indirect_array.h
