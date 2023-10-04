@@ -3,10 +3,12 @@ Alex Coplan (3):
       aarch64: Fix up bfmlal lane pattern [PR104921]
       arm: Fix ICE due to infinite splitting [PR109800]
 
-Alexandre Oliva (3):
+Alexandre Oliva (5):
       testsuite: vect: update unaligned message
       [PR105324] libstdc++: testsuite: pr105324 requires FP from_char
       libstdc++: ppc: conditionalize vsx-only simd intrinsics
+      libstdc++: check for openat
+      libstdc++: check for openat with dirfd in std::filesystem
 
 Andre Vieira (1):
       aarch64: Implement ACLE Data Intrinsics
@@ -68,7 +70,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (525):
+GCC Administrator (526):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -830,7 +833,7 @@ John David Anglin (2):
       Fix addvdi3 and subvdi3 patterns
       Skip guality tests on hppa-hpux.
 
-Jonathan Wakely (113):
+Jonathan Wakely (130):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -944,6 +947,23 @@ Jonathan Wakely (113):
       libstdc++: Add workaround for std::make_integer_sequence bug [PR111357]
       libstdc++: Prevent unwanted ADL in std::to_array [PR111512]
       libstdc++: Fix constexpr functions to conform to older standards
+      Revert "libstdc++: Horrible macro hacks to allow building on avr"
+      libstdc++: Add utility for creating std::error_code from OS errors
+      libstdc++: Avoid unconditional use of errc::not_supported [PR 99327]
+      libstdc++: Fix typos in std::filesystem code
+      libstdc++: Avoid symlink race in filesystem::remove_all [PR104161]
+      libstdc++: Fix filesystem::remove_all races [PR104161]
+      libstdc++: Fix std::filesystem build failure for Windows
+      libstdc++: Fix filesystem::remove_all for Windows [PR104161]
+      libstdc++: Simplify resource management in directory iterators
+      libstdc++: Fix directory iterator build for newlib
+      libstdc++: Do not optimize away storing pathname if it's needed
+      libstdc++: Use ENOSYS for unsupported filesystem ops on AVR
+      libstdc++: Fix formatting in std::filesystem helper function
+      libstdc++: Use close-on-exec for file descriptors in filesystem::copy_file
+      libstdc++: Make std::filesystem::copy_file work for procfs [PR108178]
+      libstdc++: Add more tests for filesystem directory iterators
+      libstdc++: Fix testsuite failures with -O0
 
 José Rui Faustino de Sousa (5):
       Fortran: Fix ICE with -fcheck=pointer [PR100136]
@@ -47868,11 +47888,101 @@ index 85e04c45288..fa2d9e3c93b 100644
  2022-04-21  Release Manager
  
  	* GCC 11.3.0 released.
+diff --git a/libstdc++-v3/acinclude.m4 b/libstdc++-v3/acinclude.m4
+index 15c975ff86e..696756a6df6 100644
+--- a/libstdc++-v3/acinclude.m4
++++ b/libstdc++-v3/acinclude.m4
+@@ -4825,6 +4825,55 @@ dnl
+     AC_DEFINE(HAVE_TRUNCATE, 1, [Define if truncate is available in <unistd.h>.])
+   fi
+   AC_MSG_RESULT($glibcxx_cv_truncate)
++dnl
++  AC_CACHE_CHECK([for fdopendir],
++    glibcxx_cv_fdopendir, [dnl
++    GCC_TRY_COMPILE_OR_LINK(
++      [#include <dirent.h>],
++      [::DIR* dir = ::fdopendir(1);],
++      [glibcxx_cv_fdopendir=yes],
++      [glibcxx_cv_fdopendir=no])
++  ])
++  if test $glibcxx_cv_truncate = yes; then
++    AC_DEFINE(HAVE_FDOPENDIR, 1, [Define if fdopendir is available in <dirent.h>.])
++  fi
++dnl
++  AC_CACHE_CHECK([for dirfd],
++    glibcxx_cv_dirfd, [dnl
++    GCC_TRY_COMPILE_OR_LINK(
++      [#include <dirent.h>],
++      [int fd = ::dirfd((::DIR*)0);],
++      [glibcxx_cv_dirfd=yes],
++      [glibcxx_cv_dirfd=no])
++  ])
++  if test $glibcxx_cv_dirfd = yes; then
++    AC_DEFINE(HAVE_DIRFD, 1, [Define if dirfd is available in <dirent.h>.])
++  fi
++dnl
++  AC_CACHE_CHECK([for openat],
++    glibcxx_cv_openat, [dnl
++    GCC_TRY_COMPILE_OR_LINK(
++      [#include <fcntl.h>],
++      [int fd = ::openat(AT_FDCWD, "", 0);],
++      [glibcxx_cv_openat=yes],
++      [glibcxx_cv_openat=no])
++  ])
++  if test $glibcxx_cv_openat = yes; then
++    AC_DEFINE(HAVE_OPENAT, 1, [Define if openat is available in <fcntl.h>.])
++  fi
++dnl
++  AC_CACHE_CHECK([for unlinkat],
++    glibcxx_cv_unlinkat, [dnl
++    GCC_TRY_COMPILE_OR_LINK(
++      [#include <fcntl.h>
++       #include <unistd.h>],
++      [::unlinkat(AT_FDCWD, "", AT_REMOVEDIR);],
++      [glibcxx_cv_unlinkat=yes],
++      [glibcxx_cv_unlinkat=no])
++  ])
++  if test $glibcxx_cv_unlinkat = yes; then
++    AC_DEFINE(HAVE_UNLINKAT, 1, [Define if unlinkat is available in <fcntl.h>.])
++  fi
+ dnl
+   CXXFLAGS="$ac_save_CXXFLAGS"
+   AC_LANG_RESTORE
 diff --git a/libstdc++-v3/config.h.in b/libstdc++-v3/config.h.in
-index 61c342681d4..ea88281f438 100644
+index 61c342681d4..f8f8e6bd557 100644
 --- a/libstdc++-v3/config.h.in
 +++ b/libstdc++-v3/config.h.in
-@@ -310,6 +310,9 @@
+@@ -66,6 +66,9 @@
+ /* Define to 1 if you have the <dirent.h> header file. */
+ #undef HAVE_DIRENT_H
+ 
++/* Define if dirfd is available in <dirent.h>. */
++#undef HAVE_DIRFD
++
+ /* Define to 1 if you have the <dlfcn.h> header file. */
+ #undef HAVE_DLFCN_H
+ 
+@@ -93,6 +96,9 @@
+ /* Define to 1 if you have the <fcntl.h> header file. */
+ #undef HAVE_FCNTL_H
+ 
++/* Define if fdopendir is available in <dirent.h>. */
++#undef HAVE_FDOPENDIR
++
+ /* Define to 1 if you have the <fenv.h> header file. */
+ #undef HAVE_FENV_H
+ 
+@@ -282,6 +288,9 @@
+ /* Define if <math.h> defines obsolete isnan function. */
+ #undef HAVE_OBSOLETE_ISNAN
+ 
++/* Define if openat is available in <fcntl.h>. */
++#undef HAVE_OPENAT
++
+ /* Define if poll is available in <poll.h>. */
+ #undef HAVE_POLL
+ 
+@@ -310,6 +319,9 @@
  /* Define if readlink is available in <unistd.h>. */
  #undef HAVE_READLINK
  
@@ -47881,6 +47991,16 @@ index 61c342681d4..ea88281f438 100644
 +
  /* Define to 1 if you have the `setenv' function. */
  #undef HAVE_SETENV
+ 
+@@ -473,6 +485,9 @@
+ /* Define to 1 if you have the <unistd.h> header file. */
+ #undef HAVE_UNISTD_H
+ 
++/* Define if unlinkat is available in <fcntl.h>. */
++#undef HAVE_UNLINKAT
++
+ /* Define to 1 if you have the `uselocale' function. */
+ #undef HAVE_USELOCALE
  
 diff --git a/libstdc++-v3/config/os/generic/error_constants.h b/libstdc++-v3/config/os/generic/error_constants.h
 index 9d01c16ee27..1d37454ba2e 100644
@@ -47896,7 +48016,7 @@ index 9d01c16ee27..1d37454ba2e 100644
  
        wrong_protocol_type = 			EPROTOTYPE
 diff --git a/libstdc++-v3/configure b/libstdc++-v3/configure
-index 3120d5855f6..1d5ffd8df11 100755
+index 3120d5855f6..8633b8a6dab 100755
 --- a/libstdc++-v3/configure
 +++ b/libstdc++-v3/configure
 @@ -28419,6 +28419,17 @@ if test "x$ac_cv_func__wfopen" = xyes; then :
@@ -47917,6 +48037,235 @@ index 3120d5855f6..1d5ffd8df11 100755
  fi
  done
  
+@@ -76774,6 +76785,228 @@ $as_echo "#define HAVE_TRUNCATE 1" >>confdefs.h
+   fi
+   { $as_echo "$as_me:${as_lineno-$LINENO}: result: $glibcxx_cv_truncate" >&5
+ $as_echo "$glibcxx_cv_truncate" >&6; }
++  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for fdopendir" >&5
++$as_echo_n "checking for fdopendir... " >&6; }
++if ${glibcxx_cv_fdopendir+:} false; then :
++  $as_echo_n "(cached) " >&6
++else
++      if test x$gcc_no_link = xyes; then
++  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
++/* end confdefs.h.  */
++#include <dirent.h>
++int
++main ()
++{
++::DIR* dir = ::fdopendir(1);
++  ;
++  return 0;
++}
++_ACEOF
++if ac_fn_cxx_try_compile "$LINENO"; then :
++  glibcxx_cv_fdopendir=yes
++else
++  glibcxx_cv_fdopendir=no
++fi
++rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
++else
++  if test x$gcc_no_link = xyes; then
++  as_fn_error $? "Link tests are not allowed after GCC_NO_EXECUTABLES." "$LINENO" 5
++fi
++cat confdefs.h - <<_ACEOF >conftest.$ac_ext
++/* end confdefs.h.  */
++#include <dirent.h>
++int
++main ()
++{
++::DIR* dir = ::fdopendir(1);
++  ;
++  return 0;
++}
++_ACEOF
++if ac_fn_cxx_try_link "$LINENO"; then :
++  glibcxx_cv_fdopendir=yes
++else
++  glibcxx_cv_fdopendir=no
++fi
++rm -f core conftest.err conftest.$ac_objext \
++    conftest$ac_exeext conftest.$ac_ext
++fi
++
++fi
++{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $glibcxx_cv_fdopendir" >&5
++$as_echo "$glibcxx_cv_fdopendir" >&6; }
++  if test $glibcxx_cv_truncate = yes; then
++
++$as_echo "#define HAVE_FDOPENDIR 1" >>confdefs.h
++
++  fi
++  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for dirfd" >&5
++$as_echo_n "checking for dirfd... " >&6; }
++if ${glibcxx_cv_dirfd+:} false; then :
++  $as_echo_n "(cached) " >&6
++else
++      if test x$gcc_no_link = xyes; then
++  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
++/* end confdefs.h.  */
++#include <dirent.h>
++int
++main ()
++{
++int fd = ::dirfd((::DIR*)0);
++  ;
++  return 0;
++}
++_ACEOF
++if ac_fn_cxx_try_compile "$LINENO"; then :
++  glibcxx_cv_dirfd=yes
++else
++  glibcxx_cv_dirfd=no
++fi
++rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
++else
++  if test x$gcc_no_link = xyes; then
++  as_fn_error $? "Link tests are not allowed after GCC_NO_EXECUTABLES." "$LINENO" 5
++fi
++cat confdefs.h - <<_ACEOF >conftest.$ac_ext
++/* end confdefs.h.  */
++#include <dirent.h>
++int
++main ()
++{
++int fd = ::dirfd((::DIR*)0);
++  ;
++  return 0;
++}
++_ACEOF
++if ac_fn_cxx_try_link "$LINENO"; then :
++  glibcxx_cv_dirfd=yes
++else
++  glibcxx_cv_dirfd=no
++fi
++rm -f core conftest.err conftest.$ac_objext \
++    conftest$ac_exeext conftest.$ac_ext
++fi
++
++fi
++{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $glibcxx_cv_dirfd" >&5
++$as_echo "$glibcxx_cv_dirfd" >&6; }
++  if test $glibcxx_cv_dirfd = yes; then
++
++$as_echo "#define HAVE_DIRFD 1" >>confdefs.h
++
++  fi
++  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for openat" >&5
++$as_echo_n "checking for openat... " >&6; }
++if ${glibcxx_cv_openat+:} false; then :
++  $as_echo_n "(cached) " >&6
++else
++      if test x$gcc_no_link = xyes; then
++  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
++/* end confdefs.h.  */
++#include <fcntl.h>
++int
++main ()
++{
++int fd = ::openat(AT_FDCWD, "", 0);
++  ;
++  return 0;
++}
++_ACEOF
++if ac_fn_cxx_try_compile "$LINENO"; then :
++  glibcxx_cv_openat=yes
++else
++  glibcxx_cv_openat=no
++fi
++rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
++else
++  if test x$gcc_no_link = xyes; then
++  as_fn_error $? "Link tests are not allowed after GCC_NO_EXECUTABLES." "$LINENO" 5
++fi
++cat confdefs.h - <<_ACEOF >conftest.$ac_ext
++/* end confdefs.h.  */
++#include <fcntl.h>
++int
++main ()
++{
++int fd = ::openat(AT_FDCWD, "", 0);
++  ;
++  return 0;
++}
++_ACEOF
++if ac_fn_cxx_try_link "$LINENO"; then :
++  glibcxx_cv_openat=yes
++else
++  glibcxx_cv_openat=no
++fi
++rm -f core conftest.err conftest.$ac_objext \
++    conftest$ac_exeext conftest.$ac_ext
++fi
++
++fi
++{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $glibcxx_cv_openat" >&5
++$as_echo "$glibcxx_cv_openat" >&6; }
++  if test $glibcxx_cv_openat = yes; then
++
++$as_echo "#define HAVE_OPENAT 1" >>confdefs.h
++
++  fi
++  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for unlinkat" >&5
++$as_echo_n "checking for unlinkat... " >&6; }
++if ${glibcxx_cv_unlinkat+:} false; then :
++  $as_echo_n "(cached) " >&6
++else
++      if test x$gcc_no_link = xyes; then
++  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
++/* end confdefs.h.  */
++#include <fcntl.h>
++       #include <unistd.h>
++int
++main ()
++{
++::unlinkat(AT_FDCWD, "", AT_REMOVEDIR);
++  ;
++  return 0;
++}
++_ACEOF
++if ac_fn_cxx_try_compile "$LINENO"; then :
++  glibcxx_cv_unlinkat=yes
++else
++  glibcxx_cv_unlinkat=no
++fi
++rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
++else
++  if test x$gcc_no_link = xyes; then
++  as_fn_error $? "Link tests are not allowed after GCC_NO_EXECUTABLES." "$LINENO" 5
++fi
++cat confdefs.h - <<_ACEOF >conftest.$ac_ext
++/* end confdefs.h.  */
++#include <fcntl.h>
++       #include <unistd.h>
++int
++main ()
++{
++::unlinkat(AT_FDCWD, "", AT_REMOVEDIR);
++  ;
++  return 0;
++}
++_ACEOF
++if ac_fn_cxx_try_link "$LINENO"; then :
++  glibcxx_cv_unlinkat=yes
++else
++  glibcxx_cv_unlinkat=no
++fi
++rm -f core conftest.err conftest.$ac_objext \
++    conftest$ac_exeext conftest.$ac_ext
++fi
++
++fi
++{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $glibcxx_cv_unlinkat" >&5
++$as_echo "$glibcxx_cv_unlinkat" >&6; }
++  if test $glibcxx_cv_unlinkat = yes; then
++
++$as_echo "#define HAVE_UNLINKAT 1" >>confdefs.h
++
++  fi
+   CXXFLAGS="$ac_save_CXXFLAGS"
+   ac_ext=c
+ ac_cpp='$CPP $CPPFLAGS'
 diff --git a/libstdc++-v3/configure.ac b/libstdc++-v3/configure.ac
 index fb256bb0287..4d16b094d7f 100644
 --- a/libstdc++-v3/configure.ac
@@ -49230,6 +49579,40 @@ index bd7a859091f..1145230b910 100644
  	_Node_base* __node = &this->_M_impl._M_head;
  	while (__node->_M_next && __list._M_impl._M_head._M_next)
  	  {
+diff --git a/libstdc++-v3/include/bits/fs_dir.h b/libstdc++-v3/include/bits/fs_dir.h
+index 2674ca6b115..e9a2d1de250 100644
+--- a/libstdc++-v3/include/bits/fs_dir.h
++++ b/libstdc++-v3/include/bits/fs_dir.h
+@@ -537,6 +537,14 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+ 
+     struct _Dir_stack;
+     std::__shared_ptr<_Dir_stack> _M_dirs;
++
++    recursive_directory_iterator&
++    __erase(error_code* = nullptr);
++
++    friend uintmax_t
++    filesystem::remove_all(const path&, error_code&);
++    friend uintmax_t
++    filesystem::remove_all(const path&);
+   };
+ 
+   /// @relates std::filesystem::recursive_directory_iterator @{
+diff --git a/libstdc++-v3/include/bits/fs_fwd.h b/libstdc++-v3/include/bits/fs_fwd.h
+index fbf687ca310..c2292977dbc 100644
+--- a/libstdc++-v3/include/bits/fs_fwd.h
++++ b/libstdc++-v3/include/bits/fs_fwd.h
+@@ -354,6 +354,10 @@ _GLIBCXX_END_NAMESPACE_CXX11
+   bool is_regular_file(file_status) noexcept;
+   bool is_symlink(file_status) noexcept;
+ 
++  bool remove(const path&, error_code&) noexcept;
++  uintmax_t remove_all(const path&);
++  uintmax_t remove_all(const path&, error_code&);
++
+ /// @}
+ } // namespace filesystem
+ _GLIBCXX_END_NAMESPACE_VERSION
 diff --git a/libstdc++-v3/include/bits/fs_ops.h b/libstdc++-v3/include/bits/fs_ops.h
 index 5d7dfe155b5..ef01c1b824f 100644
 --- a/libstdc++-v3/include/bits/fs_ops.h
@@ -61417,8 +61800,353 @@ index aa074869872..ca1ad84e2ca 100644
  #ifndef __cpp_exceptions
  	    if ((last - first) > buffer_resource::guaranteed_capacity())
  	      {
+diff --git a/libstdc++-v3/src/c++17/fs_dir.cc b/libstdc++-v3/src/c++17/fs_dir.cc
+index 054d3908991..39d12ec130a 100644
+--- a/libstdc++-v3/src/c++17/fs_dir.cc
++++ b/libstdc++-v3/src/c++17/fs_dir.cc
+@@ -44,14 +44,20 @@ template class std::__shared_ptr<fs::recursive_directory_iterator::_Dir_stack>;
+ 
+ struct fs::_Dir : _Dir_base
+ {
+-  _Dir(const fs::path& p, bool skip_permission_denied, error_code& ec)
+-  : _Dir_base(p.c_str(), skip_permission_denied, ec)
++  _Dir(const fs::path& p, bool skip_permission_denied, bool nofollow,
++       [[maybe_unused]] bool filename_only, error_code& ec)
++  : _Dir_base(fdcwd(), p.c_str(), skip_permission_denied, nofollow, ec)
+   {
++#if _GLIBCXX_HAVE_DIRFD && _GLIBCXX_HAVE_OPENAT && _GLIBCXX_HAVE_UNLINKAT
++    if (filename_only)
++      return; // Do not store path p when we aren't going to use it.
++#endif
++
+     if (!ec)
+       path = p;
+   }
+ 
+-  _Dir(posix::DIR* dirp, const path& p) : _Dir_base(dirp), path(p) { }
++  _Dir(_Dir_base&& d, const path& p) : _Dir_base(std::move(d)), path(p) { }
+ 
+   _Dir(_Dir&&) = default;
+ 
+@@ -111,7 +117,63 @@ struct fs::_Dir : _Dir_base
+     return false;
+   }
+ 
+-  fs::path		path;
++  // Return a file descriptor for the directory and current entry's path.
++  // If dirfd is available, use it and return only the filename.
++  // Otherwise, return AT_FDCWD and return the full path.
++  pair<int, const posix::char_type*>
++  dir_and_pathname() const noexcept
++  {
++    const fs::path& p = entry.path();
++#if _GLIBCXX_HAVE_DIRFD && _GLIBCXX_HAVE_OPENAT
++    if (!p.empty())
++      return {::dirfd(this->dirp), std::prev(p.end())->c_str()};
++#endif
++    return {this->fdcwd(), p.c_str()};
++  }
++
++  // Create a new _Dir for the directory this->entry.path().
++  _Dir
++  open_subdir(bool skip_permission_denied, bool nofollow,
++	      error_code& ec) const noexcept
++  {
++    auto [dirfd, pathname] = dir_and_pathname();
++    _Dir_base d(dirfd, pathname, skip_permission_denied, nofollow, ec);
++    // If this->path is empty, the new _Dir should have an empty path too.
++    const fs::path& p = this->path.empty() ? this->path : this->entry.path();
++    return _Dir(std::move(d), p);
++  }
++
++  bool
++  do_unlink(bool is_directory, error_code& ec) const noexcept
++  {
++#if _GLIBCXX_HAVE_UNLINKAT
++    auto [dirfd, pathname] = dir_and_pathname();
++    if (::unlinkat(dirfd, pathname, is_directory ? AT_REMOVEDIR : 0) == -1)
++      {
++	ec.assign(errno, std::generic_category());
++	return false;
++      }
++    else
++      {
++	ec.clear();
++	return true;
++      }
++#else
++    return fs::remove(entry.path(), ec);
++#endif
++  }
++
++  // Remove the non-directory that this->entry refers to.
++  bool
++  unlink(error_code& ec) const noexcept
++  { return do_unlink(/* is_directory*/ false, ec); }
++
++  // Remove the directory that this->entry refers to.
++  bool
++  rmdir(error_code& ec) const noexcept
++  { return do_unlink(/* is_directory*/ true, ec); }
++
++  fs::path		path; // Empty if only using unlinkat with file descr.
+   directory_entry	entry;
+ };
+ 
+@@ -123,16 +185,33 @@ namespace
+     {
+       return (obj & bits) != Bitmask::none;
+     }
++
++// Non-standard directory option flags, currently only for internal use:
++//
++// Do not allow directory iterator to open a symlink.
++// This might seem redundant given directory_options::follow_directory_symlink
++// but that is only checked for recursing into sub-directories, and we need
++// something that controls the initial opendir() call in the constructor.
++constexpr fs::directory_options __directory_iterator_nofollow{64};
++// Do not store full paths in std::filesystem::recursive_directory_iterator.
++// When fs::remove_all uses recursive_directory_iterator::__erase and unlinkat
++// is available in libc, we do not need the parent directory's path, only the
++// filenames of the directory entries (and a file descriptor for the parent).
++// This flag avoids allocating memory for full paths that won't be needed.
++constexpr fs::directory_options __directory_iterator_filename_only{128};
+ }
+ 
+ fs::directory_iterator::
+ directory_iterator(const path& p, directory_options options, error_code* ecptr)
+ {
++  // Do not report an error for permission denied errors.
+   const bool skip_permission_denied
+     = is_set(options, directory_options::skip_permission_denied);
++  // Do not allow opening a symlink.
++  const bool nofollow = is_set(options, __directory_iterator_nofollow);
+ 
+   error_code ec;
+-  _Dir dir(p, skip_permission_denied, ec);
++  _Dir dir(p, skip_permission_denied, nofollow, /*filename only*/false, ec);
+ 
+   if (dir.dirp)
+     {
+@@ -180,48 +259,66 @@ fs::directory_iterator::increment(error_code& ec)
+ 
+ struct fs::recursive_directory_iterator::_Dir_stack : std::stack<_Dir>
+ {
+-  _Dir_stack(directory_options opts, posix::DIR* dirp, const path& p)
++  _Dir_stack(directory_options opts, _Dir&& dir)
+   : options(opts), pending(true)
+   {
+-    this->emplace(dirp, p);
++    this->push(std::move(dir));
+   }
+ 
++  path::string_type orig;
+   const directory_options options;
+   bool pending;
+ 
+   void clear() { c.clear(); }
++
++  path current_path() const
++  {
++    path p;
++    if (top().path.empty())
++      {
++	// Reconstruct path that failed from dir stack.
++	p = orig;
++	for (auto& d : this->c)
++	  p /= d.entry.path();
++      }
++    else
++      p = top().entry.path();
++    return p;
++  }
+ };
+ 
+ fs::recursive_directory_iterator::
+ recursive_directory_iterator(const path& p, directory_options options,
+                              error_code* ecptr)
+ {
+-  if (posix::DIR* dirp = posix::opendir(p.c_str()))
++  // Do not report an error for permission denied errors.
++  const bool skip_permission_denied
++    = is_set(options, directory_options::skip_permission_denied);
++  // Do not allow opening a symlink as the starting directory.
++  const bool nofollow = is_set(options, __directory_iterator_nofollow);
++  // Prefer to store only filenames (not full paths) in directory_entry values.
++  const bool filename_only
++     = is_set(options, __directory_iterator_filename_only);
++
++  error_code ec;
++  _Dir dir(p, skip_permission_denied, nofollow, filename_only, ec);
++
++  if (dir.dirp)
+     {
+-      if (ecptr)
+-	ecptr->clear();
+-      auto sp = std::__make_shared<_Dir_stack>(options, dirp, p);
+-      if (ecptr ? sp->top().advance(*ecptr) : sp->top().advance())
+-	_M_dirs.swap(sp);
+-    }
+-  else
+-    {
+-      const int err = errno;
+-      if (fs::is_permission_denied_error(err)
+-	  && is_set(options, fs::directory_options::skip_permission_denied))
++      auto sp = std::__make_shared<_Dir_stack>(options, std::move(dir));
++      if (ecptr ? sp->top().advance(skip_permission_denied, *ecptr)
++		: sp->top().advance(skip_permission_denied))
+ 	{
+-	  if (ecptr)
+-	    ecptr->clear();
+-	  return;
++	  _M_dirs.swap(sp);
++	  if (filename_only) // Need to save original path for error reporting.
++	    _M_dirs->orig = p.native();
+ 	}
+-
+-      if (!ecptr)
+-	_GLIBCXX_THROW_OR_ABORT(filesystem_error(
+-	      "recursive directory iterator cannot open directory", p,
+-	      std::error_code(err, std::generic_category())));
+-
+-      ecptr->assign(err, std::generic_category());
+     }
++  else if (ecptr)
++    *ecptr = ec;
++  else if (ec)
++    _GLIBCXX_THROW_OR_ABORT(fs::filesystem_error(
++	  "recursive directory iterator cannot open directory", p, ec));
+ }
+ 
+ fs::recursive_directory_iterator::~recursive_directory_iterator() = default;
+@@ -287,14 +384,14 @@ fs::recursive_directory_iterator::increment(error_code& ec)
+ 
+   if (std::exchange(_M_dirs->pending, true) && top.should_recurse(follow, ec))
+     {
+-      _Dir dir(top.entry.path(), skip_permission_denied, ec);
++      _Dir dir = top.open_subdir(skip_permission_denied, !follow, ec);
+       if (ec)
+ 	{
+ 	  _M_dirs.reset();
+ 	  return *this;
+ 	}
+       if (dir.dirp)
+-	  _M_dirs->push(std::move(dir));
++	_M_dirs->push(std::move(dir));
+     }
+ 
+   while (!_M_dirs->top().advance(skip_permission_denied, ec) && !ec)
+@@ -357,3 +454,108 @@ fs::recursive_directory_iterator::disable_recursion_pending() noexcept
+ {
+   _M_dirs->pending = false;
+ }
++
++// Used to implement filesystem::remove_all.
++fs::recursive_directory_iterator&
++fs::recursive_directory_iterator::__erase(error_code* ecptr)
++{
++  error_code ec;
++  if (!_M_dirs)
++    {
++      ec = std::make_error_code(errc::invalid_argument);
++      return *this;
++    }
++
++  // We never want to skip permission denied when removing files.
++  const bool skip_permission_denied = false;
++  // We never want to follow directory symlinks when removing files.
++  const bool nofollow = true;
++
++  // Loop until we find something we can remove.
++  while (!ec)
++    {
++      auto& top = _M_dirs->top();
++
++#if _GLIBCXX_FILESYSTEM_IS_WINDOWS
++      // _Dir::unlink uses fs::remove which uses std::system_category() for
++      // Windows errror codes, so we can't just check for EPERM and EISDIR.
++      // Use directory_entry::refresh() here to check if we have a directory.
++      // This can be a TOCTTOU race, but we don't have openat or unlinkat to
++      // solve that on Windows, and generally don't support symlinks anyway.
++      if (top.entry._M_type == file_type::none)
++	top.entry.refresh();
++#endif
++
++      if (top.entry._M_type == file_type::directory)
++	{
++	  _Dir dir = top.open_subdir(skip_permission_denied, nofollow, ec);
++	  if (!ec)
++	    {
++	      __glibcxx_assert(dir.dirp != nullptr);
++	      if (dir.advance(skip_permission_denied, ec))
++		{
++		  // Non-empty directory, recurse into it.
++		  _M_dirs->push(std::move(dir));
++		  continue;
++		}
++	      if (!ec)
++		{
++		  // Directory is empty so we can remove it.
++		  if (top.rmdir(ec))
++		    break; // Success
++		}
++	    }
++	}
++      else if (top.unlink(ec))
++	break; // Success
++#if ! _GLIBCXX_FILESYSTEM_IS_WINDOWS
++      else if (top.entry._M_type == file_type::none)
++	{
++	  // We did not have a cached type, so it's possible that top.entry
++	  // is actually a directory, and that's why the unlink above failed.
++#ifdef EPERM
++	  // POSIX.1-2017 says unlink on a directory returns EPERM,
++	  // but LSB allows EISDIR too. Some targets don't even define EPERM.
++	  if (ec.value() == EPERM || ec.value() == EISDIR)
++#else
++	  if (ec.value() == EISDIR)
++#endif
++	    {
++	      // Retry, treating it as a directory.
++	      top.entry._M_type = file_type::directory;
++	      ec.clear();
++	      continue;
++	    }
++	}
++#endif
++    }
++
++  if (!ec)
++    {
++      // We successfully removed the current entry, so advance to the next one.
++      if (_M_dirs->top().advance(skip_permission_denied, ec))
++	return *this;
++      else if (!ec)
++	{
++	  // Reached the end of the current directory.
++	  _M_dirs->pop();
++	  if (_M_dirs->empty())
++	    _M_dirs.reset();
++	  return *this;
++	}
++    }
++
++  // Reset _M_dirs to empty.
++  auto dirs = std::move(_M_dirs);
++
++  // Need to report an error
++  if (ecptr)
++    *ecptr = ec;
++  else
++    _GLIBCXX_THROW_OR_ABORT(fs::filesystem_error("cannot remove all",
++						 dirs->orig,
++						 dirs->current_path(),
++						 ec));
++
++  return *this;
++}
 diff --git a/libstdc++-v3/src/c++17/fs_ops.cc b/libstdc++-v3/src/c++17/fs_ops.cc
-index acff0ff926e..802894ea5b5 100644
+index acff0ff926e..84737453ada 100644
 --- a/libstdc++-v3/src/c++17/fs_ops.cc
 +++ b/libstdc++-v3/src/c++17/fs_ops.cc
 @@ -27,6 +27,10 @@
@@ -61432,18 +62160,25 @@ index acff0ff926e..802894ea5b5 100644
  
  #include <bits/largefile-config.h>
  #include <filesystem>
-@@ -57,6 +61,10 @@
- #define _GLIBCXX_END_NAMESPACE_FILESYSTEM }
- #include "../filesystem/ops-common.h"
+@@ -113,7 +117,7 @@ fs::absolute(const path& p, error_code& ec)
+   while (len > buf.size());
  
-+#ifdef __AVR__
-+# define not_supported function_not_supported
-+#endif
-+
- #pragma GCC diagnostic ignored "-Wunused-parameter"
- 
- namespace fs = std::filesystem;
-@@ -404,8 +412,12 @@ fs::copy(const path& from, const path& to, copy_options options,
+   if (len == 0)
+-    ec.assign((int)GetLastError(), std::system_category());
++    ec = __last_system_error();
+   else
+     {
+       buf.resize(len);
+@@ -353,7 +357,7 @@ fs::copy(const path& from, const path& to, copy_options options,
+     }
+   if (is_other(f) || is_other(t))
+     {
+-      ec = std::make_error_code(std::errc::not_supported);
++      ec = std::make_error_code(std::errc::invalid_argument);
+       return;
+     }
+   if (is_directory(f) && is_regular_file(t))
+@@ -404,15 +408,19 @@ fs::copy(const path& from, const path& to, copy_options options,
        // set an unused bit in options to disable further recursion
        if (!is_set(options, copy_options::recursive))
  	options |= static_cast<copy_options>(4096);
@@ -61458,7 +62193,72 @@ index acff0ff926e..802894ea5b5 100644
      }
    // _GLIBCXX_RESOLVE_LIB_DEFECTS
    // 2683. filesystem::copy() says "no effects"
-@@ -727,7 +739,7 @@ fs::path
+   else
+     ec.clear();
+ #else
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+ #endif
+ }
+ 
+@@ -435,7 +443,7 @@ fs::copy_file(const path& from, const path& to, copy_options options,
+   return do_copy_file(from.c_str(), to.c_str(), copy_file_options(options),
+ 		      nullptr, nullptr, ec);
+ #else
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+   return false;
+ #endif
+ }
+@@ -583,7 +591,7 @@ namespace
+ 	created = true;
+       }
+ #else
+-    ec = std::make_error_code(std::errc::not_supported);
++    ec = std::make_error_code(std::errc::function_not_supported);
+ #endif
+     return created;
+   }
+@@ -631,7 +639,7 @@ fs::create_directory(const path& p, const path& attributes,
+     }
+   return create_dir(p, static_cast<perms>(st.st_mode), ec);
+ #else
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+   return false;
+ #endif
+ }
+@@ -652,7 +660,7 @@ fs::create_directory_symlink(const path& to, const path& new_symlink,
+ 			     error_code& ec) noexcept
+ {
+ #ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+ #else
+   create_symlink(to, new_symlink, ec);
+ #endif
+@@ -682,9 +690,9 @@ fs::create_hard_link(const path& to, const path& new_hard_link,
+   if (CreateHardLinkW(new_hard_link.c_str(), to.c_str(), NULL))
+     ec.clear();
+   else
+-    ec.assign((int)GetLastError(), system_category());
++    ec = __last_system_error();
+ #else
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+ #endif
+ }
+ 
+@@ -708,7 +716,7 @@ fs::create_symlink(const path& to, const path& new_symlink,
+   else
+     ec.clear();
+ #else
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+ #endif
+ }
+ 
+@@ -727,7 +735,7 @@ fs::path
  fs::current_path(error_code& ec)
  {
    path p;
@@ -61467,7 +62267,319 @@ index acff0ff926e..802894ea5b5 100644
  #if defined __GLIBC__ || defined _GLIBCXX_FILESYSTEM_IS_WINDOWS
    if (char_ptr cwd = char_ptr{posix::getcwd(nullptr, 0)})
      {
-@@ -1584,7 +1596,8 @@ fs::symlink_status(const fs::path& p)
+@@ -776,7 +784,7 @@ fs::current_path(error_code& ec)
+     }
+ #endif  // __GLIBC__
+ #else   // _GLIBCXX_HAVE_UNISTD_H
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+ #endif
+   return p;
+ }
+@@ -799,7 +807,7 @@ fs::current_path(const path& p, error_code& ec) noexcept
+   else
+     ec.clear();
+ #else
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+ #endif
+ }
+ 
+@@ -839,7 +847,7 @@ fs::equivalent(const path& p1, const path& p2, error_code& ec) noexcept
+     {
+       if (is_other(s1) && is_other(s2))
+ 	{
+-	  ec = std::make_error_code(std::errc::not_supported);
++	  ec = std::__unsupported();
+ 	  return false;
+ 	}
+       ec.clear();
+@@ -874,12 +882,12 @@ fs::equivalent(const path& p1, const path& p2, error_code& ec) noexcept
+       if (!h1 || !h2)
+ 	{
+ 	  if (!h1 && !h2)
+-	    ec.assign((int)GetLastError(), system_category());
++	    ec = __last_system_error();
+ 	  return false;
+ 	}
+       if (!h1.get_info() || !h2.get_info())
+ 	{
+-	  ec.assign((int)GetLastError(), system_category());
++	  ec = __last_system_error();
+ 	  return false;
+ 	}
+       return h1.info.dwVolumeSerialNumber == h2.info.dwVolumeSerialNumber
+@@ -897,7 +905,7 @@ fs::equivalent(const path& p1, const path& p2, error_code& ec) noexcept
+     ec.clear();
+   return false;
+ #else
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+ #endif
+   return false;
+ }
+@@ -928,7 +936,7 @@ namespace
+       ec.clear();
+       return f(st);
+ #else
+-      ec = std::make_error_code(std::errc::not_supported);
++      ec = std::make_error_code(std::errc::function_not_supported);
+       return deflt;
+ #endif
+     }
+@@ -953,10 +961,10 @@ fs::file_size(const path& p, error_code& ec) noexcept
+       if (s.type == file_type::directory)
+ 	ec = std::make_error_code(std::errc::is_a_directory);
+       else
+-	ec = std::make_error_code(std::errc::not_supported);
++	ec = std::__unsupported();
+     }
+ #else
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+ #endif
+   return -1;
+ }
+@@ -978,7 +986,7 @@ fs::hard_link_count(const path& p, error_code& ec) noexcept
+   return do_stat(p, ec, std::mem_fn(&stat_type::st_nlink),
+ 		 static_cast<uintmax_t>(-1));
+ #else
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+   return static_cast<uintmax_t>(-1);
+ #endif
+ }
+@@ -1026,7 +1034,7 @@ fs::last_write_time(const path& p, error_code& ec) noexcept
+ 		 },
+ 		 file_time_type::min());
+ #else
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+   return file_time_type::min();
+ #endif
+ }
+@@ -1072,7 +1080,7 @@ fs::last_write_time(const path& p,
+   else
+     ec.clear();
+ #else
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+ #endif
+ }
+ 
+@@ -1121,7 +1129,7 @@ fs::permissions(const path& p, perms prms, perm_options opts,
+     err = errno;
+ #else
+   if (nofollow && is_symlink(st))
+-    ec = std::make_error_code(std::errc::not_supported);
++    ec = std::__unsupported();
+   else if (posix::chmod(p.c_str(), static_cast<posix::mode_t>(prms)))
+     err = errno;
+ #endif
+@@ -1206,7 +1214,7 @@ fs::path fs::read_symlink(const path& p, error_code& ec)
+     }
+   while (true);
+ #else
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+ #endif
+   return result;
+ }
+@@ -1255,7 +1263,7 @@ fs::remove(const path& p, error_code& ec) noexcept
+ 	  return true;
+ 	}
+       else if (!ec)
+-	ec.assign((int)GetLastError(), system_category());
++	ec = __last_system_error();
+     }
+   else if (status_known(st))
+     ec.clear();
+@@ -1273,105 +1281,84 @@ fs::remove(const path& p, error_code& ec) noexcept
+   return false;
+ }
+ 
+-namespace std::filesystem
+-{
+-namespace
+-{
+-  struct ErrorReporter
+-  {
+-    explicit
+-    ErrorReporter(error_code& ec) : code(&ec)
+-    { }
+-
+-    explicit
+-    ErrorReporter(const char* s, const path& p)
+-    : code(nullptr), msg(s), path1(&p)
+-    { }
+-
+-    error_code* code;
+-    const char* msg;
+-    const path* path1;
+-
+-    void
+-    report(const error_code& ec) const
+-    {
+-      if (code)
+-	*code = ec;
+-      else
+-	_GLIBCXX_THROW_OR_ABORT(filesystem_error(msg, *path1, ec));
+-    }
+-
+-    void
+-    report(const error_code& ec, const path& path2) const
+-    {
+-      if (code)
+-	*code = ec;
+-      else if (path2 != *path1)
+-	_GLIBCXX_THROW_OR_ABORT(filesystem_error(msg, *path1, path2, ec));
+-      else
+-	_GLIBCXX_THROW_OR_ABORT(filesystem_error(msg, *path1, ec));
+-    }
+-  };
+-
+-  uintmax_t
+-  do_remove_all(const path& p, const ErrorReporter& err)
+-  {
+-    error_code ec;
+-    const auto s = symlink_status(p, ec);
+-    if (!status_known(s))
+-      {
+-	if (ec)
+-	  err.report(ec, p);
+-	return -1;
+-      }
+-
+-    ec.clear();
+-    if (s.type() == file_type::not_found)
+-      return 0;
+-
+-    uintmax_t count = 0;
+-    if (s.type() == file_type::directory)
+-      {
+-	directory_iterator d(p, ec), end;
+-	while (d != end)
+-	  {
+-	    const auto removed = fs::do_remove_all(d->path(), err);
+-	    if (removed == numeric_limits<uintmax_t>::max())
+-	      return -1;
+-	    count += removed;
+-
+-	    d.increment(ec);
+-	    if (ec)
+-	      {
+-		err.report(ec, p);
+-		return -1;
+-	      }
+-	  }
+-      }
+-
+-    if (fs::remove(p, ec))
+-      ++count;
+-    if (ec)
+-      {
+-	err.report(ec, p);
+-	return -1;
+-      }
+-    return count;
+-  }
+-}
+-}
+-
+ std::uintmax_t
+ fs::remove_all(const path& p)
+ {
+-  return fs::do_remove_all(p, ErrorReporter{"cannot remove all", p});
++  error_code ec;
++  uintmax_t count = 0;
++  recursive_directory_iterator dir(p, directory_options{64|128}, ec);
++  switch (ec.value()) // N.B. assumes ec.category() == std::generic_category()
++  {
++  case 0:
++    // Iterate over the directory removing everything.
++    {
++      const recursive_directory_iterator end;
++      while (dir != end)
++	{
++	  dir.__erase(); // throws on error
++	  ++count;
++	}
++    }
++    // Directory is empty now, will remove it below.
++    break;
++#ifndef __AVR__
++  case ENOENT:
++    // Our work here is done.
++    return 0;
++  case ENOTDIR:
++  case ELOOP:
++    // Not a directory, will remove below.
++    break;
++#endif
++  default:
++    // An error occurred.
++    _GLIBCXX_THROW_OR_ABORT(filesystem_error("cannot remove all", p, ec));
++  }
++
++  // Remove p itself, which is either a non-directory or is now empty.
++  return count + fs::remove(p);
+ }
+ 
+ std::uintmax_t
+ fs::remove_all(const path& p, error_code& ec)
+ {
+-  ec.clear();
+-  return fs::do_remove_all(p, ErrorReporter{ec});
++  uintmax_t count = 0;
++  recursive_directory_iterator dir(p, directory_options{64|128}, ec);
++  switch (ec.value()) // N.B. assumes ec.category() == std::generic_category()
++  {
++  case 0:
++    // Iterate over the directory removing everything.
++    {
++      const recursive_directory_iterator end;
++      while (dir != end)
++	{
++	  dir.__erase(&ec);
++	  if (ec)
++	    return -1;
++	  ++count;
++	}
++    }
++    // Directory is empty now, will remove it below.
++    break;
++#ifndef __AVR__
++  case ENOENT:
++    // Our work here is done.
++    ec.clear();
++    return 0;
++  case ENOTDIR:
++  case ELOOP:
++    // Not a directory, will remove below.
++    break;
++#endif
++  default:
++    // An error occurred.
++    return -1;
++  }
++
++  // Remove p itself, which is either a non-directory or is now empty.
++  if (int last = fs::remove(p, ec); !ec)
++    return count + last;
++  return -1;
+ }
+ 
+ void
+@@ -1434,7 +1421,7 @@ fs::resize_file(const path& p, uintmax_t size)
+ void
+ fs::resize_file(const path& p, uintmax_t size, error_code& ec) noexcept
+ {
+-  if (size > static_cast<uintmax_t>(std::numeric_limits<off_t>::max()))
++  if (size > static_cast<uintmax_t>(std::numeric_limits<posix::off_t>::max()))
+     ec.assign(EINVAL, std::generic_category());
+   else if (posix::truncate(p.c_str(), size))
+     ec.assign(errno, std::generic_category());
+@@ -1584,7 +1571,8 @@ fs::symlink_status(const fs::path& p)
    return result;
  }
  
@@ -61477,7 +62589,7 @@ index acff0ff926e..802894ea5b5 100644
  {
    error_code ec;
    path tmp = temp_directory_path(ec);
-@@ -1593,32 +1606,12 @@ fs::path fs::temp_directory_path()
+@@ -1593,32 +1581,12 @@ fs::path fs::temp_directory_path()
    return tmp;
  }
  
@@ -61620,8 +62732,188 @@ index b3fbd6ead44..55d1fe5234d 100644
  #include <sstream>
  
  #if _GLIBCXX_USE_CXX11_ABI
+diff --git a/libstdc++-v3/src/filesystem/dir-common.h b/libstdc++-v3/src/filesystem/dir-common.h
+index a49b8304a29..f6b9cc8779d 100644
+--- a/libstdc++-v3/src/filesystem/dir-common.h
++++ b/libstdc++-v3/src/filesystem/dir-common.h
+@@ -34,7 +34,11 @@
+ # ifdef _GLIBCXX_HAVE_SYS_TYPES_H
+ #  include <sys/types.h>
+ # endif
+-# include <dirent.h>
++# include <dirent.h> // opendir, readdir, fdopendir, dirfd
++# ifdef _GLIBCXX_HAVE_FCNTL_H
++#  include <fcntl.h>  // open, openat, fcntl, AT_FDCWD, O_NOFOLLOW etc.
++#  include <unistd.h> // close, unlinkat
++# endif
+ #endif
+ 
+ namespace std _GLIBCXX_VISIBILITY(default)
+@@ -66,31 +70,40 @@ struct DIR { };
+ inline DIR* opendir(const char*) { return nullptr; }
+ inline dirent* readdir(DIR*) { return nullptr; }
+ inline int closedir(DIR*) { return -1; }
++#undef _GLIBCXX_HAVE_DIRFD
++#undef _GLIBCXX_HAVE_UNLINKAT
+ #endif
+ } // namespace __gnu_posix
+ 
+ namespace posix = __gnu_posix;
+ 
++inline bool
++is_permission_denied_error(int e)
++{
++  if (e == EACCES)
++    return true;
++#ifdef __APPLE__
++  if (e == EPERM) // See PR 99533
++    return true;
++#endif
++  return false;
++}
++
+ struct _Dir_base
+ {
+-  _Dir_base(posix::DIR* dirp = nullptr) : dirp(dirp) { }
+-
+   // If no error occurs then dirp is non-null,
+-  // otherwise null (whether error ignored or not).
+-  _Dir_base(const posix::char_type* pathname, bool skip_permission_denied,
++  // otherwise null (even if a permission denied error is ignored).
++  _Dir_base(int fd, const posix::char_type* pathname,
++	    bool skip_permission_denied, bool nofollow,
+ 	    error_code& ec) noexcept
+-  : dirp(posix::opendir(pathname))
++  : dirp(_Dir_base::openat(fd, pathname, nofollow))
+   {
+     if (dirp)
+       ec.clear();
++    else if (is_permission_denied_error(errno) && skip_permission_denied)
++      ec.clear();
+     else
+-    {
+-      const int err = errno;
+-      if (err == EACCES && skip_permission_denied)
+-	ec.clear();
+-      else
+-	ec.assign(err, std::generic_category());
+-    }
++      ec.assign(errno, std::generic_category());
+   }
+ 
+   _Dir_base(_Dir_base&& d) : dirp(std::exchange(d.dirp, nullptr)) { }
+@@ -130,6 +143,16 @@ struct _Dir_base
+       }
+   }
+ 
++  static constexpr int
++  fdcwd() noexcept
++  {
++#ifdef AT_FDCWD
++    return AT_FDCWD;
++#else
++    return -1; // Use invalid fd if AT_FDCWD isn't supported.
++#endif
++  }
++
+   static bool is_dot_or_dotdot(const char* s) noexcept
+   { return !strcmp(s, ".") || !strcmp(s, ".."); }
+ 
+@@ -138,21 +161,72 @@ struct _Dir_base
+   { return !wcscmp(s, L".") || !wcscmp(s, L".."); }
+ #endif
+ 
++  // Set the close-on-exec flag if not already done via O_CLOEXEC.
++  static bool
++  set_close_on_exec([[maybe_unused]] int fd)
++  {
++#if ! defined O_CLOEXEC && defined FD_CLOEXEC
++    int flags = ::fcntl(fd, F_GETFD);
++    if (flags == -1 || ::fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1)
++      return false;
++#endif
++    return true;
++  }
++
++  static posix::DIR*
++  openat(int fd, const posix::char_type* pathname, bool nofollow)
++  {
++#if _GLIBCXX_HAVE_FDOPENDIR && defined O_RDONLY && defined O_DIRECTORY \
++    && ! _GLIBCXX_FILESYSTEM_IS_WINDOWS
++
++    // Any file descriptor we open here should be closed on exec.
++#ifdef O_CLOEXEC
++    constexpr int close_on_exec = O_CLOEXEC;
++#else
++    constexpr int close_on_exec = 0;
++#endif
++
++    int flags = O_RDONLY | O_DIRECTORY | close_on_exec;
++
++    // Directory iterators are vulnerable to race conditions unless O_NOFOLLOW
++    // is supported, because a directory could be replaced with a symlink after
++    // checking is_directory(symlink_status(f)). O_NOFOLLOW avoids the race.
++#ifdef O_NOFOLLOW
++    if (nofollow)
++      flags |= O_NOFOLLOW;
++#else
++    nofollow = false;
++#endif
++
++
++#if _GLIBCXX_HAVE_OPENAT && defined AT_FDCWD
++    fd = ::openat(fd, pathname, flags);
++#else
++    // If we cannot use openat, there's no benefit to using posix::open unless
++    // we will use O_NOFOLLOW, so just use the simpler posix::opendir.
++    if (!nofollow)
++      return posix::opendir(pathname);
++
++    fd = ::open(pathname, flags);
++#endif
++
++    if (fd == -1)
++      return nullptr;
++    if (set_close_on_exec(fd))
++      if (::DIR* dirp = ::fdopendir(fd))
++	return dirp;
++    int err = errno;
++    ::close(fd);
++    errno = err;
++    return nullptr;
++#else
++    return posix::opendir(pathname);
++#endif
++  }
++
+   posix::DIR*	dirp;
+ };
+ 
+-inline bool
+-is_permission_denied_error(int e)
+-{
+-  if (e == EACCES)
+-    return true;
+-#ifdef __APPLE__
+-  if (e == EPERM) // See PR 99533
+-    return true;
+-#endif
+-  return false;
+-}
+-
+ } // namespace filesystem
+ 
+ // BEGIN/END macros must be defined before including this file.
+@@ -187,6 +261,7 @@ get_file_type(const std::filesystem::__gnu_posix::dirent& d [[gnu::unused]])
+   return file_type::none;
+ #endif
+ }
++
+ _GLIBCXX_END_NAMESPACE_FILESYSTEM
+ 
+ _GLIBCXX_END_NAMESPACE_VERSION
 diff --git a/libstdc++-v3/src/filesystem/dir.cc b/libstdc++-v3/src/filesystem/dir.cc
-index 06e165b8888..446ddf0d2f2 100644
+index 06e165b8888..2fedca36a06 100644
 --- a/libstdc++-v3/src/filesystem/dir.cc
 +++ b/libstdc++-v3/src/filesystem/dir.cc
 @@ -25,6 +25,10 @@
@@ -61635,11 +62927,203 @@ index 06e165b8888..446ddf0d2f2 100644
  
  #include <bits/largefile-config.h>
  #include <experimental/filesystem>
+@@ -47,14 +51,15 @@ namespace posix = std::filesystem::__gnu_posix;
+ 
+ struct fs::_Dir : std::filesystem::_Dir_base
+ {
+-  _Dir(const fs::path& p, bool skip_permission_denied, error_code& ec)
+-  : _Dir_base(p.c_str(), skip_permission_denied, ec)
++  _Dir(const fs::path& p, bool skip_permission_denied, bool nofollow,
++       error_code& ec)
++  : _Dir_base(this->fdcwd(), p.c_str(), skip_permission_denied, nofollow, ec)
+   {
+     if (!ec)
+       path = p;
+   }
+ 
+-  _Dir(posix::DIR* dirp, const path& p) : _Dir_base(dirp), path(p) { }
++  _Dir(_Dir_base&& d, const path& p) : _Dir_base(std::move(d)), path(p) { }
+ 
+   _Dir(_Dir&&) = default;
+ 
+@@ -108,6 +113,29 @@ struct fs::_Dir : std::filesystem::_Dir_base
+     return false;
+   }
+ 
++  // Return a file descriptor for the directory and current entry's path.
++  // If dirfd is available, use it and return only the filename.
++  // Otherwise, return AT_FDCWD and return the full path.
++  pair<int, const posix::char_type*>
++  dir_and_pathname() const noexcept
++  {
++    const fs::path& p = entry.path();
++#if _GLIBCXX_HAVE_DIRFD && _GLIBCXX_HAVE_OPENAT
++    return {::dirfd(this->dirp), std::prev(p.end())->c_str()};
++#endif
++    return {this->fdcwd(), p.c_str()};
++  }
++
++  // Create a new _Dir for the directory this->entry.path().
++  _Dir
++  open_subdir(bool skip_permission_denied, bool nofollow,
++	      error_code& ec) noexcept
++  {
++    auto [dirfd, pathname] = dir_and_pathname();
++    _Dir_base d(dirfd, pathname, skip_permission_denied, nofollow, ec);
++    return _Dir(std::move(d), entry.path());
++  }
++
+   fs::path		path;
+   directory_entry	entry;
+   file_type		type = file_type::none;
+@@ -126,11 +154,12 @@ namespace
+ fs::directory_iterator::
+ directory_iterator(const path& p, directory_options options, error_code* ecptr)
+ {
++  // Do not report an error for permission denied errors.
+   const bool skip_permission_denied
+     = is_set(options, directory_options::skip_permission_denied);
+ 
+   error_code ec;
+-  _Dir dir(p, skip_permission_denied, ec);
++  _Dir dir(p, skip_permission_denied, /*nofollow*/false, ec);
+ 
+   if (dir.dirp)
+     {
+@@ -182,6 +211,11 @@ fs::directory_iterator::increment(error_code& ec) noexcept
+ 
+ struct fs::recursive_directory_iterator::_Dir_stack : std::stack<_Dir>
+ {
++  _Dir_stack(_Dir&& dir)
++  {
++    this->push(std::move(dir));
++  }
++
+   void clear() { c.clear(); }
+ };
+ 
+@@ -190,33 +224,27 @@ recursive_directory_iterator(const path& p, directory_options options,
+                              error_code* ecptr)
+ : _M_options(options), _M_pending(true)
+ {
+-  if (posix::DIR* dirp = posix::opendir(p.c_str()))
++  // Do not report an error for permission denied errors.
++  const bool skip_permission_denied
++    = is_set(options, directory_options::skip_permission_denied);
++
++  error_code ec;
++  _Dir dir(p, skip_permission_denied, /*nofollow*/false, ec);
++
++  if (dir.dirp)
+     {
+-      if (ecptr)
+-	ecptr->clear();
+-      auto sp = std::make_shared<_Dir_stack>();
+-      sp->push(_Dir{ dirp, p });
+-      if (ecptr ? sp->top().advance(*ecptr) : sp->top().advance())
+-	_M_dirs.swap(sp);
+-    }
+-  else
+-    {
+-      const int err = errno;
+-      if (std::filesystem::is_permission_denied_error(err)
+-	  && is_set(options, fs::directory_options::skip_permission_denied))
++      auto sp = std::__make_shared<_Dir_stack>(std::move(dir));
++      if (ecptr ? sp->top().advance(skip_permission_denied, *ecptr)
++		: sp->top().advance(skip_permission_denied))
+ 	{
+-	  if (ecptr)
+-	    ecptr->clear();
+-	  return;
++	  _M_dirs.swap(sp);
+ 	}
+-
+-      if (!ecptr)
+-	_GLIBCXX_THROW_OR_ABORT(filesystem_error(
+-	      "recursive directory iterator cannot open directory", p,
+-	      std::error_code(err, std::generic_category())));
+-
+-      ecptr->assign(err, std::generic_category());
+     }
++  else if (ecptr)
++    *ecptr = ec;
++  else if (ec)
++    _GLIBCXX_THROW_OR_ABORT(fs::filesystem_error(
++	  "recursive directory iterator cannot open directory", p, ec));
+ }
+ 
+ fs::recursive_directory_iterator::~recursive_directory_iterator() = default;
+@@ -270,7 +298,7 @@ fs::recursive_directory_iterator::increment(error_code& ec) noexcept
+ 
+   if (std::exchange(_M_pending, true) && top.should_recurse(follow, ec))
+     {
+-      _Dir dir(top.entry.path(), skip_permission_denied, ec);
++      _Dir dir = top.open_subdir(skip_permission_denied, !follow, ec);
+       if (ec)
+ 	{
+ 	  _M_dirs.reset();
 diff --git a/libstdc++-v3/src/filesystem/ops-common.h b/libstdc++-v3/src/filesystem/ops-common.h
-index 529d4e09016..a680a51c984 100644
+index 529d4e09016..c7c8f3f4cb7 100644
 --- a/libstdc++-v3/src/filesystem/ops-common.h
 +++ b/libstdc++-v3/src/filesystem/ops-common.h
-@@ -128,7 +128,7 @@ namespace __gnu_posix
+@@ -56,6 +56,48 @@
+ namespace std _GLIBCXX_VISIBILITY(default)
+ {
+ _GLIBCXX_BEGIN_NAMESPACE_VERSION
++
++  // Get the last OS error (for POSIX this is just errno).
++  inline error_code
++  __last_system_error() noexcept
++  {
++#ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
++    // N.B. use error_code::default_error_condition() to convert to generic.
++    return {(int)::GetLastError(), std::system_category()};
++#else
++    return {errno, std::generic_category()};
++#endif
++  }
++
++  // Get an error code indicating unsupported functionality.
++  //
++  // This should be used when a function is unable to behave as specified
++  // due to an incomplete or partial implementation, e.g.
++  // filesystem::equivalent(a, b) if is_other(a) && is_other(b) is true.
++  //
++  // Use errc::function_not_supported for functions that are entirely
++  // unimplemented, e.g. create_symlink on Windows.
++  //
++  // Use errc::invalid_argument for requests to perform operations outside
++  // the spec, e.g. trying to copy a directory using filesystem::copy_file.
++  inline error_code
++  __unsupported() noexcept
++  {
++#if defined __AVR__
++    // avr-libc defines ENOTSUP and EOPNOTSUPP but with nonsense values.
++    // ENOSYS is defined though, so use an error_code corresponding to that.
++    // This contradicts the comment above, but we don't have much choice.
++    return std::make_error_code(std::errc::function_not_supported);
++#elif defined ENOTSUP
++    return std::make_error_code(std::errc::not_supported);
++#elif defined EOPNOTSUPP
++    // This is supposed to be for socket operations
++    return std::make_error_code(std::errc::operation_not_supported);
++#else
++    return std::make_error_code(std::errc::invalid_argument);
++#endif
++  }
++
+ namespace filesystem
+ {
+ namespace __gnu_posix
+@@ -115,6 +157,7 @@ namespace __gnu_posix
+     return -1;
+   }
+ 
++  using off_t = _off64_t;
+   inline int truncate(const wchar_t* path, _off64_t length)
+   {
+     const int fd = ::_wopen(path, _O_BINARY|_O_RDWR);
+@@ -128,7 +171,7 @@ namespace __gnu_posix
      return ret;
    }
    using char_type = wchar_t;
@@ -61648,18 +63132,178 @@ index 529d4e09016..a680a51c984 100644
    using ::open;
    using ::close;
  # ifdef _GLIBCXX_HAVE_SYS_STAT_H
-@@ -170,6 +170,10 @@ namespace __gnu_posix
+@@ -151,6 +194,7 @@ namespace __gnu_posix
+   using ::utime;
+ # endif
+   using ::rename;
++  using ::off_t;
+ # ifdef _GLIBCXX_HAVE_TRUNCATE
+   using ::truncate;
+ # else
+@@ -170,15 +214,16 @@ namespace __gnu_posix
  # endif
    using char_type = char;
  #else // ! _GLIBCXX_FILESYSTEM_IS_WINDOWS && ! _GLIBCXX_HAVE_UNISTD_H
-+#ifdef __AVR__
-+# define ENOTSUP ENOSYS
-+#endif
-+
-   inline int open(const char*, int, ...) { errno = ENOTSUP; return -1; }
-   inline int close(int) { errno = ENOTSUP; return -1; }
+-  inline int open(const char*, int, ...) { errno = ENOTSUP; return -1; }
+-  inline int close(int) { errno = ENOTSUP; return -1; }
++  inline int open(const char*, int, ...) { errno = ENOSYS; return -1; }
++  inline int close(int) { errno = ENOSYS; return -1; }
    using mode_t = int;
-@@ -567,6 +571,47 @@ _GLIBCXX_BEGIN_NAMESPACE_FILESYSTEM
+-  inline int chmod(const char*, mode_t) { errno = ENOTSUP; return -1; }
+-  inline int mkdir(const char*, mode_t) { errno = ENOTSUP; return -1; }
+-  inline char* getcwd(char*, size_t) { errno = ENOTSUP; return nullptr; }
+-  inline int chdir(const char*) { errno = ENOTSUP; return -1; }
+-  inline int rename(const char*, const char*) { errno = ENOTSUP; return -1; }
+-  inline int truncate(const char*, long) { errno = ENOTSUP; return -1; }
++  inline int chmod(const char*, mode_t) { errno = ENOSYS; return -1; }
++  inline int mkdir(const char*, mode_t) { errno = ENOSYS; return -1; }
++  inline char* getcwd(char*, size_t) { errno = ENOSYS; return nullptr; }
++  inline int chdir(const char*) { errno = ENOSYS; return -1; }
++  inline int rename(const char*, const char*) { errno = ENOSYS; return -1; }
++  using off_t = long;
++  inline int truncate(const char*, off_t) { errno = ENOSYS; return -1; }
+   using char_type = char;
+ #endif // _GLIBCXX_FILESYSTEM_IS_WINDOWS
+ } // namespace __gnu_posix
+@@ -361,7 +406,7 @@ _GLIBCXX_BEGIN_NAMESPACE_FILESYSTEM
+     // 2712. copy_file() has a number of unspecified error conditions
+     if (!is_regular_file(f))
+       {
+-	ec = std::make_error_code(std::errc::not_supported);
++	ec = std::make_error_code(std::errc::invalid_argument);
+ 	return false;
+       }
+ 
+@@ -369,7 +414,7 @@ _GLIBCXX_BEGIN_NAMESPACE_FILESYSTEM
+       {
+ 	if (!is_regular_file(t))
+ 	  {
+-	    ec = std::make_error_code(std::errc::not_supported);
++	    ec = std::make_error_code(std::errc::invalid_argument);
+ 	    return false;
+ 	  }
+ 
+@@ -400,7 +445,7 @@ _GLIBCXX_BEGIN_NAMESPACE_FILESYSTEM
+ 	  }
+ 	else if (!is_regular_file(t))
+ 	  {
+-	    ec = std::make_error_code(std::errc::not_supported);
++	    ec = std::make_error_code(std::errc::invalid_argument);
+ 	    return false;
+ 	  }
+       }
+@@ -411,25 +456,26 @@ _GLIBCXX_BEGIN_NAMESPACE_FILESYSTEM
+       int fd;
+     };
+ 
+-    int iflag = O_RDONLY;
++    int common_flags = 0;
++#ifdef O_CLOEXEC
++    common_flags |= O_CLOEXEC;
++#endif
+ #ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
+-    iflag |= O_BINARY;
++    common_flags |= O_BINARY;
+ #endif
+ 
++    const int iflag = O_RDONLY | common_flags;
+     CloseFD in = { posix::open(from, iflag) };
+     if (in.fd == -1)
+       {
+ 	ec.assign(errno, std::generic_category());
+ 	return false;
+       }
+-    int oflag = O_WRONLY|O_CREAT;
++    int oflag = O_WRONLY | O_CREAT | common_flags;
+     if (options.overwrite || options.update)
+       oflag |= O_TRUNC;
+     else
+       oflag |= O_EXCL;
+-#ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
+-    oflag |= O_BINARY;
+-#endif
+     CloseFD out = { posix::open(to, oflag, S_IWUSR) };
+     if (out.fd == -1)
+       {
+@@ -454,25 +500,29 @@ _GLIBCXX_BEGIN_NAMESPACE_FILESYSTEM
+ 
+     size_t count = from_st->st_size;
+ #if defined _GLIBCXX_USE_SENDFILE && ! defined _GLIBCXX_FILESYSTEM_IS_WINDOWS
+-    off_t offset = 0;
+-    ssize_t n = ::sendfile(out.fd, in.fd, &offset, count);
+-    if (n < 0 && errno != ENOSYS && errno != EINVAL)
++    ssize_t n = 0;
++    if (count != 0)
+       {
+-	ec.assign(errno, std::generic_category());
+-	return false;
+-      }
+-    if ((size_t)n == count)
+-      {
+-	if (!out.close() || !in.close())
++	off_t offset = 0;
++	n = ::sendfile(out.fd, in.fd, &offset, count);
++	if (n < 0 && errno != ENOSYS && errno != EINVAL)
+ 	  {
+ 	    ec.assign(errno, std::generic_category());
+ 	    return false;
+ 	  }
+-	ec.clear();
+-	return true;
++	if ((size_t)n == count)
++	  {
++	    if (!out.close() || !in.close())
++	      {
++		ec.assign(errno, std::generic_category());
++		return false;
++	      }
++	    ec.clear();
++	    return true;
++	  }
++	else if (n > 0)
++	  count -= n;
+       }
+-    else if (n > 0)
+-      count -= n;
+ #endif // _GLIBCXX_USE_SENDFILE
+ 
+     using std::ios;
+@@ -502,11 +552,17 @@ _GLIBCXX_BEGIN_NAMESPACE_FILESYSTEM
+       }
+ #endif
+ 
+-    if (count && !(std::ostream(&sbout) << &sbin))
+-      {
+-	ec = std::make_error_code(std::errc::io_error);
+-	return false;
+-      }
++    // ostream::operator<<(streambuf*) fails if it extracts no characters,
++    // so don't try to use it for empty files. But from_st->st_size == 0 for
++    // some special files (e.g. procfs, see PR libstdc++/108178) so just try
++    // to read a character to decide whether there is anything to copy or not.
++    if (sbin.sgetc() != char_traits<char>::eof())
++      if (!(std::ostream(&sbout) << &sbin))
++	{
++	  ec = std::make_error_code(std::errc::io_error);
++	  return false;
++	}
++
+     if (!sbout.close() || !sbin.close())
+       {
+ 	ec.assign(errno, std::generic_category());
+@@ -557,9 +613,9 @@ _GLIBCXX_BEGIN_NAMESPACE_FILESYSTEM
+ 	ec.clear();
+       }
+     else
+-      ec.assign((int)GetLastError(), std::system_category());
++      ec = std::__last_system_error();
+ #else
+-    ec = std::make_error_code(std::errc::not_supported);
++    ec = std::make_error_code(std::errc::function_not_supported);
+ #endif
+   }
+ #pragma GCC diagnostic pop
+@@ -567,6 +623,48 @@ _GLIBCXX_BEGIN_NAMESPACE_FILESYSTEM
  
  #endif // _GLIBCXX_HAVE_SYS_STAT_H
  
@@ -61675,10 +63319,11 @@ index 529d4e09016..a680a51c984 100644
 +      {
 +	buf.resize(len);
 +	len = GetTempPathW(buf.size(), buf.data());
-+      } while (len > buf.size());
++      }
++    while (len > buf.size());
 +
 +    if (len == 0)
-+      ec.assign((int)GetLastError(), std::system_category());
++      ec = __last_system_error();
 +    else
 +      ec.clear();
 +
@@ -61708,7 +63353,7 @@ index 529d4e09016..a680a51c984 100644
  
  _GLIBCXX_END_NAMESPACE_VERSION
 diff --git a/libstdc++-v3/src/filesystem/ops.cc b/libstdc++-v3/src/filesystem/ops.cc
-index 3f2290f372d..b7df8d99b6c 100644
+index 3f2290f372d..274878e8f6e 100644
 --- a/libstdc++-v3/src/filesystem/ops.cc
 +++ b/libstdc++-v3/src/filesystem/ops.cc
 @@ -27,6 +27,10 @@
@@ -61722,7 +63367,25 @@ index 3f2290f372d..b7df8d99b6c 100644
  
  #include <bits/largefile-config.h>
  #include <experimental/filesystem>
-@@ -344,8 +348,12 @@ fs::copy(const path& from, const path& to, copy_options options,
+@@ -59,6 +63,8 @@
+ #define _GLIBCXX_END_NAMESPACE_FILESYSTEM } }
+ #include "ops-common.h"
+ 
++#include <filesystem> // std::filesystem::remove_all
++
+ namespace fs = std::experimental::filesystem;
+ namespace posix = std::filesystem::__gnu_posix;
+ 
+@@ -293,7 +299,7 @@ fs::copy(const path& from, const path& to, copy_options options,
+     }
+   if (is_other(f) || is_other(t))
+     {
+-      ec = std::make_error_code(std::errc::not_supported);
++      ec = std::make_error_code(std::errc::invalid_argument);
+       return;
+     }
+   if (is_directory(f) && is_regular_file(t))
+@@ -344,8 +350,12 @@ fs::copy(const path& from, const path& to, copy_options options,
        // set an unused bit in options to disable further recursion
        if (!is_set(options, copy_options::recursive))
  	options |= static_cast<copy_options>(4096);
@@ -61737,7 +63400,208 @@ index 3f2290f372d..b7df8d99b6c 100644
      }
    // _GLIBCXX_RESOLVE_LIB_DEFECTS
    // 2683. filesystem::copy() says "no effects"
-@@ -1195,13 +1203,43 @@ fs::space(const path& p, error_code& ec) noexcept
+@@ -372,7 +382,7 @@ fs::copy_file(const path& from, const path& to, copy_options options,
+   return do_copy_file(from.c_str(), to.c_str(), copy_file_options(options),
+ 		      nullptr, nullptr, ec);
+ #else
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+   return false;
+ #endif
+ }
+@@ -491,7 +501,7 @@ namespace
+ 	created = true;
+       }
+ #else
+-    ec = std::make_error_code(std::errc::not_supported);
++    ec = std::make_error_code(std::errc::function_not_supported);
+ #endif
+     return created;
+   }
+@@ -539,7 +549,7 @@ fs::create_directory(const path& p, const path& attributes,
+     }
+   return create_dir(p, static_cast<perms>(st.st_mode), ec);
+ #else
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+   return false;
+ #endif
+ }
+@@ -560,7 +570,7 @@ fs::create_directory_symlink(const path& to, const path& new_symlink,
+ 			     error_code& ec) noexcept
+ {
+ #ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+ #else
+   create_symlink(to, new_symlink, ec);
+ #endif
+@@ -590,9 +600,9 @@ fs::create_hard_link(const path& to, const path& new_hard_link,
+   if (CreateHardLinkW(new_hard_link.c_str(), to.c_str(), NULL))
+     ec.clear();
+   else
+-    ec.assign((int)GetLastError(), system_category());
++    ec = __last_system_error();
+ #else
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+ #endif
+ }
+ 
+@@ -616,7 +626,7 @@ fs::create_symlink(const path& to, const path& new_symlink,
+   else
+     ec.clear();
+ #else
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+ #endif
+ }
+ 
+@@ -683,7 +693,7 @@ fs::current_path(error_code& ec)
+     }
+ #endif  // __GLIBC__
+ #else   // _GLIBCXX_HAVE_UNISTD_H
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+ #endif
+   return p;
+ }
+@@ -706,7 +716,7 @@ fs::current_path(const path& p, error_code& ec) noexcept
+   else
+     ec.clear();
+ #else
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+ #endif
+ }
+ 
+@@ -746,7 +756,7 @@ fs::equivalent(const path& p1, const path& p2, error_code& ec) noexcept
+     {
+       if (is_other(s1) && is_other(s2))
+ 	{
+-	  ec = std::make_error_code(std::errc::not_supported);
++	  ec = std::__unsupported();
+ 	  return false;
+ 	}
+       ec.clear();
+@@ -762,7 +772,7 @@ fs::equivalent(const path& p1, const path& p2, error_code& ec) noexcept
+     ec.clear();
+   return false;
+ #else
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+ #endif
+   return false;
+ }
+@@ -793,7 +803,7 @@ namespace
+       ec.clear();
+       return f(st);
+ #else
+-      ec = std::make_error_code(std::errc::not_supported);
++      ec = std::make_error_code(std::errc::function_not_supported);
+       return deflt;
+ #endif
+     }
+@@ -817,7 +827,7 @@ fs::file_size(const path& p, error_code& ec) noexcept
+       if (s.type == file_type::directory)
+ 	ec = std::make_error_code(std::errc::is_a_directory);
+       else
+-	ec = std::make_error_code(std::errc::not_supported);
++	ec = std::__unsupported();
+     }
+   return -1;
+ }
+@@ -920,7 +930,7 @@ fs::last_write_time(const path& p __attribute__((__unused__)),
+   else
+     ec.clear();
+ #else
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+ #endif
+ }
+ 
+@@ -967,7 +977,7 @@ fs::permissions(const path& p, perms prms, error_code& ec) noexcept
+     err = errno;
+ #else
+   if (nofollow && is_symlink(st))
+-    ec = std::make_error_code(std::errc::operation_not_supported);
++    ec = std::__unsupported();
+   else if (posix::chmod(p.c_str(), static_cast<mode_t>(prms)))
+     err = errno;
+ #endif
+@@ -1032,7 +1042,7 @@ fs::path fs::read_symlink(const path& p [[gnu::unused]], error_code& ec)
+     }
+   while (true);
+ #else
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::make_error_code(std::errc::function_not_supported);
+ #endif
+   return result;
+ }
+@@ -1062,7 +1072,7 @@ fs::remove(const path& p, error_code& ec) noexcept
+ 	  return true;
+ 	}
+       else if (!ec)
+-	ec.assign((int)GetLastError(), system_category());
++	ec = __last_system_error();
+     }
+   else if (status_known(st))
+     ec.clear();
+@@ -1094,33 +1104,8 @@ fs::remove_all(const path& p)
+ std::uintmax_t
+ fs::remove_all(const path& p, error_code& ec)
+ {
+-  const auto s = symlink_status(p, ec);
+-  if (!status_known(s))
+-    return -1;
+-
+-  ec.clear();
+-  if (s.type() == file_type::not_found)
+-    return 0;
+-
+-  uintmax_t count = 0;
+-  if (s.type() == file_type::directory)
+-    {
+-      directory_iterator d(p, ec), end;
+-      while (!ec && d != end)
+-	{
+-	  const auto removed = fs::remove_all(d->path(), ec);
+-	  if (removed == numeric_limits<uintmax_t>::max())
+-	    return -1;
+-	  count += removed;
+-	  d.increment(ec);
+-	  if (ec)
+-	    return -1;
+-	}
+-    }
+-
+-  if (fs::remove(p, ec))
+-    ++count;
+-  return ec ? -1 : count;
++  // Use the C++17 implementation.
++  return std::filesystem::remove_all(p.native(), ec);
+ }
+ 
+ void
+@@ -1153,16 +1138,12 @@ fs::resize_file(const path& p, uintmax_t size)
+ void
+ fs::resize_file(const path& p, uintmax_t size, error_code& ec) noexcept
+ {
+-#ifdef _GLIBCXX_HAVE_UNISTD_H
+-  if (size > static_cast<uintmax_t>(std::numeric_limits<off_t>::max()))
++  if (size > static_cast<uintmax_t>(std::numeric_limits<posix::off_t>::max()))
+     ec.assign(EINVAL, std::generic_category());
+   else if (posix::truncate(p.c_str(), size))
+     ec.assign(errno, std::generic_category());
+   else
+     ec.clear();
+-#else
+-  ec = std::make_error_code(std::errc::not_supported);
+-#endif
+ }
+ 
+ 
+@@ -1195,13 +1176,43 @@ fs::space(const path& p, error_code& ec) noexcept
    return info;
  }
  
@@ -61782,7 +63646,7 @@ index 3f2290f372d..b7df8d99b6c 100644
      {
        int err = errno;
        ec.assign(err, std::generic_category());
-@@ -1224,8 +1262,30 @@ fs::file_status
+@@ -1224,8 +1235,30 @@ fs::file_status
  fs::symlink_status(const fs::path& p, std::error_code& ec) noexcept
  {
    file_status status;
@@ -61814,7 +63678,16 @@ index 3f2290f372d..b7df8d99b6c 100644
      {
        int err = errno;
        ec.assign(err, std::generic_category());
-@@ -1289,7 +1349,8 @@ fs::system_complete(const path& p, error_code& ec)
+@@ -1280,7 +1313,7 @@ fs::system_complete(const path& p, error_code& ec)
+       || p.root_name() == base.root_name())
+     return absolute(p, base);
+   // else TODO
+-  ec = std::make_error_code(std::errc::not_supported);
++  ec = std::__unsupported();
+   return {};
+ #else
+   if (ec.value())
+@@ -1289,7 +1322,8 @@ fs::system_complete(const path& p, error_code& ec)
  #endif
  }
  
@@ -61824,7 +63697,7 @@ index 3f2290f372d..b7df8d99b6c 100644
  {
    error_code ec;
    path tmp = temp_directory_path(ec);
-@@ -1298,31 +1359,12 @@ fs::path fs::temp_directory_path()
+@@ -1298,31 +1332,12 @@ fs::path fs::temp_directory_path()
    return tmp;
  }
  
@@ -61861,7 +63734,7 @@ index 3f2290f372d..b7df8d99b6c 100644
    auto st = status(p, ec);
    if (ec)
      p.clear();
-@@ -1331,7 +1373,5 @@ fs::path fs::temp_directory_path(error_code& ec)
+@@ -1331,7 +1346,5 @@ fs::path fs::temp_directory_path(error_code& ec)
        p.clear();
        ec = std::make_error_code(std::errc::not_a_directory);
      }
@@ -61996,6 +63869,33 @@ index 226b2d9c24a..554e32162ae 100644
  #endif
  
  #ifdef __APPLE__
+diff --git a/libstdc++-v3/testsuite/19_diagnostics/system_error/cons-1.cc b/libstdc++-v3/testsuite/19_diagnostics/system_error/cons-1.cc
+index effb6709f8b..168a6fca2a9 100644
+--- a/libstdc++-v3/testsuite/19_diagnostics/system_error/cons-1.cc
++++ b/libstdc++-v3/testsuite/19_diagnostics/system_error/cons-1.cc
+@@ -26,19 +26,19 @@ int main()
+ {
+   const std::string s("too late: boulangerie out of pain au raisin");
+   const std::error_code
+-    e(std::make_error_code(std::errc::operation_not_supported));
++    e(std::make_error_code(std::errc::invalid_argument));
+ 
+   // 1
+   {
+     std::system_error err1(e, s);
+-    VERIFY( err1.code() == e ); 
++    VERIFY( err1.code() == e );
+     VERIFY( std::string(err1.what()).find(s) != std::string::npos );
+   }
+ 
+   // 2
+   {
+     std::system_error err2(95, std::system_category(), s);
+-    VERIFY( err2.code() == std::error_code(95, std::system_category()) ); 
++    VERIFY( err2.code() == std::error_code(95, std::system_category()) );
+     VERIFY( std::string((err2.what(), s)).find(s) != std::string::npos );
+   }
+ 
 diff --git a/libstdc++-v3/testsuite/20_util/allocator/void.cc b/libstdc++-v3/testsuite/20_util/allocator/void.cc
 index e3d024d525b..3720774abaf 100644
 --- a/libstdc++-v3/testsuite/20_util/allocator/void.cc
@@ -62080,6 +63980,45 @@ index 00000000000..ef24b4c5c7b
 +  std::from_chars(s.data(), s.data() + s.size(), d);
 +#endif
 +}
+diff --git a/libstdc++-v3/testsuite/20_util/integer_comparisons/greater_equal_neg.cc b/libstdc++-v3/testsuite/20_util/integer_comparisons/greater_equal_neg.cc
+index 62633262948..028dce3df51 100644
+--- a/libstdc++-v3/testsuite/20_util/integer_comparisons/greater_equal_neg.cc
++++ b/libstdc++-v3/testsuite/20_util/integer_comparisons/greater_equal_neg.cc
+@@ -15,7 +15,7 @@
+ // with this library; see the file COPYING3.  If not see
+ // <http://www.gnu.org/licenses/>.
+ 
+-// { dg-options "-std=gnu++2a" }
++// { dg-options "-std=gnu++2a -O2" }
+ // { dg-do compile { target c++2a } }
+ 
+ #include <utility>
+diff --git a/libstdc++-v3/testsuite/20_util/integer_comparisons/greater_neg.cc b/libstdc++-v3/testsuite/20_util/integer_comparisons/greater_neg.cc
+index 48cb64d5676..f0422bc1948 100644
+--- a/libstdc++-v3/testsuite/20_util/integer_comparisons/greater_neg.cc
++++ b/libstdc++-v3/testsuite/20_util/integer_comparisons/greater_neg.cc
+@@ -15,7 +15,7 @@
+ // with this library; see the file COPYING3.  If not see
+ // <http://www.gnu.org/licenses/>.
+ 
+-// { dg-options "-std=gnu++2a" }
++// { dg-options "-std=gnu++2a -O2" }
+ // { dg-do compile { target c++2a } }
+ 
+ #include <utility>
+diff --git a/libstdc++-v3/testsuite/20_util/integer_comparisons/less_equal_neg.cc b/libstdc++-v3/testsuite/20_util/integer_comparisons/less_equal_neg.cc
+index a16b36a83c9..3bd5d6480fe 100644
+--- a/libstdc++-v3/testsuite/20_util/integer_comparisons/less_equal_neg.cc
++++ b/libstdc++-v3/testsuite/20_util/integer_comparisons/less_equal_neg.cc
+@@ -15,7 +15,7 @@
+ // with this library; see the file COPYING3.  If not see
+ // <http://www.gnu.org/licenses/>.
+ 
+-// { dg-options "-std=gnu++2a" }
++// { dg-options "-std=gnu++2a -O2" }
+ // { dg-do compile { target c++2a } }
+ 
+ #include <utility>
 diff --git a/libstdc++-v3/testsuite/20_util/integer_sequence/pr111357.cc b/libstdc++-v3/testsuite/20_util/integer_sequence/pr111357.cc
 new file mode 100644
 index 00000000000..1ad06b732af
@@ -63421,6 +65360,60 @@ index 00000000000..7c226600b9e
 +{
 +  test_pr106248();
 +}
+diff --git a/libstdc++-v3/testsuite/27_io/filesystem/iterators/97731.cc b/libstdc++-v3/testsuite/27_io/filesystem/iterators/97731.cc
+new file mode 100644
+index 00000000000..9021e6edf41
+--- /dev/null
++++ b/libstdc++-v3/testsuite/27_io/filesystem/iterators/97731.cc
+@@ -0,0 +1,48 @@
++// Copyright (C) 2020-2022 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do run { target c++17 } }
++// { dg-require-filesystem-ts "" }
++
++#include <filesystem>
++#include <cerrno>
++#include <testsuite_hooks.h>
++
++bool used_custom_readdir = false;
++
++extern "C" void* readdir(void*)
++{
++  used_custom_readdir = true;
++  errno = EIO;
++  return nullptr;
++}
++
++void
++test01()
++{
++  using std::filesystem::recursive_directory_iterator;
++  std::error_code ec;
++  recursive_directory_iterator it(".", ec);
++  if (used_custom_readdir)
++    VERIFY( ec.value() == EIO );
++}
++
++int
++main()
++{
++  test01();
++}
 diff --git a/libstdc++-v3/testsuite/27_io/filesystem/iterators/error_reporting.cc b/libstdc++-v3/testsuite/27_io/filesystem/iterators/error_reporting.cc
 index 1f297a731a3..a26b29f0974 100644
 --- a/libstdc++-v3/testsuite/27_io/filesystem/iterators/error_reporting.cc
@@ -63506,6 +65499,41 @@ index 1f297a731a3..a26b29f0974 100644
  }
  
  int
+diff --git a/libstdc++-v3/testsuite/27_io/filesystem/iterators/recursive_directory_iterator.cc b/libstdc++-v3/testsuite/27_io/filesystem/iterators/recursive_directory_iterator.cc
+index 29a9f480649..014d030eb4f 100644
+--- a/libstdc++-v3/testsuite/27_io/filesystem/iterators/recursive_directory_iterator.cc
++++ b/libstdc++-v3/testsuite/27_io/filesystem/iterators/recursive_directory_iterator.cc
+@@ -184,6 +184,24 @@ test05()
+   remove_all(p, ec);
+ }
+ 
++void
++test06()
++{
++#if !(defined __MINGW32__ || defined __MINGW64__)
++  auto p = __gnu_test::nonexistent_path();
++  create_directories(p/"d1/d2");
++  create_directory_symlink("d1", p/"link");
++  fs::recursive_directory_iterator it(p), endit;
++  VERIFY( std::distance(it, endit) == 3 ); // d1 and d2 and link
++
++  it = fs::recursive_directory_iterator(p, fs::directory_options::follow_directory_symlink);
++  VERIFY( std::distance(it, endit) == 4 ); // d1 and d1/d2 and link and link/d2
++
++  std::error_code ec;
++  remove_all(p, ec);
++#endif
++}
++
+ int
+ main()
+ {
+@@ -192,4 +210,5 @@ main()
+   test03();
+   test04();
+   test05();
++  test06();
+ }
 diff --git a/libstdc++-v3/testsuite/27_io/filesystem/operations/absolute.cc b/libstdc++-v3/testsuite/27_io/filesystem/operations/absolute.cc
 index 24d59799ef1..2bd7f694b3c 100644
 --- a/libstdc++-v3/testsuite/27_io/filesystem/operations/absolute.cc
@@ -63606,6 +65634,45 @@ index 761cfc29b13..c00cf85641e 100644
    test05();
 +  test_pr99290();
  }
+diff --git a/libstdc++-v3/testsuite/27_io/filesystem/operations/copy_file_108178.cc b/libstdc++-v3/testsuite/27_io/filesystem/operations/copy_file_108178.cc
+new file mode 100644
+index 00000000000..25135834e21
+--- /dev/null
++++ b/libstdc++-v3/testsuite/27_io/filesystem/operations/copy_file_108178.cc
+@@ -0,0 +1,33 @@
++// { dg-do run { target c++17 } }
++// { dg-require-filesystem-ts "" }
++
++// C++17 30.10.15.4 Copy [fs.op.copy_file]
++
++#include <filesystem>
++#include <fstream>
++#include <unistd.h> // getpid
++#include <testsuite_fs.h>
++#include <testsuite_hooks.h>
++
++namespace fs = std::filesystem;
++
++void
++test_procfs() // PR libstdc++/108178
++{
++  auto pid = ::getpid();
++  std::string from = "/proc/" + std::to_string(pid) + "/status";
++  if (fs::exists(from))
++  {
++    auto to = __gnu_test::nonexistent_path();
++    fs::copy_file(from, to);
++    std::ifstream f(to);
++    VERIFY(f.is_open());
++    VERIFY(f.peek() != std::char_traits<char>::eof());
++    fs::remove(to);
++  }
++}
++
++int main()
++{
++  test_procfs();
++}
 diff --git a/libstdc++-v3/testsuite/27_io/filesystem/operations/exists.cc b/libstdc++-v3/testsuite/27_io/filesystem/operations/exists.cc
 index f99a3346ed0..e97c34343ef 100644
 --- a/libstdc++-v3/testsuite/27_io/filesystem/operations/exists.cc
@@ -65002,6 +67069,50 @@ index 806c511ebef..aabed14679c 100644
  }
  
  int
+diff --git a/libstdc++-v3/testsuite/experimental/filesystem/iterators/recursive_directory_iterator.cc b/libstdc++-v3/testsuite/experimental/filesystem/iterators/recursive_directory_iterator.cc
+index a9a81c8c4cb..e3b00945285 100644
+--- a/libstdc++-v3/testsuite/experimental/filesystem/iterators/recursive_directory_iterator.cc
++++ b/libstdc++-v3/testsuite/experimental/filesystem/iterators/recursive_directory_iterator.cc
+@@ -174,7 +174,7 @@ test05()
+ {
+   auto p = __gnu_test::nonexistent_path();
+   create_directory(p);
+-  create_directory_symlink(p, p / "l");
++  create_directory(p / "x");
+   fs::recursive_directory_iterator it(p), endit;
+   VERIFY( begin(it) == it );
+   static_assert( noexcept(begin(it)), "begin is noexcept" );
+@@ -185,6 +185,24 @@ test05()
+   remove_all(p, ec);
+ }
+ 
++void
++test06()
++{
++#if !(defined __MINGW32__ || defined __MINGW64__)
++  auto p = __gnu_test::nonexistent_path();
++  create_directories(p/"d1/d2");
++  create_directory_symlink("d1", p/"link");
++  fs::recursive_directory_iterator it(p), endit;
++  VERIFY( std::distance(it, endit) == 3 ); // d1 and d2 and link
++
++  it = fs::recursive_directory_iterator(p, fs::directory_options::follow_directory_symlink);
++  VERIFY( std::distance(it, endit) == 4 ); // d1 and d1/d2 and link and link/d2
++
++  std::error_code ec;
++  remove_all(p, ec);
++#endif
++}
++
+ int
+ main()
+ {
+@@ -193,4 +211,5 @@ main()
+   test03();
+   test04();
+   test05();
++  test06();
+ }
 diff --git a/libstdc++-v3/testsuite/experimental/filesystem/operations/canonical.cc b/libstdc++-v3/testsuite/experimental/filesystem/operations/canonical.cc
 index e54bf7c1f91..e41027f39e7 100644
 --- a/libstdc++-v3/testsuite/experimental/filesystem/operations/canonical.cc
@@ -65673,6 +67784,18 @@ index 5df9f330cd4..ed0614e2797 100644
  {
    // To see a problem with gcc 3.3 and before, set a break point here.
    // Single step through c_str implementation, call sched_yield after
+diff --git a/libstdc++-v3/testsuite/lib/prune.exp b/libstdc++-v3/testsuite/lib/prune.exp
+index 6c905631f16..2ebfb922ef4 100644
+--- a/libstdc++-v3/testsuite/lib/prune.exp
++++ b/libstdc++-v3/testsuite/lib/prune.exp
+@@ -46,6 +46,7 @@ proc libstdc++-dg-prune { system text } {
+     regsub -all "(^|\n)\[^\n\]*(: )?At (top level|global scope):\[^\n\]*" $text "" text
+     regsub -all "(^|\n)\[^\n\]*:   (recursively )?required \[^\n\]*" $text "" text
+     regsub -all "(^|\n)\[^\n\]*:   . skipping \[0-9\]* instantiation contexts \[^\n\]*" $text "" text
++    regsub -all "(^|\n)\[^\n\]*:   in .constexpr. expansion \[^\n\]*" $text "" text
+     regsub -all "(^|\n)    inlined from \[^\n\]*" $text "" text
+     # Why doesn't GCC need these to strip header context?
+     regsub -all "(^|\n)In file included from \[^\n\]*" $text "" text
 diff --git a/libstdc++-v3/testsuite/libstdc++-prettyprinters/cxx11.cc b/libstdc++-v3/testsuite/libstdc++-prettyprinters/cxx11.cc
 index 7b5d9795df7..0545076fb6f 100644
 --- a/libstdc++-v3/testsuite/libstdc++-prettyprinters/cxx11.cc
