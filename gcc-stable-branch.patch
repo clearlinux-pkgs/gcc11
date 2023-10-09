@@ -16,9 +16,10 @@ Andre Vieira (1):
 Andreas Krebbel (1):
       IBM zSystems/testsuite: PR105147: Skip pr105140.c
 
-Andrew Pinski (2):
+Andrew Pinski (3):
       Fix fc-prototypes usage with C_INT64_T and non LP64 Targets.
       match.pd: When simplifying BFR of an insert, require a mode precision integral type [PR108688]
+      MATCH: Fix infinite loop between `vec_cond(vec_cond(a,b,0), c, d)` and `a & b`
 
 Anthony Sharp (1):
       call_summary: add missing template keyword
@@ -70,7 +71,11 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (527):
+GCC Administrator (531):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -3032,10 +3037,19 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..baf2160d75b 100644
+index a0587d18824..ef7e57e8e5e 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,2396 @@
+@@ -1,3 +1,2405 @@
++2023-10-07  Andrew Pinski  <pinskia@gmail.com>
++
++	Backported from master:
++	2023-10-06  Andrew Pinski  <pinskia@gmail.com>
++
++	PR middle-end/111699
++	* match.pd ((c ? a : b) op d, (c ? a : b) op (c ? d : e),
++	(v ? w : 0) ? a : b, c1 ? c2 ? a : b : b): Enable only for GIMPLE.
++
 +2023-10-02  Pat Haugen  <pthaugen@linux.ibm.com>
 +
 +	Backported from master:
@@ -23878,7 +23892,7 @@ index 0a1fa489549..fe5c2a2123e 100644
  
  	* GCC 11.3.0 released.
 diff --git a/gcc/match.pd b/gcc/match.pd
-index e89601c0c14..4f83c9c2d36 100644
+index e89601c0c14..ba09a901b5b 100644
 --- a/gcc/match.pd
 +++ b/gcc/match.pd
 @@ -1543,7 +1543,7 @@ DEFINE_INT_AND_FLOAT_ROUND_FN (RINT)
@@ -23943,7 +23957,26 @@ index e89601c0c14..4f83c9c2d36 100644
       (if (types_match (type, @0))
        (with { tree cst = const_binop (MINUS_EXPR, type, @1, @2); }
         (if (cst && !TREE_OVERFLOW (cst))
-@@ -4114,7 +4114,10 @@ DEFINE_INT_AND_FLOAT_ROUND_FN (RINT)
+@@ -3675,6 +3675,10 @@ DEFINE_INT_AND_FLOAT_ROUND_FN (RINT)
+ /* (v ? w : 0) ? a : b is just (v & w) ? a : b
+    Currently disabled after pass lvec because ARM understands
+    VEC_COND_EXPR<v==w,-1,0> but not a plain v==w fed to BIT_IOR_EXPR.  */
++#if GIMPLE
++/* These can only be done in gimple as fold likes to convert:
++   (CMP) & N into (CMP) ? N : 0
++   and we try to match the same pattern again and again. */
+ (simplify
+  (vec_cond (vec_cond:s @0 @3 integer_zerop) @1 @2)
+  (if (optimize_vectors_before_lowering_p () && types_match (@0, @3))
+@@ -3709,6 +3713,7 @@ DEFINE_INT_AND_FLOAT_ROUND_FN (RINT)
+  (vec_cond @0 @3 (vec_cond:s @1 @2 @3))
+  (if (optimize_vectors_before_lowering_p () && types_match (@0, @1))
+   (vec_cond (bit_and (bit_not @0) @1) @2 @3)))
++#endif
+ 
+ /* Canonicalize mask ? { 0, ... } : { -1, ...} to ~mask if the mask
+    types are compatible.  */
+@@ -4114,7 +4119,10 @@ DEFINE_INT_AND_FLOAT_ROUND_FN (RINT)
    (if (! FLOAT_TYPE_P (TREE_TYPE (@0))
         || ! HONOR_NANS (@0))
     { constant_boolean_node (true, type); }
@@ -23955,7 +23988,7 @@ index e89601c0c14..4f83c9c2d36 100644
      (eq @0 @0)))))
  (for cmp (ne gt lt)
   (simplify
-@@ -6261,7 +6264,9 @@ DEFINE_INT_AND_FLOAT_ROUND_FN (RINT)
+@@ -6261,7 +6269,9 @@ DEFINE_INT_AND_FLOAT_ROUND_FN (RINT)
        isize = tree_to_uhwi (TYPE_SIZE (TREE_TYPE (@1)));
    }
    (switch
@@ -24870,10 +24903,18 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..5cd30ba79bc 100644
+index 5fc23605244..a5e9fa44b40 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2556 @@
+@@ -1,3 +1,2564 @@
++2023-10-07  Andrew Pinski  <pinskia@gmail.com>
++
++	Backported from master:
++	2023-10-06  Andrew Pinski  <pinskia@gmail.com>
++
++	PR middle-end/111699
++	* gcc.c-torture/compile/pr111699-1.c: New test.
++
 +2023-10-02  Pat Haugen  <pthaugen@linux.ibm.com>
 +
 +	Backported from master:
@@ -31934,6 +31975,19 @@ index 00000000000..43d782d62bd
 +    }
 +}
 +
+diff --git a/gcc/testsuite/gcc.c-torture/compile/pr111699-1.c b/gcc/testsuite/gcc.c-torture/compile/pr111699-1.c
+new file mode 100644
+index 00000000000..87b127ed199
+--- /dev/null
++++ b/gcc/testsuite/gcc.c-torture/compile/pr111699-1.c
+@@ -0,0 +1,7 @@
++typedef unsigned char __attribute__((__vector_size__ (8))) V;
++
++void
++foo (V *v)
++{
++  *v =  (V) 0x107B9A7FF >= (*v <= 0);
++}
 diff --git a/gcc/testsuite/gcc.c-torture/execute/pr106032.c b/gcc/testsuite/gcc.c-torture/execute/pr106032.c
 new file mode 100644
 index 00000000000..d2ccf6a5b52
