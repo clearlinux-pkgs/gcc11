@@ -71,7 +71,15 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (531):
+GCC Administrator (539):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1322,7 +1330,7 @@ Uros Bizjak (3):
 Vladimir N. Makarov (1):
       [PR104637] LRA: Split hard regs as many as possible on one subpass
 
-liuhongt (9):
+liuhongt (10):
       Fix insn does not satisfy its constraints: sse2_lshrv1ti3
       Fix unrecognizable insn due to illegal immediate_operand (const_int 255) of QImode.
       x86: Add a new option -mdaz-ftz to enable FTZ and DAZ flags in MXCSR.
@@ -1332,6 +1340,7 @@ liuhongt (9):
       Workaround possible CPUID bug in Sandy Bridge.
       Software mitigation: Disable gather generation in vectorization for GDS affected Intel Processors.
       Support -m[no-]gather to enable/disable vectorization for all gather instructions
+      Disparage slightly for the alternative which move DFmode between SSE_REGS and GENERAL_REGS.
 
 diff --git a/ChangeLog b/ChangeLog
 index f612f0c1c5b..48d69d2bf1c 100644
@@ -9670,6 +9679,22 @@ index 48300af9a09..e9fcb0a16a6 100644
  
    s->next = ix86_stack_locals;
    ix86_stack_locals = s;
+diff --git a/gcc/config/i386/i386.md b/gcc/config/i386/i386.md
+index 238ce09672e..39b04861064 100644
+--- a/gcc/config/i386/i386.md
++++ b/gcc/config/i386/i386.md
+@@ -3361,9 +3361,9 @@
+ ;; Possible store forwarding (partial memory) stall in alternatives 4, 6 and 7.
+ (define_insn "*movdf_internal"
+   [(set (match_operand:DF 0 "nonimmediate_operand"
+-    "=Yf*f,m   ,Yf*f,?r ,!o,?*r ,!o,!o,?r,?m,?r,?r,v,v,v,m,*x,*x,*x,m ,r ,v,r  ,o ,r  ,m")
++    "=Yf*f,m   ,Yf*f,?r ,!o,?*r ,!o,!o,?r,?m,?r,?r,v,v,v,m,*x,*x,*x,m ,?r,?v,r  ,o ,r  ,m")
+ 	(match_operand:DF 1 "general_operand"
+-    "Yf*fm,Yf*f,G   ,roF,r ,*roF,*r,F ,rm,rC,C ,F ,C,v,m,v,C ,*x,m ,*x,v,r ,roF,rF,rmF,rC"))]
++    "Yf*fm,Yf*f,G   ,roF,r ,*roF,*r,F ,rm,rC,C ,F ,C,v,m,v,C ,*x,m ,*x, v, r,roF,rF,rmF,rC"))]
+   "!(MEM_P (operands[0]) && MEM_P (operands[1]))
+    && (lra_in_progress || reload_completed
+        || !CONST_DOUBLE_P (operands[1])
 diff --git a/gcc/config/i386/i386.opt b/gcc/config/i386/i386.opt
 index f62b0ebd3b4..9381025b667 100644
 --- a/gcc/config/i386/i386.opt
@@ -36697,6 +36722,23 @@ index 00000000000..5d0827aa280
 +{
 +  b += a;
 +}
+diff --git a/gcc/testsuite/gcc.target/i386/pr110170-3.c b/gcc/testsuite/gcc.target/i386/pr110170-3.c
+new file mode 100644
+index 00000000000..70daa89e9aa
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/i386/pr110170-3.c
+@@ -0,0 +1,11 @@
++/* { dg-do compile { target { ! ia32 } } } */
++/* { dg-options "-O2 -fno-if-conversion -fno-if-conversion2" } */
++/* { dg-final { scan-assembler-not {(?n)movq.*r} } } */
++
++void __cond_swap(double* __x, double* __y) {
++  _Bool __r = (*__x < *__y);
++  double __tmp = __r ? *__x : *__y;
++  *__y = __r ? *__y : *__x;
++  *__x = __tmp;
++}
++
 diff --git a/gcc/testsuite/gcc.target/i386/pr111340.c b/gcc/testsuite/gcc.target/i386/pr111340.c
 new file mode 100644
 index 00000000000..6539ae566c0
