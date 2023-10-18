@@ -71,7 +71,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (539):
+GCC Administrator (540):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -3046,10 +3047,20 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..ef7e57e8e5e 100644
+index a0587d18824..7c3f8b7c4de 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,2405 @@
+@@ -1,3 +1,2415 @@
++2023-10-17  liuhongt  <hongtao.liu@intel.com>
++
++	Backported from master:
++	2023-07-06  liuhongt  <hongtao.liu@intel.com>
++
++	PR target/110170
++	* config/i386/i386.md (movdf_internal): Disparage slightly for
++	2 alternatives (r,v) and (v,r) by adding constraint modifier
++	'?'.
++
 +2023-10-07  Andrew Pinski  <pinskia@gmail.com>
 +
 +	Backported from master:
@@ -24928,10 +24939,17 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..a5e9fa44b40 100644
+index 5fc23605244..5c5373b342c 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2564 @@
+@@ -1,3 +1,2571 @@
++2023-10-17  liuhongt  <hongtao.liu@intel.com>
++
++	Backported from master:
++	2023-07-06  liuhongt  <hongtao.liu@intel.com>
++
++	* gcc.target/i386/pr110170-3.c: New test.
++
 +2023-10-07  Andrew Pinski  <pinskia@gmail.com>
 +
 +	Backported from master:
