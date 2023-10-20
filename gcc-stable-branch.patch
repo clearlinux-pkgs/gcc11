@@ -71,7 +71,9 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (540):
+GCC Administrator (542):
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1092,8 +1094,9 @@ Mikael Morin (3):
       fortran: Fix invalid function decl clobber ICE [PR105012]
       fortran: Move clobbers after evaluation of all arguments [PR106817]
 
-Oleg Endo (1):
+Oleg Endo (2):
       SH: Fix PR101469 peephole bug
+      SH: Fix PR 101177
 
 Pat Haugen (2):
       Fix register count when not splitting Complex IEEE 128-bit args.
@@ -16531,9 +16534,18 @@ index 44e48d90beb..5ef92d699c4 100644
    return false;
  }
 diff --git a/gcc/config/sh/sh.md b/gcc/config/sh/sh.md
-index e3af9ae21c1..963984060e6 100644
+index e3af9ae21c1..b647c33637c 100644
 --- a/gcc/config/sh/sh.md
 +++ b/gcc/config/sh/sh.md
+@@ -842,7 +842,7 @@
+   if (SUBREG_P (reg))
+     reg = SUBREG_REG (reg);
+   gcc_assert (REG_P (reg));
+-  if (find_regno_note (curr_insn, REG_DEAD, REGNO (reg)) != NULL_RTX)
++  if (find_regno_note (curr_insn, REG_DEAD, REGNO (reg)) == NULL_RTX)
+     FAIL;
+ 
+   /* FIXME: Maybe also search the predecessor basic blocks to catch
 @@ -10680,6 +10680,45 @@
     && peep2_reg_dead_p (2, operands[1]) && peep2_reg_dead_p (3, operands[0])"
    [(const_int 0)]
