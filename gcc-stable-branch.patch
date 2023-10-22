@@ -71,7 +71,9 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (542):
+GCC Administrator (544):
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -629,7 +631,7 @@ Haochen Gui (2):
       rs6000: correct vector sign extend builtins on Big Endian
       rs6000: call vector load/store with length only on 64-bit Power10
 
-Harald Anlauf (41):
+Harald Anlauf (42):
       Fortran: improve error recovery on invalid array section
       Fortran: fix error recovery on invalid array section
       Fortran: fix checking of arguments to UNPACK when MASK is a variable [PR105813]
@@ -671,6 +673,7 @@ Harald Anlauf (41):
       Fortran: simplification of FINDLOC for constant complex arguments [PR110585]
       Fortran: formal symbol attributes for intrinsic procedures [PR110288]
       Fortran: intrinsics and deferred-length character arguments [PR95947,PR110658]
+      Fortran: out of bounds access with nested implied-do IO [PR111837]
 
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
@@ -3050,10 +3053,16 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..7c3f8b7c4de 100644
+index a0587d18824..8042db6aaf0 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,2415 @@
+@@ -1,3 +1,2421 @@
++2023-10-20  Oleg Endo  <olegendo@gcc.gnu.org>
++
++	PR target/101177
++	* config/sh/sh.md (unnamed split pattern): Fix comparison of
++	find_regno_note result.
++
 +2023-10-17  liuhongt  <hongtao.liu@intel.com>
 +
 +	Backported from master:
@@ -20858,10 +20867,19 @@ index 70c5b3886ef..5b4053df520 100644
  
        if ((tem = fold_truth_andor (loc, code, type, arg0, arg1, op0, op1))
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..3a953220c3a 100644
+index ee1c7bb4b31..fb812e0740c 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,598 @@
+@@ -1,3 +1,607 @@
++2023-10-21  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-10-17  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/111837
++	* frontend-passes.c (traverse_io_block): Dependency check of loop
++	nest shall be triangular, not banded.
++
 +2023-08-06  Steve Kargl  <kargl@gcc.gnu.org>
 +
 +	Backported from master:
@@ -21741,6 +21759,19 @@ index a346457b5e0..b11cff6559b 100644
    gfc_define_builtin ("__builtin_realloc", ftype, BUILT_IN_REALLOC,
  		      "realloc", ATTR_NOTHROW_LEAF_LIST);
  
+diff --git a/gcc/fortran/frontend-passes.c b/gcc/fortran/frontend-passes.c
+index ad1ba397803..ebc5a7f3699 100644
+--- a/gcc/fortran/frontend-passes.c
++++ b/gcc/fortran/frontend-passes.c
+@@ -1326,7 +1326,7 @@ traverse_io_block (gfc_code *code, bool *has_reached, gfc_code *prev)
+       if (iters[i])
+ 	{
+ 	  gfc_expr *var = iters[i]->var;
+-	  for (int j = i - 1; j < i; j++)
++	  for (int j = 0; j < i; j++)
+ 	    {
+ 	      if (iters[j]
+ 		  && (var_in_expr (var, iters[j]->start)
 diff --git a/gcc/fortran/interface.c b/gcc/fortran/interface.c
 index 9e3e8aa9da9..150f3def319 100644
 --- a/gcc/fortran/interface.c
@@ -24951,10 +24982,18 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..5c5373b342c 100644
+index 5fc23605244..3d7e72a7189 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2571 @@
+@@ -1,3 +1,2579 @@
++2023-10-21  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2023-10-17  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/111837
++	* gfortran.dg/implied_do_io_8.f90: New test.
++
 +2023-10-17  liuhongt  <hongtao.liu@intel.com>
 +
 +	Backported from master:
@@ -40203,6 +40242,30 @@ index 00000000000..856cfa9211f
 +  type(t) :: x
 +  allocate (x%a, source=z'1') ! { dg-error "type incompatible" }
 +  allocate (x%a, mold=z'1')   ! { dg-error "type incompatible" }
++end
+diff --git a/gcc/testsuite/gfortran.dg/implied_do_io_8.f90 b/gcc/testsuite/gfortran.dg/implied_do_io_8.f90
+new file mode 100644
+index 00000000000..c66a0f6fde6
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/implied_do_io_8.f90
+@@ -0,0 +1,18 @@
++! { dg-do run }
++! { dg-additional-options "-fcheck=bounds" }
++! PR fortran/111837 - out of bounds access with front-end optimization
++
++program implied_do_bug
++  implicit none
++  integer :: i,j,k
++  real    :: arr(1,1,1)
++  integer :: ni(1)
++  ni(1) = 1
++  arr = 1
++  write(*,*) (((arr(i,j,k), i=1,ni(k)), k=1,1), j=1,1)
++  write(*,*) (((arr(i,j,k), i=1,ni(k)), j=1,1), k=1,1)
++  write(*,*) (((arr(k,i,j), i=1,ni(k)), k=1,1), j=1,1)
++  write(*,*) (((arr(k,i,j), i=1,ni(k)), j=1,1), k=1,1)
++  write(*,*) (((arr(j,k,i), i=1,ni(k)), k=1,1), j=1,1)
++  write(*,*) (((arr(j,k,i), i=1,ni(k)), j=1,1), k=1,1)
 +end
 diff --git a/gcc/testsuite/gfortran.dg/index_6.f90 b/gcc/testsuite/gfortran.dg/index_6.f90
 new file mode 100644
