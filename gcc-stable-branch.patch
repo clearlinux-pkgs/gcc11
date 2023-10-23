@@ -71,7 +71,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (544):
+GCC Administrator (545):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -992,7 +993,7 @@ José Rui Faustino de Sousa (5):
       Fortran: Fix ICE and wrong code for assumed-rank arrays [PR100029, PR100040]
       Fortran: Add missing TKR initialization to class variables [PR100097, PR100098]
 
-Kewen Lin (13):
+Kewen Lin (14):
       testsuite: Skip pr105250.c for powerpc and s390 [PR105266]
       rs6000: Preserve REG_EH_REGION when replacing load/store [PR106091]
       rs6000/test: Fix empty TU in some cases of effective targets [PR106345]
@@ -1006,6 +1007,7 @@ Kewen Lin (13):
       rs6000: Don't use TFmode for 128 bits fp constant in toc [PR110011]
       rs6000: Guard __builtin_{un,}pack_vector_int128 with vsx [PR109932]
       rs6000: Correct vsx operands output for xxeval [PR110741]
+      rs6000: Make 32 bit stack_protect support prefixed insn [PR111367]
 
 Kewen.Lin (1):
       rs6000: Adjust mov optabs for opaque modes [PR103353]
@@ -1097,9 +1099,10 @@ Mikael Morin (3):
       fortran: Fix invalid function decl clobber ICE [PR105012]
       fortran: Move clobbers after evaluation of all arguments [PR106817]
 
-Oleg Endo (2):
+Oleg Endo (3):
       SH: Fix PR101469 peephole bug
       SH: Fix PR 101177
+      SH: Fix PR 111001
 
 Pat Haugen (2):
       Fix register count when not splitting Complex IEEE 128-bit args.
@@ -14447,7 +14450,7 @@ index 4ca6372435d..5a6f9bf4aa2 100644
 +#define RS6000_DISABLE_SCALAR_MODULO 1
 +
 diff --git a/gcc/config/rs6000/rs6000.md b/gcc/config/rs6000/rs6000.md
-index a4a7d105f5e..e74222c5f3e 100644
+index a4a7d105f5e..83103e0e842 100644
 --- a/gcc/config/rs6000/rs6000.md
 +++ b/gcc/config/rs6000/rs6000.md
 @@ -287,7 +287,7 @@
@@ -14641,6 +14644,113 @@ index a4a7d105f5e..e74222c5f3e 100644
    else if (<MODE>mode == HImode)
      {
        rtx op0_v8hi = gen_rtx_REG (V8HImode, r);
+@@ -11940,33 +11970,26 @@
+   DONE;
+ })
+ 
+-(define_insn "stack_protect_setsi"
+-  [(set (match_operand:SI 0 "memory_operand" "=m")
+-	(unspec:SI [(match_operand:SI 1 "memory_operand" "m")] UNSPEC_SP_SET))
+-   (set (match_scratch:SI 2 "=&r") (const_int 0))]
+-  "TARGET_32BIT"
+-  "lwz%U1%X1 %2,%1\;stw%U0%X0 %2,%0\;li %2,0"
+-  [(set_attr "type" "three")
+-   (set_attr "length" "12")])
+-
+ ;; We can't use the prefixed attribute here because there are two memory
+ ;; instructions.  We can't split the insn due to the fact that this operation
+ ;; needs to be done in one piece.
+-(define_insn "stack_protect_setdi"
+-  [(set (match_operand:DI 0 "memory_operand" "=Y")
+-	(unspec:DI [(match_operand:DI 1 "memory_operand" "Y")] UNSPEC_SP_SET))
+-   (set (match_scratch:DI 2 "=&r") (const_int 0))]
+-  "TARGET_64BIT"
++(define_insn "stack_protect_set<mode>"
++  [(set (match_operand:P 0 "memory_operand" "=YZ")
++	(unspec:P [(match_operand:P 1 "memory_operand" "YZ")] UNSPEC_SP_SET))
++   (set (match_scratch:P 2 "=&r") (const_int 0))]
++  ""
+ {
+-  if (prefixed_memory (operands[1], DImode))
+-    output_asm_insn ("pld %2,%1", operands);
++  if (prefixed_memory (operands[1], <MODE>mode))
++    /* Prefixed load only supports D-form but no update and X-form.  */
++    output_asm_insn ("p<ptrload> %2,%1", operands);
+   else
+-    output_asm_insn ("ld%U1%X1 %2,%1", operands);
++    output_asm_insn ("<ptrload>%U1%X1 %2,%1", operands);
+ 
+-  if (prefixed_memory (operands[0], DImode))
+-    output_asm_insn ("pstd %2,%0", operands);
++  if (prefixed_memory (operands[0], <MODE>mode))
++    /* Prefixed store only supports D-form but no update and X-form.  */
++    output_asm_insn ("pst<wd> %2,%0", operands);
+   else
+-    output_asm_insn ("std%U0%X0 %2,%0", operands);
++    output_asm_insn ("st<wd>%U0%X0 %2,%0", operands);
+ 
+   return "li %2,0";
+ }
+@@ -12012,45 +12035,33 @@
+   DONE;
+ })
+ 
+-(define_insn "stack_protect_testsi"
+-  [(set (match_operand:CCEQ 0 "cc_reg_operand" "=x,?y")
+-        (unspec:CCEQ [(match_operand:SI 1 "memory_operand" "m,m")
+-		      (match_operand:SI 2 "memory_operand" "m,m")]
+-		     UNSPEC_SP_TEST))
+-   (set (match_scratch:SI 4 "=r,r") (const_int 0))
+-   (clobber (match_scratch:SI 3 "=&r,&r"))]
+-  "TARGET_32BIT"
+-  "@
+-   lwz%U1%X1 %3,%1\;lwz%U2%X2 %4,%2\;xor. %3,%3,%4\;li %4,0
+-   lwz%U1%X1 %3,%1\;lwz%U2%X2 %4,%2\;cmplw %0,%3,%4\;li %3,0\;li %4,0"
+-  [(set_attr "length" "16,20")])
+-
+ ;; We can't use the prefixed attribute here because there are two memory
+ ;; instructions.  We can't split the insn due to the fact that this operation
+ ;; needs to be done in one piece.
+-(define_insn "stack_protect_testdi"
++(define_insn "stack_protect_test<mode>"
+   [(set (match_operand:CCEQ 0 "cc_reg_operand" "=x,?y")
+-        (unspec:CCEQ [(match_operand:DI 1 "memory_operand" "Y,Y")
+-		      (match_operand:DI 2 "memory_operand" "Y,Y")]
++        (unspec:CCEQ [(match_operand:P 1 "memory_operand" "YZ,YZ")
++		      (match_operand:P 2 "memory_operand" "YZ,YZ")]
+ 		     UNSPEC_SP_TEST))
+-   (set (match_scratch:DI 4 "=r,r") (const_int 0))
+-   (clobber (match_scratch:DI 3 "=&r,&r"))]
+-  "TARGET_64BIT"
++   (set (match_scratch:P 4 "=r,r") (const_int 0))
++   (clobber (match_scratch:P 3 "=&r,&r"))]
++  ""
+ {
+-  if (prefixed_memory (operands[1], DImode))
+-    output_asm_insn ("pld %3,%1", operands);
++  if (prefixed_memory (operands[1], <MODE>mode))
++    /* Prefixed load only supports D-form but no update and X-form.  */
++    output_asm_insn ("p<ptrload> %3,%1", operands);
+   else
+-    output_asm_insn ("ld%U1%X1 %3,%1", operands);
++    output_asm_insn ("<ptrload>%U1%X1 %3,%1", operands);
+ 
+-  if (prefixed_memory (operands[2], DImode))
+-    output_asm_insn ("pld %4,%2", operands);
++  if (prefixed_memory (operands[2], <MODE>mode))
++    output_asm_insn ("p<ptrload> %4,%2", operands);
+   else
+-    output_asm_insn ("ld%U2%X2 %4,%2", operands);
++    output_asm_insn ("<ptrload>%U2%X2 %4,%2", operands);
+ 
+   if (which_alternative == 0)
+     output_asm_insn ("xor. %3,%3,%4", operands);
+   else
+-    output_asm_insn ("cmpld %0,%3,%4\;li %3,0", operands);
++    output_asm_insn ("cmpl<wd> %0,%3,%4\;li %3,0", operands);
+ 
+   return "li %4,0";
+ }
 diff --git a/gcc/config/rs6000/rtems.h b/gcc/config/rs6000/rtems.h
 index 872cc2849af..2a064bfad19 100644
 --- a/gcc/config/rs6000/rtems.h
@@ -16601,6 +16711,26 @@ index e3af9ae21c1..b647c33637c 100644
    emit_insn (gen_addsi3 (operands[1], operands[1], operands[2]));
    sh_peephole_emit_move_insn (operands[3], operands[1]);
  })
+diff --git a/gcc/config/sh/sh_treg_combine.cc b/gcc/config/sh/sh_treg_combine.cc
+index fb109319938..f1697f44e4b 100644
+--- a/gcc/config/sh/sh_treg_combine.cc
++++ b/gcc/config/sh/sh_treg_combine.cc
+@@ -732,7 +732,14 @@ sh_treg_combine::record_set_of_reg (rtx reg, rtx_insn *start_insn,
+ 	}
+       else if (REG_P (new_entry.cstore.set_src ()))
+ 	{
+-	  // If it's a reg-reg copy follow the copied reg.
++	  // If it's a reg-reg copy follow the copied reg, but ignore
++	  // nop copies of the reg onto itself.
++	  if (REGNO (new_entry.cstore.set_src ()) == REGNO (reg))
++	    {
++	      i = prev_nonnote_nondebug_insn_bb (i);
++	      continue;
++	    }
++
+ 	  new_entry.cstore_reg_reg_copies.push_back (new_entry.cstore);
+ 	  reg = new_entry.cstore.set_src ();
+ 	  i = new_entry.cstore.insn;
 diff --git a/gcc/config/sparc/sparc.c b/gcc/config/sparc/sparc.c
 index 7c8a1f18c39..c42546eb9d1 100644
 --- a/gcc/config/sparc/sparc.c
@@ -31921,6 +32051,34 @@ index 00000000000..0214936b06d
 +    __builtin_abort ();
 +
 +  return 0;
++}
+diff --git a/gcc/testsuite/g++.target/powerpc/pr111367.C b/gcc/testsuite/g++.target/powerpc/pr111367.C
+new file mode 100644
+index 00000000000..8f9d4415672
+--- /dev/null
++++ b/gcc/testsuite/g++.target/powerpc/pr111367.C
+@@ -0,0 +1,22 @@
++/* { dg-do assemble } */
++/* { dg-require-effective-target power10_ok } */
++/* { dg-options "-mdejagnu-cpu=power10 -fstack-protector-strong" } */
++
++/* Verify object file can be generated successfully.  */
++
++struct SortAscending
++{
++};
++
++typedef unsigned long long size_t;
++
++void VQSort (long long *, size_t, SortAscending);
++
++void
++BenchAllColdSort ()
++{
++  typedef long long T;
++  constexpr size_t kSize = 10 * 1000;
++  alignas (16) T items[kSize];
++  VQSort (items, kSize, SortAscending ());
 +}
 diff --git a/gcc/testsuite/gcc.c-torture/compile/pr106030.c b/gcc/testsuite/gcc.c-torture/compile/pr106030.c
 new file mode 100644
