@@ -71,7 +71,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (564):
+GCC Administrator (565):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -875,7 +876,7 @@ John David Anglin (3):
       Skip guality tests on hppa-hpux.
       hppa: Fix typo in PA 2.0 trampoline template
 
-Jonathan Wakely (131):
+Jonathan Wakely (133):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -1007,6 +1008,8 @@ Jonathan Wakely (131):
       libstdc++: Add more tests for filesystem directory iterators
       libstdc++: Fix testsuite failures with -O0
       libstdc++: Reformat Python code
+      libstdc++: Fix std::deque::size() Xmethod [PR112491]
+      libstdc++: Fix std::deque::operator[] Xmethod [PR112491]
 
 José Rui Faustino de Sousa (5):
       Fortran: Fix ICE with -fcheck=pointer [PR100136]
@@ -46569,10 +46572,20 @@ index 72119b01c69..2cc64a39649 100644
  
  	* GCC 11.3.0 released.
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..cae57456d95 100644
+index 85e04c45288..4281e011614 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,2072 @@
+@@ -1,3 +1,2082 @@
++2023-11-14  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2023-11-14  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/112491
++	* python/libstdcxx/v6/xmethods.py (DequeWorkerBase.size): Fix
++	calculation to use _M_start._M_cur.
++	* testsuite/libstdc++-xmethods/deque.cc: Check failing cases.
++
 +2023-11-13  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backported from master:
@@ -62412,10 +62425,42 @@ index b5b523c4b5a..6d19c4f1be3 100644
      # Extensions.
      libstdcxx_printer.add_version('__gnu_cxx::', 'slist', StdSlistPrinter)
 diff --git a/libstdc++-v3/python/libstdcxx/v6/xmethods.py b/libstdc++-v3/python/libstdcxx/v6/xmethods.py
-index 991d945321a..d6cbcf139c5 100644
+index 991d945321a..a50ebca2287 100644
 --- a/libstdc++-v3/python/libstdcxx/v6/xmethods.py
 +++ b/libstdc++-v3/python/libstdcxx/v6/xmethods.py
-@@ -730,7 +730,7 @@ class SharedPtrUseCountWorker(gdb.xmethod.XMethodWorker):
+@@ -168,16 +168,23 @@ class DequeWorkerBase(gdb.xmethod.XMethodWorker):
+         self._bufsize = 512 // val_type.sizeof or 1
+ 
+     def size(self, obj):
+-        first_node = obj['_M_impl']['_M_start']['_M_node']
+-        last_node = obj['_M_impl']['_M_finish']['_M_node']
+-        cur = obj['_M_impl']['_M_finish']['_M_cur']
+-        first = obj['_M_impl']['_M_finish']['_M_first']
+-        return (last_node - first_node) * self._bufsize + (cur - first)
++        start = obj['_M_impl']['_M_start']
++        finish = obj['_M_impl']['_M_finish']
++        if start['_M_cur'] == finish['_M_cur']:
++            return 0
++        return (self._bufsize
++                * (finish['_M_node'] - start['_M_node'] - 1)
++                + (finish['_M_cur'] - finish['_M_first'])
++                + (start['_M_last'] - start['_M_cur']))
+ 
+     def index(self, obj, idx):
+-        first_node = obj['_M_impl']['_M_start']['_M_node']
+-        index_node = first_node + int(idx) // self._bufsize
+-        return index_node[0][idx % self._bufsize]
++        start = obj['_M_impl']['_M_start']
++        first_node_size = start['_M_last'] - start['_M_cur']
++        if idx < first_node_size:
++            return start['_M_cur'][idx]
++        idx = idx - first_node_size
++        index_node = start['_M_node'][1 + int(idx) // self._bufsize]
++        return index_node[idx % self._bufsize]
+ 
+ class DequeEmptyWorker(DequeWorkerBase):
+     def get_arg_types(self):
+@@ -730,7 +737,7 @@ class SharedPtrUseCountWorker(gdb.xmethod.XMethodWorker):
      "Implements std::shared_ptr<T>::use_count()"
  
      def __init__(self, elem_type):
@@ -62424,7 +62469,7 @@ index 991d945321a..d6cbcf139c5 100644
  
      def get_arg_types(self):
          return None
-@@ -738,6 +738,9 @@ class SharedPtrUseCountWorker(gdb.xmethod.XMethodWorker):
+@@ -738,6 +745,9 @@ class SharedPtrUseCountWorker(gdb.xmethod.XMethodWorker):
      def get_result_type(self, obj):
          return gdb.lookup_type('long')
  
@@ -68795,6 +68840,41 @@ index d9b47114d57..c0eded2302a 100644
    std::cout << "\n";
    return 0;			// Mark SPOT
  }
+diff --git a/libstdc++-v3/testsuite/libstdc++-xmethods/deque.cc b/libstdc++-v3/testsuite/libstdc++-xmethods/deque.cc
+index b29e1a0abca..f366d43e34f 100644
+--- a/libstdc++-v3/testsuite/libstdc++-xmethods/deque.cc
++++ b/libstdc++-v3/testsuite/libstdc++-xmethods/deque.cc
+@@ -67,6 +67,30 @@ main ()
+ // { dg-final { whatis-test q1.back() int } }
+ // { dg-final { whatis-test q3\[0\] int } }
+ 
++  // PR libstdc++/112491
++  std::deque<int> q5;
++  q5.push_front(5);
++// { dg-final { note-test q5.size() 1 } }
++// { dg-final { note-test q5\[0\] 5 } }
++  std::deque<int> q6 = q1;
++  q6.pop_front();
++// { dg-final { note-test {q6.size() == (q1_size-1)} true } }
++// { dg-final { note-test q6\[1\] 102 } }
++  std::deque<int> q7 = q2;
++  q7.pop_front();
++  q7.pop_front();
++// { dg-final { note-test {q7.size() == (q2_size-2)} true } }
++// { dg-final { note-test q7\[1\] 203 } }
++  std::deque<int> q8 = q3;
++  q8.pop_front();
++  q8.pop_front();
++  q8.pop_front();
++// { dg-final { note-test {q8.size() == (q3_size-3)} true } }
++// { dg-final { note-test q8\[1\] 304 } }
++  std::deque<int> q9 = q8;
++  q9.clear();
++// { dg-final { note-test q9.size() 0 } }
++
+   return 0;  // Mark SPOT
+ }
+ 
 diff --git a/libstdc++-v3/testsuite/libstdc++-xmethods/shared_ptr.cc b/libstdc++-v3/testsuite/libstdc++-xmethods/shared_ptr.cc
 index e7cdfa4bd53..7b9e3e5534d 100644
 --- a/libstdc++-v3/testsuite/libstdc++-xmethods/shared_ptr.cc
