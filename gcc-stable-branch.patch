@@ -71,7 +71,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (598):
+GCC Administrator (599):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -774,7 +775,7 @@ Ian Lance Taylor (2):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
       syscall: add prlimit
 
-Jakub Jelinek (97):
+Jakub Jelinek (98):
       emit-rtl: Fix -fcompare-debug bug with label references in debug insns [PR105203]
       sparc: Preserve ORIGINAL_REGNO in epilogue_renumber [PR105257]
       rtlanal: Fix up replace_rtx [PR105333]
@@ -872,6 +873,7 @@ Jakub Jelinek (97):
       i386: Fix -fcf-protection -Os ICE due to movabsq peephole2 [PR112845]
       fold-const: Fix up multiple_of_p [PR112733]
       c++: Unshare folded SAVE_EXPR arguments during cp_fold [PR112727]
+      i386: Fix mmx.md signbit expanders [PR112816]
 
 Jan Hubicka (2):
       Fix modref_tree::remap_params
@@ -10108,6 +10110,22 @@ index 779c9335711..05ffcfec755 100644
     %{!shared:%:if-exists(default-manifest.o%s)}\
     %{fvtable-verify=none:%s; \
      fvtable-verify=preinit:vtv_end.o%s; \
+diff --git a/gcc/config/i386/mmx.md b/gcc/config/i386/mmx.md
+index 4c2b724dc6f..a5e9c896ef6 100644
+--- a/gcc/config/i386/mmx.md
++++ b/gcc/config/i386/mmx.md
+@@ -787,7 +787,10 @@
+ 	    (match_operand:V2SF 1 "register_operand") 0)
+ 	  (match_dup 2)))]
+   "TARGET_MMX_WITH_SSE"
+-  "operands[2] = GEN_INT (GET_MODE_UNIT_BITSIZE (V2SFmode)-1);")
++{
++  operands[1] = force_reg (V2SFmode, operands[1]);
++  operands[2] = GEN_INT (GET_MODE_UNIT_BITSIZE (V2SFmode)-1);
++})
+ 
+ ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ ;;
 diff --git a/gcc/config/i386/predicates.md b/gcc/config/i386/predicates.md
 index b815aca0da7..58aebd416f4 100644
 --- a/gcc/config/i386/predicates.md
@@ -38104,6 +38122,28 @@ index 4ce0ffffaf3..4c728f230f7 100644
  test_4 (_mm512_mask_shuffle_f32x4, __m512, __m512, __mmask16, __m512, __m512, 1)
  test_4 (_mm512_mask_shuffle_f64x2, __m512d, __m512d, __mmask8, __m512d, __m512d, 1)
  test_4 (_mm512_mask_shuffle_i32x4, __m512i, __m512i, __mmask16, __m512i, __m512i, 1)
+diff --git a/gcc/testsuite/gcc.target/i386/sse2-pr112816-2.c b/gcc/testsuite/gcc.target/i386/sse2-pr112816-2.c
+new file mode 100644
+index 00000000000..2bfae8fa58e
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/i386/sse2-pr112816-2.c
+@@ -0,0 +1,16 @@
++/* PR target/112816 */
++/* { dg-do compile } */
++/* { dg-options "-O2 -msse2" } */
++
++#define N 2
++struct S { float x[N]; };
++struct T { int x[N]; };
++
++struct T
++foo (struct S x)
++{
++  struct T res;
++  for (int i = 0; i < N; ++i)
++    res.x[i] = __builtin_signbit (x.x[i]) ? -1 : 0;
++  return res;
++}
 diff --git a/gcc/testsuite/gcc.target/i386/sse2-pr112816.c b/gcc/testsuite/gcc.target/i386/sse2-pr112816.c
 new file mode 100644
 index 00000000000..0701f3cdff8
