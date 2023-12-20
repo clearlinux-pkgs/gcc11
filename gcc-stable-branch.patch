@@ -71,7 +71,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (599):
+GCC Administrator (600):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -879,7 +880,7 @@ Jan Hubicka (2):
       Fix modref_tree::remap_params
       Fix ipa-cp wrt volatile loads
 
-Jason Merrill (30):
+Jason Merrill (32):
       c++: rodata and defaulted ctor [PR104142]
       c++: low -faligned-new [PR102071]
       c++: local function versioning [PR104669]
@@ -910,6 +911,8 @@ Jason Merrill (30):
       c++: non-templated friends [PR105852]
       c++: array DMI and member fn [PR109666]
       c++: member vs global template [PR106310]
+      c++: NRV and goto [PR92407]
+      c++: -Wdeprecated-copy and using operator= [PR92145]
 
 Jeff Law (1):
       [committed] Fix more problems with new linker warnings
@@ -1183,7 +1186,7 @@ Pat Haugen (2):
       Fix register count when not splitting Complex IEEE 128-bit args.
       Disable generation of scalar modulo instructions.
 
-Patrick Palka (17):
+Patrick Palka (18):
       c++: partial ordering with dependent NTTP type [PR105289]
       c++: ICE with requires-expr and -Wsequence-point [PR105304]
       c++: decltype of non-dependent call of class type [PR105386]
@@ -1201,6 +1204,7 @@ Patrick Palka (17):
       c++: thinko in extract_local_specs [PR108998]
       libstdc++: Implement P2520R0 changes to move_iterator's iterator_concept
       c++: noexcept-spec from nested class confusion [PR109761]
+      c++: value dependence of by-ref lambda capture [PR108975]
 
 Paul A. Clarke (1):
       rs6000: __Uglify non-uglified local variables in headers
@@ -3140,10 +3144,18 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..bba036b181b 100644
+index a0587d18824..52ab801ca0c 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,2593 @@
+@@ -1,3 +1,2601 @@
++2023-12-19  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2023-12-19  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/112816
++	* config/i386/mmx.md (signbitv2sf2): Force operands[1] into a REG.
++
 +2023-12-17  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -18098,6 +18110,20 @@ index 55bb9c45f8c..7c3ce1693e1 100644
    gcc_checking_assert (conv->kind == ck_ref_bind);
    conv = next_conversion (conv);
    if (conv->kind == ck_user && !TYPE_REF_P (conv->type))
+diff --git a/gcc/cp/class.c b/gcc/cp/class.c
+index 3251aaa1a46..32667255a85 100644
+--- a/gcc/cp/class.c
++++ b/gcc/cp/class.c
+@@ -5685,7 +5685,8 @@ classtype_has_depr_implicit_copy (tree t)
+ 	 iter; ++iter)
+       {
+ 	tree fn = *iter;
+-	if (user_provided_p (fn) && copy_fn_p (fn))
++	if (DECL_CONTEXT (fn) == t
++	    && user_provided_p (fn) && copy_fn_p (fn))
+ 	  return fn;
+       }
+ 
 diff --git a/gcc/cp/constexpr.c b/gcc/cp/constexpr.c
 index c13c920ade3..38f684144f0 100644
 --- a/gcc/cp/constexpr.c
@@ -18669,7 +18695,7 @@ index 4eee9ff6eb6..437f4dd76a1 100644
    uid_sensitive_constexpr_evaluation_checker c;
  
 diff --git a/gcc/cp/cp-tree.h b/gcc/cp/cp-tree.h
-index a2d8c1c77b3..8887e946d53 100644
+index a2d8c1c77b3..7e04a080f3a 100644
 --- a/gcc/cp/cp-tree.h
 +++ b/gcc/cp/cp-tree.h
 @@ -466,6 +466,7 @@ extern GTY(()) tree cp_global_trees[CPTI_MAX];
@@ -18692,7 +18718,15 @@ index a2d8c1c77b3..8887e946d53 100644
  /* The expression of an atomic constraint. */
  #define ATOMIC_CONSTR_EXPR(NODE) \
    CONSTR_EXPR (ATOMIC_CONSTR_CHECK (NODE))
-@@ -6789,6 +6795,7 @@ extern void copy_linkage			(tree, tree);
+@@ -2018,6 +2024,7 @@ struct GTY(()) language_function {
+ 
+   BOOL_BITFIELD invalid_constexpr : 1;
+   BOOL_BITFIELD throwing_cleanup : 1;
++  BOOL_BITFIELD backward_goto : 1;
+ 
+   hash_table<named_label_hash> *x_named_labels;
+ 
+@@ -6789,6 +6796,7 @@ extern void copy_linkage			(tree, tree);
  extern tree get_guard				(tree);
  extern tree get_guard_cond			(tree, bool);
  extern tree set_guard				(tree);
@@ -18700,7 +18734,7 @@ index a2d8c1c77b3..8887e946d53 100644
  extern tree maybe_get_tls_wrapper_call		(tree);
  extern void mark_needed				(tree);
  extern bool decl_needed_p			(tree);
-@@ -7242,6 +7249,7 @@ extern bool push_tinst_level_loc                (tree, location_t);
+@@ -7242,6 +7250,7 @@ extern bool push_tinst_level_loc                (tree, location_t);
  extern bool push_tinst_level_loc                (tree, tree, location_t);
  extern void pop_tinst_level                     (void);
  extern struct tinst_level *outermost_tinst_level(void);
@@ -18708,7 +18742,7 @@ index a2d8c1c77b3..8887e946d53 100644
  extern void init_template_processing		(void);
  extern void print_template_statistics		(void);
  bool template_template_parameter_p		(const_tree);
-@@ -8137,7 +8145,6 @@ extern tree evaluate_requires_expr		(tree);
+@@ -8137,7 +8146,6 @@ extern tree evaluate_requires_expr		(tree);
  extern tree tsubst_constraint                   (tree, tree, tsubst_flags_t, tree);
  extern tree tsubst_constraint_info              (tree, tree, tsubst_flags_t, tree);
  extern tree tsubst_parameter_mapping		(tree, tree, tsubst_flags_t, tree);
@@ -18717,7 +18751,7 @@ index a2d8c1c77b3..8887e946d53 100644
  struct processing_constraint_expression_sentinel
  {
 diff --git a/gcc/cp/decl.c b/gcc/cp/decl.c
-index bffbd004167..712e875edd0 100644
+index bffbd004167..52088a480fe 100644
 --- a/gcc/cp/decl.c
 +++ b/gcc/cp/decl.c
 @@ -944,9 +944,7 @@ static bool
@@ -18788,7 +18822,16 @@ index bffbd004167..712e875edd0 100644
  	  DECL_TEMPLATE_INFO (newdecl) = DECL_TEMPLATE_INFO (olddecl);
  	}
  
-@@ -6283,6 +6294,8 @@ reshape_init_array_1 (tree elt_type, tree max_index, reshape_iter *d,
+@@ -3552,6 +3563,8 @@ check_goto (tree decl)
+       return;
+     }
+ 
++  cp_function_chain->backward_goto = true;
++
+   bool saw_catch = false, complained = false;
+   int identified = 0;
+   tree bad;
+@@ -6283,6 +6296,8 @@ reshape_init_array_1 (tree elt_type, tree max_index, reshape_iter *d,
        tree elt_init;
        constructor_elt *old_cur = d->cur;
  
@@ -18797,7 +18840,7 @@ index bffbd004167..712e875edd0 100644
        check_array_designated_initializer (d->cur, index);
        elt_init = reshape_init_r (elt_type, d,
  				 /*first_initializer_p=*/NULL_TREE,
-@@ -6435,6 +6448,7 @@ reshape_init_class (tree type, reshape_iter *d, bool first_initializer_p,
+@@ -6435,6 +6450,7 @@ reshape_init_class (tree type, reshape_iter *d, bool first_initializer_p,
  	    }
  	  else if (TREE_CODE (d->cur->index) == IDENTIFIER_NODE)
  	    {
@@ -18805,7 +18848,7 @@ index bffbd004167..712e875edd0 100644
  	      field = get_class_binding (type, d->cur->index);
  	      direct_desig = true;
  	    }
-@@ -7167,12 +7181,19 @@ check_initializer (tree decl, tree init, int flags, vec<tree, va_gc> **cleanups)
+@@ -7167,12 +7183,19 @@ check_initializer (tree decl, tree init, int flags, vec<tree, va_gc> **cleanups)
  	      /* Declared constexpr or constinit, but no suitable initializer;
  		 massage init appropriately so we can pass it into
  		 store_init_value for the error.  */
@@ -18830,7 +18873,7 @@ index bffbd004167..712e875edd0 100644
  		    TARGET_EXPR_DIRECT_INIT_P (init) = true;
  		}
  	      init_code = NULL_TREE;
-@@ -7227,6 +7248,10 @@ check_initializer (tree decl, tree init, int flags, vec<tree, va_gc> **cleanups)
+@@ -7227,6 +7250,10 @@ check_initializer (tree decl, tree init, int flags, vec<tree, va_gc> **cleanups)
    if (init && init != error_mark_node)
      init_code = build2 (INIT_EXPR, type, decl, init);
  
@@ -18841,7 +18884,7 @@ index bffbd004167..712e875edd0 100644
    if (init_code)
      {
        /* We might have set these in cp_finish_decl.  */
-@@ -8221,8 +8246,10 @@ cp_finish_decl (tree decl, tree init, bool init_const_expr_p,
+@@ -8221,8 +8248,10 @@ cp_finish_decl (tree decl, tree init, bool init_const_expr_p,
  
        if (var_definition_p
  	  /* With -fmerge-all-constants, gimplify_init_constructor
@@ -18854,7 +18897,7 @@ index bffbd004167..712e875edd0 100644
  	{
  	  /* If a TREE_READONLY variable needs initialization
  	     at runtime, it is no longer readonly and we need to
-@@ -8240,6 +8267,18 @@ cp_finish_decl (tree decl, tree init, bool init_const_expr_p,
+@@ -8240,6 +8269,18 @@ cp_finish_decl (tree decl, tree init, bool init_const_expr_p,
  	  if (!decl_maybe_constant_destruction (decl, type))
  	    TREE_READONLY (decl) = 0;
  	}
@@ -18873,7 +18916,7 @@ index bffbd004167..712e875edd0 100644
  
        make_rtl_for_nonlocal_decl (decl, init, asmspec);
  
-@@ -8300,7 +8339,7 @@ cp_finish_decl (tree decl, tree init, bool init_const_expr_p,
+@@ -8300,7 +8341,7 @@ cp_finish_decl (tree decl, tree init, bool init_const_expr_p,
      {
        unsigned i; tree t;
        FOR_EACH_VEC_ELT (*cleanups, i, t)
@@ -18882,7 +18925,7 @@ index bffbd004167..712e875edd0 100644
        release_tree_vector (cleanups);
      }
  
-@@ -12656,7 +12695,7 @@ grokdeclarator (const cp_declarator *declarator,
+@@ -12656,7 +12697,7 @@ grokdeclarator (const cp_declarator *declarator,
  			  "an array", name);
  		return error_mark_node;
  	      }
@@ -18891,7 +18934,7 @@ index bffbd004167..712e875edd0 100644
  	      {
  		error_at (declspecs->locations[ds_constinit],
  			  "%<constinit%> on function return type is not "
-@@ -13862,7 +13901,8 @@ grokdeclarator (const cp_declarator *declarator,
+@@ -13862,7 +13903,8 @@ grokdeclarator (const cp_declarator *declarator,
  		      return error_mark_node;
  		  }
  
@@ -18901,7 +18944,7 @@ index bffbd004167..712e875edd0 100644
  				  *attrlist, flags,
  				  funcdef_flag);
  		return decl;
-@@ -14663,8 +14703,6 @@ copy_fn_p (const_tree d)
+@@ -14663,8 +14705,6 @@ copy_fn_p (const_tree d)
  bool
  move_fn_p (const_tree d)
  {
@@ -19483,7 +19526,7 @@ index 90d119eaa28..0619b834cf4 100644
    if (!INTEGRAL_TYPE_P (TREE_TYPE (expr))
        || TREE_CODE (expr) != INTEGER_CST
 diff --git a/gcc/cp/pt.c b/gcc/cp/pt.c
-index 318d42d800d..0304eb759e8 100644
+index 318d42d800d..632e7413d5e 100644
 --- a/gcc/cp/pt.c
 +++ b/gcc/cp/pt.c
 @@ -2524,17 +2524,14 @@ determine_specialization (tree template_id,
@@ -19772,7 +19815,28 @@ index 318d42d800d..0304eb759e8 100644
  
    if (current_function_decl)
      restore_omp_privatization_clauses (omp_privatization_save);
-@@ -28726,7 +28786,7 @@ rewrite_template_parm (tree olddecl, unsigned index, unsigned level,
+@@ -27054,9 +27114,7 @@ value_dependent_expression_p (tree expression)
+     case VAR_DECL:
+        /* A constant with literal type and is initialized
+ 	  with an expression that is value-dependent.  */
+-      if (DECL_DEPENDENT_INIT_P (expression)
+-	  /* FIXME cp_finish_decl doesn't fold reference initializers.  */
+-	  || TYPE_REF_P (TREE_TYPE (expression)))
++      if (DECL_DEPENDENT_INIT_P (expression))
+ 	return true;
+       if (DECL_HAS_VALUE_EXPR_P (expression))
+ 	{
+@@ -27071,6 +27129,9 @@ value_dependent_expression_p (tree expression)
+ 		  && value_expr == error_mark_node))
+ 	    return true;
+ 	}
++      else if (TYPE_REF_P (TREE_TYPE (expression)))
++	/* FIXME cp_finish_decl doesn't fold reference initializers.  */
++	return true;
+       return false;
+ 
+     case DYNAMIC_CAST_EXPR:
+@@ -28726,7 +28787,7 @@ rewrite_template_parm (tree olddecl, unsigned index, unsigned level,
  	  const int depth = TMPL_ARGS_DEPTH (tsubst_args);
  	  tree ttargs = make_tree_vec (depth + 1);
  	  for (int i = 0; i < depth; ++i)
@@ -19781,7 +19845,7 @@ index 318d42d800d..0304eb759e8 100644
  	  TREE_VEC_ELT (ttargs, depth)
  	    = template_parms_level_to_args (ttparms);
  	  // Substitute ttargs into ttparms to fix references to
-@@ -28739,8 +28799,17 @@ rewrite_template_parm (tree olddecl, unsigned index, unsigned level,
+@@ -28739,8 +28800,17 @@ rewrite_template_parm (tree olddecl, unsigned index, unsigned level,
  	  ttparms = tsubst_template_parms_level (ttparms, ttargs,
  						 complain);
  	  // Finally, tack the adjusted parms onto tparms.
@@ -19801,7 +19865,7 @@ index 318d42d800d..0304eb759e8 100644
  	  DECL_TEMPLATE_PARMS (newdecl) = ttparms;
  	}
      }
-@@ -29238,6 +29307,11 @@ alias_ctad_tweaks (tree tmpl, tree uguides)
+@@ -29238,6 +29308,11 @@ alias_ctad_tweaks (tree tmpl, tree uguides)
  	      ++ndlen;
  	  tree gtparms = make_tree_vec (natparms + ndlen);
  
@@ -19869,7 +19933,7 @@ index b499f38be15..e414d8cfd18 100644
  	offset_int fld = wi::to_offset (DECL_FIELD_OFFSET (field));
  	offset_int bitpos = wi::to_offset (DECL_FIELD_BIT_OFFSET (field));
 diff --git a/gcc/cp/typeck.c b/gcc/cp/typeck.c
-index 93ad497d531..6e5a35202c7 100644
+index 93ad497d531..61e3222c6c6 100644
 --- a/gcc/cp/typeck.c
 +++ b/gcc/cp/typeck.c
 @@ -4926,7 +4926,12 @@ cp_build_binary_op (const op_location_t &location,
@@ -19975,6 +20039,16 @@ index 93ad497d531..6e5a35202c7 100644
        return build_ptrmemfunc1 (to_type,
  				integer_zero_node,
  				pfn);
+@@ -10290,6 +10307,9 @@ check_return_expr (tree retval, bool *no_warning)
+   if (fn_returns_value_p && flag_elide_constructors)
+     {
+       if (named_return_value_okay_p
++	  /* The current NRV implementation breaks if a backward goto needs to
++	     destroy the object (PR92407).  */
++	  && !cp_function_chain->backward_goto
+           && (current_function_return_value == NULL_TREE
+               || current_function_return_value == retval))
+ 	current_function_return_value = retval;
 diff --git a/gcc/cse.c b/gcc/cse.c
 index df191d5aa3f..2b8292ebd7f 100644
 --- a/gcc/cse.c
@@ -25623,10 +25697,18 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..8b322e81942 100644
+index 5fc23605244..fa2ea0704b8 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2731 @@
+@@ -1,3 +1,2739 @@
++2023-12-19  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2023-12-19  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/112816
++	* gcc.target/i386/sse2-pr112816-2.c: New test.
++
 +2023-12-17  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -29030,6 +29112,47 @@ index 00000000000..7d25db39d9c
 +};
 +
 +A<int> a;
+diff --git a/gcc/testsuite/g++.dg/cpp0x/depr-copy3.C b/gcc/testsuite/g++.dg/cpp0x/depr-copy3.C
+new file mode 100644
+index 00000000000..c303c9d5d40
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp0x/depr-copy3.C
+@@ -0,0 +1,35 @@
++// PR c++/92145
++// { dg-do compile { target c++11 } }
++// { dg-additional-options "-Wdeprecated-copy" }
++
++struct base
++{
++  base() { }
++  base(const base&) { }
++  base(base&&) { }
++  base& operator=(const base&) { return *this; }
++  base& operator=(base&&) { return *this; }
++};
++
++struct foo : base
++{
++  //using base::base;
++  using base::operator=;
++};
++
++struct bar
++{
++  bar& operator=(foo v)
++  {
++    value = v;
++    return *this;
++  }
++
++  foo value;
++};
++
++int main()
++{
++  foo a;
++  foo{a};
++}
 diff --git a/gcc/testsuite/g++.dg/cpp0x/enum43.C b/gcc/testsuite/g++.dg/cpp0x/enum43.C
 new file mode 100644
 index 00000000000..b2cd9797a06
@@ -29147,6 +29270,33 @@ index 00000000000..26af75bf132
 +  auto l = [&] {
 +    int n[dim * 1];
 +  };
++  // In f<int>, we shouldn't actually capture dim.
++  static_assert (sizeof(l) == 1, "");
++}
++
++template void f<int>();
+diff --git a/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-const11a.C b/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-const11a.C
+new file mode 100644
+index 00000000000..7fc3d48a8dd
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-const11a.C
+@@ -0,0 +1,21 @@
++// PR c++/108975
++// A version of lambda-const11.C using a generic lambda.
++// { dg-do compile { target c++14 } }
++
++template<int> void g();
++template<int> struct A { };
++
++template<class T>
++void f() {
++  constexpr int dim = 1;
++  auto l = [&](auto) {
++    int n[dim * 1];
++    using ty1 = decltype(g<dim * 2>());
++    using ty2 = A<dim * 3>;
++  };
++  l(0);
 +  // In f<int>, we shouldn't actually capture dim.
 +  static_assert (sizeof(l) == 1, "");
 +}
@@ -30550,6 +30700,42 @@ index 00000000000..5bcf94897a8
 +struct B { B()=default; };
 +static const B b_var;		//  { dg-bogus "" }
 +// { dg-final { scan-assembler-symbol-section {b_var} {^\.(const|rodata)|\[RO\]} } }
+diff --git a/gcc/testsuite/g++.dg/opt/nrv22.C b/gcc/testsuite/g++.dg/opt/nrv22.C
+new file mode 100644
+index 00000000000..eb889fa615b
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/opt/nrv22.C
+@@ -0,0 +1,30 @@
++// PR c++/92407
++// { dg-do run }
++
++struct A
++{
++  A () { a++; }
++  A (const A &) { a++; }
++  ~A () { a--; }
++  static int a;
++};
++int A::a = 0;
++
++A
++foo ()
++{
++  int cnt = 10;
++lab:
++  A a;
++  if (cnt--)
++    goto lab;
++  return a;
++}
++
++int
++main ()
++{
++  foo ();
++  if (A::a)
++    __builtin_abort ();
++}
 diff --git a/gcc/testsuite/g++.dg/opt/pr108365.C b/gcc/testsuite/g++.dg/opt/pr108365.C
 new file mode 100644
 index 00000000000..47eefa2b29a
