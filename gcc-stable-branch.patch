@@ -71,7 +71,12 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (601):
+GCC Administrator (606):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1187,7 +1192,7 @@ Pat Haugen (2):
       Fix register count when not splitting Complex IEEE 128-bit args.
       Disable generation of scalar modulo instructions.
 
-Patrick Palka (18):
+Patrick Palka (19):
       c++: partial ordering with dependent NTTP type [PR105289]
       c++: ICE with requires-expr and -Wsequence-point [PR105304]
       c++: decltype of non-dependent call of class type [PR105386]
@@ -1206,6 +1211,7 @@ Patrick Palka (18):
       libstdc++: Implement P2520R0 changes to move_iterator's iterator_concept
       c++: noexcept-spec from nested class confusion [PR109761]
       c++: value dependence of by-ref lambda capture [PR108975]
+      c++: constraint rewriting during ttp coercion [PR111485]
 
 Paul A. Clarke (1):
       rs6000: __Uglify non-uglified local variables in headers
@@ -17427,10 +17433,21 @@ index 49f043ed29b..25a05978be9 100644
            gcc_cv_as_mllvm_x86_pad_for_align,,
            [-mllvm -x86-pad-for-align=false], [.text],,
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..cbaf2efad08 100644
+index 85c8fdd38cd..fd1b89d4419 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,617 @@
+@@ -1,3 +1,628 @@
++2023-12-24  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2023-09-22  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/111485
++	* pt.c (is_compatible_template_arg): New parameter 'args'.
++	Add the outer template arguments 'args' to 'new_args'.
++	(convert_template_argument): Pass 'args' to
++	is_compatible_template_arg.
++
 +2023-12-20  Jason Merrill  <jason@redhat.com>
 +
 +	Backported from master:
@@ -19556,7 +19573,7 @@ index 90d119eaa28..0619b834cf4 100644
    if (!INTEGRAL_TYPE_P (TREE_TYPE (expr))
        || TREE_CODE (expr) != INTEGER_CST
 diff --git a/gcc/cp/pt.c b/gcc/cp/pt.c
-index 318d42d800d..632e7413d5e 100644
+index 318d42d800d..07515f63d29 100644
 --- a/gcc/cp/pt.c
 +++ b/gcc/cp/pt.c
 @@ -2524,17 +2524,14 @@ determine_specialization (tree template_id,
@@ -19597,7 +19614,33 @@ index 318d42d800d..632e7413d5e 100644
  	inform (DECL_SOURCE_LOCATION (maintmpl), "primary template %qD",
  		maintmpl);
      }
-@@ -10889,7 +10887,7 @@ uses_template_parms (tree t)
+@@ -8286,7 +8284,7 @@ canonicalize_expr_argument (tree arg, tsubst_flags_t complain)
+    constrained than the parameter.  */
+ 
+ static bool
+-is_compatible_template_arg (tree parm, tree arg)
++is_compatible_template_arg (tree parm, tree arg, tree args)
+ {
+   tree parm_cons = get_constraints (parm);
+ 
+@@ -8307,6 +8305,7 @@ is_compatible_template_arg (tree parm, tree arg)
+     {
+       tree aparms = DECL_INNERMOST_TEMPLATE_PARMS (arg);
+       new_args = template_parms_level_to_args (aparms);
++      new_args = add_to_template_args (args, new_args);
+       ++processing_template_decl;
+       parm_cons = tsubst_constraint_info (parm_cons, new_args,
+ 					  tf_none, NULL_TREE);
+@@ -8565,7 +8564,7 @@ convert_template_argument (tree parm,
+               // Check that the constraints are compatible before allowing the
+               // substitution.
+               if (val != error_mark_node)
+-                if (!is_compatible_template_arg (parm, arg))
++		if (!is_compatible_template_arg (parm, arg, args))
+                   {
+ 		    if (in_decl && (complain & tf_error))
+                       {
+@@ -10889,7 +10888,7 @@ uses_template_parms (tree t)
  		   || uses_template_parms (TREE_CHAIN (t)));
    else if (TREE_CODE (t) == TYPE_DECL)
      dependent_p = dependent_type_p (TREE_TYPE (t));
@@ -19606,7 +19649,7 @@ index 318d42d800d..632e7413d5e 100644
      dependent_p = false;
    else
      dependent_p = instantiation_dependent_expression_p (t);
-@@ -11136,6 +11134,33 @@ outermost_tinst_level (void)
+@@ -11136,6 +11135,33 @@ outermost_tinst_level (void)
    return level;
  }
  
@@ -19640,7 +19683,7 @@ index 318d42d800d..632e7413d5e 100644
  /* DECL is a friend FUNCTION_DECL or TEMPLATE_DECL.  ARGS is the
     vector of template arguments, as for tsubst.
  
-@@ -11236,9 +11261,10 @@ tsubst_friend_function (tree decl, tree args)
+@@ -11236,9 +11262,10 @@ tsubst_friend_function (tree decl, tree args)
        tree new_friend_template_info = DECL_TEMPLATE_INFO (new_friend);
        tree new_friend_result_template_info = NULL_TREE;
        bool new_friend_is_defn =
@@ -19654,7 +19697,7 @@ index 318d42d800d..632e7413d5e 100644
        tree not_tmpl = new_friend;
  
        if (TREE_CODE (new_friend) == TEMPLATE_DECL)
-@@ -12641,7 +12667,13 @@ gen_elem_of_pack_expansion_instantiation (tree pattern,
+@@ -12641,7 +12668,13 @@ gen_elem_of_pack_expansion_instantiation (tree pattern,
      t = tsubst_expr (pattern, args, complain, in_decl,
  		     /*integral_constant_expression_p=*/false);
    else
@@ -19669,7 +19712,7 @@ index 318d42d800d..632e7413d5e 100644
  
    /*  If the Ith argument pack element is a pack expansion, then
        the Ith element resulting from the substituting is going to
-@@ -12893,17 +12925,29 @@ public:
+@@ -12893,17 +12926,29 @@ public:
    /* List of local_specializations used within the pattern.  */
    tree extra;
    tsubst_flags_t complain;
@@ -19700,7 +19743,7 @@ index 318d42d800d..632e7413d5e 100644
    if (TYPE_P (*tp) && typedef_variant_p (*tp))
      /* Remember local typedefs (85214).  */
      tp = &TYPE_NAME (*tp);
-@@ -12995,7 +13039,20 @@ static tree
+@@ -12995,7 +13040,20 @@ static tree
  extract_local_specs (tree pattern, tsubst_flags_t complain)
  {
    el_data data (complain);
@@ -19721,7 +19764,7 @@ index 318d42d800d..632e7413d5e 100644
    return data.extra;
  }
  
-@@ -14037,6 +14094,10 @@ tsubst_function_decl (tree t, tree args, tsubst_flags_t complain,
+@@ -14037,6 +14095,10 @@ tsubst_function_decl (tree t, tree args, tsubst_flags_t complain,
  	  && !LAMBDA_FUNCTION_P (t))
  	return t;
  
@@ -19732,7 +19775,7 @@ index 318d42d800d..632e7413d5e 100644
        /* Calculate the most general template of which R is a
  	 specialization.  */
        gen_tmpl = most_general_template (DECL_TI_TEMPLATE (t));
-@@ -14072,7 +14133,7 @@ tsubst_function_decl (tree t, tree args, tsubst_flags_t complain,
+@@ -14072,7 +14134,7 @@ tsubst_function_decl (tree t, tree args, tsubst_flags_t complain,
        /* This special case arises when we have something like this:
  
  	 template <class T> struct S {
@@ -19741,7 +19784,7 @@ index 318d42d800d..632e7413d5e 100644
  	 };
  
  	 Here, the DECL_TI_TEMPLATE for the friend declaration
-@@ -14080,6 +14141,7 @@ tsubst_function_decl (tree t, tree args, tsubst_flags_t complain,
+@@ -14080,6 +14142,7 @@ tsubst_function_decl (tree t, tree args, tsubst_flags_t complain,
  	 tsubst_friend_function, and we want only to create a
  	 new decl (R) with appropriate types so that we can call
  	 determine_specialization.  */
@@ -19749,7 +19792,7 @@ index 318d42d800d..632e7413d5e 100644
        gen_tmpl = NULL_TREE;
        argvec = NULL_TREE;
      }
-@@ -14269,7 +14331,7 @@ tsubst_function_decl (tree t, tree args, tsubst_flags_t complain,
+@@ -14269,7 +14332,7 @@ tsubst_function_decl (tree t, tree args, tsubst_flags_t complain,
        /* If this is an instantiation of a member template, clone it.
  	 If it isn't, that'll be handled by
  	 clone_constructors_and_destructors.  */
@@ -19758,7 +19801,7 @@ index 318d42d800d..632e7413d5e 100644
  	clone_cdtor (r, /*update_methods=*/false);
      }
    else if ((complain & tf_error) != 0
-@@ -15110,6 +15172,12 @@ tsubst_decl (tree t, tree args, tsubst_flags_t complain)
+@@ -15110,6 +15173,12 @@ tsubst_decl (tree t, tree args, tsubst_flags_t complain)
  	  {
  	    DECL_ORIGINAL_TYPE (r) = NULL_TREE;
  	    set_underlying_type (r);
@@ -19771,7 +19814,7 @@ index 318d42d800d..632e7413d5e 100644
  	  }
  
  	layout_decl (r, 0);
-@@ -16404,7 +16472,8 @@ tsubst_baselink (tree baselink, tree object_type,
+@@ -16404,7 +16473,8 @@ tsubst_baselink (tree baselink, tree object_type,
  
    tree binfo_type = BINFO_TYPE (BASELINK_BINFO (baselink));
    binfo_type = tsubst (binfo_type, args, complain, in_decl);
@@ -19781,7 +19824,7 @@ index 318d42d800d..632e7413d5e 100644
  
    if (dependent_p)
      {
-@@ -18507,6 +18576,11 @@ tsubst_expr (tree t, tree args, tsubst_flags_t complain, tree in_decl,
+@@ -18507,6 +18577,11 @@ tsubst_expr (tree t, tree args, tsubst_flags_t complain, tree in_decl,
  		    tree asmspec_tree = NULL_TREE;
  		    maybe_push_decl (decl);
  
@@ -19793,7 +19836,7 @@ index 318d42d800d..632e7413d5e 100644
  		    if (VAR_P (decl)
  			&& DECL_DECOMPOSITION_P (decl)
  			&& TREE_TYPE (pattern_decl) != error_mark_node)
-@@ -23410,6 +23484,8 @@ unify_pack_expansion (tree tparms, tree targs, tree packed_parms,
+@@ -23410,6 +23485,8 @@ unify_pack_expansion (tree tparms, tree targs, tree packed_parms,
  	     arguments if it is not otherwise deduced.  */
  	  if (cxx_dialect >= cxx20
  	      && TREE_VEC_LENGTH (new_args) < TREE_VEC_LENGTH (old_args)
@@ -19802,7 +19845,7 @@ index 318d42d800d..632e7413d5e 100644
  	      && builtin_guide_p (TPARMS_PRIMARY_TEMPLATE (tparms)))
  	    TREE_VEC_LENGTH (old_args) = TREE_VEC_LENGTH (new_args);
  	  if (!comp_template_args (old_args, new_args,
-@@ -23928,7 +24004,7 @@ unify (tree tparms, tree targs, tree parm, tree arg, int strict,
+@@ -23928,7 +24005,7 @@ unify (tree tparms, tree targs, tree parm, tree arg, int strict,
  	      /* Now check whether the type of this parameter is still
  		 dependent, and give up if so.  */
  	      ++processing_template_decl;
@@ -19811,7 +19854,7 @@ index 318d42d800d..632e7413d5e 100644
  	      --processing_template_decl;
  	      if (uses_template_parms (tparm))
  		return unify_success (explain_p);
-@@ -25930,20 +26006,7 @@ instantiate_body (tree pattern, tree args, tree d, bool nested_p)
+@@ -25930,20 +26007,7 @@ instantiate_body (tree pattern, tree args, tree d, bool nested_p)
    if (current_function_decl)
      save_omp_privatization_clauses (omp_privatization_save);
  
@@ -19833,7 +19876,7 @@ index 318d42d800d..632e7413d5e 100644
  
    if (VAR_P (d))
      {
-@@ -26056,10 +26119,7 @@ instantiate_body (tree pattern, tree args, tree d, bool nested_p)
+@@ -26056,10 +26120,7 @@ instantiate_body (tree pattern, tree args, tree d, bool nested_p)
    if (!nested_p)
      TI_PENDING_TEMPLATE_FLAG (DECL_TEMPLATE_INFO (d)) = 0;
  
@@ -19845,7 +19888,7 @@ index 318d42d800d..632e7413d5e 100644
  
    if (current_function_decl)
      restore_omp_privatization_clauses (omp_privatization_save);
-@@ -27054,9 +27114,7 @@ value_dependent_expression_p (tree expression)
+@@ -27054,9 +27115,7 @@ value_dependent_expression_p (tree expression)
      case VAR_DECL:
         /* A constant with literal type and is initialized
  	  with an expression that is value-dependent.  */
@@ -19856,7 +19899,7 @@ index 318d42d800d..632e7413d5e 100644
  	return true;
        if (DECL_HAS_VALUE_EXPR_P (expression))
  	{
-@@ -27071,6 +27129,9 @@ value_dependent_expression_p (tree expression)
+@@ -27071,6 +27130,9 @@ value_dependent_expression_p (tree expression)
  		  && value_expr == error_mark_node))
  	    return true;
  	}
@@ -19866,7 +19909,7 @@ index 318d42d800d..632e7413d5e 100644
        return false;
  
      case DYNAMIC_CAST_EXPR:
-@@ -28726,7 +28787,7 @@ rewrite_template_parm (tree olddecl, unsigned index, unsigned level,
+@@ -28726,7 +28788,7 @@ rewrite_template_parm (tree olddecl, unsigned index, unsigned level,
  	  const int depth = TMPL_ARGS_DEPTH (tsubst_args);
  	  tree ttargs = make_tree_vec (depth + 1);
  	  for (int i = 0; i < depth; ++i)
@@ -19875,7 +19918,7 @@ index 318d42d800d..632e7413d5e 100644
  	  TREE_VEC_ELT (ttargs, depth)
  	    = template_parms_level_to_args (ttparms);
  	  // Substitute ttargs into ttparms to fix references to
-@@ -28739,8 +28800,17 @@ rewrite_template_parm (tree olddecl, unsigned index, unsigned level,
+@@ -28739,8 +28801,17 @@ rewrite_template_parm (tree olddecl, unsigned index, unsigned level,
  	  ttparms = tsubst_template_parms_level (ttparms, ttargs,
  						 complain);
  	  // Finally, tack the adjusted parms onto tparms.
@@ -19895,7 +19938,7 @@ index 318d42d800d..632e7413d5e 100644
  	  DECL_TEMPLATE_PARMS (newdecl) = ttparms;
  	}
      }
-@@ -29238,6 +29308,11 @@ alias_ctad_tweaks (tree tmpl, tree uguides)
+@@ -29238,6 +29309,11 @@ alias_ctad_tweaks (tree tmpl, tree uguides)
  	      ++ndlen;
  	  tree gtparms = make_tree_vec (natparms + ndlen);
  
@@ -25727,10 +25770,19 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..272c75af2d1 100644
+index 5fc23605244..44403ff4e37 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2763 @@
+@@ -1,3 +1,2772 @@
++2023-12-24  Patrick Palka  <ppalka@redhat.com>
++
++	Backported from master:
++	2023-09-22  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/111485
++	* g++.dg/cpp2a/concepts-ttp5.C: New test.
++	* g++.dg/cpp2a/concepts-ttp6.C: New test.
++
 +2023-12-20  Jason Merrill  <jason@redhat.com>
 +
 +	Backported from master:
@@ -30076,6 +30128,59 @@ index 00000000000..f20608b6918
 +static_assert(NothrowConstructible<S, int, char>); // { dg-error "assert" }
 +
 +static_assert(UniqueObjReps<S>); // { dg-error "assert" }
+diff --git a/gcc/testsuite/g++.dg/cpp2a/concepts-ttp5.C b/gcc/testsuite/g++.dg/cpp2a/concepts-ttp5.C
+new file mode 100644
+index 00000000000..abc22ce59d8
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp2a/concepts-ttp5.C
+@@ -0,0 +1,24 @@
++// PR c++/111485
++// { dg-do compile { target c++20 } }
++
++template<class T> constexpr bool always_true = true;
++
++template<class T> concept C = always_true<T>;
++template<class T> concept D = C<T> || true;
++
++template<template<C> class TT> struct example;
++template<template<D> class UU> using example_t = example<UU>;
++
++template<class T>
++struct A {
++  template<template<C> class TT> struct example;
++
++  template<template<D> class UU> using example_t = example<UU>;
++
++  template<class U>
++  struct B {
++    template<template<D> class UU> using example_t = example<UU>;
++  };
++};
++
++template struct A<int>::B<int>;
+diff --git a/gcc/testsuite/g++.dg/cpp2a/concepts-ttp6.C b/gcc/testsuite/g++.dg/cpp2a/concepts-ttp6.C
+new file mode 100644
+index 00000000000..6396e99cc05
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp2a/concepts-ttp6.C
+@@ -0,0 +1,17 @@
++// PR c++/111485
++// { dg-do compile { target c++20 } }
++
++template<class T, bool V> constexpr bool always_true = true;
++
++template<class T, bool V> concept C = always_true<T, V>;
++
++template<bool V, template<class T> requires C<T, V> class TT>
++void f();
++
++template<class T> requires C<T, true>
++struct A;
++
++int main() {
++  f<true, A>();
++  f<false, A>(); // { dg-error "no match|constraint mismatch" }
++}
 diff --git a/gcc/testsuite/g++.dg/cpp2a/constinit18.C b/gcc/testsuite/g++.dg/cpp2a/constinit18.C
 new file mode 100644
 index 00000000000..51b4f0273be
