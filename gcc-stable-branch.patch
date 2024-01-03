@@ -71,7 +71,15 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (606):
+GCC Administrator (614):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1192,7 +1200,7 @@ Pat Haugen (2):
       Fix register count when not splitting Complex IEEE 128-bit args.
       Disable generation of scalar modulo instructions.
 
-Patrick Palka (19):
+Patrick Palka (20):
       c++: partial ordering with dependent NTTP type [PR105289]
       c++: ICE with requires-expr and -Wsequence-point [PR105304]
       c++: decltype of non-dependent call of class type [PR105386]
@@ -1212,6 +1220,7 @@ Patrick Palka (19):
       c++: noexcept-spec from nested class confusion [PR109761]
       c++: value dependence of by-ref lambda capture [PR108975]
       c++: constraint rewriting during ttp coercion [PR111485]
+      libstdc++: testsuite: Reduce max_size_type.cc exec time [PR113175]
 
 Paul A. Clarke (1):
       rs6000: __Uglify non-uglified local variables in headers
@@ -70854,7 +70863,7 @@ index d774e8d9385..14e254bc734 100644
 +  test13();
  }
 diff --git a/libstdc++-v3/testsuite/std/ranges/iota/max_size_type.cc b/libstdc++-v3/testsuite/std/ranges/iota/max_size_type.cc
-index 983bdfbdaa6..5130447103f 100644
+index 983bdfbdaa6..682d1a99bdc 100644
 --- a/libstdc++-v3/testsuite/std/ranges/iota/max_size_type.cc
 +++ b/libstdc++-v3/testsuite/std/ranges/iota/max_size_type.cc
 @@ -25,8 +25,14 @@
@@ -70881,7 +70890,7 @@ index 983bdfbdaa6..5130447103f 100644
    static_assert(max_diff_t(3) >> 1 == 1);
    static_assert(max_diff_t(3) >> 2 == 0);
  
-@@ -187,7 +195,7 @@ template<bool signed_p, bool shorten_p>
+@@ -187,12 +195,12 @@ template<bool signed_p, bool shorten_p>
  void
  test02()
  {
@@ -70890,7 +70899,14 @@ index 983bdfbdaa6..5130447103f 100644
    using max_type = std::conditional_t<signed_p, max_diff_t, max_size_t>;
    using shorten_type = std::conditional_t<shorten_p, hw_type, max_type>;
    const int hw_type_bit_size = sizeof(hw_type) * __CHAR_BIT__;
-@@ -245,7 +253,7 @@ template<bool signed_p, bool toggle_base_p>
+-  const int limit = 1000;
+-  const int log2_limit = 10;
++  const unsigned limit = 100;
++  const int log2_limit = 7;
+   static_assert((1 << log2_limit) >= limit);
+   const int min = (signed_p ? -limit : 0);
+   const int max = limit;
+@@ -245,12 +253,12 @@ template<bool signed_p, bool toggle_base_p>
  void
  test03()
  {
@@ -70899,6 +70915,13 @@ index 983bdfbdaa6..5130447103f 100644
    using max_type = std::conditional_t<signed_p, max_diff_t, max_size_t>;
    using base_type = std::conditional_t<toggle_base_p, hw_type, max_type>;
    constexpr int hw_type_bit_size = sizeof(hw_type) * __CHAR_BIT__;
+-  constexpr int limit = 1000;
+-  constexpr int log2_limit = 10;
++  constexpr unsigned limit = 100;
++  constexpr int log2_limit = 7;
+   static_assert((1 << log2_limit) >= limit);
+   const int min = (signed_p ? -limit : 0);
+   const int max = limit;
 diff --git a/libstdc++-v3/testsuite/std/ranges/p2325.cc b/libstdc++-v3/testsuite/std/ranges/p2325.cc
 index 205b3458928..ab743916f5b 100644
 --- a/libstdc++-v3/testsuite/std/ranges/p2325.cc
