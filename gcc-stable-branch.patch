@@ -71,7 +71,14 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (615):
+GCC Administrator (622):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1084,6 +1091,9 @@ José Rui Faustino de Sousa (5):
       Fortran: Fix function attributes [PR100132]
       Fortran: Fix ICE and wrong code for assumed-rank arrays [PR100029, PR100040]
       Fortran: Add missing TKR initialization to class variables [PR100097, PR100098]
+
+Ken Matsui (1):
+      libstdc++: Fix error handling in filesystem::equivalent [PR113250]
 
 Kewen Lin (14):
       testsuite: Skip pr105250.c for powerpc and s390 [PR105266]
@@ -64976,7 +64986,7 @@ index 054d3908991..39d12ec130a 100644
 +  return *this;
 +}
 diff --git a/libstdc++-v3/src/c++17/fs_ops.cc b/libstdc++-v3/src/c++17/fs_ops.cc
-index acff0ff926e..84737453ada 100644
+index acff0ff926e..9f24bc6462f 100644
 --- a/libstdc++-v3/src/c++17/fs_ops.cc
 +++ b/libstdc++-v3/src/c++17/fs_ops.cc
 @@ -27,6 +27,10 @@
@@ -65139,6 +65149,15 @@ index acff0ff926e..84737453ada 100644
  	  return false;
  	}
        return h1.info.dwVolumeSerialNumber == h2.info.dwVolumeSerialNumber
+@@ -889,7 +897,7 @@ fs::equivalent(const path& p1, const path& p2, error_code& ec) noexcept
+       return st1.st_dev == st2.st_dev && st1.st_ino == st2.st_ino;
+ #endif
+     }
+-  else if (!exists(s1) && !exists(s2))
++  else if (!exists(s1) || !exists(s2))
+     ec = std::make_error_code(std::errc::no_such_file_or_directory);
+   else if (err)
+     ec.assign(err, std::generic_category());
 @@ -897,7 +905,7 @@ fs::equivalent(const path& p1, const path& p2, error_code& ec) noexcept
      ec.clear();
    return false;
@@ -66183,7 +66202,7 @@ index 529d4e09016..c7c8f3f4cb7 100644
  
  _GLIBCXX_END_NAMESPACE_VERSION
 diff --git a/libstdc++-v3/src/filesystem/ops.cc b/libstdc++-v3/src/filesystem/ops.cc
-index 3f2290f372d..274878e8f6e 100644
+index 3f2290f372d..d9e300ffe29 100644
 --- a/libstdc++-v3/src/filesystem/ops.cc
 +++ b/libstdc++-v3/src/filesystem/ops.cc
 @@ -27,6 +27,10 @@
@@ -66314,6 +66333,15 @@ index 3f2290f372d..274878e8f6e 100644
  	  return false;
  	}
        ec.clear();
+@@ -754,7 +764,7 @@ fs::equivalent(const path& p1, const path& p2, error_code& ec) noexcept
+ 	return false;
+       return st1.st_dev == st2.st_dev && st1.st_ino == st2.st_ino;
+     }
+-  else if (!exists(s1) && !exists(s2))
++  else if (!exists(s1) || !exists(s2))
+     ec = std::make_error_code(std::errc::no_such_file_or_directory);
+   else if (err)
+     ec.assign(err, std::generic_category());
 @@ -762,7 +772,7 @@ fs::equivalent(const path& p1, const path& p2, error_code& ec) noexcept
      ec.clear();
    return false;
@@ -68562,6 +68590,26 @@ index 00000000000..25135834e21
 +{
 +  test_procfs();
 +}
+diff --git a/libstdc++-v3/testsuite/27_io/filesystem/operations/equivalent.cc b/libstdc++-v3/testsuite/27_io/filesystem/operations/equivalent.cc
+index 9354de2e796..97d4a48d523 100644
+--- a/libstdc++-v3/testsuite/27_io/filesystem/operations/equivalent.cc
++++ b/libstdc++-v3/testsuite/27_io/filesystem/operations/equivalent.cc
+@@ -34,13 +34,13 @@ test01()
+   bool result;
+ 
+   result = equivalent(p1, p2, ec);
+-  VERIFY( ec );
++  VERIFY( ec == std::errc::no_such_file_or_directory );
+   VERIFY( !result );
+ 
+   __gnu_test::scoped_file f1(p1);
+   ec = bad_ec;
+   result = equivalent(p1, p2, ec);
+-  VERIFY( !ec );
++  VERIFY( ec == std::errc::no_such_file_or_directory );
+   VERIFY( !result );
+ 
+   __gnu_test::scoped_file f2(p2);
 diff --git a/libstdc++-v3/testsuite/27_io/filesystem/operations/exists.cc b/libstdc++-v3/testsuite/27_io/filesystem/operations/exists.cc
 index f99a3346ed0..e97c34343ef 100644
 --- a/libstdc++-v3/testsuite/27_io/filesystem/operations/exists.cc
@@ -70074,6 +70122,26 @@ index 947d270e6a4..817e51d2d21 100644
    test05();
 +  test_pr99290();
  }
+diff --git a/libstdc++-v3/testsuite/experimental/filesystem/operations/equivalent.cc b/libstdc++-v3/testsuite/experimental/filesystem/operations/equivalent.cc
+index 4e03877a162..6089b83c432 100644
+--- a/libstdc++-v3/testsuite/experimental/filesystem/operations/equivalent.cc
++++ b/libstdc++-v3/testsuite/experimental/filesystem/operations/equivalent.cc
+@@ -35,13 +35,13 @@ test01()
+   bool result;
+ 
+   result = equivalent(p1, p2, ec);
+-  VERIFY( ec );
++  VERIFY( ec == std::errc::no_such_file_or_directory );
+   VERIFY( !result );
+   const auto bad_ec = ec;
+ 
+   __gnu_test::scoped_file f1(p1);
+   result = equivalent(p1, p2, ec);
+-  VERIFY( !ec );
++  VERIFY( ec == std::errc::no_such_file_or_directory );
+   VERIFY( !result );
+ 
+   __gnu_test::scoped_file f2(p2);
 diff --git a/libstdc++-v3/testsuite/experimental/filesystem/operations/exists.cc b/libstdc++-v3/testsuite/experimental/filesystem/operations/exists.cc
 index 79fe970e9f3..39d99c7cece 100644
 --- a/libstdc++-v3/testsuite/experimental/filesystem/operations/exists.cc
