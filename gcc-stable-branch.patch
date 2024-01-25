@@ -71,7 +71,13 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (630):
+GCC Administrator (636):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -913,7 +919,7 @@ Jan Hubicka (5):
       Zen4 tuning part 2
       FIx handling of X86_TUNE_AVOID_512FMA_CHAINS
 
-Jason Merrill (32):
+Jason Merrill (33):
       c++: rodata and defaulted ctor [PR104142]
       c++: low -faligned-new [PR102071]
       c++: local function versioning [PR104669]
@@ -946,6 +952,7 @@ Jason Merrill (32):
       c++: member vs global template [PR106310]
       c++: NRV and goto [PR92407]
       c++: -Wdeprecated-copy and using operator= [PR92145]
+      c++: xvalue array subscript [PR103185]
 
 Jeff Law (1):
       [committed] Fix more problems with new linker warnings
@@ -19140,10 +19147,18 @@ index 49f043ed29b..25a05978be9 100644
            gcc_cv_as_mllvm_x86_pad_for_align,,
            [-mllvm -x86-pad-for-align=false], [.text],,
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..fd1b89d4419 100644
+index 85c8fdd38cd..5826aa92ca9 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,628 @@
+@@ -1,3 +1,636 @@
++2024-01-24  Jason Merrill  <jason@redhat.com>
++
++	Backported from master:
++	2023-12-20  Jason Merrill  <jason@redhat.com>
++
++	PR c++/103185
++	* typeck.c (cp_build_array_ref): Handle swapped operands.
++
 +2023-12-24  Patrick Palka  <ppalka@redhat.com>
 +
 +	Backported from master:
@@ -21713,10 +21728,60 @@ index b499f38be15..e414d8cfd18 100644
  	offset_int fld = wi::to_offset (DECL_FIELD_OFFSET (field));
  	offset_int bitpos = wi::to_offset (DECL_FIELD_BIT_OFFSET (field));
 diff --git a/gcc/cp/typeck.c b/gcc/cp/typeck.c
-index 93ad497d531..61e3222c6c6 100644
+index 93ad497d531..26c65f72eb5 100644
 --- a/gcc/cp/typeck.c
 +++ b/gcc/cp/typeck.c
-@@ -4926,7 +4926,12 @@ cp_build_binary_op (const op_location_t &location,
+@@ -3563,13 +3563,14 @@ cp_build_indirect_ref (location_t loc, tree ptr, ref_operator errorstring,
+    If INDEX is of some user-defined type, it must be converted to
+    integer type.  Otherwise, to make a compatible PLUS_EXPR, it
+    will inherit the type of the array, which will be some pointer type.
+-   
++
+    LOC is the location to use in building the array reference.  */
+ 
+ tree
+ cp_build_array_ref (location_t loc, tree array, tree idx,
+ 		    tsubst_flags_t complain)
+ {
++  tree first = NULL_TREE;
+   tree ret;
+ 
+   if (idx == 0)
+@@ -3614,6 +3615,14 @@ cp_build_array_ref (location_t loc, tree array, tree idx,
+ 
+   bool non_lvalue = convert_vector_to_array_for_subscript (loc, &array, idx);
+ 
++  /* 0[array] */
++  if (TREE_CODE (TREE_TYPE (idx)) == ARRAY_TYPE)
++    {
++      std::swap (array, idx);
++      if (flag_strong_eval_order == 2 && TREE_SIDE_EFFECTS (array))
++	idx = first = save_expr (idx);
++    }
++
+   if (TREE_CODE (TREE_TYPE (array)) == ARRAY_TYPE)
+     {
+       tree rval, type;
+@@ -3689,15 +3698,16 @@ cp_build_array_ref (location_t loc, tree array, tree idx,
+       protected_set_expr_location (ret, loc);
+       if (non_lvalue)
+ 	ret = non_lvalue_loc (loc, ret);
++      if (first)
++	ret = build2_loc (loc, COMPOUND_EXPR, TREE_TYPE (ret), first, ret);
+       return ret;
+     }
+ 
+   {
+     tree ar = cp_default_conversion (array, complain);
+     tree ind = cp_default_conversion (idx, complain);
+-    tree first = NULL_TREE;
+ 
+-    if (flag_strong_eval_order == 2 && TREE_SIDE_EFFECTS (ind))
++    if (!first && flag_strong_eval_order == 2 && TREE_SIDE_EFFECTS (ind))
+       ar = first = save_expr (ar);
+ 
+     /* Put the integer in IND to simplify error checking.  */
+@@ -4926,7 +4936,12 @@ cp_build_binary_op (const op_location_t &location,
  		 it was unsigned.  */
  	      tree stripped_op1 = tree_strip_any_location_wrapper (op1);
  	      shorten = ((TREE_CODE (op0) == NOP_EXPR
@@ -21730,7 +21795,7 @@ index 93ad497d531..61e3222c6c6 100644
  			 || (TREE_CODE (stripped_op1) == INTEGER_CST
  			     && ! integer_all_onesp (stripped_op1)));
  	    }
-@@ -4962,7 +4967,10 @@ cp_build_binary_op (const op_location_t &location,
+@@ -4962,7 +4977,10 @@ cp_build_binary_op (const op_location_t &location,
  	     only if unsigned or if dividing by something we know != -1.  */
  	  tree stripped_op1 = tree_strip_any_location_wrapper (op1);
  	  shorten = ((TREE_CODE (op0) == NOP_EXPR
@@ -21742,7 +21807,7 @@ index 93ad497d531..61e3222c6c6 100644
  		     || (TREE_CODE (stripped_op1) == INTEGER_CST
  			 && ! integer_all_onesp (stripped_op1)));
  	  common = 1;
-@@ -6741,9 +6749,13 @@ cp_build_unary_op (enum tree_code code, tree xarg, bool noconvert,
+@@ -6741,9 +6759,13 @@ cp_build_unary_op (enum tree_code code, tree xarg, bool noconvert,
  				   build_zero_cst (TREE_TYPE (arg)), complain);
        arg = perform_implicit_conversion (boolean_type_node, arg,
  					 complain);
@@ -21758,7 +21823,7 @@ index 93ad497d531..61e3222c6c6 100644
        errstring = _("in argument to unary !");
        break;
  
-@@ -8769,10 +8781,14 @@ cp_build_modify_expr (location_t loc, tree lhs, enum tree_code modifycode,
+@@ -8769,10 +8791,14 @@ cp_build_modify_expr (location_t loc, tree lhs, enum tree_code modifycode,
  
  	  /* An expression of the form E1 op= E2.  [expr.ass] says:
  	     "Such expressions are deprecated if E1 has volatile-qualified
@@ -21775,7 +21840,7 @@ index 93ad497d531..61e3222c6c6 100644
  	    warning_at (loc, OPT_Wvolatile,
  			"compound assignment with %<volatile%>-qualified left "
  			"operand is deprecated");
-@@ -8887,6 +8903,8 @@ cp_build_modify_expr (location_t loc, tree lhs, enum tree_code modifycode,
+@@ -8887,6 +8913,8 @@ cp_build_modify_expr (location_t loc, tree lhs, enum tree_code modifycode,
  	}
  
        /* Allow array assignment in compiler-generated code.  */
@@ -21784,7 +21849,7 @@ index 93ad497d531..61e3222c6c6 100644
        else if (!current_function_decl
  	       || !DECL_DEFAULTED_FN (current_function_decl))
  	{
-@@ -9208,18 +9226,15 @@ build_ptrmemfunc (tree type, tree pfn, int force, bool c_cast_p,
+@@ -9208,18 +9236,15 @@ build_ptrmemfunc (tree type, tree pfn, int force, bool c_cast_p,
        if (n == error_mark_node)
  	return error_mark_node;
  
@@ -21808,7 +21873,7 @@ index 93ad497d531..61e3222c6c6 100644
  
        if (TREE_SIDE_EFFECTS (pfn))
  	pfn = save_expr (pfn);
-@@ -9251,7 +9266,9 @@ build_ptrmemfunc (tree type, tree pfn, int force, bool c_cast_p,
+@@ -9251,7 +9276,9 @@ build_ptrmemfunc (tree type, tree pfn, int force, bool c_cast_p,
    /* Handle null pointer to member function conversions.  */
    if (null_ptr_cst_p (pfn))
      {
@@ -21819,7 +21884,7 @@ index 93ad497d531..61e3222c6c6 100644
        return build_ptrmemfunc1 (to_type,
  				integer_zero_node,
  				pfn);
-@@ -10290,6 +10307,9 @@ check_return_expr (tree retval, bool *no_warning)
+@@ -10290,6 +10317,9 @@ check_return_expr (tree retval, bool *no_warning)
    if (fn_returns_value_p && flag_elide_constructors)
      {
        if (named_return_value_okay_p
@@ -27504,10 +27569,19 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..f92122d0ea8 100644
+index 5fc23605244..cdc7c524a25 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2780 @@
+@@ -1,3 +1,2789 @@
++2024-01-24  Jason Merrill  <jason@redhat.com>
++
++	Backported from master:
++	2023-12-20  Jason Merrill  <jason@redhat.com>
++
++	PR c++/103185
++	* g++.dg/cpp1z/array-prvalue2.C: New test.
++	* g++.dg/cpp1z/eval-order3.C: Test swapped operands.
++
 +2024-01-18  Tejas Joshi  <TejasSanjay.Joshi@amd.com>
 +
 +	Backported from master:
@@ -31440,6 +31514,17 @@ index 00000000000..3fa0ed996bd
 +  if (nalign != alignof (X))
 +    __builtin_abort ();
 +}
+diff --git a/gcc/testsuite/g++.dg/cpp1z/array-prvalue2.C b/gcc/testsuite/g++.dg/cpp1z/array-prvalue2.C
+new file mode 100644
+index 00000000000..60a038cfd16
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp1z/array-prvalue2.C
+@@ -0,0 +1,5 @@
++// PR c++/103185
++// { dg-do compile { target c++11 } }
++
++using intarr = int[];
++static_assert(__is_same(decltype(0[intarr{0}]), int&&), "");
 diff --git a/gcc/testsuite/g++.dg/cpp1z/class-deduction12.C b/gcc/testsuite/g++.dg/cpp1z/class-deduction12.C
 index a31cc1526db..f0d7ea0e16b 100644
 --- a/gcc/testsuite/g++.dg/cpp1z/class-deduction12.C
@@ -31645,6 +31730,22 @@ index 00000000000..b2604373bde
 +main ()
 +{
 +}
+diff --git a/gcc/testsuite/g++.dg/cpp1z/eval-order3.C b/gcc/testsuite/g++.dg/cpp1z/eval-order3.C
+index 5773591d49f..897cdef7483 100644
+--- a/gcc/testsuite/g++.dg/cpp1z/eval-order3.C
++++ b/gcc/testsuite/g++.dg/cpp1z/eval-order3.C
+@@ -166,6 +166,11 @@ void g()
+   ip(24)[f(25)-25] = 0;
+   last=0;
+ 
++  // even with swapped operands
++  (f(20)-20)[afn(21)].memfn(f(22),23);
++  (f(24)-24)[ip(25)] = 0;
++  last=0;
++
+   // a << b
+   aref(24) << f(25);
+   iref(26) << f(27);
 diff --git a/gcc/testsuite/g++.dg/cpp1z/fold13.C b/gcc/testsuite/g++.dg/cpp1z/fold13.C
 new file mode 100644
 index 00000000000..9d7554f8999
