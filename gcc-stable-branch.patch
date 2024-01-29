@@ -71,7 +71,10 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (637):
+GCC Administrator (640):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1139,8 +1142,9 @@ Kito Cheng (1):
 Kyrylo Tkachov (1):
       aarch64: Add support for -mcpu=neoverse-v2
 
-Lewis Hyatt (1):
+Lewis Hyatt (2):
       c: Fix location for _Pragma tokens [PR97498]
+      c-family: Fix ICE with large column number after restoring a PCH [PR105608]
 
 Maciej W. Rozycki (3):
       RISC-V: Remove duplicate backslashes from `stack_protect_set_<mode>'
@@ -3198,10 +3202,19 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..823583e9ca3 100644
+index a0587d18824..961840fba64 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,2690 @@
+@@ -1,3 +1,2699 @@
++2024-01-26  Wilco Dijkstra  <wilco.dijkstra@arm.com>
++
++	Backported from master:
++	2024-01-16  Wilco Dijkstra  <wilco.dijkstra@arm.com>
++
++	* config/aarch64/aarch64-cores.def (AARCH64_CORE): Add 'cobalt-100' CPU.
++	* config/aarch64/aarch64-tune.md: Regenerated.
++	* doc/invoke.texi (-mcpu): Add cobalt-100 core.
++
 +2024-01-18  Jan Hubicka  <jh@suse.cz>
 +
 +	* config/i386/i386-options.c (ix86_option_override_internal):
@@ -6192,10 +6205,17 @@ index 64f4999ab07..627a89b3c45 100644
    set_mem_alias_set (mem, 0);
    return mem;
 diff --git a/gcc/c-family/ChangeLog b/gcc/c-family/ChangeLog
-index dff48ba4655..d781d0f18ca 100644
+index dff48ba4655..b1491303ecd 100644
 --- a/gcc/c-family/ChangeLog
 +++ b/gcc/c-family/ChangeLog
-@@ -1,3 +1,65 @@
+@@ -1,3 +1,72 @@
++2024-01-27  Lewis Hyatt  <lhyatt@gmail.com>
++
++	PR preprocessor/105608
++	* c-pch.c (c_common_read_pch): Start a new line map before asking
++	libcpp to restore macros defined prior to reading the PCH, instead
++	of afterward.
++
 +2023-05-29  Release Manager
 +
 +	* GCC 11.4.0 released.
@@ -6313,6 +6333,29 @@ index 39c969d8f40..10a971001c4 100644
        restore_bc_state (&save_state);
        pop_cfun ();
      }
+diff --git a/gcc/c-family/c-pch.c b/gcc/c-family/c-pch.c
+index fd94c3799ac..de72859d943 100644
+--- a/gcc/c-family/c-pch.c
++++ b/gcc/c-family/c-pch.c
+@@ -354,6 +354,8 @@ c_common_read_pch (cpp_reader *pfile, const char *name,
+   gt_pch_restore (f);
+   cpp_set_line_map (pfile, line_table);
+   rebuild_location_adhoc_htab (line_table);
++  line_table->trace_includes = saved_trace_includes;
++  linemap_add (line_table, LC_ENTER, 0, saved_loc.file, saved_loc.line);
+ 
+   timevar_push (TV_PCH_CPP_RESTORE);
+   if (cpp_read_state (pfile, name, f, smd) != 0)
+@@ -367,9 +369,6 @@ c_common_read_pch (cpp_reader *pfile, const char *name,
+ 
+   fclose (f);
+ 
+-  line_table->trace_includes = saved_trace_includes;
+-  linemap_add (line_table, LC_ENTER, 0, saved_loc.file, saved_loc.line);
+-
+   /* Give the front end a chance to take action after a PCH file has
+      been loaded.  */
+   if (lang_post_pch_load)
 diff --git a/gcc/c-family/c-ubsan.c b/gcc/c-family/c-ubsan.c
 index e771da108ee..43a45218574 100644
 --- a/gcc/c-family/c-ubsan.c
@@ -27574,10 +27617,19 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..cdc7c524a25 100644
+index 5fc23605244..8f7371fc0d0 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2789 @@
+@@ -1,3 +1,2798 @@
++2024-01-27  Lewis Hyatt  <lhyatt@gmail.com>
++
++	PR preprocessor/105608
++	* g++.dg/pch/line-map-1.C: New test.
++	* g++.dg/pch/line-map-1.Hs: New test.
++	* g++.dg/pch/line-map-2.C: New test.
++	* g++.dg/pch/line-map-2.Hs: New test.
++	* g++.dg/pch/line-map-3.Hs: New file.
++
 +2024-01-24  Jason Merrill  <jason@redhat.com>
 +
 +	Backported from master:
@@ -32833,6 +32885,49 @@ index 00000000000..68b51f771ec
 +struct A1;
 +struct B { static A1 a1; };
 +struct A1 {} ::B::a1;
+diff --git a/gcc/testsuite/g++.dg/pch/line-map-1.C b/gcc/testsuite/g++.dg/pch/line-map-1.C
+new file mode 100644
+index 00000000000..9d1ac6d1683
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/pch/line-map-1.C
+@@ -0,0 +1,4 @@
++/* PR preprocessor/105608 */
++/* { dg-do compile } */
++#define MACRO_ON_A_LONG_LINE "this line is long enough that it forces the line table to create an LC_RENAME map, which formerly triggered an ICE after PCH restore"
++#include "line-map-1.H"
+diff --git a/gcc/testsuite/g++.dg/pch/line-map-1.Hs b/gcc/testsuite/g++.dg/pch/line-map-1.Hs
+new file mode 100644
+index 00000000000..3b6178bfae0
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/pch/line-map-1.Hs
+@@ -0,0 +1 @@
++/* This space intentionally left blank.  */
+diff --git a/gcc/testsuite/g++.dg/pch/line-map-2.C b/gcc/testsuite/g++.dg/pch/line-map-2.C
+new file mode 100644
+index 00000000000..0be035781c8
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/pch/line-map-2.C
+@@ -0,0 +1,6 @@
++/* PR preprocessor/105608 */
++/* { dg-do compile } */
++/* { dg-additional-options "-save-temps" } */
++#define MACRO_ON_A_LONG_LINE "this line is long enough that it forces the line table to create an LC_RENAME map, which formerly triggered an ICE after PCH restore"
++#include "line-map-2.H"
++#error "suppress PCH assembly comparison, which does not work with -save-temps" /* { dg-error "." } */
+diff --git a/gcc/testsuite/g++.dg/pch/line-map-2.Hs b/gcc/testsuite/g++.dg/pch/line-map-2.Hs
+new file mode 100644
+index 00000000000..3b6178bfae0
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/pch/line-map-2.Hs
+@@ -0,0 +1 @@
++/* This space intentionally left blank.  */
+diff --git a/gcc/testsuite/g++.dg/pch/line-map-3.Hs b/gcc/testsuite/g++.dg/pch/line-map-3.Hs
+new file mode 100644
+index 00000000000..3b6178bfae0
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/pch/line-map-3.Hs
+@@ -0,0 +1 @@
++/* This space intentionally left blank.  */
 diff --git a/gcc/testsuite/g++.dg/pr104869.C b/gcc/testsuite/g++.dg/pr104869.C
 new file mode 100644
 index 00000000000..9a6ef88adbd
