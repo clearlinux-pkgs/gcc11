@@ -71,7 +71,10 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (640):
+GCC Administrator (643):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -964,10 +967,11 @@ Jeff Law (1):
 Jerry DeLisle (1):
       ICE in gfc_free_namespace. ice-on-invalid.
 
-John David Anglin (3):
+John David Anglin (4):
       Fix addvdi3 and subvdi3 patterns
       Skip guality tests on hppa-hpux.
       hppa: Fix typo in PA 2.0 trampoline template
+      hppa: Fix bug in atomic_storedi_1 pattern
 
 Jonathan Wakely (136):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
@@ -12305,7 +12309,7 @@ index 341c5f0d765..dd26e295993 100644
  	  fputs ("\t.word	0\n", f);
  	  fputs ("\t.word	0\n", f);
 diff --git a/gcc/config/pa/pa.md b/gcc/config/pa/pa.md
-index 31e3b1bff80..3e0bfb09da2 100644
+index 31e3b1bff80..b252486fa94 100644
 --- a/gcc/config/pa/pa.md
 +++ b/gcc/config/pa/pa.md
 @@ -5071,23 +5071,25 @@
@@ -12378,6 +12382,23 @@ index 31e3b1bff80..3e0bfb09da2 100644
  
  (define_insn ""
    [(set (match_operand:DI 0 "register_operand" "=r,&r")
+@@ -10484,13 +10488,13 @@ add,l %2,%3,%3\;bv,n %%r0(%3)"
+ (define_insn "atomic_storedi_1"
+   [(set (mem:DI (match_operand:SI 0 "register_operand" "r,r"))
+         (match_operand:DI 1 "reg_or_0_operand" "M,r"))
+-   (clobber (match_scratch:DI 2 "=X,f"))]
++   (clobber (match_scratch:DI 2 "=f,f"))]
+   "!TARGET_64BIT && !TARGET_SOFT_FLOAT"
+   "@
+-   {fstds|fstd} %%fr0,0(%0)
++   fcpy,dbl %%fr0,%2\n\t{fstds|fstd} %2,0(%0)
+    {stws|stw} %1,-16(%%sp)\n\t{stws|stw} %R1,-12(%%sp)\n\t{fldds|fldd} -16(%%sp),%2\n\t{fstds|fstd} %2,0(%0)"
+   [(set_attr "type" "move,move")
+-   (set_attr "length" "4,16")])
++   (set_attr "length" "8,16")])
+ 
+ ;; PA 2.0 hardware supports out-of-order execution of loads and stores, so
+ ;; we need memory barriers to enforce program order for memory references
 diff --git a/gcc/config/pru/pru.h b/gcc/config/pru/pru.h
 index 4c35a7d7ee3..41260b9450d 100644
 --- a/gcc/config/pru/pru.h
