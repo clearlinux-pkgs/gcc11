@@ -71,7 +71,10 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (644):
+GCC Administrator (647):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1489,6 +1492,10 @@ Vladimir N. Makarov (1):
 
 Wilco Dijkstra (1):
       AArch64: Add -mcpu=cobalt-100
+
+Xi Ruoyao (2):
+      MIPS: Fix wrong MSA FP vector negation
+      mips: Fix missing mode in neg<mode:MSA>2
 
 liuhongt (11):
       Fix insn does not satisfy its constraints: sse2_lshrv1ti3
@@ -12184,6 +12191,49 @@ index 00000000000..d0b239822a8
 +			      (and (eq_attr "type" "msklog")
 +				   (eq_attr "memory" "none")))
 +			 "znver4-direct,znver4-fpu2*2|znver4-fpu3*2")
+diff --git a/gcc/config/mips/mips-msa.md b/gcc/config/mips/mips-msa.md
+index 3a67f25be56..98045154673 100644
+--- a/gcc/config/mips/mips-msa.md
++++ b/gcc/config/mips/mips-msa.md
+@@ -231,6 +231,10 @@
+    (V4SI  "uimm5")
+    (V2DI  "uimm6")])
+ 
++;; The index of sign bit in FP vector elements.
++(define_mode_attr elmsgnbit [(V2DF "63") (V4DF "63")
++			     (V4SF "31") (V8SF "31")])
++
+ (define_expand "vec_init<mode><unitmode>"
+   [(match_operand:MSA 0 "register_operand")
+    (match_operand:MSA 1 "")]
+@@ -597,9 +601,9 @@
+ })
+ 
+ (define_expand "neg<mode>2"
+-  [(set (match_operand:MSA 0 "register_operand")
+-	(minus:MSA (match_dup 2)
+-		   (match_operand:MSA 1 "register_operand")))]
++  [(set (match_operand:IMSA 0 "register_operand")
++	(minus:IMSA (match_dup 2)
++		   (match_operand:IMSA 1 "register_operand")))]
+   "ISA_HAS_MSA"
+ {
+   rtx reg = gen_reg_rtx (<MODE>mode);
+@@ -607,6 +611,14 @@
+   operands[2] = reg;
+ })
+ 
++(define_insn "neg<mode>2"
++  [(set (match_operand:FMSA 0 "register_operand" "=f")
++	(neg:FMSA (match_operand:FMSA 1 "register_operand" "f")))]
++  "ISA_HAS_MSA"
++  "bnegi.<msafmt>\t%w0,%w1,<elmsgnbit>"
++  [(set_attr "type" "simd_bit")
++   (set_attr "mode" "<MODE>")])
++
+ (define_expand "msa_ldi<mode>"
+   [(match_operand:IMSA 0 "register_operand")
+    (match_operand 1 "const_imm10_operand")]
 diff --git a/gcc/config/nvptx/nvptx.c b/gcc/config/nvptx/nvptx.c
 index 7a7a9130e84..d25ddf45408 100644
 --- a/gcc/config/nvptx/nvptx.c
