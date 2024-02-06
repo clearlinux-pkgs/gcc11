@@ -71,7 +71,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (647):
+GCC Administrator (648):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -3214,10 +3215,29 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..389ecc24bef 100644
+index a0587d18824..b4583d4edd8 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,2704 @@
+@@ -1,3 +1,2723 @@
++2024-02-05  Xi Ruoyao  <xry111@xry111.site>
++
++	Backported from master:
++	2024-02-05  Xi Ruoyao  <xry111@xry111.site>
++
++	* config/mips/mips-msa.md (neg<mode:MSA>2): Add missing mode for
++	neg.
++
++2024-02-05  Xi Ruoyao  <xry111@xry111.site>
++
++	Backported from master:
++	2024-02-05  Xi Ruoyao  <xry111@xry111.site>
++
++	* config/mips/mips-msa.md (elmsgnbit): New define_mode_attr.
++	(neg<mode>2): Change the mode iterator from MSA to IMSA because
++	in FP arithmetic we cannot use (0 - x) for -x.
++	(neg<mode>2): New define_insn to implement FP vector negation,
++	using a bnegi instruction to negate the sign bit.
++
 +2024-02-01  John David Anglin  <danglin@gcc.gnu.org>
 +
 +	* config/pa/pa.md (atomic_storedi_1): Fix bug in
