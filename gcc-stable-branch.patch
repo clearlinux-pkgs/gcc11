@@ -59,8 +59,9 @@ Florian Weimer (2):
       libsanitizer: Avoid implicit function declaration in configure test
       libiberty: Fix C89-isms in configure tests
 
-Francois-Xavier Coudert (1):
+Francois-Xavier Coudert (2):
       LTO: Prune some warnings in the testsuite
+      libgfortran: avoid duplicate libraries in spec
 
 François Dumont (1):
       libstdc++: Fix printing of std::span for versioned namespace
@@ -71,7 +72,12 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (648):
+GCC Administrator (653):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -735,7 +741,7 @@ Haochen Gui (2):
       rs6000: correct vector sign extend builtins on Big Endian
       rs6000: call vector load/store with length only on 64-bit Power10
 
-Harald Anlauf (43):
+Harald Anlauf (44):
       Fortran: improve error recovery on invalid array section
       Fortran: fix error recovery on invalid array section
       Fortran: fix checking of arguments to UNPACK when MASK is a variable [PR105813]
@@ -779,6 +785,7 @@ Harald Anlauf (43):
       Fortran: intrinsics and deferred-length character arguments [PR95947,PR110658]
       Fortran: out of bounds access with nested implied-do IO [PR111837]
       Fortran: avoid obsolescence warning for COMMON with submodule [PR111880]
+      Fortran: fix bounds-checking errors for CLASS array dummies [PR104908]
 
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
@@ -1173,10 +1180,11 @@ Mark Mentovai (2):
       libstdc++: Rename __null_terminated to avoid collision with Apple SDK
       Darwin: Future-proof -mmacosx-version-min
 
-Martin Jambor (3):
+Martin Jambor (4):
       ipa: Release body of clone_of when removing its last clone (PR 100413)
       tree-sra: Fix union handling in build_reconstructed_reference
       ipa: Release body more carefully when removing nodes (PR 107944)
+      sra: Disqualify bases of operands of asm gotos
 
 Martin Liska (7):
       ipa-icf: skip variables with body_removed
@@ -3215,10 +3223,19 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..b4583d4edd8 100644
+index a0587d18824..b932d225fb6 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,2723 @@
+@@ -1,3 +1,2732 @@
++2024-02-09  Martin Jambor  <mjambor@suse.cz>
++
++	Backported from master:
++	2024-01-24  Martin Jambor  <mjambor@suse.cz>
++
++	PR tree-optimization/110422
++	* tree-sra.c (scan_function): Disqualify bases of operands of asm
++	gotos.
++
 +2024-02-05  Xi Ruoyao  <xry111@xry111.site>
 +
 +	Backported from master:
@@ -23560,10 +23577,19 @@ index 70c5b3886ef..f4fd980dbbc 100644
  
  	  op1 = gimple_assign_rhs1 (stmt);
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..56284a0989c 100644
+index ee1c7bb4b31..9897288e273 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,616 @@
+@@ -1,3 +1,625 @@
++2024-02-09  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2024-01-27  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/104908
++	* trans-array.c (gfc_conv_array_ref): Restrict use of transformed
++	descriptor (sym->backend_decl) to the unlimited polymorphic case.
++
 +2023-12-01  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -25238,10 +25264,22 @@ index c2dad08d878..56ad114d84f 100644
        && ts1->u.derived->components
        && ((ts1->u.derived->attr.is_class
 diff --git a/gcc/fortran/trans-array.c b/gcc/fortran/trans-array.c
-index ad6a30a47ca..abdecc7df7a 100644
+index ad6a30a47ca..44f6ad7c8a0 100644
 --- a/gcc/fortran/trans-array.c
 +++ b/gcc/fortran/trans-array.c
-@@ -10795,6 +10795,52 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
+@@ -3723,7 +3723,10 @@ gfc_conv_array_ref (gfc_se * se, gfc_array_ref * ar, gfc_expr *expr,
+     }
+ 
+   decl = se->expr;
+-  if (IS_CLASS_ARRAY (sym) && sym->attr.dummy && ar->as->type != AS_DEFERRED)
++  if (UNLIMITED_POLY(sym)
++      && IS_CLASS_ARRAY (sym)
++      && sym->attr.dummy
++      && ar->as->type != AS_DEFERRED)
+     decl = sym->backend_decl;
+ 
+   cst_offset = offset = gfc_index_zero_node;
+@@ -10795,6 +10798,52 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
  }
  
  
@@ -27714,10 +27752,26 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..8f7371fc0d0 100644
+index 5fc23605244..088ab428f1d 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2798 @@
+@@ -1,3 +1,2814 @@
++2024-02-09  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2024-01-27  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/104908
++	* gfortran.dg/pr104908.f90: New test.
++
++2024-02-09  Martin Jambor  <mjambor@suse.cz>
++
++	Backported from master:
++	2024-01-24  Martin Jambor  <mjambor@suse.cz>
++
++	PR tree-optimization/110422
++	* gcc.dg/torture/pr110422.c: New test.
++
 +2024-01-27  Lewis Hyatt  <lhyatt@gmail.com>
 +
 +	PR preprocessor/105608
@@ -37091,6 +37145,22 @@ index 00000000000..139f5c77d89
 +    }
 +  }
 +}
+diff --git a/gcc/testsuite/gcc.dg/torture/pr110422.c b/gcc/testsuite/gcc.dg/torture/pr110422.c
+new file mode 100644
+index 00000000000..2e171a7a19e
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/torture/pr110422.c
+@@ -0,0 +1,10 @@
++/* { dg-do compile } */
++
++struct T { int x; };
++int foo(void) {
++  struct T v;
++  asm goto("" : "+r"(v.x) : : : lab);
++  return 0;
++lab:
++  return -5;
++}
 diff --git a/gcc/testsuite/gcc.dg/torture/pr111614.c b/gcc/testsuite/gcc.dg/torture/pr111614.c
 new file mode 100644
 index 00000000000..0f3ecbae86c
@@ -44336,6 +44406,44 @@ index 00000000000..ae221b5ba10
 +  integer :: x(2)
 +  data x /a(:)/                       ! { dg-error "Invalid" }
 +end
+diff --git a/gcc/testsuite/gfortran.dg/pr104908.f90 b/gcc/testsuite/gfortran.dg/pr104908.f90
+new file mode 100644
+index 00000000000..c3a30b0003c
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/pr104908.f90
+@@ -0,0 +1,32 @@
++! { dg-do compile }
++! { dg-additional-options "-fcheck=bounds -fdump-tree-original" }
++!
++! PR fortran/104908 - incorrect out-of-bounds runtime error
++
++program test
++  implicit none
++  type vec
++     integer :: x(3) = [2,4,6]
++  end type vec
++  type(vec) :: w(2)
++  call sub(w)
++contains
++  subroutine sub (v)
++    class(vec), intent(in) :: v(:)
++    integer :: k, q(3)
++    q = [ (v(1)%x(k), k = 1, 3) ]   ! <-- was failing here after r11-1235
++    print *, q
++  end
++end
++
++subroutine sub2 (zz)
++  implicit none
++  type vec
++     integer :: x(2,1)
++  end type vec
++  class(vec), intent(in) :: zz(:)   ! used to ICE after r11-1235
++  integer :: k
++  k = zz(1)%x(2,1)
++end
++
++! { dg-final { scan-tree-dump-times " above upper bound " 4 "original" } }
 diff --git a/gcc/testsuite/gfortran.dg/pr105230.f90 b/gcc/testsuite/gfortran.dg/pr105230.f90
 new file mode 100644
 index 00000000000..6c6b42ef9bf
@@ -45899,10 +46007,49 @@ index 0a7c1a936ba..64ab7ad0a80 100644
  				  get_object_alignment (ref));
    ref = build2 (MEM_REF, type, addr, alias_ptr);
 diff --git a/gcc/tree-sra.c b/gcc/tree-sra.c
-index 970ad386873..5a1fc81d301 100644
+index 970ad386873..7ae0d10734b 100644
 --- a/gcc/tree-sra.c
 +++ b/gcc/tree-sra.c
-@@ -1647,7 +1647,18 @@ build_ref_for_offset (location_t loc, tree base, poly_int64 offset,
+@@ -1390,15 +1390,32 @@ scan_function (void)
+ 		gasm *asm_stmt = as_a <gasm *> (stmt);
+ 		walk_stmt_load_store_addr_ops (asm_stmt, NULL, NULL, NULL,
+ 					       asm_visit_addr);
+-		for (i = 0; i < gimple_asm_ninputs (asm_stmt); i++)
++		if (stmt_ends_bb_p (asm_stmt)
++		    && !single_succ_p (gimple_bb (asm_stmt)))
+ 		  {
+-		    t = TREE_VALUE (gimple_asm_input_op (asm_stmt, i));
+-		    ret |= build_access_from_expr (t, asm_stmt, false);
++		    for (i = 0; i < gimple_asm_ninputs (asm_stmt); i++)
++		      {
++			t = TREE_VALUE (gimple_asm_input_op (asm_stmt, i));
++			disqualify_base_of_expr (t, "OP of asm goto.");
++		      }
++		    for (i = 0; i < gimple_asm_noutputs (asm_stmt); i++)
++		      {
++			t = TREE_VALUE (gimple_asm_output_op (asm_stmt, i));
++			disqualify_base_of_expr (t, "OP of asm goto.");
++		      }
+ 		  }
+-		for (i = 0; i < gimple_asm_noutputs (asm_stmt); i++)
++		else
+ 		  {
+-		    t = TREE_VALUE (gimple_asm_output_op (asm_stmt, i));
+-		    ret |= build_access_from_expr (t, asm_stmt, true);
++		    for (i = 0; i < gimple_asm_ninputs (asm_stmt); i++)
++		      {
++			t = TREE_VALUE (gimple_asm_input_op (asm_stmt, i));
++			ret |= build_access_from_expr (t, asm_stmt, false);
++		      }
++		    for (i = 0; i < gimple_asm_noutputs (asm_stmt); i++)
++		      {
++			t = TREE_VALUE (gimple_asm_output_op (asm_stmt, i));
++			ret |= build_access_from_expr (t, asm_stmt, true);
++		      }
+ 		  }
+ 	      }
+ 	      break;
+@@ -1647,7 +1664,18 @@ build_ref_for_offset (location_t loc, tree base, poly_int64 offset,
  static tree
  build_reconstructed_reference (location_t, tree base, struct access *model)
  {
@@ -45922,7 +46069,7 @@ index 970ad386873..5a1fc81d301 100644
    while (!types_compatible_p (TREE_TYPE (expr), TREE_TYPE (base)))
      {
        if (!handled_component_p (expr))
-@@ -3817,7 +3828,23 @@ sra_modify_expr (tree *expr, gimple_stmt_iterator *gsi, bool write)
+@@ -3817,7 +3845,23 @@ sra_modify_expr (tree *expr, gimple_stmt_iterator *gsi, bool write)
  	    }
  	}
        else
@@ -48340,6 +48487,16 @@ index a78ef862c96..cd63aae6c72 100644
  2022-04-21  Release Manager
  
  	* GCC 11.3.0 released.
+diff --git a/libgfortran/libgfortran.spec.in b/libgfortran/libgfortran.spec.in
+index 95aa3f842a3..0ea15950514 100644
+--- a/libgfortran/libgfortran.spec.in
++++ b/libgfortran/libgfortran.spec.in
+@@ -5,4 +5,4 @@
+ #
+ 
+ %rename lib liborig
+-*lib: @LIBQUADSPEC@ -lm %(libgcc) %(liborig)
++*lib: @LIBQUADSPEC@ -lm %(liborig)
 diff --git a/libgo/go/syscall/libcall_linux.go b/libgo/go/syscall/libcall_linux.go
 index 96974bd3269..a39f408151a 100644
 --- a/libgo/go/syscall/libcall_linux.go
