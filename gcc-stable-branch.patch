@@ -835,7 +835,7 @@ Ian Lance Taylor (2):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
       syscall: add prlimit
 
-Jakub Jelinek (100):
+Jakub Jelinek (101):
       emit-rtl: Fix -fcompare-debug bug with label references in debug insns [PR105203]
       sparc: Preserve ORIGINAL_REGNO in epilogue_renumber [PR105257]
       rtlanal: Fix up replace_rtx [PR105333]
@@ -936,6 +936,7 @@ Jakub Jelinek (100):
       i386: Fix mmx.md signbit expanders [PR112816]
       expand: Fix handling of asm goto outputs vs. PHI argument adjustments [PR113921]
       testsuite: Add testcase for already fixed PR [PR107385]
+      testsuite: Require lra effective target for pr107385.c
 
 Jan Hubicka (5):
       Fix modref_tree::remap_params
@@ -36474,12 +36475,12 @@ index 00000000000..d25cced6b33
 +}
 diff --git a/gcc/testsuite/gcc.dg/pr107385.c b/gcc/testsuite/gcc.dg/pr107385.c
 new file mode 100644
-index 00000000000..b678f57a3df
+index 00000000000..0cc0655d848
 --- /dev/null
 +++ b/gcc/testsuite/gcc.dg/pr107385.c
 @@ -0,0 +1,20 @@
 +/* PR middle-end/107385 */
-+/* { dg-do run } */
++/* { dg-do run { target lra } } */
 +/* { dg-options "-O2" } */
 +
 +__attribute__((noipa)) int
