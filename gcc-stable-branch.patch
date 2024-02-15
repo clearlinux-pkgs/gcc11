@@ -72,7 +72,10 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (654):
+GCC Administrator (657):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -832,7 +835,7 @@ Ian Lance Taylor (2):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
       syscall: add prlimit
 
-Jakub Jelinek (98):
+Jakub Jelinek (100):
       emit-rtl: Fix -fcompare-debug bug with label references in debug insns [PR105203]
       sparc: Preserve ORIGINAL_REGNO in epilogue_renumber [PR105257]
       rtlanal: Fix up replace_rtx [PR105333]
@@ -931,6 +934,8 @@ Jakub Jelinek (98):
       fold-const: Fix up multiple_of_p [PR112733]
       c++: Unshare folded SAVE_EXPR arguments during cp_fold [PR112727]
       i386: Fix mmx.md signbit expanders [PR112816]
+      expand: Fix handling of asm goto outputs vs. PHI argument adjustments [PR113921]
+      testsuite: Add testcase for already fixed PR [PR107385]
 
 Jan Hubicka (5):
       Fix modref_tree::remap_params
@@ -6746,9 +6751,18 @@ index 4086b647585..06586ddf083 100644
        dest = SET_DEST (exp);
        if (dest == pc_rtx)
 diff --git a/gcc/cfgexpand.c b/gcc/cfgexpand.c
-index 3c1fe867bd3..a607ad50d2b 100644
+index 3c1fe867bd3..d3768a6134b 100644
 --- a/gcc/cfgexpand.c
 +++ b/gcc/cfgexpand.c
+@@ -3639,7 +3639,7 @@ expand_asm_stmt (gasm *stmt)
+ 		emit_insn (copy_insn (PATTERN (curr)));
+ 	      rtx_insn *copy = get_insns ();
+ 	      end_sequence ();
+-	      insert_insn_on_edge (copy, e);
++	      prepend_insn_to_edge (copy, e);
+ 	    }
+ 	}
+     }
 @@ -5356,6 +5356,10 @@ expand_debug_expr (tree exp)
      case VEC_WIDEN_MULT_ODD_EXPR:
      case VEC_WIDEN_LSHIFT_HI_EXPR:
@@ -6781,9 +6795,18 @@ index 3c1fe867bd3..a607ad50d2b 100644
  	  if (TREE_CODE (exp) == WIDEN_MULT_EXPR)
  	    return op0;
 diff --git a/gcc/cfgrtl.c b/gcc/cfgrtl.c
-index 8fd128b471c..4fb145ee4c4 100644
+index 8fd128b471c..e24c6c04ec8 100644
 --- a/gcc/cfgrtl.c
 +++ b/gcc/cfgrtl.c
+@@ -25,7 +25,7 @@ along with GCC; see the file COPYING3.  If not see
+      - CFG-aware instruction chain manipulation
+ 	 delete_insn, delete_insn_chain
+      - Edge splitting and committing to edges
+-	 insert_insn_on_edge, commit_edge_insertions
++	 insert_insn_on_edge, prepend_insn_to_edge, commit_edge_insertions
+      - CFG updating after insn simplification
+ 	 purge_dead_edges, purge_all_dead_edges
+      - CFG fixing after coarse manipulation
 @@ -233,7 +233,7 @@ delete_insn_and_edges (rtx_insn *insn)
  {
    bool purge = false;
@@ -6793,6 +6816,54 @@ index 8fd128b471c..4fb145ee4c4 100644
      {
        basic_block bb = BLOCK_FOR_INSN (insn);
        if (BB_END (bb) == insn)
+@@ -1990,7 +1990,8 @@ rtl_split_edge (edge edge_in)
+ 
+ /* Queue instructions for insertion on an edge between two basic blocks.
+    The new instructions and basic blocks (if any) will not appear in the
+-   CFG until commit_edge_insertions is called.  */
++   CFG until commit_edge_insertions is called.  If there are already
++   queued instructions on the edge, PATTERN is appended to them.  */
+ 
+ void
+ insert_insn_on_edge (rtx pattern, edge e)
+@@ -2010,6 +2011,25 @@ insert_insn_on_edge (rtx pattern, edge e)
+   end_sequence ();
+ }
+ 
++/* Like insert_insn_on_edge, but if there are already queued instructions
++   on the edge, PATTERN is prepended to them.  */
++
++void
++prepend_insn_to_edge (rtx pattern, edge e)
++{
++  /* We cannot insert instructions on an abnormal critical edge.
++     It will be easier to find the culprit if we die now.  */
++  gcc_assert (!((e->flags & EDGE_ABNORMAL) && EDGE_CRITICAL_P (e)));
++
++  start_sequence ();
++
++  emit_insn (pattern);
++  emit_insn (e->insns.r);
++
++  e->insns.r = get_insns ();
++  end_sequence ();
++}
++
+ /* Update the CFG for the instructions queued on edge E.  */
+ 
+ void
+diff --git a/gcc/cfgrtl.h b/gcc/cfgrtl.h
+index 0c8568ba757..9ef8db33e23 100644
+--- a/gcc/cfgrtl.h
++++ b/gcc/cfgrtl.h
+@@ -38,6 +38,7 @@ extern edge try_redirect_by_replacing_jump (edge, basic_block, bool);
+ extern void emit_barrier_after_bb (basic_block bb);
+ extern basic_block force_nonfallthru_and_redirect (edge, basic_block, rtx);
+ extern void insert_insn_on_edge (rtx, edge);
++extern void prepend_insn_to_edge (rtx, edge);
+ extern void commit_one_edge_insertion (edge e);
+ extern void commit_edge_insertions (void);
+ extern void print_rtl_with_bb (FILE *, const rtx_insn *, dump_flags_t);
 diff --git a/gcc/cgraph.c b/gcc/cgraph.c
 index d7c78d518bc..6e523e14e05 100644
 --- a/gcc/cgraph.c
@@ -36401,6 +36472,32 @@ index 00000000000..d25cced6b33
 +		 * 1.23 * 8.0 * 12.0 * 16.0 * 2.0 * 2.0 * 0.25 * 0.125 * 18.2 * -15.25 * 0.0001
 +		 * 42.0 * 0.012 - 8.45 + 0 + 88.0 + 6.96 + 867.0 + 9.10 - 7.04 * -1.0);
 +}
+diff --git a/gcc/testsuite/gcc.dg/pr107385.c b/gcc/testsuite/gcc.dg/pr107385.c
+new file mode 100644
+index 00000000000..b678f57a3df
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/pr107385.c
+@@ -0,0 +1,20 @@
++/* PR middle-end/107385 */
++/* { dg-do run } */
++/* { dg-options "-O2" } */
++
++__attribute__((noipa)) int
++foo (void)
++{
++  int x;
++  asm goto ("": "=r" (x) : "0" (15) :: lab);
++  x = 6;
++lab:
++  return x;
++}
++
++int
++main ()
++{
++  if (foo () != 6)
++    __builtin_abort ();
++}
 diff --git a/gcc/testsuite/gcc.dg/pr107554.c b/gcc/testsuite/gcc.dg/pr107554.c
 new file mode 100644
 index 00000000000..61ef2bcd90a
@@ -40583,6 +40680,32 @@ index 00000000000..dbf6c67948a
 +{
 +  foo (a, b);
 +  return __builtin_exp (b[1]);
++}
+diff --git a/gcc/testsuite/gcc.target/i386/pr113921.c b/gcc/testsuite/gcc.target/i386/pr113921.c
+new file mode 100644
+index 00000000000..f7efba74143
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/i386/pr113921.c
+@@ -0,0 +1,20 @@
++/* PR middle-end/113921 */
++/* { dg-do run } */
++/* { dg-options "-O2" } */
++
++__attribute__((noipa)) long
++foo (void)
++{
++  long v;
++  asm volatile goto ("jmp %l2" : "=r" (v) : "0" (27) : : lab);
++  return v;
++lab:
++  return 42;
++}
++
++int
++main ()
++{
++  if (foo () != 42)
++    __builtin_abort ();
 +}
 diff --git a/gcc/testsuite/gcc.target/i386/pr89261.c b/gcc/testsuite/gcc.target/i386/pr89261.c
 index c5c4273439b..b599d49fd48 100644
