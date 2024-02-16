@@ -72,7 +72,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (657):
+GCC Administrator (658):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -3230,10 +3231,23 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..b932d225fb6 100644
+index a0587d18824..dfb447b104c 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,2732 @@
+@@ -1,3 +1,2745 @@
++2024-02-15  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-02-15  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/113921
++	* cfgrtl.h (prepend_insn_to_edge): New declaration.
++	* cfgrtl.c (insert_insn_on_edge): Clarify behavior in function
++	comment.
++	(prepend_insn_to_edge): New function.
++	* cfgexpand.c (expand_asm_stmt): Use prepend_insn_to_edge instead of
++	insert_insn_on_edge.
++
 +2024-02-09  Martin Jambor  <mjambor@suse.cz>
 +
 +	Backported from master:
@@ -27825,10 +27839,34 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..088ab428f1d 100644
+index 5fc23605244..da710fa81ca 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2814 @@
+@@ -1,3 +1,2838 @@
++2024-02-15  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-02-15  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/107385
++	* gcc.dg/pr107385.c: Require lra effective target.
++
++2024-02-15  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-02-15  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/107385
++	* gcc.dg/pr107385.c: New test.
++
++2024-02-15  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-02-15  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/113921
++	* gcc.target/i386/pr113921.c: New test.
++
 +2024-02-09  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
