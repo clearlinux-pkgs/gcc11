@@ -1,7 +1,8 @@
-Alex Coplan (3):
+Alex Coplan (4):
       varasm: Fix type confusion bug
       aarch64: Fix up bfmlal lane pattern [PR104921]
       arm: Fix ICE due to infinite splitting [PR109800]
+      aarch64: Avoid out-of-range shrink-wrapped saves [PR111677]
 
 Alexandre Oliva (5):
       testsuite: vect: update unaligned message
@@ -72,7 +73,11 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (658):
+GCC Administrator (662):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -7801,7 +7806,7 @@ index 65b4c37d652..dcb96d71a1c 100644
  
  AARCH64_EXTRA_TUNING_OPTION ("cse_sve_vl_constants", CSE_SVE_VL_CONSTANTS)
 diff --git a/gcc/config/aarch64/aarch64.c b/gcc/config/aarch64/aarch64.c
-index c155f4883cf..3ccfd3c30fc 100644
+index c155f4883cf..9bbbc5043af 100644
 --- a/gcc/config/aarch64/aarch64.c
 +++ b/gcc/config/aarch64/aarch64.c
 @@ -1070,7 +1070,7 @@ static const struct cpu_vector_cost thunderx3t110_vector_cost =
@@ -7876,6 +7881,15 @@ index c155f4883cf..3ccfd3c30fc 100644
    &ampere1_prefetch_tune
  };
  
+@@ -3435,7 +3466,7 @@ aarch64_reg_save_mode (unsigned int regno)
+       case ARM_PCS_SIMD:
+ 	/* The vector PCS saves the low 128 bits (which is the full
+ 	   register on non-SVE targets).  */
+-	return TFmode;
++	return V16QImode;
+ 
+       case ARM_PCS_SVE:
+ 	/* Use vectors of DImode for registers that need frame
 @@ -6547,9 +6578,9 @@ aarch64_vfp_is_call_candidate (cumulative_args_t pcum_v, machine_mode mode,
  /* Given MODE and TYPE of a function argument, return the alignment in
     bits.  The idea is to suppress any stronger alignment requested by
@@ -8316,7 +8330,39 @@ index c155f4883cf..3ccfd3c30fc 100644
      }
  
    /* Make sure the individual adjustments add up to the full frame size.  */
-@@ -7940,15 +8053,17 @@ aarch64_add_cfa_expression (rtx_insn *insn, rtx reg,
+@@ -7717,6 +7830,10 @@ aarch64_gen_storewb_pair (machine_mode mode, rtx base, rtx reg, rtx reg2,
+       return gen_storewb_pairtf_di (base, base, reg, reg2,
+ 				    GEN_INT (-adjustment),
+ 				    GEN_INT (UNITS_PER_VREG - adjustment));
++    case E_V16QImode:
++      return gen_storewb_pairv16qi_di (base, base, reg, reg2,
++				       GEN_INT (-adjustment),
++				       GEN_INT (UNITS_PER_VREG - adjustment));
+     default:
+       gcc_unreachable ();
+     }
+@@ -7762,6 +7879,10 @@ aarch64_gen_loadwb_pair (machine_mode mode, rtx base, rtx reg, rtx reg2,
+     case E_TFmode:
+       return gen_loadwb_pairtf_di (base, base, reg, reg2, GEN_INT (adjustment),
+ 				   GEN_INT (UNITS_PER_VREG));
++    case E_V16QImode:
++      return gen_loadwb_pairv16qi_di (base, base, reg, reg2,
++				      GEN_INT (adjustment),
++				      GEN_INT (UNITS_PER_VREG));
+     default:
+       gcc_unreachable ();
+     }
+@@ -7845,6 +7966,9 @@ aarch64_gen_load_pair (machine_mode mode, rtx reg1, rtx mem1, rtx reg2,
+     case E_V4SImode:
+       return gen_load_pairv4siv4si (reg1, mem1, reg2, mem2);
+ 
++    case E_V16QImode:
++      return gen_load_pairv16qiv16qi (reg1, mem1, reg2, mem2);
++
+     default:
+       gcc_unreachable ();
+     }
+@@ -7940,15 +8064,17 @@ aarch64_add_cfa_expression (rtx_insn *insn, rtx reg,
  }
  
  /* Emit code to save the callee-saved registers from register number START
@@ -8338,7 +8384,7 @@ index c155f4883cf..3ccfd3c30fc 100644
    rtx_insn *insn;
    unsigned regno;
    unsigned regno2;
-@@ -7963,8 +8078,8 @@ aarch64_save_callee_saves (poly_int64 start_offset,
+@@ -7963,8 +8089,8 @@ aarch64_save_callee_saves (poly_int64 start_offset,
        bool frame_related_p = aarch64_emit_cfi_for_reg_p (regno);
  
        if (skip_wb
@@ -8349,7 +8395,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  	continue;
  
        if (cfun->machine->reg_is_wrapped_separately[regno])
-@@ -7972,7 +8087,7 @@ aarch64_save_callee_saves (poly_int64 start_offset,
+@@ -7972,7 +8098,7 @@ aarch64_save_callee_saves (poly_int64 start_offset,
  
        machine_mode mode = aarch64_reg_save_mode (regno);
        reg = gen_rtx_REG (mode, regno);
@@ -8358,7 +8404,7 @@ index c155f4883cf..3ccfd3c30fc 100644
        rtx base_rtx = stack_pointer_rtx;
        poly_int64 sp_offset = offset;
  
-@@ -7983,9 +8098,7 @@ aarch64_save_callee_saves (poly_int64 start_offset,
+@@ -7983,9 +8109,7 @@ aarch64_save_callee_saves (poly_int64 start_offset,
        else if (GP_REGNUM_P (regno)
  	       && (!offset.is_constant (&const_offset) || const_offset >= 512))
  	{
@@ -8369,7 +8415,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  	  if (hard_fp_valid_p)
  	    base_rtx = hard_frame_pointer_rtx;
  	  else
-@@ -8007,8 +8120,7 @@ aarch64_save_callee_saves (poly_int64 start_offset,
+@@ -8007,8 +8131,7 @@ aarch64_save_callee_saves (poly_int64 start_offset,
  	  && (regno2 = aarch64_next_callee_save (regno + 1, limit)) <= limit
  	  && !cfun->machine->reg_is_wrapped_separately[regno2]
  	  && known_eq (GET_MODE_SIZE (mode),
@@ -8379,7 +8425,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  	{
  	  rtx reg2 = gen_rtx_REG (mode, regno2);
  	  rtx mem2;
-@@ -8050,14 +8162,16 @@ aarch64_save_callee_saves (poly_int64 start_offset,
+@@ -8050,14 +8173,16 @@ aarch64_save_callee_saves (poly_int64 start_offset,
  }
  
  /* Emit code to restore the callee registers from register number START
@@ -8400,7 +8446,7 @@ index c155f4883cf..3ccfd3c30fc 100644
    unsigned regno;
    unsigned regno2;
    poly_int64 offset;
-@@ -8074,13 +8188,13 @@ aarch64_restore_callee_saves (poly_int64 start_offset, unsigned start,
+@@ -8074,13 +8199,13 @@ aarch64_restore_callee_saves (poly_int64 start_offset, unsigned start,
        rtx reg, mem;
  
        if (skip_wb
@@ -8417,7 +8463,7 @@ index c155f4883cf..3ccfd3c30fc 100644
        rtx base_rtx = stack_pointer_rtx;
        if (mode == VNx2DImode && BYTES_BIG_ENDIAN)
  	aarch64_adjust_sve_callee_save_base (mode, base_rtx, anchor_reg,
-@@ -8091,8 +8205,7 @@ aarch64_restore_callee_saves (poly_int64 start_offset, unsigned start,
+@@ -8091,8 +8216,7 @@ aarch64_restore_callee_saves (poly_int64 start_offset, unsigned start,
  	  && (regno2 = aarch64_next_callee_save (regno + 1, limit)) <= limit
  	  && !cfun->machine->reg_is_wrapped_separately[regno2]
  	  && known_eq (GET_MODE_SIZE (mode),
@@ -8427,7 +8473,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  	{
  	  rtx reg2 = gen_rtx_REG (mode, regno2);
  	  rtx mem2;
-@@ -8197,6 +8310,7 @@ offset_12bit_unsigned_scaled_p (machine_mode mode, poly_int64 offset)
+@@ -8197,6 +8321,7 @@ offset_12bit_unsigned_scaled_p (machine_mode mode, poly_int64 offset)
  static sbitmap
  aarch64_get_separate_components (void)
  {
@@ -8435,7 +8481,7 @@ index c155f4883cf..3ccfd3c30fc 100644
    sbitmap components = sbitmap_alloc (LAST_SAVED_REGNUM + 1);
    bitmap_clear (components);
  
-@@ -8213,20 +8327,11 @@ aarch64_get_separate_components (void)
+@@ -8213,20 +8338,11 @@ aarch64_get_separate_components (void)
  	if (mode == VNx2DImode && BYTES_BIG_ENDIAN)
  	  continue;
  
@@ -8458,7 +8504,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  
  	/* Check that we can access the stack slot of the register with one
  	   direct load with no adjustments needed.  */
-@@ -8243,11 +8348,11 @@ aarch64_get_separate_components (void)
+@@ -8243,11 +8359,11 @@ aarch64_get_separate_components (void)
    /* If the spare predicate register used by big-endian SVE code
       is call-preserved, it must be saved in the main prologue
       before any saves that use it.  */
@@ -8474,7 +8520,7 @@ index c155f4883cf..3ccfd3c30fc 100644
    /* If registers have been chosen to be stored/restored with
       writeback don't interfere with them to avoid having to output explicit
       stack adjustment instructions.  */
-@@ -8258,6 +8363,13 @@ aarch64_get_separate_components (void)
+@@ -8258,6 +8374,13 @@ aarch64_get_separate_components (void)
  
    bitmap_clear_bit (components, LR_REGNUM);
    bitmap_clear_bit (components, SP_REGNUM);
@@ -8488,7 +8534,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  
    return components;
  }
-@@ -8356,6 +8468,7 @@ aarch64_get_next_set_bit (sbitmap bmp, unsigned int start)
+@@ -8356,6 +8479,7 @@ aarch64_get_next_set_bit (sbitmap bmp, unsigned int start)
  static void
  aarch64_process_components (sbitmap components, bool prologue_p)
  {
@@ -8496,7 +8542,7 @@ index c155f4883cf..3ccfd3c30fc 100644
    rtx ptr_reg = gen_rtx_REG (Pmode, frame_pointer_needed
  			     ? HARD_FRAME_POINTER_REGNUM
  			     : STACK_POINTER_REGNUM);
-@@ -8370,11 +8483,9 @@ aarch64_process_components (sbitmap components, bool prologue_p)
+@@ -8370,11 +8494,9 @@ aarch64_process_components (sbitmap components, bool prologue_p)
        machine_mode mode = aarch64_reg_save_mode (regno);
        
        rtx reg = gen_rtx_REG (mode, regno);
@@ -8510,7 +8556,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  
        rtx addr = plus_constant (Pmode, ptr_reg, offset);
        rtx mem = gen_frame_mem (mode, addr);
-@@ -8397,14 +8508,14 @@ aarch64_process_components (sbitmap components, bool prologue_p)
+@@ -8397,14 +8519,14 @@ aarch64_process_components (sbitmap components, bool prologue_p)
  	  break;
  	}
  
@@ -8527,7 +8573,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  		       GET_MODE_SIZE (mode)))
  	{
  	  insn = emit_insn (set);
-@@ -8426,9 +8537,7 @@ aarch64_process_components (sbitmap components, bool prologue_p)
+@@ -8426,9 +8548,7 @@ aarch64_process_components (sbitmap components, bool prologue_p)
        /* REGNO2 can be saved/restored in a pair with REGNO.  */
        rtx reg2 = gen_rtx_REG (mode, regno2);
        if (frame_pointer_needed)
@@ -8538,7 +8584,7 @@ index c155f4883cf..3ccfd3c30fc 100644
        rtx addr2 = plus_constant (Pmode, ptr_reg, offset2);
        rtx mem2 = gen_frame_mem (mode, addr2);
        rtx set2 = prologue_p ? gen_rtx_SET (mem2, reg2)
-@@ -8502,10 +8611,10 @@ aarch64_stack_clash_protection_alloca_probe_range (void)
+@@ -8502,10 +8622,10 @@ aarch64_stack_clash_protection_alloca_probe_range (void)
     registers.  If POLY_SIZE is not large enough to require a probe this function
     will only adjust the stack.  When allocating the stack space
     FRAME_RELATED_P is then used to indicate if the allocation is frame related.
@@ -8553,7 +8599,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  
     We emit barriers after each stack adjustment to prevent optimizations from
     breaking the invariant that we never drop the stack more than a page.  This
-@@ -8521,45 +8630,26 @@ aarch64_allocate_and_probe_stack_space (rtx temp1, rtx temp2,
+@@ -8521,45 +8641,26 @@ aarch64_allocate_and_probe_stack_space (rtx temp1, rtx temp2,
  					bool frame_related_p,
  					bool final_adjustment_p)
  {
@@ -8607,7 +8653,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  
        if (known_eq (frame_size, 0))
  	{
-@@ -8713,7 +8803,7 @@ aarch64_allocate_and_probe_stack_space (rtx temp1, rtx temp2,
+@@ -8713,7 +8814,7 @@ aarch64_allocate_and_probe_stack_space (rtx temp1, rtx temp2,
    /* Handle any residuals.  Residuals of at least MIN_PROBE_THRESHOLD have to
       be probed.  This maintains the requirement that each page is probed at
       least once.  For initial probing we probe only if the allocation is
@@ -8616,7 +8662,7 @@ index c155f4883cf..3ccfd3c30fc 100644
       if the amount is larger than buffer.  GUARD_SIZE - buffer + buffer ==
       GUARD_SIZE.  This works that for any allocation that is large enough to
       trigger a probe here, we'll have at least one, and if they're not large
-@@ -8723,16 +8813,12 @@ aarch64_allocate_and_probe_stack_space (rtx temp1, rtx temp2,
+@@ -8723,16 +8824,12 @@ aarch64_allocate_and_probe_stack_space (rtx temp1, rtx temp2,
       are still safe.  */
    if (residual)
      {
@@ -8635,7 +8681,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  
        aarch64_sub_sp (temp1, temp2, residual, frame_related_p);
        if (residual >= min_probe_threshold)
-@@ -8743,8 +8829,8 @@ aarch64_allocate_and_probe_stack_space (rtx temp1, rtx temp2,
+@@ -8743,8 +8840,8 @@ aarch64_allocate_and_probe_stack_space (rtx temp1, rtx temp2,
  		     HOST_WIDE_INT_PRINT_DEC " bytes, probing will be required."
  		     "\n", residual);
  
@@ -8646,7 +8692,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  	  emit_insn (gen_blockage ());
  	}
      }
-@@ -8782,20 +8868,24 @@ aarch64_epilogue_uses (int regno)
+@@ -8782,20 +8879,24 @@ aarch64_epilogue_uses (int regno)
  	|  for register varargs         |
  	|                               |
  	+-------------------------------+
@@ -8683,7 +8729,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  	+-------------------------------+
  	|  dynamic allocation           |
  	+-------------------------------+
-@@ -8806,6 +8896,9 @@ aarch64_epilogue_uses (int regno)
+@@ -8806,6 +8907,9 @@ aarch64_epilogue_uses (int regno)
  	+-------------------------------+
  	|                               | <-- stack_pointer_rtx (aligned)
  
@@ -8693,7 +8739,7 @@ index c155f4883cf..3ccfd3c30fc 100644
     Dynamic stack allocations via alloca() decrease stack_pointer_rtx
     but leave frame_pointer_rtx and hard_frame_pointer_rtx
     unchanged.
-@@ -8820,8 +8913,8 @@ aarch64_epilogue_uses (int regno)
+@@ -8820,8 +8924,8 @@ aarch64_epilogue_uses (int regno)
     When probing is needed, we emit a probe at the start of the prologue
     and every PARAM_STACK_CLASH_PROTECTION_GUARD_SIZE bytes thereafter.
  
@@ -8704,7 +8750,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  
     For outgoing arguments we probe if the size is larger than 1KB, such that
     the ABI specified buffer is maintained for the next callee.
-@@ -8848,17 +8941,15 @@ aarch64_epilogue_uses (int regno)
+@@ -8848,17 +8952,15 @@ aarch64_epilogue_uses (int regno)
  void
  aarch64_expand_prologue (void)
  {
@@ -8731,7 +8777,7 @@ index c155f4883cf..3ccfd3c30fc 100644
    rtx_insn *insn;
  
    if (flag_stack_clash_protection && known_eq (callee_adjust, 0))
-@@ -8922,21 +9013,21 @@ aarch64_expand_prologue (void)
+@@ -8922,21 +9024,21 @@ aarch64_expand_prologue (void)
    if (callee_adjust != 0)
      aarch64_push_regs (reg1, reg2, callee_adjust);
  
@@ -8761,7 +8807,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  				     false, false);
  	}
        else
-@@ -8961,8 +9052,7 @@ aarch64_expand_prologue (void)
+@@ -8961,8 +9063,7 @@ aarch64_expand_prologue (void)
  	     implicit.  */
  	  if (!find_reg_note (insn, REG_CFA_ADJUST_CFA, NULL_RTX))
  	    {
@@ -8771,7 +8817,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  	      add_reg_note (insn, REG_CFA_ADJUST_CFA,
  			    gen_rtx_SET (hard_frame_pointer_rtx, src));
  	    }
-@@ -8977,7 +9067,7 @@ aarch64_expand_prologue (void)
+@@ -8977,7 +9078,7 @@ aarch64_expand_prologue (void)
        emit_insn (gen_stack_tie (stack_pointer_rtx, hard_frame_pointer_rtx));
      }
  
@@ -8780,7 +8826,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  			     callee_adjust != 0 || emit_frame_chain,
  			     emit_frame_chain);
    if (maybe_ne (sve_callee_adjust, 0))
-@@ -8987,18 +9077,21 @@ aarch64_expand_prologue (void)
+@@ -8987,18 +9088,21 @@ aarch64_expand_prologue (void)
        aarch64_allocate_and_probe_stack_space (tmp1_rtx, tmp0_rtx,
  					      sve_callee_adjust,
  					      !frame_pointer_needed, false);
@@ -8805,7 +8851,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  }
  
  /* Return TRUE if we can use a simple_return insn.
-@@ -9027,15 +9120,14 @@ aarch64_use_return_insn_p (void)
+@@ -9027,15 +9131,14 @@ aarch64_use_return_insn_p (void)
  void
  aarch64_expand_epilogue (bool for_sibcall)
  {
@@ -8829,7 +8875,7 @@ index c155f4883cf..3ccfd3c30fc 100644
    rtx cfi_ops = NULL;
    rtx_insn *insn;
    /* A stack clash protection prologue may not have left EP0_REGNUM or
-@@ -9068,7 +9160,7 @@ aarch64_expand_epilogue (bool for_sibcall)
+@@ -9068,7 +9171,7 @@ aarch64_expand_epilogue (bool for_sibcall)
    /* We need to add memory barrier to prevent read from deallocated stack.  */
    bool need_barrier_p
      = maybe_ne (get_frame_size ()
@@ -8838,7 +8884,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  
    /* Emit a barrier to prevent loads from a deallocated stack.  */
    if (maybe_gt (final_adjust, crtl->outgoing_args_size)
-@@ -9089,7 +9181,7 @@ aarch64_expand_epilogue (bool for_sibcall)
+@@ -9089,7 +9192,7 @@ aarch64_expand_epilogue (bool for_sibcall)
         is restored on the instruction doing the writeback.  */
      aarch64_add_offset (Pmode, stack_pointer_rtx,
  			hard_frame_pointer_rtx,
@@ -8847,7 +8893,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  			tmp1_rtx, tmp0_rtx, callee_adjust == 0);
    else
       /* The case where we need to re-use the register here is very rare, so
-@@ -9099,13 +9191,13 @@ aarch64_expand_epilogue (bool for_sibcall)
+@@ -9099,13 +9202,13 @@ aarch64_expand_epilogue (bool for_sibcall)
  
    /* Restore the vector registers before the predicate registers,
       so that we can use P4 as a temporary for big-endian SVE frames.  */
@@ -8864,7 +8910,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  				R0_REGNUM, R30_REGNUM,
  				callee_adjust != 0, &cfi_ops);
  
-@@ -11699,24 +11791,24 @@ aarch64_can_eliminate (const int from ATTRIBUTE_UNUSED, const int to)
+@@ -11699,24 +11802,24 @@ aarch64_can_eliminate (const int from ATTRIBUTE_UNUSED, const int to)
  poly_int64
  aarch64_initial_elimination_offset (unsigned from, unsigned to)
  {
@@ -8895,7 +8941,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  }
  
  
-@@ -21508,30 +21600,56 @@ aarch64_declare_function_name (FILE *stream, const char* name,
+@@ -21508,30 +21611,56 @@ aarch64_declare_function_name (FILE *stream, const char* name,
    cfun->machine->label_is_assembled = true;
  }
  
@@ -8967,7 +9013,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  }
  
  /* Implement ASM_OUTPUT_DEF_FROM_DECLS.  Output .variant_pcs for aliases.  */
-@@ -21627,14 +21745,14 @@ aarch64_emit_unlikely_jump (rtx insn)
+@@ -21627,14 +21756,14 @@ aarch64_emit_unlikely_jump (rtx insn)
    add_reg_br_prob_note (jump, profile_probability::very_unlikely ());
  }
  
@@ -8984,7 +9030,7 @@ index c155f4883cf..3ccfd3c30fc 100644
    int mode_idx, model_idx;
  
    switch (mode)
-@@ -21674,6 +21792,11 @@ aarch64_atomic_ool_func(machine_mode mode, rtx model_rtx,
+@@ -21674,6 +21803,11 @@ aarch64_atomic_ool_func(machine_mode mode, rtx model_rtx,
      case MEMMODEL_SEQ_CST:
        model_idx = 3;
        break;
@@ -8996,7 +9042,7 @@ index c155f4883cf..3ccfd3c30fc 100644
      default:
        gcc_unreachable ();
      }
-@@ -21686,7 +21809,8 @@ aarch64_atomic_ool_func(machine_mode mode, rtx model_rtx,
+@@ -21686,7 +21820,8 @@ aarch64_atomic_ool_func(machine_mode mode, rtx model_rtx,
    { "__aarch64_" #B #N "_relax", \
      "__aarch64_" #B #N "_acq", \
      "__aarch64_" #B #N "_rel", \
@@ -9006,7 +9052,7 @@ index c155f4883cf..3ccfd3c30fc 100644
  
  #define DEF4(B)  DEF0(B, 1), DEF0(B, 2), DEF0(B, 4), DEF0(B, 8), \
  		 { NULL, NULL, NULL, NULL }
-@@ -24282,6 +24406,34 @@ aarch_macro_fusion_pair_p (rtx_insn *prev, rtx_insn *curr)
+@@ -24282,6 +24417,34 @@ aarch_macro_fusion_pair_p (rtx_insn *prev, rtx_insn *curr)
  	}
      }
  
@@ -9041,7 +9087,7 @@ index c155f4883cf..3ccfd3c30fc 100644
    return false;
  }
  
-@@ -24469,6 +24621,12 @@ aarch64_operands_ok_for_ldpstp (rtx *operands, bool load,
+@@ -24469,6 +24632,12 @@ aarch64_operands_ok_for_ldpstp (rtx *operands, bool load,
    enum reg_class rclass_1, rclass_2;
    rtx mem_1, mem_2, reg_1, reg_2, base_1, base_2, offset_1, offset_2;
  
@@ -9155,7 +9201,7 @@ index bfffbcd6abf..9084b1cfb9d 100644
  };
  
 diff --git a/gcc/config/aarch64/aarch64.md b/gcc/config/aarch64/aarch64.md
-index aef6da9732d..1cca0f5c79f 100644
+index aef6da9732d..002112d5eea 100644
 --- a/gcc/config/aarch64/aarch64.md
 +++ b/gcc/config/aarch64/aarch64.md
 @@ -294,6 +294,7 @@
@@ -9166,7 +9212,64 @@ index aef6da9732d..1cca0f5c79f 100644
  ])
  
  (define_c_enum "unspecv" [
-@@ -4762,7 +4763,7 @@
+@@ -1736,17 +1737,18 @@
+   [(set_attr "type" "neon_load1_2reg")]
+ )
+ 
+-(define_insn "loadwb_pair<TX:mode>_<P:mode>"
++(define_insn "loadwb_pair<TX_V16QI:mode>_<P:mode>"
+   [(parallel
+     [(set (match_operand:P 0 "register_operand" "=k")
+-          (plus:P (match_operand:P 1 "register_operand" "0")
+-                  (match_operand:P 4 "aarch64_mem_pair_offset" "n")))
+-     (set (match_operand:TX 2 "register_operand" "=w")
+-          (mem:TX (match_dup 1)))
+-     (set (match_operand:TX 3 "register_operand" "=w")
+-          (mem:TX (plus:P (match_dup 1)
++	  (plus:P (match_operand:P 1 "register_operand" "0")
++		  (match_operand:P 4 "aarch64_mem_pair_offset" "n")))
++     (set (match_operand:TX_V16QI 2 "register_operand" "=w")
++	  (mem:TX_V16QI (match_dup 1)))
++     (set (match_operand:TX_V16QI 3 "register_operand" "=w")
++	  (mem:TX_V16QI (plus:P (match_dup 1)
+ 			  (match_operand:P 5 "const_int_operand" "n"))))])]
+-  "TARGET_SIMD && INTVAL (operands[5]) == GET_MODE_SIZE (<TX:MODE>mode)"
++  "TARGET_SIMD
++   && known_eq (INTVAL (operands[5]), GET_MODE_SIZE (<TX_V16QI:MODE>mode))"
+   "ldp\\t%q2, %q3, [%1], %4"
+   [(set_attr "type" "neon_ldp_q")]
+ )
+@@ -1785,20 +1787,20 @@
+   [(set_attr "type" "neon_store1_2reg<q>")]
+ )
+ 
+-(define_insn "storewb_pair<TX:mode>_<P:mode>"
++(define_insn "storewb_pair<TX_V16QI:mode>_<P:mode>"
+   [(parallel
+     [(set (match_operand:P 0 "register_operand" "=&k")
+-          (plus:P (match_operand:P 1 "register_operand" "0")
+-                  (match_operand:P 4 "aarch64_mem_pair_offset" "n")))
+-     (set (mem:TX (plus:P (match_dup 0)
++	  (plus:P (match_operand:P 1 "register_operand" "0")
++		  (match_operand:P 4 "aarch64_mem_pair_offset" "n")))
++     (set (mem:TX_V16QI (plus:P (match_dup 0)
+ 			  (match_dup 4)))
+-          (match_operand:TX 2 "register_operand" "w"))
+-     (set (mem:TX (plus:P (match_dup 0)
++	  (match_operand:TX_V16QI 2 "register_operand" "w"))
++     (set (mem:TX_V16QI (plus:P (match_dup 0)
+ 			  (match_operand:P 5 "const_int_operand" "n")))
+-          (match_operand:TX 3 "register_operand" "w"))])]
++	  (match_operand:TX_V16QI 3 "register_operand" "w"))])]
+   "TARGET_SIMD
+-   && INTVAL (operands[5])
+-      == INTVAL (operands[4]) + GET_MODE_SIZE (<TX:MODE>mode)"
++   && known_eq (INTVAL (operands[5]),
++		INTVAL (operands[4]) + GET_MODE_SIZE (<TX_V16QI:MODE>mode))"
+   "stp\\t%q2, %q3, [%0, %4]!"
+   [(set_attr "type" "neon_stp_q")]
+ )
+@@ -4762,7 +4764,7 @@
      rtx ccreg = aarch64_gen_compare_reg (EQ, operands[1], const0_rtx);
      rtx x = gen_rtx_NE (VOIDmode, ccreg, const0_rtx);
  
@@ -9175,7 +9278,7 @@ index aef6da9732d..1cca0f5c79f 100644
      emit_insn (gen_clz<mode>2 (operands[0], operands[0]));
      emit_insn (gen_csinc3<mode>_insn (operands[0], x, operands[0], const0_rtx));
      DONE;
-@@ -4808,7 +4809,7 @@
+@@ -4808,7 +4810,7 @@
    [(set_attr "type" "clz")]
  )
  
@@ -9184,7 +9287,7 @@ index aef6da9732d..1cca0f5c79f 100644
    [(set (match_operand:GPI 0 "register_operand" "=r")
  	(unspec:GPI [(match_operand:GPI 1 "register_operand" "r")] UNSPEC_RBIT))]
    ""
-@@ -4829,7 +4830,7 @@
+@@ -4829,7 +4831,7 @@
    "reload_completed"
    [(const_int 0)]
    "
@@ -9193,7 +9296,7 @@ index aef6da9732d..1cca0f5c79f 100644
    emit_insn (gen_clz<mode>2 (operands[0], operands[0]));
    DONE;
  ")
-@@ -5819,6 +5820,13 @@
+@@ -5819,6 +5821,13 @@
    [(set_attr "type" "rev")]
  )
  
@@ -9207,7 +9310,7 @@ index aef6da9732d..1cca0f5c79f 100644
  (define_insn "*aarch64_bfxil<mode>"
    [(set (match_operand:GPI 0 "register_operand" "=r,r")
      (ior:GPI (and:GPI (match_operand:GPI 1 "register_operand" "r,0")
-@@ -7515,6 +7523,19 @@
+@@ -7515,6 +7524,19 @@
    [(set_attr "type" "memtag")]
  )
  
@@ -9313,10 +9416,20 @@ index e2935a11564..5505e117515 100644
    std::string result (buf);
    free (buf);
 diff --git a/gcc/config/aarch64/iterators.md b/gcc/config/aarch64/iterators.md
-index cac33ae812b..c9ec6265e7c 100644
+index cac33ae812b..ad37741aff8 100644
 --- a/gcc/config/aarch64/iterators.md
 +++ b/gcc/config/aarch64/iterators.md
-@@ -2764,6 +2764,8 @@
+@@ -289,6 +289,9 @@
+ 
+ (define_mode_iterator TX [TI TF])
+ 
++;; TX plus V16QImode.
++(define_mode_iterator TX_V16QI [TI TF V16QI])
++
+ ;; Advanced SIMD opaque structure modes.
+ (define_mode_iterator VSTRUCT [OI CI XI])
+ 
+@@ -2764,6 +2767,8 @@
  
  (define_int_iterator SVE_BRK_UNARY [UNSPEC_BRKA UNSPEC_BRKB])
  
@@ -39887,6 +40000,40 @@ index acace4c8f2a..b8e56223b02 100644
  
 -/* { dg-final { scan-assembler-times "bl.*__aarch64_cas2_acq_rel" 1 } } */
 +/* { dg-final { scan-assembler-times "bl.*__aarch64_cas2_sync" 1 } } */
+diff --git a/gcc/testsuite/gcc.target/aarch64/torture/pr111677.c b/gcc/testsuite/gcc.target/aarch64/torture/pr111677.c
+new file mode 100644
+index 00000000000..6bb640c42c0
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/aarch64/torture/pr111677.c
+@@ -0,0 +1,28 @@
++/* { dg-do compile } */
++/* { dg-require-effective-target fopenmp } */
++/* { dg-options "-ffast-math -fstack-protector-strong -fopenmp" } */
++typedef struct {
++  long size_z;
++  int width;
++} dt_bilateral_t;
++typedef float dt_aligned_pixel_t[4];
++#pragma omp declare simd
++void dt_bilateral_splat(dt_bilateral_t *b) {
++  float *buf;
++  long offsets[8];
++  for (; b;) {
++    int firstrow;
++    for (int j = firstrow; j; j++)
++      for (int i; i < b->width; i++) {
++        dt_aligned_pixel_t contrib;
++        for (int k = 0; k < 4; k++)
++          buf[offsets[k]] += contrib[k];
++      }
++    float *dest;
++    for (int j = (long)b; j; j++) {
++      float *src = (float *)b->size_z;
++      for (int i = 0; i < (long)b; i++)
++        dest[i] += src[i];
++    }
++  }
++}
 diff --git a/gcc/testsuite/gcc.target/alpha/pr105209.c b/gcc/testsuite/gcc.target/alpha/pr105209.c
 new file mode 100644
 index 00000000000..b89be96dc1d
