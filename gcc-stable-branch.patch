@@ -73,7 +73,9 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (663):
+GCC Administrator (665):
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1388,10 +1390,11 @@ Richard Biener (61):
       tree-optimization/111614 - missing convert in undistribute_bitref_for_vector
       tree-optimization/111917 - bougs IL after guard hoisting
 
-Richard Earnshaw (3):
+Richard Earnshaw (4):
       arm: big-endian issue in gen_cpymem_ldrd_strd [PR105981]
       arm: correctly handle misaligned MEMs on MVE [PR105463]
       cselib: add function to check if SET is redundant [PR106187]
+      arm: fix ICE with vectorized reciprocal division [PR108120]
 
 Richard Sandiford (24):
       rtl-ssa: Fix prev/next_def confusion [PR104869]
@@ -9777,6 +9780,24 @@ index 5c11885fb73..1935813e474 100644
  	 UNSPEC_MISALIGNED_ACCESS))]
    "((TARGET_HAVE_MVE && VALID_MVE_SI_MODE (<MODE>mode))
      || (TARGET_HAVE_MVE_FLOAT && VALID_MVE_SF_MODE (<MODE>mode)))
+diff --git a/gcc/config/arm/neon.md b/gcc/config/arm/neon.md
+index c0dcec80bc6..e0309e07aa6 100644
+--- a/gcc/config/arm/neon.md
++++ b/gcc/config/arm/neon.md
+@@ -513,11 +513,11 @@
+    Enabled with -funsafe-math-optimizations -freciprocal-math
+    and disabled for -Os since it increases code size .  */
+ 
+-(define_expand "div<mode>3"
++(define_expand "div<VCVTF:mode>3"
+   [(set (match_operand:VCVTF 0 "s_register_operand")
+         (div:VCVTF (match_operand:VCVTF 1 "s_register_operand")
+ 		  (match_operand:VCVTF 2 "s_register_operand")))]
+-  "TARGET_NEON && !optimize_size
++  "ARM_HAVE_NEON_<MODE>_ARITH && !optimize_size
+    && flag_reciprocal_math"
+   {
+     rtx rec = gen_reg_rtx (<MODE>mode);
 diff --git a/gcc/config/arm/predicates.md b/gcc/config/arm/predicates.md
 index c661f015fc5..4cc46142671 100644
 --- a/gcc/config/arm/predicates.md
@@ -40402,6 +40423,28 @@ index 00000000000..d028b91e81a
 +
 +/* { dg-final { scan-assembler-not "__ARM_undef" } } */
 \ No newline at end of file
+diff --git a/gcc/testsuite/gcc.target/arm/neon-recip-div-1.c b/gcc/testsuite/gcc.target/arm/neon-recip-div-1.c
+new file mode 100644
+index 00000000000..e15c3ca5fe9
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/arm/neon-recip-div-1.c
+@@ -0,0 +1,16 @@
++/* { dg-do compile } */
++/* { dg-require-effective-target arm_neon_ok } */
++/* { dg-options "-O3 -freciprocal-math -fno-unsafe-math-optimizations -save-temps" } */
++/* { dg-add-options arm_neon } */
++
++int *a;
++int n;
++void b() {
++  int c;
++  for (c = 0; c < 100000; c++)
++    a[c] = (float)c / n;
++}
++/* We should not ICE, or get a vectorized reciprocal instruction when unsafe
++   math optimizations are disabled.  */
++/* { dg-final { scan-assembler-not "vrecpe\\.f32\\t\[qd\].*" } } */
++/* { dg-final { scan-assembler-not "vrecps\\.f32\\t\[qd\].*" } } */
 diff --git a/gcc/testsuite/gcc.target/arm/pr105312.c b/gcc/testsuite/gcc.target/arm/pr105312.c
 new file mode 100644
 index 00000000000..a02831bcbcf
