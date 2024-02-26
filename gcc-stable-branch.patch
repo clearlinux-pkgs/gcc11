@@ -45,7 +45,7 @@ Dimitar Dimitrov (1):
 Eric Biggers (1):
       options: fix cl_target_option_print_diff() with strings
 
-Eric Botcazou (9):
+Eric Botcazou (10):
       Fix internal error with vectorization on SPARC
       Fix PR target/107248
       Fix recent thinko in operand_equal_p
@@ -55,6 +55,7 @@ Eric Botcazou (9):
       Fix PR target/90458
       Fix PR target/109140
       Remove obsolete configure code in gnattools
+      Finalization of object allocated by anonymous access designating local type
 
 Florian Weimer (2):
       libsanitizer: Avoid implicit function declaration in configure test
@@ -73,7 +74,10 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (665):
+GCC Administrator (668):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -3240,10 +3244,19 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..a55bc6c23d2 100644
+index a0587d18824..53d23910a7e 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,2765 @@
+@@ -1,3 +1,2774 @@
++2024-02-23  Richard Earnshaw  <rearnsha@arm.com>
++
++	Backported from master:
++	2024-02-23  Richard Earnshaw  <rearnsha@arm.com>
++
++	PR target/108120
++	* config/arm/neon.md (div<VCVTF:mode>3): Rename from div<mode>3.
++	Gate with ARM_HAVE_NEON_<MODE>_ARITH.
++
 +2024-02-20  Alex Coplan  <alex.coplan@arm.com>
 +
 +	Backported from master:
@@ -6021,6 +6034,101 @@ index 9c36606130e..e14eb1cdf63 100644
  2022-04-21  Release Manager
  
  	* GCC 11.3.0 released.
+diff --git a/gcc/ada/exp_ch7.adb b/gcc/ada/exp_ch7.adb
+index 5d8ad7d505d..99ac14ba54b 100644
+--- a/gcc/ada/exp_ch7.adb
++++ b/gcc/ada/exp_ch7.adb
+@@ -802,6 +802,7 @@ package body Exp_Ch7 is
+       Desig_Typ : Entity_Id;
+       FM_Id     : Entity_Id;
+       Priv_View : Entity_Id;
++      Scop      : Entity_Id;
+       Unit_Decl : Node_Id;
+       Unit_Id   : Entity_Id;
+ 
+@@ -840,6 +841,18 @@ package body Exp_Ch7 is
+          Desig_Typ := Priv_View;
+       end if;
+ 
++      --  For a designated type not declared at library level, we cannot create
++      --  a finalization collection attached to an outer unit since this would
++      --  generate dangling references to the dynamic scope through access-to-
++      --  procedure values designating the local Finalize_Address primitive.
++
++      Scop := Enclosing_Dynamic_Scope (Desig_Typ);
++      if Scop /= Standard_Standard
++        and then Scope_Depth (Scop) > Scope_Depth (Unit_Id)
++      then
++         return;
++      end if;
++
+       --  Determine whether the current semantic unit already has an anonymous
+       --  master which services the designated type.
+ 
+diff --git a/gcc/ada/exp_util.adb b/gcc/ada/exp_util.adb
+index cf4059a3d5c..d35e94aa253 100644
+--- a/gcc/ada/exp_util.adb
++++ b/gcc/ada/exp_util.adb
+@@ -856,6 +856,16 @@ package body Exp_Util is
+         Needs_Finalization (Desig_Typ)
+           and then not No_Heap_Finalization (Ptr_Typ);
+ 
++      --  The allocation/deallocation of a controlled object must be associated
++      --  with an attachment to/detachment from a finalization master, but the
++      --  implementation cannot guarantee this property for every anonymous
++      --  access tyoe, see Build_Anonymous_Collection.
++
++      if Needs_Fin and then No (Finalization_Master (Ptr_Typ)) then
++         pragma Assert (Ekind (Ptr_Typ) = E_Anonymous_Access_Type);
++         Needs_Fin := False;
++      end if;
++
+       if Needs_Fin then
+ 
+          --  Do nothing if the access type may never allocate / deallocate
+@@ -865,11 +875,6 @@ package body Exp_Util is
+             return;
+          end if;
+ 
+-         --  The allocation / deallocation of a controlled object must be
+-         --  chained on / detached from a finalization master.
+-
+-         pragma Assert (Present (Finalization_Master (Ptr_Typ)));
+-
+       --  The only other kind of allocation / deallocation supported by this
+       --  routine is on / from a subpool.
+ 
+diff --git a/gcc/ada/sem_res.adb b/gcc/ada/sem_res.adb
+index f6e0eab84b7..aa2a0019e50 100644
+--- a/gcc/ada/sem_res.adb
++++ b/gcc/ada/sem_res.adb
+@@ -5574,19 +5574,19 @@ package body Sem_Res is
+                Set_Is_Dynamic_Coextension (N, False);
+                Set_Is_Static_Coextension  (N, False);
+ 
+-               --  Anonymous access-to-controlled objects are not finalized on
+-               --  time because this involves run-time ownership and currently
+-               --  this property is not available. In rare cases the object may
+-               --  not be finalized at all. Warn on potential issues involving
+-               --  anonymous access-to-controlled objects.
++               --  Objects allocated through anonymous access types are not
++               --  finalized on time because this involves run-time ownership
++               --  and currently this property is not available. In rare cases
++               --  the object might not be finalized at all. Warn on potential
++               --  issues involving anonymous access-to-controlled types.
+ 
+                if Ekind (Typ) = E_Anonymous_Access_Type
+                  and then Is_Controlled_Active (Desig_T)
+                then
+                   Error_Msg_N
+-                    ("??object designated by anonymous access object might "
++                    ("??object designated by anonymous access value might "
+                      & "not be finalized until its enclosing library unit "
+-                     & "goes out of scope", N);
++                     & "goes out of scope, or not be finalized at all", N);
+                   Error_Msg_N ("\use named access type instead", N);
+                end if;
+             end if;
 diff --git a/gcc/alias.c b/gcc/alias.c
 index 69e1eb89ac6..ba4aa4dc8d9 100644
 --- a/gcc/alias.c
@@ -27994,10 +28102,18 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..b778bdad355 100644
+index 5fc23605244..18566c3b5e9 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2846 @@
+@@ -1,3 +1,2854 @@
++2024-02-23  Richard Earnshaw  <rearnsha@arm.com>
++
++	Backported from master:
++	2024-02-23  Richard Earnshaw  <rearnsha@arm.com>
++
++	PR target/108120
++	* gcc.target/arm/neon-recip-div-1.c: New file.
++
 +2024-02-20  Alex Coplan  <alex.coplan@arm.com>
 +
 +	Backported from master:
@@ -45603,6 +45719,70 @@ index 00000000000..85bcb5f3fa2
 +  call dhgeqz( 2, h, t )
 +  if (t(2,2).ne.0) STOP 1
 +end program test
+diff --git a/gcc/testsuite/gnat.dg/access10.adb b/gcc/testsuite/gnat.dg/access10.adb
+new file mode 100644
+index 00000000000..189df464eef
+--- /dev/null
++++ b/gcc/testsuite/gnat.dg/access10.adb
+@@ -0,0 +1,58 @@
++--  PR ada/113893
++--  Testcase by Pascal Pignard <p.p11@orange.fr>
++
++--  { dg-do run }
++
++with Ada.Text_IO;
++with Ada.Finalization;
++
++procedure Access10 is
++
++   generic
++      type Element_Type is private;
++      with function Image (Item : Element_Type) return String is <>;
++   package Sanitize is
++      type Container is new Ada.Finalization.Controlled with record
++         Data : Element_Type;
++      end record;
++      overriding procedure Finalize (Object : in out Container);
++   end Sanitize;
++
++   package body Sanitize is
++      overriding procedure Finalize (Object : in out Container) is
++      begin
++         Ada.Text_IO.Put_Line ("Current:" & Image (Object.Data));
++      end Finalize;
++   end Sanitize;
++
++   procedure Test01 is
++      package Float_Sanitized is new Sanitize (Float, Float'Image);
++      V  : Float_Sanitized.Container;
++      C  : constant Float_Sanitized.Container :=
++	     (Ada.Finalization.Controlled with 8.8);
++      A  : access Float_Sanitized.Container := 
++	     new Float_Sanitized.Container'(Ada.Finalization.Controlled with 7.7);  -- { dg-warning "not be finalized|named" }
++      AC : access constant Float_Sanitized.Container :=
++             new Float_Sanitized.Container'(Ada.Finalization.Controlled with 6.6);  -- { dg-warning "not be finalized|named" }
++   begin
++      V.Data := 9.9 + C.Data + A.Data;
++      Ada.Text_IO.Put_Line ("Value:" & Float'Image (V.Data));
++   end Test01;
++
++   procedure Test02 is
++      type Float_Sanitized is new Float;
++      V  : Float_Sanitized;
++      C  : constant Float_Sanitized        := (8.8);
++      A  : access Float_Sanitized          := new Float_Sanitized'(7.7);
++      AC : access constant Float_Sanitized := new Float_Sanitized'(6.6);
++   begin
++      V := 9.9 + C + A.all;
++      Ada.Text_IO.Put_Line ("Value:" & Float_Sanitized'Image (V));
++   end Test02;
++
++begin
++   Ada.Text_IO.Put_Line ("Test01:");
++   Test01;
++   Ada.Text_IO.Put_Line ("Test02:");
++   Test02;
++end;
 diff --git a/gcc/testsuite/gnat.dg/opt100.adb b/gcc/testsuite/gnat.dg/opt100.adb
 new file mode 100644
 index 00000000000..83270b64339
