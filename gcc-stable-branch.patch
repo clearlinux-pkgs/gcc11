@@ -74,7 +74,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (668):
+GCC Administrator (669):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -747,12 +748,13 @@ GCC Administrator (668):
 Georg-Johann Lay (1):
       Fix PR target/99184: Wrong cast from double to 16-bit and 32-bit ints
 
-H.J. Lu (5):
+H.J. Lu (6):
       x86: Add missing .note.GNU-stack to assembly source
       x86: Add .note.GNU-stack section only for Linux
       x86: Require AVX for F16C and VAES
       i386: Mark XMM4-XMM6 as clobbered by encodekey128/encodekey256
       Always use TYPE_MODE instead of DECL_MODE for vector field
+      x86: Properly implement AMX-TILE load/store intrinsics
 
 Haochen Gui (2):
       rs6000: correct vector sign extend builtins on Big Endian
@@ -992,6 +994,9 @@ Jason Merrill (33):
       c++: NRV and goto [PR92407]
       c++: -Wdeprecated-copy and using operator= [PR92145]
       c++: xvalue array subscript [PR103185]
+
+Jeevitha (1):
+      rs6000: Don't allow AltiVec address in movoo & movxo pattern [PR110411]
 
 Jeff Law (1):
       [committed] Fix more problems with new linker warnings
@@ -6023,10 +6028,22 @@ index a0587d18824..53d23910a7e 100644
  
  	* GCC 11.3.0 released.
 diff --git a/gcc/ada/ChangeLog b/gcc/ada/ChangeLog
-index 9c36606130e..e14eb1cdf63 100644
+index 9c36606130e..767f5bb49d0 100644
 --- a/gcc/ada/ChangeLog
 +++ b/gcc/ada/ChangeLog
-@@ -1,3 +1,7 @@
+@@ -1,3 +1,19 @@
++2024-02-26  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR ada/113893
++	* exp_ch7.adb (Build_Anonymous_Master): Do not build the master
++	for a local designated type.
++	* exp_util.adb (Build_Allocate_Deallocate_Proc): Force Needs_Fin
++	to false if no finalization master is attached to an access type
++	and assert that it is anonymous in this case.
++	* sem_res.adb (Resolve_Allocator): Mention that the object might
++	not be finalized at all in the warning given when the type is an
++	anonymous access-to-controlled type.
++
 +2023-05-29  Release Manager
 +
 +	* GCC 11.4.0 released.
@@ -10221,6 +10238,27 @@ index 3206b70c7c2..504dfcec4da 100644
  
  /*  These are the three variants that emit referenced blank space.  */
  #define ASM_OUTPUT_ALIGNED_BSS(FILE, DECL, NAME, SIZE, ALIGN)		\
+diff --git a/gcc/config/i386/amxtileintrin.h b/gcc/config/i386/amxtileintrin.h
+index 3a0a6b44c17..0b0f6d979aa 100644
+--- a/gcc/config/i386/amxtileintrin.h
++++ b/gcc/config/i386/amxtileintrin.h
+@@ -39,14 +39,14 @@ extern __inline void
+ __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ _tile_loadconfig (const void *__config)
+ {
+-  __asm__ volatile ("ldtilecfg\t%X0" :: "m" (*((const void **)__config)));
++  __builtin_ia32_ldtilecfg (__config);
+ }
+ 
+ extern __inline void
+ __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ _tile_storeconfig (void *__config)
+ {
+-  __asm__ volatile ("sttilecfg\t%X0" : "=m" (*((void **)__config)));
++  __builtin_ia32_sttilecfg (__config);
+ }
+ 
+ extern __inline void
 diff --git a/gcc/config/i386/avx512fintrin.h b/gcc/config/i386/avx512fintrin.h
 index 515ee0c1728..1ce6bade1b4 100644
 --- a/gcc/config/i386/avx512fintrin.h
@@ -10374,10 +10412,21 @@ index 00226f5a455..f776c796934 100644
     %{mpc64:crtprec64.o%s} \
     %{mpc80:crtprec80.o%s}"
 diff --git a/gcc/config/i386/i386-builtin.def b/gcc/config/i386/i386-builtin.def
-index ea509c67ddb..5c7f436ac17 100644
+index ea509c67ddb..db3e5a6ea7f 100644
 --- a/gcc/config/i386/i386-builtin.def
 +++ b/gcc/config/i386/i386-builtin.def
-@@ -2742,30 +2742,30 @@ BDESC (0, OPTION_MASK_ISA2_VAES, CODE_FOR_vaesenclast_v64qi, "__builtin_ia32_vae
+@@ -126,6 +126,10 @@ BDESC (OPTION_MASK_ISA_XSAVES | OPTION_MASK_ISA_64BIT, 0, CODE_FOR_nothing, "__b
+ BDESC (OPTION_MASK_ISA_XSAVES | OPTION_MASK_ISA_64BIT, 0, CODE_FOR_nothing, "__builtin_ia32_xrstors64", IX86_BUILTIN_XRSTORS64, UNKNOWN, (int) VOID_FTYPE_PVOID_INT64)
+ BDESC (OPTION_MASK_ISA_XSAVEC | OPTION_MASK_ISA_64BIT, 0, CODE_FOR_nothing, "__builtin_ia32_xsavec64", IX86_BUILTIN_XSAVEC64, UNKNOWN, (int) VOID_FTYPE_PVOID_INT64)
+ 
++/* LDFILECFG and STFILECFG.  */
++BDESC (OPTION_MASK_ISA_64BIT, OPTION_MASK_ISA2_AMX_TILE, CODE_FOR_nothing, "__builtin_ia32_ldtilecfg", IX86_BUILTIN_LDTILECFG, UNKNOWN, (int) VOID_FTYPE_PCVOID)
++BDESC (OPTION_MASK_ISA_64BIT, OPTION_MASK_ISA2_AMX_TILE, CODE_FOR_nothing, "__builtin_ia32_sttilecfg", IX86_BUILTIN_STTILECFG, UNKNOWN, (int) VOID_FTYPE_PVOID)
++
+ /* SSE */
+ BDESC (OPTION_MASK_ISA_SSE, 0, CODE_FOR_movv4sf_internal, "__builtin_ia32_storeups", IX86_BUILTIN_STOREUPS, UNKNOWN, (int) VOID_FTYPE_PFLOAT_V4SF)
+ BDESC (OPTION_MASK_ISA_SSE, 0, CODE_FOR_sse_movntv4sf, "__builtin_ia32_movntps", IX86_BUILTIN_MOVNTPS, UNKNOWN, (int) VOID_FTYPE_PFLOAT_V4SF)
+@@ -2742,30 +2746,30 @@ BDESC (0, OPTION_MASK_ISA2_VAES, CODE_FOR_vaesenclast_v64qi, "__builtin_ia32_vae
  BDESC (0, OPTION_MASK_ISA2_AVX512BF16, CODE_FOR_avx512f_cvtne2ps2bf16_v32hi, "__builtin_ia32_cvtne2ps2bf16_v32hi", IX86_BUILTIN_CVTNE2PS2HI16_V32HI, UNKNOWN, (int) V32HI_FTYPE_V16SF_V16SF)
  BDESC (0, OPTION_MASK_ISA2_AVX512BF16, CODE_FOR_avx512f_cvtne2ps2bf16_v32hi_mask, "__builtin_ia32_cvtne2ps2bf16_v32hi_mask", IX86_BUILTIN_CVTNE2PS2HI16_V32HI_MASK, UNKNOWN, (int) V32HI_FTYPE_V16SF_V16SF_V32HI_USI)
  BDESC (0, OPTION_MASK_ISA2_AVX512BF16, CODE_FOR_avx512f_cvtne2ps2bf16_v32hi_maskz, "__builtin_ia32_cvtne2ps2bf16_v32hi_maskz", IX86_BUILTIN_CVTNE2PS2HI16_V32HI_MASKZ, UNKNOWN, (int) V32HI_FTYPE_V16SF_V16SF_USI)
@@ -10452,7 +10501,7 @@ index 02d32e6edc5..2b3d7733b2a 100644
        def_or_undef (parse_in, "__tune_btver1__");
        break;
 diff --git a/gcc/config/i386/i386-expand.c b/gcc/config/i386/i386-expand.c
-index 31eae75d277..dc8228e8a87 100644
+index 31eae75d277..5afd61bc50a 100644
 --- a/gcc/config/i386/i386-expand.c
 +++ b/gcc/config/i386/i386-expand.c
 @@ -7362,6 +7362,8 @@ ix86_expand_set_or_cpymem (rtx dst, rtx src, rtx count_exp, rtx val_exp,
@@ -10473,6 +10522,32 @@ index 31eae75d277..dc8228e8a87 100644
      op1 = convert_modes (mode1, GET_MODE (op1), op1, true);
  
    op0 = force_reg (tmode, op0);
+@@ -12024,6 +12026,25 @@ ix86_expand_builtin (tree exp, rtx target, rtx subtarget,
+ 	emit_insn (pat);
+       return 0;
+ 
++    case IX86_BUILTIN_LDTILECFG:
++    case IX86_BUILTIN_STTILECFG:
++      arg0 = CALL_EXPR_ARG (exp, 0);
++      op0 = expand_normal (arg0);
++
++      if (!address_operand (op0, VOIDmode))
++	{
++	  op0 = convert_memory_address (Pmode, op0);
++	  op0 = copy_addr_to_reg (op0);
++	}
++      op0 = gen_rtx_MEM (XImode, op0);
++      if (fcode == IX86_BUILTIN_LDTILECFG)
++	icode = CODE_FOR_ldtilecfg;
++      else
++	icode = CODE_FOR_sttilecfg;
++      pat = GEN_FCN (icode) (op0);
++      emit_insn (pat);
++      return 0;
++
+     case IX86_BUILTIN_LLWPCB:
+       arg0 = CALL_EXPR_ARG (exp, 0);
+       op0 = expand_normal (arg0);
 diff --git a/gcc/config/i386/i386-features.c b/gcc/config/i386/i386-features.c
 index 77783a154b6..19033dc3df5 100644
 --- a/gcc/config/i386/i386-features.c
@@ -10911,10 +10986,21 @@ index ac0e5da623c..910994c6dd2 100644
  #ifndef GENERATOR_FILE
  
 diff --git a/gcc/config/i386/i386.md b/gcc/config/i386/i386.md
-index 238ce09672e..0c6d923ea1e 100644
+index 238ce09672e..e954958e98b 100644
 --- a/gcc/config/i386/i386.md
 +++ b/gcc/config/i386/i386.md
-@@ -458,7 +458,7 @@
+@@ -319,6 +319,10 @@
+ 
+   ;; For HRESET support
+   UNSPECV_HRESET
++
++  ;; For AMX-TILE
++  UNSPECV_LDTILECFG
++  UNSPECV_STTILECFG
+ ])
+ 
+ ;; Constants to represent rounding modes in the ROUND instruction
+@@ -458,7 +462,7 @@
  ;; Processor type.
  (define_attr "cpu" "none,pentium,pentiumpro,geode,k6,athlon,k8,core2,nehalem,
  		    atom,slm,glm,haswell,generic,amdfam10,bdver1,bdver2,bdver3,
@@ -10923,7 +11009,7 @@ index 238ce09672e..0c6d923ea1e 100644
    (const (symbol_ref "ix86_schedule")))
  
  ;; A basic instruction type.  Refinements due to arguments to be
-@@ -1259,7 +1259,8 @@
+@@ -1259,7 +1263,8 @@
  (include "bdver1.md")
  (include "bdver3.md")
  (include "btver2.md")
@@ -10933,7 +11019,7 @@ index 238ce09672e..0c6d923ea1e 100644
  (include "geode.md")
  (include "atom.md")
  (include "slm.md")
-@@ -2300,7 +2301,10 @@
+@@ -2300,7 +2305,10 @@
  	      (clobber (reg:CC FLAGS_REG))])]
  {
    int shift = ctz_hwi (UINTVAL (operands[1]));
@@ -10945,7 +11031,7 @@ index 238ce09672e..0c6d923ea1e 100644
    operands[2] = gen_int_mode (shift, QImode);
  })
  
-@@ -3361,9 +3365,9 @@
+@@ -3361,9 +3369,9 @@
  ;; Possible store forwarding (partial memory) stall in alternatives 4, 6 and 7.
  (define_insn "*movdf_internal"
    [(set (match_operand:DF 0 "nonimmediate_operand"
@@ -10957,7 +11043,7 @@ index 238ce09672e..0c6d923ea1e 100644
    "!(MEM_P (operands[0]) && MEM_P (operands[1]))
     && (lra_in_progress || reload_completed
         || !CONST_DOUBLE_P (operands[1])
-@@ -12734,7 +12738,8 @@
+@@ -12734,7 +12742,8 @@
  			   (const_int 1)
  			   (and:SI
  			     (match_operand:SI 2 "register_operand")
@@ -10967,7 +11053,7 @@ index 238ce09672e..0c6d923ea1e 100644
  		      (label_ref (match_operand 4))
  		      (pc)))
     (clobber (reg:CC FLAGS_REG))]
-@@ -15315,8 +15320,10 @@
+@@ -15315,8 +15324,10 @@
    "! TARGET_POPCNT"
  {
    rtx scratch = gen_reg_rtx (QImode);
@@ -10979,6 +11065,33 @@ index 238ce09672e..0c6d923ea1e 100644
  
    ix86_expand_setcc (scratch, ORDERED,
  		     gen_rtx_REG (CCmode, FLAGS_REG), const0_rtx);
+@@ -21901,6 +21912,26 @@
+   [(set_attr "type" "other")
+    (set_attr "length" "4")])
+ 
++(define_insn "ldtilecfg"
++  [(unspec_volatile [(match_operand:XI 0 "memory_operand" "m")]
++            UNSPECV_LDTILECFG)]
++  "TARGET_AMX_TILE"
++  "ldtilecfg\t%0"
++  [(set_attr "type" "other")
++   (set_attr "prefix" "maybe_evex")
++   (set_attr "memory" "load")
++   (set_attr "mode" "XI")])
++
++(define_insn "sttilecfg"
++  [(set (match_operand:XI 0 "memory_operand" "=m")
++        (unspec_volatile:XI [(const_int 0)] UNSPECV_STTILECFG))]
++  "TARGET_AMX_TILE"
++  "sttilecfg\t%0"
++  [(set_attr "type" "other")
++   (set_attr "prefix" "maybe_evex")
++   (set_attr "memory" "store")
++   (set_attr "mode" "XI")])
++
+ (include "mmx.md")
+ (include "sse.md")
+ (include "sync.md")
 diff --git a/gcc/config/i386/i386.opt b/gcc/config/i386/i386.opt
 index f62b0ebd3b4..9381025b667 100644
 --- a/gcc/config/i386/i386.opt
@@ -14970,10 +15083,10 @@ index c04348068e0..4503e75ce18 100644
  
  #endif /* _MM_MALLOC_H_INCLUDED */
 diff --git a/gcc/config/rs6000/mma.md b/gcc/config/rs6000/mma.md
-index fa081608c4c..2bf4d1718e3 100644
+index fa081608c4c..b25d5a997ab 100644
 --- a/gcc/config/rs6000/mma.md
 +++ b/gcc/config/rs6000/mma.md
-@@ -267,10 +267,28 @@
+@@ -267,15 +267,33 @@
  (define_expand "movoo"
    [(set (match_operand:OO 0 "nonimmediate_operand")
  	(match_operand:OO 1 "input_operand"))]
@@ -15005,7 +15118,14 @@ index fa081608c4c..2bf4d1718e3 100644
  })
  
  (define_insn_and_split "*movoo"
-@@ -299,10 +317,25 @@
+-  [(set (match_operand:OO 0 "nonimmediate_operand" "=wa,m,wa")
+-	(match_operand:OO 1 "input_operand" "m,wa,wa"))]
++  [(set (match_operand:OO 0 "nonimmediate_operand" "=wa,ZwO,wa")
++	(match_operand:OO 1 "input_operand" "ZwO,wa,wa"))]
+   "TARGET_MMA
+    && (gpc_reg_operand (operands[0], OOmode)
+        || gpc_reg_operand (operands[1], OOmode))"
+@@ -299,15 +317,30 @@
  (define_expand "movxo"
    [(set (match_operand:XO 0 "nonimmediate_operand")
  	(match_operand:XO 1 "input_operand"))]
@@ -15034,6 +15154,13 @@ index fa081608c4c..2bf4d1718e3 100644
  })
  
  (define_insn_and_split "*movxo"
+-  [(set (match_operand:XO 0 "nonimmediate_operand" "=d,m,d")
+-	(match_operand:XO 1 "input_operand" "m,d,d"))]
++  [(set (match_operand:XO 0 "nonimmediate_operand" "=d,ZwO,d")
++	(match_operand:XO 1 "input_operand" "ZwO,d,d"))]
+   "TARGET_MMA
+    && (gpc_reg_operand (operands[0], XOmode)
+        || gpc_reg_operand (operands[1], XOmode))"
 diff --git a/gcc/config/rs6000/mmintrin.h b/gcc/config/rs6000/mmintrin.h
 index 0bd929c5afe..a826fdd0c7f 100644
 --- a/gcc/config/rs6000/mmintrin.h
@@ -16339,9 +16466,18 @@ index eab712fdfa6..4d7e14f312a 100644
  
  extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
 diff --git a/gcc/config/rs6000/predicates.md b/gcc/config/rs6000/predicates.md
-index f03560b9c06..edc8cab0e0e 100644
+index f03560b9c06..5a8b1236334 100644
 --- a/gcc/config/rs6000/predicates.md
 +++ b/gcc/config/rs6000/predicates.md
+@@ -780,7 +780,7 @@
+ (define_predicate "vsx_quad_dform_memory_operand"
+   (match_code "mem")
+ {
+-  if (!TARGET_P9_VECTOR || !MEM_P (op) || GET_MODE_SIZE (mode) != 16)
++  if (!TARGET_P9_VECTOR)
+     return false;
+ 
+   return quad_address_p (XEXP (op, 0), mode, false);
 @@ -992,20 +992,6 @@
    return INTVAL (offset) % 4 == 0;
  })
@@ -28102,10 +28238,14 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..18566c3b5e9 100644
+index 5fc23605244..7ea8e73ba2e 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2854 @@
+@@ -1,3 +1,2858 @@
++2024-02-26  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gnat.dg/access10.adb: New test.
++
 +2024-02-23  Richard Earnshaw  <rearnsha@arm.com>
 +
 +	Backported from master:
@@ -40600,6 +40740,64 @@ index 00000000000..d797b790232
 +/* { dg-require-effective-target arm_hard_ok } */
 +/* { dg-options "-O2 -march=armv7-m -mfloat-abi=hard -mfpu=fpv4-sp-d16 -mbig-endian -mpure-code" } */
 +double f() { return 5.0; }
+diff --git a/gcc/testsuite/gcc.target/i386/amxtile-4.c b/gcc/testsuite/gcc.target/i386/amxtile-4.c
+new file mode 100644
+index 00000000000..6b49cdeeb50
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/i386/amxtile-4.c
+@@ -0,0 +1,52 @@
++/* PR target/114098 */
++/* { dg-do compile { target { ! ia32 } } } */
++/* { dg-options "-O2 -mamx-tile" } */
++
++#include <stdint.h>
++#include <x86intrin.h>
++
++#define MAX_ROWS 16
++#define MAX_COLS 64
++#define MAX 1024
++#define STRIDE 64
++
++typedef struct __tile_config
++{
++  uint8_t palette_id;
++  uint8_t start_row;
++  uint8_t reserved_0[14];
++  uint16_t colsb[16];
++  uint8_t rows[16];
++} __tilecfg __attribute__ ((aligned (64)));
++
++/* Initialize tile config */
++static void
++init_tile_config (__tilecfg *tileinfo)
++{
++  int i;
++  tileinfo->palette_id = 1;
++  tileinfo->start_row = 0;
++
++  for (i = 0; i < 1; ++i)
++  {
++    tileinfo->colsb[i] = MAX_ROWS;
++    tileinfo->rows[i] = MAX_ROWS;
++  }
++
++  for (i = 1; i < 4; ++i)
++  {
++    tileinfo->colsb[i] = MAX_COLS;
++    tileinfo->rows[i] = MAX_ROWS;
++  }
++
++  _tile_loadconfig (tileinfo);
++}
++
++void
++enable_amx (void)
++{
++  __tilecfg tile_data = {0};
++  init_tile_config (&tile_data);
++}
++
++/* { dg-final { scan-assembler-times "pxor\[^\n\]*%xmm" 1 } } */
 diff --git a/gcc/testsuite/gcc.target/i386/avx-vzeroupper-29.c b/gcc/testsuite/gcc.target/i386/avx-vzeroupper-29.c
 new file mode 100644
 index 00000000000..4af637757f7
@@ -42922,6 +43120,51 @@ index 00000000000..5b04d3e298a
 +  return 0;
 +}
 +
+diff --git a/gcc/testsuite/gcc.target/powerpc/pr110411-1.c b/gcc/testsuite/gcc.target/powerpc/pr110411-1.c
+new file mode 100644
+index 00000000000..6b0dbb00ea2
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/powerpc/pr110411-1.c
+@@ -0,0 +1,21 @@
++/* PR target/110411 */
++/* { dg-options "-O2 -mdejagnu-cpu=power10 -mblock-ops-vector-pair" } */
++
++/* Verify we do not ICE on the following.  */
++
++#include <string.h>
++
++struct s {
++  long a;
++  long b;
++  long c;
++  long d: 1;
++};
++unsigned long ptr;
++
++void
++bug (struct s *dst)
++{
++  struct s *src = (struct s *)(ptr & ~0xFUL);
++  memcpy (dst, src, sizeof(struct s));
++}
+diff --git a/gcc/testsuite/gcc.target/powerpc/pr110411-2.c b/gcc/testsuite/gcc.target/powerpc/pr110411-2.c
+new file mode 100644
+index 00000000000..c2046fb9855
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/powerpc/pr110411-2.c
+@@ -0,0 +1,12 @@
++/* PR target/110411 */
++/* { dg-require-effective-target power10_ok } */
++/* { dg-options "-O2 -mdejagnu-cpu=power10" } */
++
++/* Verify we do not ICE on the following.  */
++
++void
++bug (__vector_quad *dst)
++{
++  dst = (__vector_quad *)((unsigned long)dst & ~0xFUL);
++  __builtin_mma_xxsetaccz (dst);
++}
 diff --git a/gcc/testsuite/gcc.target/powerpc/pr70243.c b/gcc/testsuite/gcc.target/powerpc/pr70243.c
 new file mode 100644
 index 00000000000..18a5ce78792
