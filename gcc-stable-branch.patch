@@ -74,7 +74,11 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (670):
+GCC Administrator (674):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -810,7 +814,7 @@ Harald Anlauf (44):
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
 
-Iain Buclaw (19):
+Iain Buclaw (22):
       libphobos: Don't call free on the TLS array in the emutls destroy function.
       libphobos: Give _Unwind_Exception an alignment that best resembles __attribute__((aligned))
       darwin, d: Support outfile substitution for libphobos
@@ -830,6 +834,9 @@ Iain Buclaw (19):
       d: Fix core.volatile.volatileLoad discarded if result is unused
       d: Fix PR 108842: Cannot use enum array with -fno-druntime
       libphobos: Fix regression d21 loops in getCpuInfo0B in Solaris/x86 kernel zone
+      d: Fix internal compiler error: in make_import, at d/imports.cc:48 [PR113125]
+      d: Fix callee destructor call invalidates the live object [PR113758]
+      d: Fix gdc -O2 -mavx generates misaligned vmovdqa instruction [PR114171]
 
 Iain Sandoe (14):
       Darwin: Fix bootstrap for X86.
@@ -1268,10 +1275,11 @@ Mikael Morin (3):
       fortran: Fix invalid function decl clobber ICE [PR105012]
       fortran: Move clobbers after evaluation of all arguments [PR106817]
 
-Oleg Endo (3):
+Oleg Endo (4):
       SH: Fix PR101469 peephole bug
       SH: Fix PR 101177
       SH: Fix PR 111001
+      SH: Fix 101737
 
 Pat Haugen (2):
       Fix register count when not splitting Complex IEEE 128-bit args.
@@ -19445,6 +19453,20 @@ index 44e48d90beb..5ef92d699c4 100644
      }
    return false;
  }
+diff --git a/gcc/config/sh/sh.c b/gcc/config/sh/sh.c
+index 1564109c942..47aee75efe2 100644
+--- a/gcc/config/sh/sh.c
++++ b/gcc/config/sh/sh.c
+@@ -11760,7 +11760,8 @@ sh_insn_operands_modified_between_p (rtx_insn* operands_insn,
+ bool
+ sh_is_nott_insn (const rtx_insn* i)
+ {
+-  return i != NULL && GET_CODE (PATTERN (i)) == SET
++  return i != NULL_RTX && PATTERN (i) != NULL_RTX
++	 && GET_CODE (PATTERN (i)) == SET
+ 	 && t_reg_operand (XEXP (PATTERN (i), 0), VOIDmode)
+ 	 && negt_reg_operand (XEXP (PATTERN (i), 1), VOIDmode);
+ }
 diff --git a/gcc/config/sh/sh.md b/gcc/config/sh/sh.md
 index e3af9ae21c1..b647c33637c 100644
 --- a/gcc/config/sh/sh.md
@@ -22704,10 +22726,31 @@ index af112fd0985..14478eec238 100644
  extern rtx cselib_expand_value_rtx (rtx, bitmap, int);
  typedef rtx (*cselib_expand_callback)(rtx, bitmap, int, void *);
 diff --git a/gcc/d/ChangeLog b/gcc/d/ChangeLog
-index 6021ffdbf78..091a7fafaf0 100644
+index 6021ffdbf78..7d33a6b2792 100644
 --- a/gcc/d/ChangeLog
 +++ b/gcc/d/ChangeLog
-@@ -1,3 +1,152 @@
+@@ -1,3 +1,173 @@
++2024-03-03  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2024-02-12  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	PR d/113758
++	* d-codegen.cc (d_build_call): Force a TARGET_EXPR when callee
++	destorys its arguments.
++	* decl.cc (DeclVisitor::visit (VarDeclaration *)): Set
++	SET_DECL_VALUE_EXPR on the temporary variable to make it a placeholder
++	for the TARGET_EXPR_SLOT.
++
++2024-03-03  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2024-02-12  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	PR d/113125
++	* types.cc (TypeVisitor::visit (TypeStruct *)): Generate TYPE_DECL and
++	apply UDAs to opaque struct declarations.
++
 +2023-07-07  Iain Buclaw  <ibuclaw@gdcproject.org>
 +
 +	Backported from master:
@@ -22860,6 +22903,40 @@ index 6021ffdbf78..091a7fafaf0 100644
  2022-04-21  Release Manager
  
  	* GCC 11.3.0 released.
+diff --git a/gcc/d/d-codegen.cc b/gcc/d/d-codegen.cc
+index 22a5342ae02..e917a606642 100644
+--- a/gcc/d/d-codegen.cc
++++ b/gcc/d/d-codegen.cc
+@@ -993,6 +993,7 @@ lower_struct_comparison (tree_code code, StructDeclaration *sd,
+ 	      if (tmode == NULL_TREE)
+ 		tmode = make_unsigned_type (GET_MODE_BITSIZE (mode.require ()));
+ 
++	      tmode = build_aligned_type (tmode, TYPE_ALIGN (stype));
+ 	      t1ref = build_vconvert (tmode, t1ref);
+ 	      t2ref = build_vconvert (tmode, t2ref);
+ 
+@@ -2050,10 +2051,17 @@ d_build_call (TypeFunction *tf, tree callable, tree object,
+ 	      Type *t = arg->type->toBasetype ();
+ 	      StructDeclaration *sd = t->baseElemOf ()->isTypeStruct ()->sym;
+ 
+-	      /* Nested structs also have ADDRESSABLE set, but if the type has
+-		 neither a copy constructor nor a destructor available, then we
+-		 need to take care of copying its value before passing it.  */
+-	      if (arg->op == TOKstructliteral || (!sd->postblit && !sd->dtor))
++	      /* Need to take care of copying its value before passing the
++		 argument in the following scenarios:
++		 - The argument is a literal expression; a CONSTRUCTOR can't
++		 have its address taken.
++		 - The type has neither a copy constructor nor a destructor
++		 available; nested structs also have ADDRESSABLE set.
++		 - The ABI of the function expects the callee to destroy its
++		 arguments; when the caller is handles destruction, then `targ'
++		 has already been made into a temporary. */
++	      if (arg->op == TOKstructliteral || (!sd->postblit && !sd->dtor)
++		  || arg->type->needsDestruction ())
+ 		targ = force_target_expr (targ);
+ 
+ 	      targ = convert (build_reference_type (TREE_TYPE (targ)),
 diff --git a/gcc/d/d-convert.cc b/gcc/d/d-convert.cc
 index d43485dca77..135aaf7e049 100644
 --- a/gcc/d/d-convert.cc
@@ -23033,7 +23110,7 @@ index b12d28f1047..1304126a675 100644
        if (saw_libcxx)
  	new_decoded_options[j++] = *saw_libcxx;
 diff --git a/gcc/d/decl.cc b/gcc/d/decl.cc
-index a30549ce8e0..477e8d880d9 100644
+index a30549ce8e0..5e3cc1c0c86 100644
 --- a/gcc/d/decl.cc
 +++ b/gcc/d/decl.cc
 @@ -116,6 +116,107 @@ gcc_attribute_p (Dsymbol *decl)
@@ -23172,7 +23249,38 @@ index a30549ce8e0..477e8d880d9 100644
  	  {
  	    tree decl = get_symbol_decl (d);
  	    d_pushdecl (decl);
-@@ -824,59 +933,17 @@ public:
+@@ -720,10 +829,28 @@ public:
+ 	    /* Maybe put variable on list of things needing destruction.  */
+ 	    if (d->needsScopeDtor ())
+ 	      {
++		/* Rewrite: `decl = exp' => TARGET_EXPR(decl, exp, dtor).  */
+ 		vec_safe_push (d_function_chain->vars_in_scope, decl);
++
+ 		/* Force a TARGET_EXPR to add the corresponding cleanup.  */
+-		exp = force_target_expr (compound_expr (exp, decl));
+-		TARGET_EXPR_CLEANUP (exp) = build_expr (d->edtor);
++		if (TREE_CODE (exp) != TARGET_EXPR)
++		  {
++		    if (VOID_TYPE_P (TREE_TYPE (exp)))
++		      exp = compound_expr (exp, decl);
++
++		    exp = force_target_expr (exp);
++		  }
++
++		TARGET_EXPR_CLEANUP (exp)
++		  = compound_expr (TARGET_EXPR_CLEANUP (exp),
++				   build_expr (d->edtor));
++
++		/* The decl is really an alias for the TARGET_EXPR slot.  */
++		SET_DECL_VALUE_EXPR (decl, TARGET_EXPR_SLOT (exp));
++		DECL_HAS_VALUE_EXPR_P (decl) = 1;
++		/* This tells the gimplifier not to emit a clobber for the decl
++		   as its lifetime ends when the slot gets cleaned up.  */
++		TREE_ADDRESSABLE (decl) = 0;
+ 	      }
+ 
+ 	    add_stmt (exp);
+@@ -824,59 +951,17 @@ public:
      d->semanticRun = PASSobj;
  
      tree old_context = start_function (d);
@@ -23236,7 +23344,7 @@ index a30549ce8e0..477e8d880d9 100644
      if (d->isThis ())
        {
  	AggregateDeclaration *ad = d->isThis ();
-@@ -891,7 +958,7 @@ public:
+@@ -891,7 +976,7 @@ public:
  	    ad = pd->isAggregateDeclaration ();
  	    if (ad == NULL)
  	      {
@@ -23245,7 +23353,7 @@ index a30549ce8e0..477e8d880d9 100644
  		break;
  	      }
  	  }
-@@ -952,7 +1019,7 @@ public:
+@@ -952,7 +1037,7 @@ public:
  	var = build_address (var);
  
  	tree init = build_call_expr (builtin_decl_explicit (BUILT_IN_VA_START),
@@ -23254,7 +23362,7 @@ index a30549ce8e0..477e8d880d9 100644
  	declare_local_var (d->v_argptr);
  	add_stmt (init);
  
-@@ -1031,6 +1098,20 @@ get_symbol_decl (Declaration *decl)
+@@ -1031,6 +1116,20 @@ get_symbol_decl (Declaration *decl)
        return decl->csym;
      }
  
@@ -23275,7 +23383,7 @@ index a30549ce8e0..477e8d880d9 100644
    /* Build the tree for the symbol.  */
    FuncDeclaration *fd = decl->isFuncDeclaration ();
    if (fd)
-@@ -1078,23 +1159,15 @@ get_symbol_decl (Declaration *decl)
+@@ -1078,23 +1177,15 @@ get_symbol_decl (Declaration *decl)
        if (vd->storage_class & STCextern)
  	DECL_EXTERNAL (decl->csym) = 1;
  
@@ -23305,7 +23413,7 @@ index a30549ce8e0..477e8d880d9 100644
  	}
      }
  
-@@ -1253,6 +1326,12 @@ get_symbol_decl (Declaration *decl)
+@@ -1253,6 +1344,12 @@ get_symbol_decl (Declaration *decl)
  	  DECL_NO_INSTRUMENT_FUNCTION_ENTRY_EXIT (decl->csym) = 1;
  	}
  
@@ -23318,7 +23426,7 @@ index a30549ce8e0..477e8d880d9 100644
        /* Mark compiler generated functions as artificial.  */
        if (fd->generated)
  	DECL_ARTIFICIAL (decl->csym) = 1;
-@@ -1640,6 +1719,7 @@ finish_thunk (tree thunk, tree function)
+@@ -1640,6 +1737,7 @@ finish_thunk (tree thunk, tree function)
  
    TREE_ADDRESSABLE (function) = 1;
    TREE_USED (function) = 1;
@@ -23326,7 +23434,7 @@ index a30549ce8e0..477e8d880d9 100644
  
    if (flag_syntax_only)
      {
-@@ -1711,43 +1791,14 @@ make_thunk (FuncDeclaration *decl, int offset)
+@@ -1711,43 +1809,14 @@ make_thunk (FuncDeclaration *decl, int offset)
  
    if (!DECL_ARGUMENTS (function) || !DECL_RESULT (function))
      {
@@ -23378,7 +23486,7 @@ index a30549ce8e0..477e8d880d9 100644
      }
  
    /* Don't build the thunk if the compilation step failed.  */
-@@ -1773,11 +1824,10 @@ make_thunk (FuncDeclaration *decl, int offset)
+@@ -1773,11 +1842,10 @@ make_thunk (FuncDeclaration *decl, int offset)
  
    DECL_CONTEXT (thunk) = d_decl_context (decl);
  
@@ -23393,7 +23501,7 @@ index a30549ce8e0..477e8d880d9 100644
  
    /* Thunks are always addressable.  */
    TREE_ADDRESSABLE (thunk) = 1;
-@@ -1812,6 +1862,8 @@ make_thunk (FuncDeclaration *decl, int offset)
+@@ -1812,6 +1880,8 @@ make_thunk (FuncDeclaration *decl, int offset)
    d_keep (thunk);
    free (CONST_CAST (char *, ident));
  
@@ -23402,7 +23510,7 @@ index a30549ce8e0..477e8d880d9 100644
    if (!DECL_EXTERNAL (function))
      finish_thunk (thunk, function);
  
-@@ -1833,9 +1885,10 @@ start_function (FuncDeclaration *fd)
+@@ -1833,9 +1903,10 @@ start_function (FuncDeclaration *fd)
  {
    tree fndecl = get_symbol_decl (fd);
  
@@ -23416,7 +23524,7 @@ index a30549ce8e0..477e8d880d9 100644
    TemplateInstance *ti = fd->isInstantiated ();
    if (ti && ti->needsCodegen ())
      {
-@@ -1845,14 +1898,6 @@ start_function (FuncDeclaration *fd)
+@@ -1845,14 +1916,6 @@ start_function (FuncDeclaration *fd)
  	  warning (OPT_Wtemplates, "%s %qs instantiated",
  		   ti->kind (), ti->toPrettyChars (false));
  	}
@@ -23431,7 +23539,7 @@ index a30549ce8e0..477e8d880d9 100644
      }
  
    DECL_INITIAL (fndecl) = error_mark_node;
-@@ -1869,14 +1914,8 @@ start_function (FuncDeclaration *fd)
+@@ -1869,14 +1932,8 @@ start_function (FuncDeclaration *fd)
    /* Let GCC know the current scope is this function.  */
    current_function_decl = fndecl;
  
@@ -23448,7 +23556,7 @@ index a30549ce8e0..477e8d880d9 100644
  
    /* Initialize the RTL code for the function.  */
    allocate_struct_function (fndecl, false);
-@@ -1943,6 +1982,10 @@ finish_function (tree old_context)
+@@ -1943,6 +2000,10 @@ finish_function (tree old_context)
  
    DECL_SAVED_TREE (fndecl) = bind;
  
@@ -23459,7 +23567,7 @@ index a30549ce8e0..477e8d880d9 100644
    if (!errorcount && !global.errors)
      {
        /* Dump the D-specific tree IR.  */
-@@ -2375,16 +2418,17 @@ set_linkage_for_decl (tree decl)
+@@ -2375,16 +2436,17 @@ set_linkage_for_decl (tree decl)
    if (!TREE_PUBLIC (decl))
      return;
  
@@ -23726,6 +23834,22 @@ index 9d6464deb07..a10d21e355e 100644
    finish_builtin_struct (type, ident->toChars (), fields, NULL_TREE);
  
    tinfo_types[tk] = type;
+diff --git a/gcc/d/types.cc b/gcc/d/types.cc
+index 3b121f5b042..84995a6e681 100644
+--- a/gcc/d/types.cc
++++ b/gcc/d/types.cc
+@@ -1008,6 +1008,11 @@ public:
+ 	apply_user_attributes (t->sym, t->ctype);
+ 	finish_aggregate_type (structsize, alignsize, t->ctype);
+       }
++    else
++      {
++	build_type_decl (t->ctype, t->sym);
++	apply_user_attributes (t->sym, t->ctype);
++      }
+ 
+     TYPE_CONTEXT (t->ctype) = d_decl_context (t->sym);
+     build_type_decl (t->ctype, t->sym);
 diff --git a/gcc/doc/cppopts.texi b/gcc/doc/cppopts.texi
 index b941de6df1b..03fd8084619 100644
 --- a/gcc/doc/cppopts.texi
@@ -28267,10 +28391,27 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..cbc36b0e234 100644
+index 5fc23605244..ed1a1d55b49 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2875 @@
+@@ -1,3 +1,2892 @@
++2024-03-03  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2024-02-12  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	PR d/113758
++	* gdc.dg/torture/pr113758.d: New test.
++
++2024-03-03  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2024-02-12  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	PR d/113125
++	* gdc.dg/imports/pr113125.d: New test.
++	* gdc.dg/pr113125.d: New test.
++
 +2024-02-27  H.J. Lu  <hjl.tools@gmail.com>
 +
 +	Backported from master:
@@ -43676,6 +43817,14 @@ index 00000000000..a23c78ddf84
 +const class ConstC { }
 +immutable enum ImmutableE { _ }
 +const enum ConstE { _ }
+diff --git a/gcc/testsuite/gdc.dg/imports/pr113125.d b/gcc/testsuite/gdc.dg/imports/pr113125.d
+new file mode 100644
+index 00000000000..761e613b055
+--- /dev/null
++++ b/gcc/testsuite/gdc.dg/imports/pr113125.d
+@@ -0,0 +1,2 @@
++module imports.pr113125;
++struct S113125;
 diff --git a/gcc/testsuite/gdc.dg/pr106139a.d b/gcc/testsuite/gdc.dg/pr106139a.d
 new file mode 100644
 index 00000000000..f635eabc745
@@ -43908,6 +44057,16 @@ index 00000000000..bf69201d9a5
 +}
 +// { dg-final { scan-tree-dump "if \\(__builtin_expect \\(p == 0, 0\\) != 0\\)" "original" } }
 +// { dg-final { scan-tree-dump "if \\(__builtin_expect \\(p == 1, 0\\) != 0\\)" "original" } }
+diff --git a/gcc/testsuite/gdc.dg/pr113125.d b/gcc/testsuite/gdc.dg/pr113125.d
+new file mode 100644
+index 00000000000..cb7300baa1a
+--- /dev/null
++++ b/gcc/testsuite/gdc.dg/pr113125.d
+@@ -0,0 +1,4 @@
++// { dg-do compile }
++// { dg-options "-I $srcdir/gdc.dg" }
++module pr113125;
++import imports.pr113125: S113125;
 diff --git a/gcc/testsuite/gdc.dg/pr98277.d b/gcc/testsuite/gdc.dg/pr98277.d
 index d3b859fcbda..33b15e9e435 100644
 --- a/gcc/testsuite/gdc.dg/pr98277.d
@@ -43996,6 +44155,66 @@ index 00000000000..b7a67e716a5
 +    volatileStore(ptr, 0);
 +}
 +// { dg-final { scan-tree-dump-times " ={v} " 4 "optimized" } }
+diff --git a/gcc/testsuite/gdc.dg/torture/pr113758.d b/gcc/testsuite/gdc.dg/torture/pr113758.d
+new file mode 100644
+index 00000000000..dc53883a8de
+--- /dev/null
++++ b/gcc/testsuite/gdc.dg/torture/pr113758.d
+@@ -0,0 +1,19 @@
++// { dg-do run }
++// { dg-skip-if "needs gcc/config.d" { ! d_runtime } }
++struct S113758
++{
++    int field;
++    ~this() { field = 0; }
++}
++
++void main()
++{
++    auto var = S113758(1);
++    f113758d(var);
++    assert(var.field == 1);
++    f113758cxx(var);
++    assert(var.field == 1);
++}
++
++extern (D)   void f113758d(S113758 arg) { }
++extern (C++) void f113758cxx(S113758 arg) { }
+diff --git a/gcc/testsuite/gdc.dg/torture/pr114171.d b/gcc/testsuite/gdc.dg/torture/pr114171.d
+new file mode 100644
+index 00000000000..0f9ffcab916
+--- /dev/null
++++ b/gcc/testsuite/gdc.dg/torture/pr114171.d
+@@ -0,0 +1,29 @@
++// { dg-do run }
++// { dg-additional-options "-mavx" { target avx_runtime } }
++// { dg-skip-if "needs gcc/config.d" { ! d_runtime } }
++import gcc.builtins;
++
++struct S1
++{
++    string label;
++}
++
++struct S2
++{
++    ulong pad;
++    S1 label;
++}
++
++pragma(inline, false)
++auto newitem()
++{
++    void *p = __builtin_malloc(S2.sizeof);
++    __builtin_memset(p, 0, S2.sizeof);
++    return cast(S2*) p;
++}
++
++int main()
++{
++    auto bn = newitem();
++    return bn.label is S1.init ? 0 : 1;
++}
 diff --git a/gcc/testsuite/gdc.dg/torture/torture.exp b/gcc/testsuite/gdc.dg/torture/torture.exp
 index da3297b47b2..13be801823e 100644
 --- a/gcc/testsuite/gdc.dg/torture/torture.exp
