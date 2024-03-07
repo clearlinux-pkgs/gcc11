@@ -45,7 +45,7 @@ Dimitar Dimitrov (1):
 Eric Biggers (1):
       options: fix cl_target_option_print_diff() with strings
 
-Eric Botcazou (10):
+Eric Botcazou (11):
       Fix internal error with vectorization on SPARC
       Fix PR target/107248
       Fix recent thinko in operand_equal_p
@@ -56,6 +56,7 @@ Eric Botcazou (10):
       Fix PR target/109140
       Remove obsolete configure code in gnattools
       Finalization of object allocated by anonymous access designating local type
+      Fix bogus error on allocator for array type with Dynamic_Predicate
 
 Florian Weimer (2):
       libsanitizer: Avoid implicit function declaration in configure test
@@ -74,7 +75,10 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (675):
+GCC Administrator (678):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -6095,6 +6099,19 @@ index 9c36606130e..767f5bb49d0 100644
  2022-04-21  Release Manager
  
  	* GCC 11.3.0 released.
+diff --git a/gcc/ada/exp_ch4.adb b/gcc/ada/exp_ch4.adb
+index 44370786a3d..48dae8396d0 100644
+--- a/gcc/ada/exp_ch4.adb
++++ b/gcc/ada/exp_ch4.adb
+@@ -4970,8 +4970,6 @@ package body Exp_Ch4 is
+          if Is_Array_Type (Dtyp) and then not No_Initialization (N) then
+             Apply_Constraint_Check (Expression (N), Dtyp, No_Sliding => True);
+ 
+-            Apply_Predicate_Check (Expression (N), Dtyp);
+-
+             if Nkind (Expression (N)) = N_Raise_Constraint_Error then
+                Rewrite (N, New_Copy (Expression (N)));
+                Set_Etype (N, PtrT);
 diff --git a/gcc/ada/exp_ch7.adb b/gcc/ada/exp_ch7.adb
 index 5d8ad7d505d..99ac14ba54b 100644
 --- a/gcc/ada/exp_ch7.adb
@@ -46467,6 +46484,27 @@ index 00000000000..09aaff14e01
 +  end record;
 +
 +end Opt99_Pkg2;
+diff --git a/gcc/testsuite/gnat.dg/predicate15.adb b/gcc/testsuite/gnat.dg/predicate15.adb
+new file mode 100644
+index 00000000000..cf9e1d9e17f
+--- /dev/null
++++ b/gcc/testsuite/gnat.dg/predicate15.adb
+@@ -0,0 +1,15 @@
++-- { dg-do compile }
++-- { dg-options "-gnata" }
++
++procedure Predicate15 is
++
++   type Grid is array (Positive range <>) of Integer with
++      Dynamic_Predicate => Grid'First = 1;
++
++   type Grid_Ptr is access Grid;
++
++   Data : Grid_Ptr := new Grid (1 .. 10);
++
++begin
++   null;
++end;
 diff --git a/gcc/testsuite/gnat.dg/sso18.adb b/gcc/testsuite/gnat.dg/sso18.adb
 new file mode 100644
 index 00000000000..7496e965fd3
