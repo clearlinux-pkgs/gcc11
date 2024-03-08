@@ -75,7 +75,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (678):
+GCC Administrator (679):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -6076,10 +6077,16 @@ index a0587d18824..af877615de8 100644
  
  	* GCC 11.3.0 released.
 diff --git a/gcc/ada/ChangeLog b/gcc/ada/ChangeLog
-index 9c36606130e..767f5bb49d0 100644
+index 9c36606130e..b6ecdeaa2b0 100644
 --- a/gcc/ada/ChangeLog
 +++ b/gcc/ada/ChangeLog
-@@ -1,3 +1,19 @@
+@@ -1,3 +1,25 @@
++2024-03-07  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR ada/113979
++	* exp_ch4.adb (Expand_N_Allocator): In the subtype indication case,
++	remove call to Apply_Predicate_Check.
++
 +2024-02-26  Eric Botcazou  <ebotcazou@adacore.com>
 +
 +	PR ada/113893
@@ -28424,10 +28431,14 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..3d0ac222657 100644
+index 5fc23605244..b1ad79c170a 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2900 @@
+@@ -1,3 +1,2904 @@
++2024-03-07  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gnat.dg/predicate15.adb: New test.
++
 +2024-03-03  Iain Buclaw  <ibuclaw@gdcproject.org>
 +
 +	Backported from master:
