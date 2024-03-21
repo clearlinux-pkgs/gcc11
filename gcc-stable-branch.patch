@@ -75,7 +75,10 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (689):
+GCC Administrator (692):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -781,7 +784,7 @@ Haochen Gui (2):
       rs6000: correct vector sign extend builtins on Big Endian
       rs6000: call vector load/store with length only on 64-bit Power10
 
-Harald Anlauf (44):
+Harald Anlauf (45):
       Fortran: improve error recovery on invalid array section
       Fortran: fix error recovery on invalid array section
       Fortran: fix checking of arguments to UNPACK when MASK is a variable [PR105813]
@@ -826,6 +829,7 @@ Harald Anlauf (44):
       Fortran: out of bounds access with nested implied-do IO [PR111837]
       Fortran: avoid obsolescence warning for COMMON with submodule [PR111880]
       Fortran: fix bounds-checking errors for CLASS array dummies [PR104908]
+      Fortran: error recovery in frontend optimization [PR103715]
 
 Hongyu Wang (1):
       AVX512F: Add missing macro for mask(z?)_scalf_s[sd] [PR 105339]
@@ -24337,10 +24341,19 @@ index 70c5b3886ef..f4fd980dbbc 100644
  
  	  op1 = gimple_assign_rhs1 (stmt);
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..9897288e273 100644
+index ee1c7bb4b31..47139e87ff2 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,625 @@
+@@ -1,3 +1,634 @@
++2024-03-20  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2024-03-18  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/103715
++	* frontend-passes.c (check_externals_expr): Prevent invalid read
++	in case of mismatch of external subroutine with function.
++
 +2024-02-09  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -25248,7 +25261,7 @@ index a346457b5e0..b11cff6559b 100644
  		      "realloc", ATTR_NOTHROW_LEAF_LIST);
  
 diff --git a/gcc/fortran/frontend-passes.c b/gcc/fortran/frontend-passes.c
-index ad1ba397803..ebc5a7f3699 100644
+index ad1ba397803..439a311e4a5 100644
 --- a/gcc/fortran/frontend-passes.c
 +++ b/gcc/fortran/frontend-passes.c
 @@ -1326,7 +1326,7 @@ traverse_io_block (gfc_code *code, bool *has_reached, gfc_code *prev)
@@ -25260,6 +25273,16 @@ index ad1ba397803..ebc5a7f3699 100644
  	    {
  	      if (iters[j]
  		  && (var_in_expr (var, iters[j]->start)
+@@ -5782,6 +5782,9 @@ check_externals_expr (gfc_expr **ep, int *walk_subtrees ATTRIBUTE_UNUSED,
+   if (e->expr_type != EXPR_FUNCTION)
+     return 0;
+ 
++  if (e->symtree && e->symtree->n.sym->attr.subroutine)
++    return 0;
++
+   sym = e->value.function.esym;
+   if (sym == NULL)
+     return 0;
 diff --git a/gcc/fortran/interface.c b/gcc/fortran/interface.c
 index 9e3e8aa9da9..150f3def319 100644
 --- a/gcc/fortran/interface.c
@@ -28512,10 +28535,18 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..b1ad79c170a 100644
+index 5fc23605244..47c160b25ee 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2904 @@
+@@ -1,3 +1,2912 @@
++2024-03-20  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2024-03-18  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/103715
++	* gfortran.dg/pr103715.f90: New test.
++
 +2024-03-07  Eric Botcazou  <ebotcazou@adacore.com>
 +
 +	* gnat.dg/predicate15.adb: New test.
@@ -45513,6 +45544,24 @@ index 00000000000..3ed8b2088da
 +  type(t) :: x((0.)/0)
 +  integer :: n = size(x(1)%a) ! { dg-error "does not reduce to a constant expression" }
 +end
+diff --git a/gcc/testsuite/gfortran.dg/pr103715.f90 b/gcc/testsuite/gfortran.dg/pr103715.f90
+new file mode 100644
+index 00000000000..72c5a31fb21
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/pr103715.f90
+@@ -0,0 +1,12 @@
++! { dg-do compile }
++! PR fortran/103715 - ICE in gfc_find_gsymbol
++!
++! valgrind did report an invalid read in check_externals_procedure
++
++program p
++  select type (y => g()) ! { dg-error "Selector shall be polymorphic" }
++  end select
++  call g()
++end
++
++! { dg-prune-output "already being used as a FUNCTION" }
 diff --git a/gcc/testsuite/gfortran.dg/pr104313.f b/gcc/testsuite/gfortran.dg/pr104313.f
 new file mode 100644
 index 00000000000..89c8947cb0a
