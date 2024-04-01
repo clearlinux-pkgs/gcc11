@@ -75,7 +75,9 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (701):
+GCC Administrator (703):
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -868,7 +870,7 @@ Iain Buclaw (22):
       d: Fix callee destructor call invalidates the live object [PR113758]
       d: Fix gdc -O2 -mavx generates misaligned vmovdqa instruction [PR114171]
 
-Iain Sandoe (15):
+Iain Sandoe (16):
       Darwin: Fix bootstrap for X86.
       Darwin: Update rules for handling alignment of globals.
       Darwin: Fix empty g++ command lines [PR105599].
@@ -884,6 +886,7 @@ Iain Sandoe (15):
       Darwin, PPC: Fix struct layout with pragma pack [PR110044].
       libiberty, Darwin: Fix a build warning.
       Darwin, Objective-C: Support -fconstant-cfstrings [PR108743].
+      Objective-C, NeXT: Fix messenging non-aggregate return-in-memory.
 
 Ian Lance Taylor (2):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
@@ -28454,10 +28457,20 @@ index e89601c0c14..d040c853942 100644
  		      wi::to_wide (@ipos) + isize))
      (BIT_FIELD_REF @1 @rsize { wide_int_to_tree (bitsizetype,
 diff --git a/gcc/objc/ChangeLog b/gcc/objc/ChangeLog
-index b3758fad724..789ae00d665 100644
+index b3758fad724..2db1c1f274e 100644
 --- a/gcc/objc/ChangeLog
 +++ b/gcc/objc/ChangeLog
-@@ -1,3 +1,7 @@
+@@ -1,3 +1,17 @@
++2024-03-31  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2021-09-01  Iain Sandoe  <iain@sandoe.co.uk>
++
++	PR objc/101718
++	* objc-next-runtime-abi-02.c (build_v2_build_objc_method_call):
++	Revise for cases where scalar objects use an sret parameter.
++	(next_runtime_abi_02_build_objc_method_call): Likwise.
++
 +2023-05-29  Release Manager
 +
 +	* GCC 11.4.0 released.
@@ -28465,6 +28478,53 @@ index b3758fad724..789ae00d665 100644
  2022-04-21  Release Manager
  
  	* GCC 11.3.0 released.
+diff --git a/gcc/objc/objc-next-runtime-abi-02.c b/gcc/objc/objc-next-runtime-abi-02.c
+index af68c1c84a3..19f137c632e 100644
+--- a/gcc/objc/objc-next-runtime-abi-02.c
++++ b/gcc/objc/objc-next-runtime-abi-02.c
+@@ -1740,15 +1740,16 @@ build_v2_build_objc_method_call (int super, tree method_prototype,
+   /* Param list + 2 slots for object and selector.  */
+   vec_alloc (parms, nparm + 2);
+ 
+-  /* If we are returning a struct in memory, and the address
+-     of that memory location is passed as a hidden first
+-     argument, then change which messenger entry point this
+-     expr will call.  NB: Note that sender_cast remains
+-     unchanged (it already has a struct return type).  */
+-  if (!targetm.calls.struct_value_rtx (0, 0)
+-      && (TREE_CODE (ret_type) == RECORD_TYPE
+-	  || TREE_CODE (ret_type) == UNION_TYPE)
+-      && targetm.calls.return_in_memory (ret_type, 0))
++  /* If we are returning an item that must be returned in memory, and the
++     target ABI does this by an invisible pointer provided as the first arg,
++     we need to adjust the message signature to include this.  The second
++     part of this excludes targets that provide some alternate scheme for
++     structure returns.  */
++  if (ret_type && !VOID_TYPE_P (ret_type)
++      && targetm.calls.return_in_memory (ret_type, 0)
++      && !(targetm.calls.struct_value_rtx (0, 0)
++	   && (TREE_CODE (ret_type) == RECORD_TYPE
++	       || TREE_CODE (ret_type) == UNION_TYPE)))
+     {
+       if (super)
+ 	sender = umsg_id_super2_stret_fixup_decl;
+@@ -1853,10 +1854,12 @@ next_runtime_abi_02_build_objc_method_call (location_t loc,
+ 	     ? TREE_VALUE (TREE_TYPE (method_prototype))
+ 	     : objc_object_type;
+ 
+-  if (!targetm.calls.struct_value_rtx (0, 0)
+-      && (TREE_CODE (ret_type) == RECORD_TYPE
+-	  || TREE_CODE (ret_type) == UNION_TYPE)
+-      && targetm.calls.return_in_memory (ret_type, 0))
++  /* See comment for the fixup version above.  */
++  if (ret_type && !VOID_TYPE_P (ret_type)
++      && targetm.calls.return_in_memory (ret_type, 0)
++      && !(targetm.calls.struct_value_rtx (0, 0)
++	   && (TREE_CODE (ret_type) == RECORD_TYPE
++	       || TREE_CODE (ret_type) == UNION_TYPE)))
+     {
+       if (super)
+ 	message_func_decl = umsg_id_super2_stret_fixup_decl;
 diff --git a/gcc/objcp/ChangeLog b/gcc/objcp/ChangeLog
 index 5654106fb88..66c468bd675 100644
 --- a/gcc/objcp/ChangeLog
