@@ -75,7 +75,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (703):
+GCC Administrator (704):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1304,10 +1305,11 @@ Michael Meissner (6):
       Do not generate vmaddfp and vnmsubfp
       Fix power10 fusion bug with prefixed loads, PR target/105325
 
-Mikael Morin (3):
+Mikael Morin (4):
       fortran: Move the clobber generation code
       fortran: Fix invalid function decl clobber ICE [PR105012]
       fortran: Move clobbers after evaluation of all arguments [PR106817]
+      fortran: Ignore use statements on error [PR107426]
 
 Oleg Endo (4):
       SH: Fix PR101469 peephole bug
@@ -26099,6 +26101,19 @@ index ad1ba397803..439a311e4a5 100644
    sym = e->value.function.esym;
    if (sym == NULL)
      return 0;
+diff --git a/gcc/fortran/gfortran.h b/gcc/fortran/gfortran.h
+index 0436c4f308f..e5a0bc2be60 100644
+--- a/gcc/fortran/gfortran.h
++++ b/gcc/fortran/gfortran.h
+@@ -3578,6 +3578,8 @@ void gfc_module_done_2 (void);
+ void gfc_dump_module (const char *, int);
+ bool gfc_check_symbol_access (gfc_symbol *);
+ void gfc_free_use_stmts (gfc_use_list *);
++void gfc_save_module_list ();
++void gfc_restore_old_module_list ();
+ const char *gfc_dt_lower_string (const char *);
+ const char *gfc_dt_upper_string (const char *);
+ 
 diff --git a/gcc/fortran/interface.c b/gcc/fortran/interface.c
 index 9e3e8aa9da9..150f3def319 100644
 --- a/gcc/fortran/interface.c
@@ -26257,11 +26272,86 @@ index 860b6567d2a..91b31e06e56 100644
  	  /* Deal with an optional array specification after the
  	     symbol name.  */
  	  m = gfc_match_array_spec (&as, true, true);
+diff --git a/gcc/fortran/module.c b/gcc/fortran/module.c
+index 089453caa03..42bd585434f 100644
+--- a/gcc/fortran/module.c
++++ b/gcc/fortran/module.c
+@@ -195,7 +195,12 @@ static const char *module_name;
+ /* The name of the .smod file that the submodule will write to.  */
+ static const char *submodule_name;
+ 
++/* The list of use statements to apply to the current namespace
++   before parsing the non-use statements.  */
+ static gfc_use_list *module_list;
++/* The end of the MODULE_LIST list above at the time the recognition
++   of the current statement started.  */
++static gfc_use_list **old_module_list_tail;
+ 
+ /* If we're reading an intrinsic module, this is its ID.  */
+ static intmod_id current_intmod;
+@@ -7476,6 +7481,8 @@ gfc_use_modules (void)
+       gfc_use_module (module_list);
+       free (module_list);
+     }
++  module_list = NULL;
++  old_module_list_tail = &module_list;
+   gfc_rename_list = NULL;
+ }
+ 
+@@ -7499,6 +7506,30 @@ gfc_free_use_stmts (gfc_use_list *use_stmts)
+ }
+ 
+ 
++/* Remember the end of the MODULE_LIST list, so that the list can be restored
++   to its previous state if the current statement is erroneous.  */
++
++void
++gfc_save_module_list ()
++{
++  gfc_use_list **tail = &module_list;
++  while (*tail != NULL)
++    tail = &(*tail)->next;
++  old_module_list_tail = tail;
++}
++
++
++/* Restore the MODULE_LIST list to its previous value and free the use
++   statements that are no longer part of the list.  */
++
++void
++gfc_restore_old_module_list ()
++{
++  gfc_free_use_stmts (*old_module_list_tail);
++  *old_module_list_tail = NULL;
++}
++
++
+ void
+ gfc_module_init_2 (void)
+ {
 diff --git a/gcc/fortran/parse.c b/gcc/fortran/parse.c
-index 04501f44ef8..6893557733b 100644
+index 04501f44ef8..65fd0827c01 100644
 --- a/gcc/fortran/parse.c
 +++ b/gcc/fortran/parse.c
-@@ -3747,21 +3747,30 @@ match_deferred_characteristics (gfc_typespec * ts)
+@@ -1519,6 +1519,7 @@ next_statement (void)
+   locus old_locus;
+ 
+   gfc_enforce_clean_symbol_state ();
++  gfc_save_module_list ();
+ 
+   gfc_new_block = NULL;
+ 
+@@ -2674,6 +2675,9 @@ reject_statement (void)
+ 
+   gfc_reject_data (gfc_current_ns);
+ 
++  /* Don't queue use-association of a module if we reject the use statement.  */
++  gfc_restore_old_module_list ();
++
+   gfc_new_block = NULL;
+   gfc_undo_symbols ();
+   gfc_clear_warning ();
+@@ -3747,21 +3751,30 @@ match_deferred_characteristics (gfc_typespec * ts)
     For return types specified in a FUNCTION prefix, the IMPLICIT rules of the
     scope are not yet parsed so this has to be delayed up to parse_spec.  */
  
@@ -26295,7 +26385,7 @@ index 04501f44ef8..6893557733b 100644
  }
  
  
-@@ -3869,10 +3878,7 @@ loop:
+@@ -3869,10 +3882,7 @@ loop:
  	}
  
        if (verify_now)
@@ -26307,7 +26397,7 @@ index 04501f44ef8..6893557733b 100644
      }
  
    switch (st)
-@@ -3883,10 +3889,7 @@ loop:
+@@ -3883,10 +3893,7 @@ loop:
      case ST_IMPLICIT_NONE:
      case ST_IMPLICIT:
        if (!function_result_typed)
@@ -26319,7 +26409,7 @@ index 04501f44ef8..6893557733b 100644
        goto declSt;
  
      case ST_FORMAT:
-@@ -6157,7 +6160,6 @@ parse_module (void)
+@@ -6157,7 +6164,6 @@ parse_module (void)
  {
    gfc_statement st;
    gfc_gsymbol *s;
@@ -26327,7 +26417,7 @@ index 04501f44ef8..6893557733b 100644
  
    s = gfc_get_gsymbol (gfc_new_block->name, false);
    if (s->defined || (s->type != GSYM_UNKNOWN && s->type != GSYM_MODULE))
-@@ -6180,7 +6182,6 @@ parse_module (void)
+@@ -6180,7 +6186,6 @@ parse_module (void)
  
    st = parse_spec (ST_NONE);
  
@@ -26335,7 +26425,7 @@ index 04501f44ef8..6893557733b 100644
  loop:
    switch (st)
      {
-@@ -6199,16 +6200,11 @@ loop:
+@@ -6199,16 +6204,11 @@ loop:
      default:
        gfc_error ("Unexpected %s statement in MODULE at %C",
  		 gfc_ascii_statement (st));
@@ -47078,6 +47168,32 @@ index 00000000000..d8f08cbd210
 +  end interface
 +  x = g()
 +end
+diff --git a/gcc/testsuite/gfortran.dg/pr89943_3.f90 b/gcc/testsuite/gfortran.dg/pr89943_3.f90
+index 38b723e2458..84a9fb74741 100644
+--- a/gcc/testsuite/gfortran.dg/pr89943_3.f90
++++ b/gcc/testsuite/gfortran.dg/pr89943_3.f90
+@@ -22,7 +22,7 @@ submodule(Foo_mod) Foo_smod
+       module subroutine runFoo4C(ndim) bind(C, name="runFu")   ! { dg-error "Mismatch in BIND" }
+          use, intrinsic :: iso_c_binding                 ! { dg-error "Unexpected USE statement" }
+          implicit none                                   ! { dg-error "Unexpected IMPLICIT NONE statement" }
+-         integer(c_int32_t) , intent(in) :: ndim         ! { dg-error "Unexpected data declaration" }
++         integer(c_int32_t) , intent(in) :: ndim         ! { dg-error "Symbol 'c_int32_t' at .1. has no IMPLICIT type" }
+       end subroutine runFoo4C                            ! { dg-error " Expecting END SUBMODULE" }
+ 
+ end submodule Foo_smod
+diff --git a/gcc/testsuite/gfortran.dg/pr89943_4.f90 b/gcc/testsuite/gfortran.dg/pr89943_4.f90
+index 8eba2eda171..cb955d01c88 100644
+--- a/gcc/testsuite/gfortran.dg/pr89943_4.f90
++++ b/gcc/testsuite/gfortran.dg/pr89943_4.f90
+@@ -23,7 +23,7 @@ submodule(Foo_mod) Foo_smod
+       module function runFoo4C(ndim) bind(C, name="runFu")  ! { dg-error "Mismatch in BIND" }
+          use, intrinsic :: iso_c_binding     ! { dg-error "Unexpected USE statement in" }
+          implicit none                       ! { dg-error "Unexpected IMPLICIT NONE statement" }
+-         integer(c_int32_t) , intent(in) :: ndim   ! { dg-error "Unexpected data declaration" }
++         integer(c_int32_t) , intent(in) :: ndim   ! { dg-error "Symbol 'c_int32_t' at .1. has no IMPLICIT type" }
+       end function runFoo4C                  ! { dg-error "Expecting END SUBMODULE" }
+ 
+ end submodule Foo_smod
 diff --git a/gcc/testsuite/gfortran.dg/pr96024.f90 b/gcc/testsuite/gfortran.dg/pr96024.f90
 new file mode 100644
 index 00000000000..2c914a997f2
@@ -47308,6 +47424,38 @@ index 00000000000..5347c111e8f
 +                                              shape (mask))
 +  print *, unpack ([1,2,3], mask, 0) ! OK
 +  print *, unpack ([1,2],   mask, 0) ! { dg-error "must provide at least" }
++end
+diff --git a/gcc/testsuite/gfortran.dg/use_31.f90 b/gcc/testsuite/gfortran.dg/use_31.f90
+new file mode 100644
+index 00000000000..89a9ab30d11
+--- /dev/null
++++ b/gcc/testsuite/gfortran.dg/use_31.f90
+@@ -0,0 +1,26 @@
++! { dg-do compile }
++!
++! PR fortran/107426
++! This example used to generate an ICE, caused by the use stmt from the nested
++! procedure declaration setting the result of the C_LOC global intrinsic symbol
++! to the symbol of C_PTR from ISO_C_BINDING being imported, before freeing the
++! latter symbol because of the rejection of the use statement.
++!
++! Contributed by Gerhard Steinmetz <gscfq@t-online.de>
++
++module m
++contains
++   subroutine p() bind(c)
++      use, intrinsic :: iso_c_binding
++      integer, target :: a = 1
++      type(c_ptr) :: z
++      interface
++         subroutine s(x) bind(cc)            ! { dg-error "Missing closing paren" }
++            use, intrinsic :: iso_c_binding  ! { dg-error "Unexpected USE statement in INTERFACE block" }
++            integer(c_int), value :: x       ! { dg-error "Parameter 'c_int' at .1. has not been declared" }
++         end                                 ! { dg-error "END INTERFACE statement expected" }
++      end interface
++      z = c_loc(a)
++      call s(z)
++   end
 +end
 diff --git a/gcc/testsuite/gfortran.dg/vect/pr107254.f90 b/gcc/testsuite/gfortran.dg/vect/pr107254.f90
 new file mode 100644
