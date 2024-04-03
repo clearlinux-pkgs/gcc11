@@ -75,7 +75,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (704):
+GCC Administrator (705):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1374,8 +1375,9 @@ Philipp Tomsich (6):
       aarch64: disable LDP via tuning structure for -mcpu=ampere1
       PR target/108589 - Check REG_P for AARCH64_FUSE_ADDSUB_2REG_CONST1
 
-Qing Zhao (1):
+Qing Zhao (2):
       i386: Adjust -fzero-call-used-regs to always use XOR [PR101891]
+      Fix SSA corruption due to widening_mul opt on conflict across an abnormal edge [PR111407]
 
 Rainer Orth (2):
       libstdc++: Fix 28_regex/basic_regex/84110.cc on Solaris
@@ -3296,10 +3298,19 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..c85fb61b681 100644
+index a0587d18824..2e16f22521f 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,2845 @@
+@@ -1,3 +1,2854 @@
++2024-04-02  Qing Zhao  <qing.zhao@oracle.com>
++
++	Backported from master:
++	2023-09-15  Qing Zhao  <qing.zhao@oracle.com>
++
++	PR tree-optimization/111407
++	* tree-ssa-math-opts.c (convert_mult_to_widen): Avoid the transform
++	when one of the operands is subject to abnormal coalescing.
++
 +2024-03-27  Richard Sandiford  <richard.sandiford@arm.com>
 +
 +	Backported from master:
@@ -25151,10 +25162,24 @@ index 70c5b3886ef..f4fd980dbbc 100644
  
  	  op1 = gimple_assign_rhs1 (stmt);
 diff --git a/gcc/fortran/ChangeLog b/gcc/fortran/ChangeLog
-index ee1c7bb4b31..e3637c862e5 100644
+index ee1c7bb4b31..797ee2b53c1 100644
 --- a/gcc/fortran/ChangeLog
 +++ b/gcc/fortran/ChangeLog
-@@ -1,3 +1,642 @@
+@@ -1,3 +1,656 @@
++2024-04-02  Mikael Morin  <mikael@gcc.gnu.org>
++
++	Backported from master:
++	2024-03-22  Mikael Morin  <mikael@gcc.gnu.org>
++
++	PR fortran/107426
++	* gfortran.h (gfc_save_module_list, gfc_restore_old_module_list):
++	New declarations.
++	* module.c (old_module_list_tail): New global variable.
++	(gfc_save_module_list, gfc_restore_old_module_list): New functions.
++	(gfc_use_modules): Set module_list and old_module_list_tail.
++	* parse.c (next_statement): Save module_list before doing any work.
++	(reject_statement): Restore module_list to its saved value.
++
 +2024-03-29  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -29507,10 +29532,28 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
  
    /* Getter for summary callgraph edge pointer.
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..a234d03d4bb 100644
+index 5fc23605244..c5e03811dfc 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2928 @@
+@@ -1,3 +1,2946 @@
++2024-04-02  Qing Zhao  <qing.zhao@oracle.com>
++
++	Backported from master:
++	2023-09-15  Qing Zhao  <qing.zhao@oracle.com>
++
++	PR tree-optimization/111407
++	* gcc.dg/pr111407.c: New test.
++
++2024-04-02  Mikael Morin  <mikael@gcc.gnu.org>
++
++	Backported from master:
++	2024-03-22  Mikael Morin  <mikael@gcc.gnu.org>
++
++	PR fortran/107426
++	* gfortran.dg/pr89943_3.f90: Update error pattern.
++	* gfortran.dg/pr89943_4.f90: Likewise.
++	* gfortran.dg/use_31.f90: New test.
++
 +2024-03-29  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -38529,6 +38572,33 @@ index 00000000000..599a14e6ecc
 +      || d.b != 11
 +      || d.c != (0x123456789abcdef0ULL | (((unsigned __int128) 26) << 64)))
 +    __builtin_abort ();
++}
+diff --git a/gcc/testsuite/gcc.dg/pr111407.c b/gcc/testsuite/gcc.dg/pr111407.c
+new file mode 100644
+index 00000000000..a171074753f
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/pr111407.c
+@@ -0,0 +1,21 @@
++/* PR tree-optimization/111407*/
++/* { dg-do compile } */
++/* { dg-options "-O2" } */
++enum { SEND_TOFILE } __sigsetjmp();
++void fclose();
++void foldergets();
++void sendpart_stats(int *p1, int a1, int b1) {
++ int *a = p1;
++ fclose();
++ p1 = 0;
++ long t = b1;
++ if (__sigsetjmp()) {
++   {
++     long t1 = a1;
++     a1+=1;
++     fclose(a1*(long)t1);
++   }
++ }
++ if (p1)
++   fclose();
 +}
 diff --git a/gcc/testsuite/gcc.dg/pr112733.c b/gcc/testsuite/gcc.dg/pr112733.c
 new file mode 100644
@@ -48624,7 +48694,7 @@ index 04d4553f13e..8322f667096 100644
    new_cond_stmt = gimple_build_cond (gimple_cond_code (cond_stmt),
  				     gimple_cond_lhs (cond_stmt),
 diff --git a/gcc/tree-ssa-math-opts.c b/gcc/tree-ssa-math-opts.c
-index 94f9cc4d6b6..adeb70fd635 100644
+index 94f9cc4d6b6..dcaf272d73f 100644
 --- a/gcc/tree-ssa-math-opts.c
 +++ b/gcc/tree-ssa-math-opts.c
 @@ -1459,7 +1459,7 @@ powi_cost (HOST_WIDE_INT n)
@@ -48669,6 +48739,21 @@ index 94f9cc4d6b6..adeb70fd635 100644
      return powi_as_mults (gsi, loc, arg0, n);
  
    return NULL_TREE;
+@@ -2680,6 +2678,14 @@ convert_mult_to_widen (gimple *stmt, gimple_stmt_iterator *gsi)
+   if (!is_widening_mult_p (stmt, &type1, &rhs1, &type2, &rhs2))
+     return false;
+ 
++  /* if any one of rhs1 and rhs2 is subject to abnormal coalescing,
++     avoid the tranform. */
++  if ((TREE_CODE (rhs1) == SSA_NAME
++       && SSA_NAME_OCCURS_IN_ABNORMAL_PHI (rhs1))
++      || (TREE_CODE (rhs2) == SSA_NAME
++	  && SSA_NAME_OCCURS_IN_ABNORMAL_PHI (rhs2)))
++    return false;
++
+   to_mode = SCALAR_INT_TYPE_MODE (type);
+   from_mode = SCALAR_INT_TYPE_MODE (type1);
+   if (to_mode == from_mode)
 diff --git a/gcc/tree-ssa-reassoc.c b/gcc/tree-ssa-reassoc.c
 index 32e1632705b..7dca793adbb 100644
 --- a/gcc/tree-ssa-reassoc.c
