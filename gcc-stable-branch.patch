@@ -78,7 +78,9 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (713):
+GCC Administrator (715):
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -796,13 +798,14 @@ GCC Administrator (713):
 Georg-Johann Lay (1):
       Fix PR target/99184: Wrong cast from double to 16-bit and 32-bit ints
 
-H.J. Lu (6):
+H.J. Lu (7):
       x86: Add missing .note.GNU-stack to assembly source
       x86: Add .note.GNU-stack section only for Linux
       x86: Require AVX for F16C and VAES
       i386: Mark XMM4-XMM6 as clobbered by encodekey128/encodekey256
       Always use TYPE_MODE instead of DECL_MODE for vector field
       x86: Properly implement AMX-TILE load/store intrinsics
+      tree-profile: Disable indirect call profiling for IFUNC resolvers
 
 Haochen Gui (2):
       rs6000: correct vector sign extend builtins on Big Endian
@@ -1396,7 +1399,7 @@ Rainer Orth (2):
       libstdc++: Fix 28_regex/basic_regex/84110.cc on Solaris
       Support parallel testing in libgomp, part I [PR66005]
 
-Richard Biener (61):
+Richard Biener (62):
       Update BASE-VER to 11.3.1
       ipa/105598 - testcase for PR105598
       middle-end/105140 - fix bogus recursion in fold_convertible_p
@@ -1458,6 +1461,7 @@ Richard Biener (61):
       tree-optimization/111764 - wrong reduction vectorization
       tree-optimization/111614 - missing convert in undistribute_bitref_for_vector
       tree-optimization/111917 - bougs IL after guard hoisting
+      middle-end/114599 - fix bitmap allocation for check_ifunc_callee_symtab_nodes
 
 Richard Earnshaw (4):
       arm: big-endian issue in gen_cpymem_ldrd_strd [PR105981]
@@ -1539,8 +1543,9 @@ Steve Kargl (4):
 Surya Kumari Jangala (1):
       regrename: Fix -fcompare-debug issue in check_new_reg_p [PR105041]
 
-Tamar Christina (1):
+Tamar Christina (2):
       testsuite: Backport testsuite changes from GCC 12 to GCC 11
+      [AArch64]: Do not allow SIMD clones with simdlen 1 [PR113552]
 
 Tejas Joshi (3):
       Enable AMD znver4 support and add instruction reservations
@@ -7254,6 +7259,40 @@ index d7c78d518bc..6e523e14e05 100644
    if (next_sibling_clone)
      next_sibling_clone->prev_sibling_clone = prev_sibling_clone;
    if (clones)
+diff --git a/gcc/cgraph.h b/gcc/cgraph.h
+index 4a1f89920f5..8e6128bf25d 100644
+--- a/gcc/cgraph.h
++++ b/gcc/cgraph.h
+@@ -473,6 +473,9 @@ public:
+      Return NULL if there's no such node.  */
+   static symtab_node *get_for_asmname (const_tree asmname);
+ 
++  /* Check symbol table for callees of IFUNC resolvers.  */
++  static void check_ifunc_callee_symtab_nodes (void);
++
+   /* Verify symbol table for internal consistency.  */
+   static DEBUG_FUNCTION void verify_symtab_nodes (void);
+ 
+@@ -883,7 +886,9 @@ struct GTY((tag ("SYMTAB_FUNCTION"))) cgraph_node : public symtab_node
+       versionable (false), can_change_signature (false),
+       redefined_extern_inline (false), tm_may_enter_irr (false),
+       ipcp_clone (false), declare_variant_alt (false),
+-      calls_declare_variant_alt (false), m_uid (uid), m_summary_id (-1)
++      calls_declare_variant_alt (false),
++      called_by_ifunc_resolver (false),
++      m_uid (uid), m_summary_id (-1)
+   {}
+ 
+   /* Remove the node from cgraph and all inline clones inlined into it.
+@@ -1475,6 +1480,8 @@ struct GTY((tag ("SYMTAB_FUNCTION"))) cgraph_node : public symtab_node
+   unsigned declare_variant_alt : 1;
+   /* True if the function calls declare_variant_alt functions.  */
+   unsigned calls_declare_variant_alt : 1;
++  /* Set if the function is called by an IFUNC resolver.  */
++  unsigned called_by_ifunc_resolver : 1;
+ 
+ private:
+   /* Unique id of the node.  */
 diff --git a/gcc/cgraphclones.c b/gcc/cgraphclones.c
 index 9f86463b42d..f4b0c484e94 100644
 --- a/gcc/cgraphclones.c
@@ -7278,7 +7317,7 @@ index 9f86463b42d..f4b0c484e94 100644
    gcc_checking_assert (!DECL_STRUCT_FUNCTION (new_decl));
    gcc_checking_assert (!DECL_INITIAL (new_decl));
 diff --git a/gcc/cgraphunit.c b/gcc/cgraphunit.c
-index 0b70e4d4fde..802b01d3b97 100644
+index 0b70e4d4fde..98c9a492e00 100644
 --- a/gcc/cgraphunit.c
 +++ b/gcc/cgraphunit.c
 @@ -1749,7 +1749,7 @@ cgraph_node::assemble_thunks_and_aliases (void)
@@ -7290,6 +7329,15 @@ index 0b70e4d4fde..802b01d3b97 100644
  	thunk->assemble_thunks_and_aliases ();
        }
      else
+@@ -2273,6 +2273,8 @@ symbol_table::compile (void)
+ 
+   symtab_node::checking_verify_symtab_nodes ();
+ 
++  symtab_node::check_ifunc_callee_symtab_nodes ();
++
+   timevar_push (TV_CGRAPHOPT);
+   if (pre_ipa_mem_report)
+     dump_memory_report ("Memory consumption before IPA");
 diff --git a/gcc/common.opt b/gcc/common.opt
 index a75b44ee47e..4a3f09d9e1f 100644
 --- a/gcc/common.opt
@@ -8149,7 +8197,7 @@ index 65b4c37d652..dcb96d71a1c 100644
  
  AARCH64_EXTRA_TUNING_OPTION ("cse_sve_vl_constants", CSE_SVE_VL_CONSTANTS)
 diff --git a/gcc/config/aarch64/aarch64.c b/gcc/config/aarch64/aarch64.c
-index c155f4883cf..9bbbc5043af 100644
+index c155f4883cf..4df72339952 100644
 --- a/gcc/config/aarch64/aarch64.c
 +++ b/gcc/config/aarch64/aarch64.c
 @@ -1070,7 +1070,7 @@ static const struct cpu_vector_cost thunderx3t110_vector_cost =
@@ -9443,6 +9491,47 @@ index c155f4883cf..9bbbc5043af 100644
    if (load)
      {
        mem_1 = operands[1];
+@@ -25387,7 +25556,7 @@ aarch64_simd_clone_compute_vecsize_and_simdlen (struct cgraph_node *node,
+ 					tree base_type, int num)
+ {
+   tree t, ret_type;
+-  unsigned int elt_bits, count;
++  unsigned int elt_bits, count = 0;
+   unsigned HOST_WIDE_INT const_simdlen;
+   poly_uint64 vec_bits;
+ 
+@@ -25455,11 +25624,20 @@ aarch64_simd_clone_compute_vecsize_and_simdlen (struct cgraph_node *node,
+   elt_bits = GET_MODE_BITSIZE (SCALAR_TYPE_MODE (base_type));
+   if (known_eq (clonei->simdlen, 0U))
+     {
+-      count = 2;
+-      vec_bits = (num == 0 ? 64 : 128);
++      /* We don't support simdlen == 1.  */
++      if (known_eq (elt_bits, 64))
++	{
++	  count = 1;
++	  vec_bits = 128;
++	}
++      else
++	{
++	  count = 2;
++	  vec_bits = (num == 0 ? 64 : 128);
++	}
+       clonei->simdlen = exact_div (vec_bits, elt_bits);
+     }
+-  else
++  else if (maybe_ne (clonei->simdlen, 1U))
+     {
+       count = 1;
+       vec_bits = clonei->simdlen * elt_bits;
+@@ -25474,6 +25652,7 @@ aarch64_simd_clone_compute_vecsize_and_simdlen (struct cgraph_node *node,
+ 	  return 0;
+ 	}
+     }
++
+   clonei->vecsize_int = vec_bits;
+   clonei->vecsize_float = vec_bits;
+   return count;
 diff --git a/gcc/config/aarch64/aarch64.h b/gcc/config/aarch64/aarch64.h
 index bfffbcd6abf..9084b1cfb9d 100644
 --- a/gcc/config/aarch64/aarch64.h
@@ -29639,6 +29728,109 @@ index 6c0fbdd1c4a..aa8a7725bc4 100644
    }
  
    /* Getter for summary callgraph edge pointer.
+diff --git a/gcc/symtab.c b/gcc/symtab.c
+index 5530a124a9d..31f93f4b747 100644
+--- a/gcc/symtab.c
++++ b/gcc/symtab.c
+@@ -1363,6 +1363,98 @@ symtab_node::verify (void)
+   timevar_pop (TV_CGRAPH_VERIFY);
+ }
+ 
++/* Return true and set *DATA to true if NODE is an ifunc resolver.  */
++
++static bool
++check_ifunc_resolver (cgraph_node *node, void *data)
++{
++  if (node->ifunc_resolver)
++    {
++      bool *is_ifunc_resolver = (bool *) data;
++      *is_ifunc_resolver = true;
++      return true;
++    }
++  return false;
++}
++
++static bitmap ifunc_ref_map;
++
++/* Return true if any caller of NODE is an ifunc resolver.  */
++
++static bool
++is_caller_ifunc_resolver (cgraph_node *node)
++{
++  bool is_ifunc_resolver = false;
++
++  for (cgraph_edge *e = node->callers; e; e = e->next_caller)
++    {
++      /* Return true if caller is known to be an IFUNC resolver.  */
++      if (e->caller->called_by_ifunc_resolver)
++	return true;
++
++      /* Check for recursive call.  */
++      if (e->caller == node)
++	continue;
++
++      /* Skip if it has been visited.  */
++      unsigned int uid = e->caller->get_uid ();
++      if (!bitmap_set_bit (ifunc_ref_map, uid))
++	continue;
++
++      if (is_caller_ifunc_resolver (e->caller))
++	{
++	  /* Return true if caller is an IFUNC resolver.  */
++	  e->caller->called_by_ifunc_resolver = true;
++	  return true;
++	}
++
++      /* Check if caller's alias is an IFUNC resolver.  */
++      e->caller->call_for_symbol_and_aliases (check_ifunc_resolver,
++					      &is_ifunc_resolver,
++					      true);
++      if (is_ifunc_resolver)
++	{
++	  /* Return true if caller's alias is an IFUNC resolver.  */
++	  e->caller->called_by_ifunc_resolver = true;
++	  return true;
++	}
++    }
++
++  return false;
++}
++
++/* Check symbol table for callees of IFUNC resolvers.  */
++
++void
++symtab_node::check_ifunc_callee_symtab_nodes (void)
++{
++  symtab_node *node;
++
++  bitmap_obstack_initialize (NULL);
++  ifunc_ref_map = BITMAP_ALLOC (NULL);
++
++  FOR_EACH_SYMBOL (node)
++    {
++      cgraph_node *cnode = dyn_cast <cgraph_node *> (node);
++      if (!cnode)
++	continue;
++
++      unsigned int uid = cnode->get_uid ();
++      if (bitmap_bit_p (ifunc_ref_map, uid))
++	continue;
++      bitmap_set_bit (ifunc_ref_map, uid);
++
++      bool is_ifunc_resolver = false;
++      cnode->call_for_symbol_and_aliases (check_ifunc_resolver,
++					  &is_ifunc_resolver, true);
++      if (is_ifunc_resolver || is_caller_ifunc_resolver (cnode))
++	cnode->called_by_ifunc_resolver = true;
++    }
++
++  BITMAP_FREE (ifunc_ref_map);
++  bitmap_obstack_release (NULL);
++}
++
+ /* Verify symbol table for internal consistency.  */
+ 
+ DEBUG_FUNCTION void
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
 index 5fc23605244..75699a4292d 100644
 --- a/gcc/testsuite/ChangeLog
@@ -38785,6 +38977,36 @@ index 00000000000..ece6f451e75
 +{
 +  return 0xfa1e0ff3ULL << 3;
 +}
+diff --git a/gcc/testsuite/gcc.dg/pr114115.c b/gcc/testsuite/gcc.dg/pr114115.c
+new file mode 100644
+index 00000000000..2629f591877
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/pr114115.c
+@@ -0,0 +1,24 @@
++/* { dg-do compile } */
++/* { dg-options "-O0 -fprofile-generate -fdump-tree-optimized" } */
++/* { dg-require-profiling "-fprofile-generate" } */
++/* { dg-require-ifunc "" } */
++
++void *foo_ifunc2() __attribute__((ifunc("foo_resolver")));
++
++void bar(void)
++{
++}
++
++static int f3()
++{
++  bar ();
++  return 5;
++}
++
++void (*foo_resolver(void))(void)
++{
++  f3();
++  return bar;
++}
++
++/* { dg-final { scan-tree-dump-not "__gcov_indirect_call_profiler_v" "optimized" } } */
 diff --git a/gcc/testsuite/gcc.dg/pr64536.c b/gcc/testsuite/gcc.dg/pr64536.c
 index f2728fbc938..18afa9d0232 100644
 --- a/gcc/testsuite/gcc.dg/pr64536.c
@@ -41276,6 +41498,29 @@ index 00000000000..861727f7268
 +  int l = i - __builtin_sub_overflow_p (0, 61680, s);
 +  j -= __builtin_mul_overflow_p (i, l, 0);
 +}
+diff --git a/gcc/testsuite/gcc.target/aarch64/pr113552.c b/gcc/testsuite/gcc.target/aarch64/pr113552.c
+new file mode 100644
+index 00000000000..9c96b061ed2
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/aarch64/pr113552.c
+@@ -0,0 +1,17 @@
++/* { dg-do compile } */
++/* { dg-options "-Ofast -march=armv8-a" } */
++
++__attribute__ ((__simd__ ("notinbranch"), const))
++double cos (double);
++
++void foo (float *a, double *b)
++{
++    for (int i = 0; i < 12; i+=3)
++      {
++        b[i] = cos (5.0 * a[i]);
++        b[i+1] = cos (5.0 * a[i+1]);
++        b[i+2] = cos (5.0 * a[i+2]);
++      }
++}
++
++/* { dg-final { scan-assembler-times {bl\t_ZGVnN2v_cos} 6 } } */
 diff --git a/gcc/testsuite/gcc.target/aarch64/pr92424-2.c b/gcc/testsuite/gcc.target/aarch64/pr92424-2.c
 index 0e75657a153..86bb92e6f32 100644
 --- a/gcc/testsuite/gcc.target/aarch64/pr92424-2.c
@@ -41344,6 +41589,20 @@ index bfb044f5d14..307fa3d67da 100644
  int
  foo (int a)
  {
+diff --git a/gcc/testsuite/gcc.target/aarch64/simd_pcs_attribute-3.c b/gcc/testsuite/gcc.target/aarch64/simd_pcs_attribute-3.c
+index 95f6a6803e8..c6dac6b104c 100644
+--- a/gcc/testsuite/gcc.target/aarch64/simd_pcs_attribute-3.c
++++ b/gcc/testsuite/gcc.target/aarch64/simd_pcs_attribute-3.c
+@@ -18,7 +18,7 @@ double foo(double x)
+ }
+ 
+ /* { dg-final { scan-assembler-not {\.variant_pcs\tfoo} } } */
+-/* { dg-final { scan-assembler-times {\.variant_pcs\t_ZGVnM1v_foo} 1 } } */
++/* { dg-final { scan-assembler-not {\.variant_pcs\t_ZGVnM1v_foo} } } */
+ /* { dg-final { scan-assembler-times {\.variant_pcs\t_ZGVnM2v_foo} 1 } } */
+-/* { dg-final { scan-assembler-times {\.variant_pcs\t_ZGVnN1v_foo} 1 } } */
++/* { dg-final { scan-assembler-not {\.variant_pcs\t_ZGVnN1v_foo} } } */
+ /* { dg-final { scan-assembler-times {\.variant_pcs\t_ZGVnN2v_foo} 1 } } */
 diff --git a/gcc/testsuite/gcc.target/aarch64/stack-check-prologue-17.c b/gcc/testsuite/gcc.target/aarch64/stack-check-prologue-17.c
 new file mode 100644
 index 00000000000..f0ec1389771
@@ -48746,6 +49005,25 @@ index 0a7c1a936ba..64ab7ad0a80 100644
    tree type = build_aligned_type (TREE_TYPE (ref),
  				  get_object_alignment (ref));
    ref = build2 (MEM_REF, type, addr, alias_ptr);
+diff --git a/gcc/tree-profile.c b/gcc/tree-profile.c
+index 5a74cc96e13..64d25cf4d17 100644
+--- a/gcc/tree-profile.c
++++ b/gcc/tree-profile.c
+@@ -418,7 +418,13 @@ gimple_gen_ic_func_profiler (void)
+   gcall *stmt1;
+   tree tree_uid, cur_func, void0;
+ 
+-  if (c_node->only_called_directly_p ())
++  /* Disable indirect call profiling for an IFUNC resolver and its
++     callees since it requires TLS which hasn't been set up yet when
++     the dynamic linker is resolving IFUNC symbols.  See
++     https://gcc.gnu.org/bugzilla/show_bug.cgi?id=114115
++   */
++  if (c_node->only_called_directly_p ()
++      || c_node->called_by_ifunc_resolver)
+     return;
+ 
+   gimple_init_gcov_profiler ();
 diff --git a/gcc/tree-sra.c b/gcc/tree-sra.c
 index 970ad386873..7ae0d10734b 100644
 --- a/gcc/tree-sra.c
