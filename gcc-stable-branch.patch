@@ -78,7 +78,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (715):
+GCC Administrator (716):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -3316,10 +3317,46 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..9d4b5e520b4 100644
+index a0587d18824..2fb1326cfd1 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,2863 @@
+@@ -1,3 +1,2899 @@
++2024-04-15  Tamar Christina  <tamar.christina@arm.com>
++
++	PR tree-optimization/113552
++	* config/aarch64/aarch64.c
++	(aarch64_simd_clone_compute_vecsize_and_simdlen): Block simdlen 1.
++
++2024-04-15  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2024-04-05  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/114599
++	PR gcov-profile/114115
++	* symtab.c (ifunc_ref_map): Do not use auto_bitmap.
++	(is_caller_ifunc_resolver): Optimize bitmap_bit_p/bitmap_set_bit
++	pair.
++	(symtab_node::check_ifunc_callee_symtab_nodes): Properly
++	allocate ifunc_ref_map here.
++
++2024-04-15  H.J. Lu  <hjl.tools@gmail.com>
++
++	Backported from master:
++	2024-04-03  H.J. Lu  <hjl.tools@gmail.com>
++
++	PR tree-optimization/114115
++	* cgraph.h (symtab_node): Add check_ifunc_callee_symtab_nodes.
++	(cgraph_node): Add called_by_ifunc_resolver.
++	* cgraphunit.c (symbol_table::compile): Call
++	symtab_node::check_ifunc_callee_symtab_nodes.
++	* symtab.c (check_ifunc_resolver): New.
++	(ifunc_ref_map): Likewise.
++	(is_caller_ifunc_resolver): Likewise.
++	(symtab_node::check_ifunc_callee_symtab_nodes): Likewise.
++	* tree-profile.c (gimple_gen_ic_func_profiler): Disable indirect
++	call profiling for IFUNC resolvers and their callees.
++
 +2024-04-12  Kito Cheng  <kito.cheng@sifive.com>
 +
 +	Backported from master:
@@ -29832,10 +29869,24 @@ index 5530a124a9d..31f93f4b747 100644
  
  DEBUG_FUNCTION void
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..75699a4292d 100644
+index 5fc23605244..e86fef912a9 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2969 @@
+@@ -1,3 +1,2983 @@
++2024-04-15  Tamar Christina  <tamar.christina@arm.com>
++
++	PR tree-optimization/113552
++	* gcc.target/aarch64/pr113552.c: New test.
++	* gcc.target/aarch64/simd_pcs_attribute-3.c: Remove bogus check.
++
++2024-04-15  H.J. Lu  <hjl.tools@gmail.com>
++
++	Backported from master:
++	2024-04-03  H.J. Lu  <hjl.tools@gmail.com>
++
++	PR tree-optimization/114115
++	* gcc.dg/pr114115.c: New test.
++
 +2024-04-12  Kito Cheng  <kito.cheng@sifive.com>
 +
 +	Backported from master:
