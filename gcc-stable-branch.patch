@@ -78,7 +78,13 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (716):
+GCC Administrator (722):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -888,7 +894,7 @@ Iain Buclaw (22):
       d: Fix callee destructor call invalidates the live object [PR113758]
       d: Fix gdc -O2 -mavx generates misaligned vmovdqa instruction [PR114171]
 
-Iain Sandoe (16):
+Iain Sandoe (22):
       Darwin: Fix bootstrap for X86.
       Darwin: Update rules for handling alignment of globals.
       Darwin: Fix empty g++ command lines [PR105599].
@@ -905,6 +911,12 @@ Iain Sandoe (16):
       libiberty, Darwin: Fix a build warning.
       Darwin, Objective-C: Support -fconstant-cfstrings [PR108743].
       Objective-C, NeXT: Fix messenging non-aggregate return-in-memory.
+      configure, Darwin: Adjust handing of stdlib option.
+      testsuite, Darwin: Remove an unnecessary flags addition.
+      testsuite, Darwin: Fix darwin-comm-1.c error messages for Darwin <= 10.
+      c++, driver: Fix -static-libstdc++ for targets without Bstatic/dynamic.
+      testsuite, objective-c: Fix a testcase on Windows.
+      Objective-C, NeXT: Adjust symbol marking to match host tools.
 
 Ian Lance Taylor (2):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
@@ -1396,9 +1408,10 @@ Qing Zhao (2):
       i386: Adjust -fzero-call-used-regs to always use XOR [PR101891]
       Fix SSA corruption due to widening_mul opt on conflict across an abnormal edge [PR111407]
 
-Rainer Orth (2):
+Rainer Orth (3):
       libstdc++: Fix 28_regex/basic_regex/84110.cc on Solaris
       Support parallel testing in libgomp, part I [PR66005]
+      testsuite: Fix weak_undefined handling on Darwin
 
 Richard Biener (62):
       Update BASE-VER to 11.3.1
@@ -11186,10 +11199,19 @@ index e48dd4559eb..61cbdff089f 100644
    else if (major_vers - 4 <= 4)
      /* On 10.4 and earlier, the old linker is used which does not
 diff --git a/gcc/config/darwin.c b/gcc/config/darwin.c
-index 0dc26a9f252..b79c0d1d2b4 100644
+index 0dc26a9f252..dedf84d6247 100644
 --- a/gcc/config/darwin.c
 +++ b/gcc/config/darwin.c
-@@ -2556,7 +2556,6 @@ darwin_emit_common (FILE *fp, const char *name,
+@@ -1933,6 +1933,8 @@ darwin_label_is_anonymous_local_objc_name (const char *name)
+     }
+   else if (!strncmp ((const char *)p, "ClassMethods", 12))
+     return false;
++  else if (!strncmp ((const char *)p, "ClassProtocols", 14))
++    return false;
+   else if (!strncmp ((const char *)p, "Instance", 8))
+     {
+       if (p[8] == 'I' || p[8] == 'M')
+@@ -2556,7 +2558,6 @@ darwin_emit_common (FILE *fp, const char *name,
      rounded = (size + (align-1)) & ~(align-1);
  
    l2align = floor_log2 (align);
@@ -11197,7 +11219,7 @@ index 0dc26a9f252..b79c0d1d2b4 100644
  
    in_section = comm_section;
    /* We mustn't allow multiple public symbols to share an address when using
-@@ -2707,6 +2706,10 @@ darwin_asm_output_aligned_decl_common (FILE *fp, tree decl, const char *name,
+@@ -2707,6 +2708,10 @@ darwin_asm_output_aligned_decl_common (FILE *fp, tree decl, const char *name,
  #ifdef DEBUG_DARWIN_MEM_ALLOCATORS
  fprintf (fp, "# adcom: %s (%d,%d) decl=0x0\n", name, (int)size, (int)align);
  #endif
@@ -11208,7 +11230,7 @@ index 0dc26a9f252..b79c0d1d2b4 100644
        darwin_emit_common (fp, name, size, align);
        return;
      }
-@@ -2734,7 +2737,7 @@ fprintf (fp, "# adcom: %s (%lld,%d) ro %d cst %d stat %d com %d pub %d"
+@@ -2734,7 +2739,7 @@ fprintf (fp, "# adcom: %s (%lld,%d) ro %d cst %d stat %d com %d pub %d"
      }
  
    /* We shouldn't be messing with this if the decl has a section name.  */
@@ -11217,7 +11239,7 @@ index 0dc26a9f252..b79c0d1d2b4 100644
  
    /* We would rather not have to check this here - but it seems that we might
       be passed a decl that should be in coalesced space.  */
-@@ -2763,10 +2766,16 @@ fprintf (fp, "# adcom: %s (%lld,%d) ro %d cst %d stat %d com %d pub %d"
+@@ -2763,10 +2768,16 @@ fprintf (fp, "# adcom: %s (%lld,%d) ro %d cst %d stat %d com %d pub %d"
  
    l2align = floor_log2 (align / BITS_PER_UNIT);
    /* Check we aren't asking for more aligment than the platform allows.  */
@@ -11237,7 +11259,7 @@ index 0dc26a9f252..b79c0d1d2b4 100644
      darwin_emit_local_bss (fp, decl, name, size, l2align);
  }
 diff --git a/gcc/config/darwin.h b/gcc/config/darwin.h
-index 3206b70c7c2..504dfcec4da 100644
+index 3206b70c7c2..b2bd33f8d4a 100644
 --- a/gcc/config/darwin.h
 +++ b/gcc/config/darwin.h
 @@ -141,10 +141,7 @@ extern GTY(()) int darwin_ms_struct;
@@ -11252,7 +11274,7 @@ index 3206b70c7c2..504dfcec4da 100644
  
  #undef SUBTARGET_DRIVER_SELF_SPECS
  #define SUBTARGET_DRIVER_SELF_SPECS					\
-@@ -218,13 +215,8 @@ extern GTY(()) int darwin_ms_struct;
+@@ -218,13 +215,7 @@ extern GTY(()) int darwin_ms_struct;
    "%{image_base*:-Xlinker -image_base -Xlinker %*} %<image_base*",	\
    "%{init*:-Xlinker -init -Xlinker %*} %<init*",			\
    "%{multi_module:-Xlinker -multi_module} %<multi_module",		\
@@ -11263,12 +11285,20 @@ index 3206b70c7c2..504dfcec4da 100644
 -       %:version-compare(< 10.5 asm_macosx_version_min= -Xlinker) \
 -       %:version-compare(< 10.5 asm_macosx_version_min= suppress)}} \
 -     %<multiply_defined*",						\
-+  "%{multiply_defined*:-Xlinker -multiply_defined -Xlinker %*} \
-+     %<multiply_defined* ",						\
++  "%{multiply_defined*:-Xlinker -multiply_defined -Xlinker %*} ",	\
    "%{multiplydefinedunused*:\
       -Xlinker -multiply_defined_unused -Xlinker %*} \
       %<multiplydefinedunused* ",					\
-@@ -445,12 +437,16 @@ extern GTY(()) int darwin_ms_struct;
+@@ -296,7 +287,7 @@ extern GTY(()) int darwin_ms_struct;
+    %:version-compare(>= 10.7 mmacosx-version-min= -no_pie) }"
+ 
+ #define DARWIN_CC1_SPEC							\
+-  "%<dynamic %<dynamiclib %<force_cpusubtype_ALL "
++  "%<dynamic %<dynamiclib %<force_cpusubtype_ALL %<multiply_defined* "
+ 
+ #define SUBSUBTARGET_OVERRIDE_OPTIONS					\
+   do {									\
+@@ -445,12 +436,16 @@ extern GTY(()) int darwin_ms_struct;
                       %:replace-outfile(-lobjc libobjc-gnu.a%s); \
                      :%:replace-outfile(-lobjc -lobjc-gnu )}}\
     %{static|static-libgcc|static-libgfortran:%:replace-outfile(-lgfortran libgfortran.a%s)}\
@@ -11285,7 +11315,7 @@ index 3206b70c7c2..504dfcec4da 100644
     %{sectalign*} %{sectcreate*} %{sectobjectsymbols*}  %{sectorder*} \
     %{segaddr*} %{segcreate*} %{segprot*} "
  
-@@ -867,13 +863,12 @@ int darwin_label_is_anonymous_local_objc_name (const char *name);
+@@ -867,13 +862,12 @@ int darwin_label_is_anonymous_local_objc_name (const char *name);
    if ((LOG) != 0)			\
      fprintf (FILE, "\t%s\t%d\n", ALIGN_ASM_OP, (LOG))
  
@@ -20883,10 +20913,93 @@ index cdf22f14b94..fabc313197a 100644
  	}
  
 diff --git a/gcc/configure b/gcc/configure
-index 7218b0c331a..327c59652e8 100755
+index 7218b0c331a..3a9d5e269d1 100755
 --- a/gcc/configure
 +++ b/gcc/configure
-@@ -27016,7 +27016,7 @@ $as_echo "$as_me: WARNING: LTO for $target requires binutils >= 2.20.1, but vers
+@@ -3746,31 +3746,54 @@ gcc_gxx_libcxx_include_dir=
+ if test "${with_gxx_libcxx_include_dir+set}" = set; then :
+   withval=$with_gxx_libcxx_include_dir; case "${withval}" in
+ yes)	as_fn_error $? "bad value ${withval} given for libc++ include directory" "$LINENO" 5 ;;
+-no)	;;
+ *)	gcc_gxx_libcxx_include_dir=$with_gxx_libcxx_include_dir ;;
+ esac
+ fi
+ 
+ 
++# --with-gxx-libcxx-include-dir controls the enabling of the -stdlib option.
++# if --with-gxx-libcxx-include-dir is 'no' we disable the stdlib option.
++# if --with-gxx-libcxx-include-dir is unset we enable the stdlib option
++# based on the platform (to be available on platform versions where it is the
++# default for the system tools). We also use a default path within the compiler
++# install tree.
++# Otherwise, we use the path provided and enable the stdlib option.
+ # If both --with-sysroot and --with-gxx-libcxx-include-dir are passed, we
+ # check to see if the latter starts with the former and, upon success, compute
+ # gcc_gxx_libcxx_include_dir as relative to the sysroot.
+ gcc_gxx_libcxx_include_dir_add_sysroot=0
+-
++gcc_enable_stdlib_opt=0
+ if test x${gcc_gxx_libcxx_include_dir} != x; then
+-
+-$as_echo "#define ENABLE_STDLIB_OPTION 1" >>confdefs.h
+-
++  if test x${gcc_gxx_libcxx_include_dir} = xno; then
++    # set defaults for the dir, but the option is disabled anyway.
++    gcc_gxx_libcxx_include_dir=
++  else
++    gcc_enable_stdlib_opt=1
++  fi
+ else
+-  $as_echo "#define ENABLE_STDLIB_OPTION 0" >>confdefs.h
+-
++  case $target in
++    *-darwin1[1-9]* | *-darwin2*)
++       # Default this on for Darwin versions which default to libcxx,
++       # and embed the path in the compiler install so that we get a
++       # self-contained toolchain.
++       gcc_enable_stdlib_opt=1
++       ;;
++    *) ;;
++  esac
+ fi
+-# ??? This logic must match libstdc++-v3/acinclude.m4:GLIBCXX_EXPORT_INSTALL_INFO.
++
++cat >>confdefs.h <<_ACEOF
++#define ENABLE_STDLIB_OPTION $gcc_enable_stdlib_opt
++_ACEOF
++
++
++# Sysroot behaviour as for gxx-include-dir
+ if test x${gcc_gxx_libcxx_include_dir} = x; then
++  # default path,embedded in the compiler tree.
++  libcxx_incdir='include/c++/v1'
+   if test x${enable_version_specific_runtime_libs} = xyes; then
+-    gcc_gxx_libcxx_include_dir='${libsubdir}/libc++_include/c++/v1'
++    gcc_gxx_libcxx_include_dir='${libsubdir}/$libcxx_incdir'
+   else
+-    libcxx_incdir='libc++_include/c++/$(version)/v1'
+     if test x$host != x$target; then
+        libcxx_incdir="$target_alias/$libcxx_incdir"
+     fi
+@@ -19423,7 +19446,7 @@ else
+   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
+   lt_status=$lt_dlunknown
+   cat > conftest.$ac_ext <<_LT_EOF
+-#line 19426 "configure"
++#line 19449 "configure"
+ #include "confdefs.h"
+ 
+ #if HAVE_DLFCN_H
+@@ -19529,7 +19552,7 @@ else
+   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
+   lt_status=$lt_dlunknown
+   cat > conftest.$ac_ext <<_LT_EOF
+-#line 19532 "configure"
++#line 19555 "configure"
+ #include "confdefs.h"
+ 
+ #if HAVE_DLFCN_H
+@@ -27016,7 +27039,7 @@ $as_echo "$as_me: WARNING: LTO for $target requires binutils >= 2.20.1, but vers
  	;;
      esac
      case $target_os in
@@ -20896,10 +21009,68 @@ index 7218b0c331a..327c59652e8 100755
  $as_echo_n "checking assembler for llvm assembler x86-pad-for-align option... " >&6; }
  if ${gcc_cv_as_mllvm_x86_pad_for_align+:} false; then :
 diff --git a/gcc/configure.ac b/gcc/configure.ac
-index 49f043ed29b..25a05978be9 100644
+index 49f043ed29b..1e54494c535 100644
 --- a/gcc/configure.ac
 +++ b/gcc/configure.ac
-@@ -4772,7 +4772,7 @@ foo:	nop
+@@ -236,27 +236,49 @@ AC_ARG_WITH(gxx-libcxx-include-dir,
+                 [specifies directory to find libc++ header files])],
+ [case "${withval}" in
+ yes)	AC_MSG_ERROR(bad value ${withval} given for libc++ include directory) ;;
+-no)	;;
+ *)	gcc_gxx_libcxx_include_dir=$with_gxx_libcxx_include_dir ;;
+ esac])
+ 
++# --with-gxx-libcxx-include-dir controls the enabling of the -stdlib option.
++# if --with-gxx-libcxx-include-dir is 'no' we disable the stdlib option.
++# if --with-gxx-libcxx-include-dir is unset we enable the stdlib option
++# based on the platform (to be available on platform versions where it is the
++# default for the system tools). We also use a default path within the compiler
++# install tree.
++# Otherwise, we use the path provided and enable the stdlib option.
+ # If both --with-sysroot and --with-gxx-libcxx-include-dir are passed, we
+ # check to see if the latter starts with the former and, upon success, compute
+ # gcc_gxx_libcxx_include_dir as relative to the sysroot.
+ gcc_gxx_libcxx_include_dir_add_sysroot=0
+-
++gcc_enable_stdlib_opt=0
+ if test x${gcc_gxx_libcxx_include_dir} != x; then
+-  AC_DEFINE(ENABLE_STDLIB_OPTION, 1,
+-            [Define if the -stdlib= option should be enabled.])
++  if test x${gcc_gxx_libcxx_include_dir} = xno; then
++    # set defaults for the dir, but the option is disabled anyway.
++    gcc_gxx_libcxx_include_dir=
++  else
++    gcc_enable_stdlib_opt=1
++  fi
+ else
+-  AC_DEFINE(ENABLE_STDLIB_OPTION, 0)
++  case $target in
++    *-darwin1[[1-9]]* | *-darwin2*)
++       # Default this on for Darwin versions which default to libcxx,
++       # and embed the path in the compiler install so that we get a
++       # self-contained toolchain.
++       gcc_enable_stdlib_opt=1
++       ;;
++    *) ;;
++  esac
+ fi
+-# ??? This logic must match libstdc++-v3/acinclude.m4:GLIBCXX_EXPORT_INSTALL_INFO.
++AC_DEFINE_UNQUOTED(ENABLE_STDLIB_OPTION, $gcc_enable_stdlib_opt,
++          [Define if the -stdlib= option should be enabled.])
++
++# Sysroot behaviour as for gxx-include-dir
+ if test x${gcc_gxx_libcxx_include_dir} = x; then
++  # default path,embedded in the compiler tree.
++  libcxx_incdir='include/c++/v1'
+   if test x${enable_version_specific_runtime_libs} = xyes; then
+-    gcc_gxx_libcxx_include_dir='${libsubdir}/libc++_include/c++/v1'
++    gcc_gxx_libcxx_include_dir='${libsubdir}/$libcxx_incdir'
+   else
+-    libcxx_incdir='libc++_include/c++/$(version)/v1'
+     if test x$host != x$target; then
+        libcxx_incdir="$target_alias/$libcxx_incdir"
+     fi
+@@ -4772,7 +4794,7 @@ foo:	nop
  	;;
      esac
      case $target_os in
@@ -22587,6 +22758,23 @@ index ee73adb1677..e41def3a2ea 100644
  	    /* pushdecl will check there's a local decl already.  */
  	    decl = pushdecl (decl, /*hiding=*/true);
  	  else
+diff --git a/gcc/cp/g++spec.c b/gcc/cp/g++spec.c
+index 3c9bd1490b4..984106f10dd 100644
+--- a/gcc/cp/g++spec.c
++++ b/gcc/cp/g++spec.c
+@@ -222,7 +222,12 @@ lang_specific_driver (struct cl_decoded_option **in_decoded_options,
+ 
+ 	case OPT_static_libstdc__:
+ 	  library = library >= 0 ? 2 : library;
++#ifdef HAVE_LD_STATIC_DYNAMIC
++	  /* Remove -static-libstdc++ from the command only if target supports
++	     LD_STATIC_DYNAMIC.  When not supported, it is left in so that a
++	     back-end target can use outfile substitution.  */
+ 	  args[i] |= SKIPOPT;
++#endif
+ 	  break;
+ 
+ 	case OPT_stdlib_:
 diff --git a/gcc/cp/init.c b/gcc/cp/init.c
 index bd27c92324b..08b26ba9a17 100644
 --- a/gcc/cp/init.c
@@ -28828,10 +29016,18 @@ index b3758fad724..2db1c1f274e 100644
  
  	* GCC 11.3.0 released.
 diff --git a/gcc/objc/objc-next-runtime-abi-02.c b/gcc/objc/objc-next-runtime-abi-02.c
-index af68c1c84a3..19f137c632e 100644
+index af68c1c84a3..f1c858b2cd7 100644
 --- a/gcc/objc/objc-next-runtime-abi-02.c
 +++ b/gcc/objc/objc-next-runtime-abi-02.c
-@@ -1740,15 +1740,16 @@ build_v2_build_objc_method_call (int super, tree method_prototype,
+@@ -1035,6 +1035,7 @@ next_runtime_abi_02_protocol_decl (tree p)
+   else
+     decl = start_var_decl (objc_v2_protocol_template, buf);
+   OBJCMETA (decl, objc_meta, meta_protocol);
++  DECL_PRESERVE_P (decl) = 1;
+   return decl;
+ }
+ 
+@@ -1740,15 +1741,16 @@ build_v2_build_objc_method_call (int super, tree method_prototype,
    /* Param list + 2 slots for object and selector.  */
    vec_alloc (parms, nparm + 2);
  
@@ -28857,7 +29053,7 @@ index af68c1c84a3..19f137c632e 100644
      {
        if (super)
  	sender = umsg_id_super2_stret_fixup_decl;
-@@ -1853,10 +1854,12 @@ next_runtime_abi_02_build_objc_method_call (location_t loc,
+@@ -1853,10 +1855,12 @@ next_runtime_abi_02_build_objc_method_call (location_t loc,
  	     ? TREE_VALUE (TREE_TYPE (method_prototype))
  	     : objc_object_type;
  
@@ -28874,6 +29070,25 @@ index af68c1c84a3..19f137c632e 100644
      {
        if (super)
  	message_func_decl = umsg_id_super2_stret_fixup_decl;
+@@ -2121,8 +2125,8 @@ build_v2_classrefs_table (void)
+ 	  expr = convert (objc_class_type, build_fold_addr_expr (expr));
+ 	}
+       /* The runtime wants this, even if it appears unused, so we must force the
+-	 output.
+-      DECL_PRESERVE_P (decl) = 1; */
++	 output.  */
++      DECL_PRESERVE_P (decl) = 1;
+       finish_var_decl (decl, expr);
+     }
+ }
+@@ -2324,6 +2328,7 @@ build_v2_protocol_list_address_table (void)
+       expr = convert (objc_protocol_type, build_fold_addr_expr (ref->refdecl));
+       OBJCMETA (decl, objc_meta, meta_label_protocollist);
+       finish_var_decl (decl, expr);
++      DECL_PRESERVE_P (decl) = 1;
+     }
+ 
+     /* TODO: delete the vec.  */
 diff --git a/gcc/objcp/ChangeLog b/gcc/objcp/ChangeLog
 index 5654106fb88..66c468bd675 100644
 --- a/gcc/objcp/ChangeLog
@@ -38222,15 +38437,17 @@ index 00000000000..18b71e7e327
 +int yni __attribute__ ((aligned (align_BAD))) = 6;  /* { dg-error {requested alignment .[0-9]+. exceeds object file maximum} } */
 diff --git a/gcc/testsuite/gcc.dg/darwin-comm-1.c b/gcc/testsuite/gcc.dg/darwin-comm-1.c
 new file mode 100644
-index 00000000000..46519984fd8
+index 00000000000..2ea11d63d81
 --- /dev/null
 +++ b/gcc/testsuite/gcc.dg/darwin-comm-1.c
-@@ -0,0 +1,5 @@
-+/* { dg-do compile { target *-*-darwin[912]* } } */
+@@ -0,0 +1,6 @@
++/* { dg-do compile { target *-*-darwin* } } */
 +/* { dg-options "-fcommon" } */
 +
 +/* In all cases, common has a max alignment of 2^15.  */
-+int badcommon __attribute__ ((aligned (65536))); /* { dg-error "common variables must have an alignment" } */
++int badcommon __attribute__ ((aligned (65536))); /* { dg-error "common variables must have an alignment" "" { target { *-*-darwin1[1-9]* *-*-darwin2* } } } */
++/* { dg-error "requested alignment .65536. exceeds object file maximum 32768" "" { target { *-*-darwin[4-9]* *-*-darwin10* } } .-1 } */
+\ No newline at end of file
 diff --git a/gcc/testsuite/gcc.dg/darwin-minversion-link.c b/gcc/testsuite/gcc.dg/darwin-minversion-link.c
 index 765fb799a91..b6ede31c985 100644
 --- a/gcc/testsuite/gcc.dg/darwin-minversion-link.c
@@ -40369,6 +40586,18 @@ index dca9a4db6f6..3c60eff7072 100644
  	"" $DEFAULT_VECTCFLAGS
  
  # -ffast-math SLP tests
+diff --git a/gcc/testsuite/gcc.dg/visibility-22.c b/gcc/testsuite/gcc.dg/visibility-22.c
+index e2b78d1c7fd..9123b350b2e 100644
+--- a/gcc/testsuite/gcc.dg/visibility-22.c
++++ b/gcc/testsuite/gcc.dg/visibility-22.c
+@@ -3,6 +3,7 @@
+ /* { dg-require-visibility "" } */
+ /* { dg-require-effective-target weak_undefined } */
+ /* { dg-options "-O2 -fPIC" { target fpic } } */
++/* { dg-add-options weak_undefined } */
+ 
+ extern void foo () __attribute__((weak,visibility("hidden")));
+ int
 diff --git a/gcc/testsuite/gcc.target/aarch64/acle/data-intrinsics.c b/gcc/testsuite/gcc.target/aarch64/acle/data-intrinsics.c
 new file mode 100644
 index 00000000000..e067ef20bbd
@@ -48450,6 +48679,21 @@ index 00000000000..7496e965fd3
 +     raise Program_Error;
 +  end if;
 +end;
+diff --git a/gcc/testsuite/lib/g++.exp b/gcc/testsuite/lib/g++.exp
+index eea79001d99..70e5d8f833f 100644
+--- a/gcc/testsuite/lib/g++.exp
++++ b/gcc/testsuite/lib/g++.exp
+@@ -277,10 +277,6 @@ proc g++_init { args } {
+     set gcc_warning_prefix "warning:"
+     set gcc_error_prefix "(fatal )?error:"
+ 
+-    if { [istarget *-*-darwin*] } {
+-	lappend ALWAYS_CXXFLAGS "ldflags=-multiply_defined suppress"
+-       }
+-
+     verbose -log "ALWAYS_CXXFLAGS set to $ALWAYS_CXXFLAGS"
+ 
+     verbose "g++ is initialized" 3
 diff --git a/gcc/testsuite/lib/lto.exp b/gcc/testsuite/lib/lto.exp
 index 94a81ffabb7..77919e8443b 100644
 --- a/gcc/testsuite/lib/lto.exp
@@ -48464,6 +48708,21 @@ index 94a81ffabb7..77919e8443b 100644
      # Ignore informational notes.
      regsub -all "(^|\n)\[^\n\]*: note: \[^\n\]*" $text "" text
  
+diff --git a/gcc/testsuite/lib/obj-c++.exp b/gcc/testsuite/lib/obj-c++.exp
+index 2ba252d4277..3ba45a6dc9a 100644
+--- a/gcc/testsuite/lib/obj-c++.exp
++++ b/gcc/testsuite/lib/obj-c++.exp
+@@ -277,10 +277,6 @@ proc obj-c++_init { args } {
+     set gcc_warning_prefix "warning:"
+     set gcc_error_prefix "(fatal )?error:"
+ 
+-    if { [istarget *-*-darwin*] } {
+-	lappend ALWAYS_OBJCXXFLAGS "ldflags=-multiply_defined suppress"
+-    }
+-
+     verbose -log "ALWAYS_OBJCXXFLAGS set to $ALWAYS_OBJCXXFLAGS"
+ 
+     verbose "obj-c++ is initialized" 3
 diff --git a/gcc/testsuite/lib/prune.exp b/gcc/testsuite/lib/prune.exp
 index 2809f88b16f..c2ff05c2a37 100644
 --- a/gcc/testsuite/lib/prune.exp
@@ -48495,10 +48754,29 @@ index 2809f88b16f..c2ff05c2a37 100644
      # line numbers by converting them to "NN" form.
      set text [maybe-handle-nn-line-numbers $text]
 diff --git a/gcc/testsuite/lib/target-supports.exp b/gcc/testsuite/lib/target-supports.exp
-index 857e57218c1..a09606e4497 100644
+index 857e57218c1..63a5f5579be 100644
 --- a/gcc/testsuite/lib/target-supports.exp
 +++ b/gcc/testsuite/lib/target-supports.exp
-@@ -6087,9 +6087,12 @@ proc check_effective_target_powerpc_sqrt { } {
+@@ -348,6 +348,18 @@ proc check_weak_available { } {
+     }
+ }
+ 
++# return options to add to enable weak undefined symbols.
++
++proc add_options_for_weak_undefined { flags } {
++    if { [istarget *-*-darwin*] } {
++	lappend flags "-Wl,-undefined,dynamic_lookup"
++	if { [istarget *-*-darwin\[89\]*] } {
++	    lappend flags "-Wl,-flat_namespace"
++	}
++    }
++    return $flags
++}
++
+ # return 1 if weak undefined symbols are supported.
+ 
+ proc check_effective_target_weak_undefined { } {
+@@ -6087,9 +6099,12 @@ proc check_effective_target_powerpc_sqrt { } {
      }
  
      return [check_no_compiler_messages powerpc_sqrt object {
@@ -48511,7 +48789,7 @@ index 857e57218c1..a09606e4497 100644
      } {}]
  }
  
-@@ -6196,63 +6199,94 @@ proc check_effective_target_powerpc_p9modulo_ok { } {
+@@ -6196,63 +6211,94 @@ proc check_effective_target_powerpc_p9modulo_ok { } {
  # return 1 if our compiler returns the ARCH_PWR defines with the options
  # as provided by the test.
  proc check_effective_target_has_arch_pwr5 { } {
@@ -48618,7 +48896,7 @@ index 857e57218c1..a09606e4497 100644
  }
  
  # Return 1 if this is a PowerPC target supporting -mcpu=power10.
-@@ -6338,9 +6372,12 @@ proc check_effective_target_powerpc_float128_hw_ok { } {
+@@ -6338,9 +6384,12 @@ proc check_effective_target_powerpc_float128_hw_ok { } {
  
  proc check_effective_target_ppc_float128 { } {
      return [check_no_compiler_messages_nocache ppc_float128 object {
@@ -48631,7 +48909,7 @@ index 857e57218c1..a09606e4497 100644
      }]
  }
  
-@@ -6348,9 +6385,12 @@ proc check_effective_target_ppc_float128 { } {
+@@ -6348,9 +6397,12 @@ proc check_effective_target_ppc_float128 { } {
  
  proc check_effective_target_ppc_float128_insns { } {
      return [check_no_compiler_messages_nocache ppc_float128 object {
@@ -48644,7 +48922,7 @@ index 857e57218c1..a09606e4497 100644
      }]
  }
  
-@@ -6358,9 +6398,12 @@ proc check_effective_target_ppc_float128_insns { } {
+@@ -6358,9 +6410,12 @@ proc check_effective_target_ppc_float128_insns { } {
  
  proc check_effective_target_powerpc_vsx { } {
      return [check_no_compiler_messages_nocache powerpc_vsx object {
@@ -48683,6 +48961,43 @@ index 45ffbc5553d..18f2cbe8869 100644
  /* { dg-options "-fobjc-gc" } */
  /* { dg-prune-output "cc1objplus: warning: '-fobjc-gc' is ignored for '-fgnu-runtime'" } */
  
+diff --git a/gcc/testsuite/obj-c++.dg/proto-lossage-4.mm b/gcc/testsuite/obj-c++.dg/proto-lossage-4.mm
+index 2e753d1f8ba..ff053bec7d0 100644
+--- a/gcc/testsuite/obj-c++.dg/proto-lossage-4.mm
++++ b/gcc/testsuite/obj-c++.dg/proto-lossage-4.mm
+@@ -6,24 +6,26 @@
+ /* One-line substitute for objc/objc.h */
+ typedef struct objc_object { struct objc_class *class_pointer; } *id;
+ 
++typedef __UINTPTR_TYPE__ uintptr_t;
++
+ @protocol Proto
+-- (long)someValue;
++- (uintptr_t)someValue;
+ @end
+ 
+ @interface Obj
+-- (long)anotherValue;
++- (uintptr_t)anotherValue;
+ @end
+ 
+-long foo(void) {
+-  long receiver = 2;
++uintptr_t foo(void) {
++  uintptr_t receiver = 2;
+   Obj *objrcvr;
+   Obj <Proto> *objrcvr2;
+ 
+   /* NB: Since 'receiver' is an invalid ObjC message receiver, the compiler
+      should warn but then search for methods as if we were messaging 'id'.  */
+ 
+-  receiver += [receiver someValue]; /* { dg-warning "invalid receiver type .long int." } */
+-  receiver += [receiver anotherValue]; /* { dg-warning "invalid receiver type .long int." } */
++  receiver += [receiver someValue]; /* { dg-warning "invalid receiver type .uintptr_t." } */
++  receiver += [receiver anotherValue]; /* { dg-warning "invalid receiver type .uintptr_t." } */
+ 
+   receiver += [(Obj *)receiver someValue]; /* { dg-warning ".Obj. may not respond to .\\-someValue." } */
+ /* { dg-error "invalid conversion" "" { target *-*-* } .-1 } */
 diff --git a/gcc/testsuite/objc.dg/objc-gc-4.m b/gcc/testsuite/objc.dg/objc-gc-4.m
 index 8102a5a532f..1b2d9674969 100644
 --- a/gcc/testsuite/objc.dg/objc-gc-4.m
@@ -76063,6 +76378,20 @@ index 5df9f330cd4..ed0614e2797 100644
  {
    // To see a problem with gcc 3.3 and before, set a break point here.
    // Single step through c_str implementation, call sched_yield after
+diff --git a/libstdc++-v3/testsuite/lib/libstdc++.exp b/libstdc++-v3/testsuite/lib/libstdc++.exp
+index 33ba0177db3..527d6ba0711 100644
+--- a/libstdc++-v3/testsuite/lib/libstdc++.exp
++++ b/libstdc++-v3/testsuite/lib/libstdc++.exp
+@@ -133,9 +133,6 @@ proc libstdc++_init { testfile } {
+     if ![info exists DEFAULT_CXXFLAGS] then {
+ 	set DEFAULT_CXXFLAGS ""
+ 	# Host specific goo here.
+-	if { [string match "powerpc-*-darwin*" $target_triplet] } {
+-	    append DEFAULT_CXXFLAGS " -multiply_defined suppress"
+-	}
+ 	if { [string match "powerpc-ibm-aix*" $target_triplet] } {
+ 	    append DEFAULT_CXXFLAGS " -Wl,-bmaxdata:0x20000000"
+ 	}
 diff --git a/libstdc++-v3/testsuite/lib/prune.exp b/libstdc++-v3/testsuite/lib/prune.exp
 index 6c905631f16..2ebfb922ef4 100644
 --- a/libstdc++-v3/testsuite/lib/prune.exp
