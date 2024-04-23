@@ -78,7 +78,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (722):
+GCC Administrator (723):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -3330,10 +3331,35 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..2fb1326cfd1 100644
+index a0587d18824..8cd82785a4e 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,2899 @@
+@@ -1,3 +1,2924 @@
++2024-04-22  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2022-05-03  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* config/darwin.c (darwin_label_is_anonymous_local_objc_name): Make
++	protocol class methods linker-visible.
++
++2024-04-22  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2023-07-03  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* config/darwin.h: Avoid duplicate multiply_defined specs on
++	earlier Darwin versions with shared libgcc.
++
++2024-04-22  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2023-09-18  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* configure: Regenerate.
++	* configure.ac: Handle explict disable of stdlib option, set
++	defaults for Darwin.
++
 +2024-04-15  Tamar Christina  <tamar.christina@arm.com>
 +
 +	PR tree-optimization/113552
@@ -21080,10 +21106,19 @@ index 49f043ed29b..1e54494c535 100644
            gcc_cv_as_mllvm_x86_pad_for_align,,
            [-mllvm -x86-pad-for-align=false], [.text],,
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..5826aa92ca9 100644
+index 85c8fdd38cd..a5d80090ee9 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,636 @@
+@@ -1,3 +1,645 @@
++2024-04-22  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2022-12-23  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* g++spec.c (lang_specific_driver): Preserve -static-libstdc++ in
++	the driver command line for targets without -Bstatic/dynamic support
++	in their static linker.
++
 +2024-01-24  Jason Merrill  <jason@redhat.com>
 +
 +	Backported from master:
@@ -28994,10 +29029,20 @@ index e89601c0c14..d040c853942 100644
  		      wi::to_wide (@ipos) + isize))
      (BIT_FIELD_REF @1 @rsize { wide_int_to_tree (bitsizetype,
 diff --git a/gcc/objc/ChangeLog b/gcc/objc/ChangeLog
-index b3758fad724..2db1c1f274e 100644
+index b3758fad724..8cf9f1de780 100644
 --- a/gcc/objc/ChangeLog
 +++ b/gcc/objc/ChangeLog
-@@ -1,3 +1,17 @@
+@@ -1,3 +1,27 @@
++2024-04-22  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2022-05-03  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* objc-next-runtime-abi-02.c (next_runtime_abi_02_protocol_decl): Do
++	not dead-strip the runtime meta-data symbols.
++	(build_v2_classrefs_table): Likewise.
++	(build_v2_protocol_list_address_table): Likewise.
++
 +2024-03-31  Iain Sandoe  <iain@sandoe.co.uk>
 +
 +	Backported from master:
@@ -30084,10 +30129,43 @@ index 5530a124a9d..31f93f4b747 100644
  
  DEBUG_FUNCTION void
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..e86fef912a9 100644
+index 5fc23605244..b4923266d50 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2983 @@
+@@ -1,3 +1,3016 @@
++2024-04-22  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
++
++	Backported from master:
++	2023-03-28  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
++
++	* lib/target-supports.exp (add_options_for_weak_undefined): Escape
++	brackets.
++	* gcc.dg/visibility-22.c: Add weak_undefined options.
++
++2024-04-22  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2023-02-15  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* obj-c++.dg/proto-lossage-4.mm: Use uintptr_t for integral pointer
++	representations.
++
++2024-04-22  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2022-06-25  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* gcc.dg/darwin-comm-1.c: Check for the correct error message for
++	Darwin <= 10.
++
++2024-04-22  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2023-07-03  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* lib/g++.exp: Remove additional flag handled by Darwin specs.
++	* lib/obj-c++.exp: Likewise.
++
 +2024-04-15  Tamar Christina  <tamar.christina@arm.com>
 +
 +	PR tree-optimization/113552
@@ -53838,10 +53916,18 @@ index 72119b01c69..2cc64a39649 100644
  
  	* GCC 11.3.0 released.
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..0595fd19058 100644
+index 85e04c45288..03ae767c304 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,2157 @@
+@@ -1,3 +1,2165 @@
++2024-04-22  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2023-07-03  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* testsuite/lib/libstdc++.exp: Remove additional flag handled
++	by Darwin specs.
++
 +2024-01-11  Ken Matsui  <kmatsui@gcc.gnu.org>
 +
 +	Backported from master:
