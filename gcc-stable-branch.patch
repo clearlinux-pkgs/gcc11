@@ -895,7 +895,7 @@ Iain Buclaw (22):
       d: Fix callee destructor call invalidates the live object [PR113758]
       d: Fix gdc -O2 -mavx generates misaligned vmovdqa instruction [PR114171]
 
-Iain Sandoe (22):
+Iain Sandoe (29):
       Darwin: Fix bootstrap for X86.
       Darwin: Update rules for handling alignment of globals.
       Darwin: Fix empty g++ command lines [PR105599].
@@ -918,6 +918,13 @@ Iain Sandoe (22):
       c++, driver: Fix -static-libstdc++ for targets without Bstatic/dynamic.
       testsuite, objective-c: Fix a testcase on Windows.
       Objective-C, NeXT: Adjust symbol marking to match host tools.
+      Objective-C: fix crash with -fobjc-nilcheck
+      Objective-C, NeXT runtime: Correct the default for fobjc-nilcheck.
+      testsuite, Darwin : Do not claim 'GAS' for cctools assembler.
+      configure, Darwin: Check ld64 support for -platform-version.
+      libphobos, testsuite: Add prune clauses for two Darwin cases.
+      Darwin: Fix a type mismatch warning for a non-GCC bootstrap compiler.
+      testsuite,X86: Fix missing USER_LABEL_PREFIX cases.
 
 Ian Lance Taylor (2):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
@@ -1294,6 +1301,9 @@ Martin Liska (7):
       lto: support --jobserver-style=fifo for recent GNU make
       lto-wrapper: silent warnings in tests
 
+Matt Jacobson (1):
+      Objective-C: Default flag_objc_sjlj_exceptions off for NeXT ABI >= 2.
+
 Matthias Kretz (28):
       c++: don't ICE on NAMESPACE_DECL inside FUNCTION_DECL
       libstdc++: Ensure __builtin_constant_p isn't lost on the way
@@ -1414,7 +1424,7 @@ Rainer Orth (3):
       Support parallel testing in libgomp, part I [PR66005]
       testsuite: Fix weak_undefined handling on Darwin
 
-Richard Biener (62):
+Richard Biener (63):
       Update BASE-VER to 11.3.1
       ipa/105598 - testcase for PR105598
       middle-end/105140 - fix bogus recursion in fold_convertible_p
@@ -1477,6 +1487,7 @@ Richard Biener (62):
       tree-optimization/111614 - missing convert in undistribute_bitref_for_vector
       tree-optimization/111917 - bougs IL after guard hoisting
       middle-end/114599 - fix bitmap allocation for check_ifunc_callee_symtab_nodes
+      add missing dg-require alias to gcc.dg/torture/pr100786.c
 
 Richard Earnshaw (4):
       arm: big-endian issue in gen_cpymem_ldrd_strd [PR105981]
@@ -6837,6 +6848,22 @@ index 39c969d8f40..10a971001c4 100644
        restore_bc_state (&save_state);
        pop_cfun ();
      }
+diff --git a/gcc/c-family/c-opts.c b/gcc/c-family/c-opts.c
+index 6f001e0bb6c..5bfa239ec0b 100644
+--- a/gcc/c-family/c-opts.c
++++ b/gcc/c-family/c-opts.c
+@@ -852,9 +852,9 @@ c_common_post_options (const char **pfilename)
+   else if (!flag_gnu89_inline && !flag_isoc99)
+     error ("%<-fno-gnu89-inline%> is only supported in GNU99 or C99 mode");
+ 
+-  /* Default to ObjC sjlj exception handling if NeXT runtime.  */
++  /* Default to ObjC sjlj exception handling if NeXT runtime < v2.  */
+   if (flag_objc_sjlj_exceptions < 0)
+-    flag_objc_sjlj_exceptions = flag_next_runtime;
++    flag_objc_sjlj_exceptions = (flag_next_runtime && flag_objc_abi < 2);
+   if (flag_objc_exceptions && !flag_objc_sjlj_exceptions)
+     flag_exceptions = 1;
+ 
 diff --git a/gcc/c-family/c-pch.c b/gcc/c-family/c-pch.c
 index fd94c3799ac..de72859d943 100644
 --- a/gcc/c-family/c-pch.c
@@ -7728,6 +7755,23 @@ index 5636acc2270..6e6ce881d89 100644
  	;;
        bdver4-*)
          arch=bdver4
+diff --git a/gcc/config.in b/gcc/config.in
+index 048bf52e8c2..982c453ca36 100644
+--- a/gcc/config.in
++++ b/gcc/config.in
+@@ -2207,6 +2207,12 @@
+ #endif
+ 
+ 
++/* Define to 1 if ld64 supports '-platform_version'. */
++#ifndef USED_FOR_TARGET
++#undef LD64_HAS_PLATFORM_VERSION
++#endif
++
++
+ /* Define to ld64 version. */
+ #ifndef USED_FOR_TARGET
+ #undef LD64_VERSION
 diff --git a/gcc/config/aarch64/aarch64-builtins.c b/gcc/config/aarch64/aarch64-builtins.c
 index acdea2a0601..f9a8c0aa6a0 100644
 --- a/gcc/config/aarch64/aarch64-builtins.c
@@ -11225,7 +11269,7 @@ index e48dd4559eb..61cbdff089f 100644
    else if (major_vers - 4 <= 4)
      /* On 10.4 and earlier, the old linker is used which does not
 diff --git a/gcc/config/darwin.c b/gcc/config/darwin.c
-index 0dc26a9f252..dedf84d6247 100644
+index 0dc26a9f252..2371816e251 100644
 --- a/gcc/config/darwin.c
 +++ b/gcc/config/darwin.c
 @@ -1933,6 +1933,8 @@ darwin_label_is_anonymous_local_objc_name (const char *name)
@@ -11284,6 +11328,15 @@ index 0dc26a9f252..dedf84d6247 100644
    else
      darwin_emit_local_bss (fp, decl, name, size, l2align);
  }
+@@ -3609,7 +3620,7 @@ tree
+ darwin_fold_builtin (tree fndecl, int n_args, tree *argp,
+ 		     bool ARG_UNUSED (ignore))
+ {
+-  unsigned int fcode = DECL_MD_FUNCTION_CODE (fndecl);
++  int fcode = DECL_MD_FUNCTION_CODE (fndecl);
+ 
+   if (fcode == darwin_builtin_cfstring)
+     {
 diff --git a/gcc/config/darwin.h b/gcc/config/darwin.h
 index 3206b70c7c2..b2bd33f8d4a 100644
 --- a/gcc/config/darwin.h
@@ -20939,7 +20992,7 @@ index cdf22f14b94..fabc313197a 100644
  	}
  
 diff --git a/gcc/configure b/gcc/configure
-index 7218b0c331a..3a9d5e269d1 100755
+index 7218b0c331a..0b9c7451231 100755
 --- a/gcc/configure
 +++ b/gcc/configure
 @@ -3746,31 +3746,54 @@ gcc_gxx_libcxx_include_dir=
@@ -21034,8 +21087,59 @@ index 7218b0c331a..3a9d5e269d1 100755
          { $as_echo "$as_me:${as_lineno-$LINENO}: checking assembler for llvm assembler x86-pad-for-align option" >&5
  $as_echo_n "checking assembler for llvm assembler x86-pad-for-align option... " >&6; }
  if ${gcc_cv_as_mllvm_x86_pad_for_align+:} false; then :
+@@ -30675,6 +30698,7 @@ if test x"$ld64_flag" = x"yes"; then
+ 
+   # Set defaults for possibly untestable items.
+   gcc_cv_ld64_export_dynamic=0
++  gcc_cv_ld64_platform_version=0
+ 
+   if test "$build" = "$host"; then
+     darwin_try_test=1
+@@ -30698,9 +30722,12 @@ $as_echo_n "checking ld64 specified version... " >&6; }
+     gcc_cv_ld64_major=`echo "$gcc_cv_ld64_version" | sed -e 's/\..*//'`
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: $gcc_cv_ld64_major" >&5
+ $as_echo "$gcc_cv_ld64_major" >&6; }
+-   if test "$gcc_cv_ld64_major" -ge 236; then
++    if test "$gcc_cv_ld64_major" -ge 236; then
+       gcc_cv_ld64_export_dynamic=1
+     fi
++    if test "$gcc_cv_ld64_major" -ge 512; then
++      gcc_cv_ld64_platform_version=1
++    fi
+   elif test -x "$gcc_cv_ld" -a "$darwin_try_test" -eq 1; then
+     # If the version was not specified, try to find it.
+     { $as_echo "$as_me:${as_lineno-$LINENO}: checking linker version" >&5
+@@ -30719,6 +30746,15 @@ $as_echo_n "checking linker for -export_dynamic support... " >&6; }
+     fi
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: $gcc_cv_ld64_export_dynamic" >&5
+ $as_echo "$gcc_cv_ld64_export_dynamic" >&6; }
++
++    { $as_echo "$as_me:${as_lineno-$LINENO}: checking linker for -platform_version support" >&5
++$as_echo_n "checking linker for -platform_version support... " >&6; }
++    gcc_cv_ld64_platform_version=1
++    if $gcc_cv_ld -platform_version macos 10.5 0.0 < /dev/null 2>&1 | grep 'unknown option' > /dev/null; then
++      gcc_cv_ld64_platform_version=0
++    fi
++    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $gcc_cv_ld64_platform_version" >&5
++$as_echo "$gcc_cv_ld64_platform_version" >&6; }
+   fi
+ 
+   if test x"${gcc_cv_ld64_version}" != x; then
+@@ -30734,6 +30770,12 @@ cat >>confdefs.h <<_ACEOF
+ #define LD64_HAS_EXPORT_DYNAMIC $gcc_cv_ld64_export_dynamic
+ _ACEOF
+ 
++
++
++cat >>confdefs.h <<_ACEOF
++#define LD64_HAS_PLATFORM_VERSION $gcc_cv_ld64_platform_version
++_ACEOF
++
+ fi
+ 
+ if test x"$dsymutil_flag" = x"yes"; then
 diff --git a/gcc/configure.ac b/gcc/configure.ac
-index 49f043ed29b..1e54494c535 100644
+index 49f043ed29b..2bf0e8a12b7 100644
 --- a/gcc/configure.ac
 +++ b/gcc/configure.ac
 @@ -236,27 +236,49 @@ AC_ARG_WITH(gxx-libcxx-include-dir,
@@ -21105,6 +21209,52 @@ index 49f043ed29b..1e54494c535 100644
          gcc_GAS_CHECK_FEATURE([llvm assembler x86-pad-for-align option],
            gcc_cv_as_mllvm_x86_pad_for_align,,
            [-mllvm -x86-pad-for-align=false], [.text],,
+@@ -6329,6 +6351,7 @@ if test x"$ld64_flag" = x"yes"; then
+ 
+   # Set defaults for possibly untestable items.
+   gcc_cv_ld64_export_dynamic=0
++  gcc_cv_ld64_platform_version=0
+ 
+   if test "$build" = "$host"; then
+     darwin_try_test=1
+@@ -6350,9 +6373,12 @@ if test x"$ld64_flag" = x"yes"; then
+     AC_MSG_CHECKING(ld64 specified version)
+     gcc_cv_ld64_major=`echo "$gcc_cv_ld64_version" | sed -e 's/\..*//'`
+     AC_MSG_RESULT($gcc_cv_ld64_major)
+-   if test "$gcc_cv_ld64_major" -ge 236; then
++    if test "$gcc_cv_ld64_major" -ge 236; then
+       gcc_cv_ld64_export_dynamic=1
+     fi
++    if test "$gcc_cv_ld64_major" -ge 512; then
++      gcc_cv_ld64_platform_version=1
++    fi
+   elif test -x "$gcc_cv_ld" -a "$darwin_try_test" -eq 1; then
+     # If the version was not specified, try to find it.
+     AC_MSG_CHECKING(linker version)
+@@ -6367,6 +6393,13 @@ if test x"$ld64_flag" = x"yes"; then
+       gcc_cv_ld64_export_dynamic=0
+     fi
+     AC_MSG_RESULT($gcc_cv_ld64_export_dynamic)
++
++    AC_MSG_CHECKING(linker for -platform_version support)
++    gcc_cv_ld64_platform_version=1
++    if $gcc_cv_ld -platform_version macos 10.5 0.0 < /dev/null 2>&1 | grep 'unknown option' > /dev/null; then
++      gcc_cv_ld64_platform_version=0
++    fi
++    AC_MSG_RESULT($gcc_cv_ld64_platform_version)
+   fi
+ 
+   if test x"${gcc_cv_ld64_version}" != x; then
+@@ -6376,6 +6409,9 @@ if test x"$ld64_flag" = x"yes"; then
+ 
+   AC_DEFINE_UNQUOTED(LD64_HAS_EXPORT_DYNAMIC, $gcc_cv_ld64_export_dynamic,
+   [Define to 1 if ld64 supports '-export_dynamic'.])
++
++  AC_DEFINE_UNQUOTED(LD64_HAS_PLATFORM_VERSION, $gcc_cv_ld64_platform_version,
++  [Define to 1 if ld64 supports '-platform_version'.])
+ fi
+ 
+ if test x"$dsymutil_flag" = x"yes"; then
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
 index 85c8fdd38cd..a5d80090ee9 100644
 --- a/gcc/cp/ChangeLog
@@ -29060,11 +29210,83 @@ index b3758fad724..8cf9f1de780 100644
  2022-04-21  Release Manager
  
  	* GCC 11.3.0 released.
+diff --git a/gcc/objc/objc-act.c b/gcc/objc/objc-act.c
+index 1cbd586b8fb..536ec028dbd 100644
+--- a/gcc/objc/objc-act.c
++++ b/gcc/objc/objc-act.c
+@@ -3376,8 +3376,10 @@ objc_build_string_object (tree string)
+   return addr;
+ }
+ 
+-/* Build a static constant CONSTRUCTOR
+-   with type TYPE and elements ELTS.  */
++/* Build a static constant CONSTRUCTOR with type TYPE and elements ELTS.
++   We might be presented with a NULL for ELTS, which means 'empty ctor'
++   which will subsequently be converted into a zero initializer in the
++   middle end.  */
+ 
+ tree
+ objc_build_constructor (tree type, vec<constructor_elt, va_gc> *elts)
+@@ -3389,12 +3391,10 @@ objc_build_constructor (tree type, vec<constructor_elt, va_gc> *elts)
+   TREE_READONLY (constructor) = 1;
+ 
+ #ifdef OBJCPLUS
+-  /* Adjust for impedance mismatch.  We should figure out how to build
+-     CONSTRUCTORs that consistently please both the C and C++ gods.  */
+-  if (!(*elts)[0].index)
++  /* If we know the initializer, then set the type to what C++ expects.  */
++  if (elts && !(*elts)[0].index)
+     TREE_TYPE (constructor) = init_list_type_node;
+ #endif
+-
+   return constructor;
+ }
+ 
+@@ -9663,7 +9663,9 @@ objc_gimplify_property_ref (tree *expr_p)
+       call_exp = TREE_OPERAND (getter, 1);
+     }
+ #endif
+-  gcc_assert (TREE_CODE (call_exp) == CALL_EXPR);
++  gcc_checking_assert ((flag_objc_nilcheck
++			&& TREE_CODE (call_exp) == COND_EXPR)
++		       || TREE_CODE (call_exp) == CALL_EXPR);
+ 
+   *expr_p = call_exp;
+ }
 diff --git a/gcc/objc/objc-next-runtime-abi-02.c b/gcc/objc/objc-next-runtime-abi-02.c
-index af68c1c84a3..f1c858b2cd7 100644
+index af68c1c84a3..2a4f87cc726 100644
 --- a/gcc/objc/objc-next-runtime-abi-02.c
 +++ b/gcc/objc/objc-next-runtime-abi-02.c
-@@ -1035,6 +1035,7 @@ next_runtime_abi_02_protocol_decl (tree p)
+@@ -245,7 +245,7 @@ objc_next_runtime_abi_02_init (objc_runtime_hooks *rthooks)
+ {
+   extern_names = ggc_cleared_vec_alloc<hash> (SIZEHASHTABLE);
+ 
+-  if (flag_objc_exceptions && flag_objc_sjlj_exceptions)
++  if (flag_objc_sjlj_exceptions)
+     {
+       inform (UNKNOWN_LOCATION,
+ 	      "%<-fobjc-sjlj-exceptions%> is ignored for "
+@@ -254,6 +254,10 @@ objc_next_runtime_abi_02_init (objc_runtime_hooks *rthooks)
+       flag_objc_sjlj_exceptions = 0;
+     }
+ 
++  /* NeXT ABI 2 is intended to default to checking for nil receivers.  */
++  if (! global_options_set.x_flag_objc_nilcheck)
++    flag_objc_nilcheck = 1;
++
+   rthooks->initialize = next_runtime_02_initialize;
+   rthooks->default_constant_string_class_name = DEF_CONSTANT_STRING_CLASS_NAME;
+   rthooks->tag_getclass = TAG_GETCLASS;
+@@ -507,7 +511,7 @@ static void next_runtime_02_initialize (void)
+   objc_getPropertyStruct_decl = NULL_TREE;
+   objc_setPropertyStruct_decl = NULL_TREE;
+ 
+-  gcc_assert (!flag_objc_sjlj_exceptions);
++  gcc_checking_assert (!flag_objc_sjlj_exceptions);
+ 
+   /* Although we warn that fobjc-exceptions is required for exceptions
+      code, we carry on and create it anyway.  */
+@@ -1035,6 +1039,7 @@ next_runtime_abi_02_protocol_decl (tree p)
    else
      decl = start_var_decl (objc_v2_protocol_template, buf);
    OBJCMETA (decl, objc_meta, meta_protocol);
@@ -29072,7 +29294,37 @@ index af68c1c84a3..f1c858b2cd7 100644
    return decl;
  }
  
-@@ -1740,15 +1741,16 @@ build_v2_build_objc_method_call (int super, tree method_prototype,
+@@ -1675,13 +1680,8 @@ build_v2_objc_method_fixup_call (int super_flag, tree method_prototype,
+ 
+       if (TREE_CODE (ret_type) == RECORD_TYPE
+ 	  || TREE_CODE (ret_type) == UNION_TYPE)
+-	{
+-	  vec<constructor_elt, va_gc> *rtt = NULL;
+-	  /* ??? CHECKME. hmmm..... think we need something more
+-	     here.  */
+-	  CONSTRUCTOR_APPEND_ELT (rtt, NULL_TREE, NULL_TREE);
+-	  ftree = objc_build_constructor (ret_type, rtt);
+-	}
++	/* An empty constructor is zero-filled by the middle end.  */
++	ftree = objc_build_constructor (ret_type, NULL);
+       else
+ 	ftree = fold_convert (ret_type, integer_zero_node);
+ 
+@@ -1694,11 +1694,11 @@ build_v2_objc_method_fixup_call (int super_flag, tree method_prototype,
+ 					ifexp, ret_val, ftree,
+ 					tf_warning_or_error);
+ #else
+-     /* ??? CHECKME.   */
+       ret_val = build_conditional_expr (input_location,
+-					ifexp, 1,
++					ifexp, 0,
+ 					ret_val, NULL_TREE, input_location,
+ 					ftree, NULL_TREE, input_location);
++      ret_val = fold_convert (ret_type, ret_val);
+ #endif
+     }
+   return ret_val;
+@@ -1740,15 +1740,16 @@ build_v2_build_objc_method_call (int super, tree method_prototype,
    /* Param list + 2 slots for object and selector.  */
    vec_alloc (parms, nparm + 2);
  
@@ -29098,7 +29350,33 @@ index af68c1c84a3..f1c858b2cd7 100644
      {
        if (super)
  	sender = umsg_id_super2_stret_fixup_decl;
-@@ -1853,10 +1855,12 @@ next_runtime_abi_02_build_objc_method_call (location_t loc,
+@@ -1790,11 +1791,8 @@ build_v2_build_objc_method_call (int super, tree method_prototype,
+       if (TREE_CODE (ret_type) == RECORD_TYPE
+ 	  || TREE_CODE (ret_type) == UNION_TYPE)
+ 	{
+-	  vec<constructor_elt, va_gc> *rtt = NULL;
+-	  /* ??? CHECKME. hmmm..... think we need something more
+-	     here.  */
+-	  CONSTRUCTOR_APPEND_ELT (rtt, NULL_TREE, NULL_TREE);
+-	  ftree = objc_build_constructor (ret_type, rtt);
++	/* An empty constructor is zero-filled by the middle end.  */
++	  ftree = objc_build_constructor (ret_type, NULL);
+ 	}
+       else
+ 	ftree = fold_convert (ret_type, integer_zero_node);
+@@ -1807,10 +1805,10 @@ build_v2_build_objc_method_call (int super, tree method_prototype,
+       ret_val = build_conditional_expr (loc, ifexp, ret_val, ftree,
+ 					tf_warning_or_error);
+ #else
+-     /* ??? CHECKME.   */
+       ret_val = build_conditional_expr (loc, ifexp, 1,
+ 					ret_val, NULL_TREE, loc,
+ 					ftree, NULL_TREE, loc);
++      ret_val = fold_convert (ret_type, ret_val);
+ #endif
+     }
+   return ret_val;
+@@ -1853,10 +1851,12 @@ next_runtime_abi_02_build_objc_method_call (location_t loc,
  	     ? TREE_VALUE (TREE_TYPE (method_prototype))
  	     : objc_object_type;
  
@@ -29115,7 +29393,7 @@ index af68c1c84a3..f1c858b2cd7 100644
      {
        if (super)
  	message_func_decl = umsg_id_super2_stret_fixup_decl;
-@@ -2121,8 +2125,8 @@ build_v2_classrefs_table (void)
+@@ -2121,8 +2121,8 @@ build_v2_classrefs_table (void)
  	  expr = convert (objc_class_type, build_fold_addr_expr (expr));
  	}
        /* The runtime wants this, even if it appears unused, so we must force the
@@ -29126,7 +29404,7 @@ index af68c1c84a3..f1c858b2cd7 100644
        finish_var_decl (decl, expr);
      }
  }
-@@ -2324,6 +2328,7 @@ build_v2_protocol_list_address_table (void)
+@@ -2324,6 +2324,7 @@ build_v2_protocol_list_address_table (void)
        expr = convert (objc_protocol_type, build_fold_addr_expr (ref->refdecl));
        OBJCMETA (decl, objc_meta, meta_label_protocollist);
        finish_var_decl (decl, expr);
@@ -39456,6 +39734,16 @@ index 00000000000..67e2d3793fd
 +  bar(&t);
 +  return 0;
 +}
+diff --git a/gcc/testsuite/gcc.dg/torture/pr100786.c b/gcc/testsuite/gcc.dg/torture/pr100786.c
+index 42f4e485593..7c03b08d8cb 100644
+--- a/gcc/testsuite/gcc.dg/torture/pr100786.c
++++ b/gcc/testsuite/gcc.dg/torture/pr100786.c
+@@ -1,4 +1,5 @@
+ /* { dg-do compile } */
++/* { dg-require-alias "" } */
+ 
+ const double a = 0;
+ extern int b __attribute__((alias("a")));
 diff --git a/gcc/testsuite/gcc.dg/torture/pr105148.c b/gcc/testsuite/gcc.dg/torture/pr105148.c
 new file mode 100644
 index 00000000000..3338b0f3281
@@ -43179,6 +43467,62 @@ index 26f04dcf014..a9398b4e7a2 100644
  
  #include <immintrin.h>
  
+diff --git a/gcc/testsuite/gcc.target/i386/memcpy-strategy-10.c b/gcc/testsuite/gcc.target/i386/memcpy-strategy-10.c
+index 970aa741971..860fcc9f801 100644
+--- a/gcc/testsuite/gcc.target/i386/memcpy-strategy-10.c
++++ b/gcc/testsuite/gcc.target/i386/memcpy-strategy-10.c
+@@ -1,7 +1,7 @@
+ /* { dg-do compile } */
+ /* { dg-options "-O2 -march=skylake -mno-sse" } */
+-/* { dg-final { scan-assembler "jmp\tmemcpy" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "call\tmemcpy" { target ia32 } } } */
++/* { dg-final { scan-assembler "jmp\t_?memcpy" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "call\t_?memcpy" { target ia32 } } } */
+ /* { dg-final { scan-assembler-not "rep movsb" } } */
+ 
+ void
+diff --git a/gcc/testsuite/gcc.target/i386/memcpy-strategy-5.c b/gcc/testsuite/gcc.target/i386/memcpy-strategy-5.c
+index 83c333b551d..833e37fa325 100644
+--- a/gcc/testsuite/gcc.target/i386/memcpy-strategy-5.c
++++ b/gcc/testsuite/gcc.target/i386/memcpy-strategy-5.c
+@@ -1,7 +1,7 @@
+ /* { dg-do compile } */
+ /* { dg-options "-O2 -march=tigerlake -mno-sse" } */
+-/* { dg-final { scan-assembler "jmp\tmemcpy" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "call\tmemcpy" { target ia32 } } } */
++/* { dg-final { scan-assembler "jmp\t_?memcpy" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "call\t_?memcpy" { target ia32 } } } */
+ /* { dg-final { scan-assembler-not "rep movsb" } } */
+ 
+ void
+diff --git a/gcc/testsuite/gcc.target/i386/memset-strategy-5.c b/gcc/testsuite/gcc.target/i386/memset-strategy-5.c
+index dc1de8e79c2..73ce2df6060 100644
+--- a/gcc/testsuite/gcc.target/i386/memset-strategy-5.c
++++ b/gcc/testsuite/gcc.target/i386/memset-strategy-5.c
+@@ -1,7 +1,7 @@
+ /* { dg-do compile } */
+ /* { dg-options "-O2 -march=tigerlake -mno-sse" } */
+-/* { dg-final { scan-assembler "jmp\tmemset" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "call\tmemset" { target ia32 } } } */
++/* { dg-final { scan-assembler "jmp\t_?memset" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "call\t_?memset" { target ia32 } } } */
+ /* { dg-final { scan-assembler-not "rep stosb" } } */
+ 
+ void
+diff --git a/gcc/testsuite/gcc.target/i386/memset-strategy-7.c b/gcc/testsuite/gcc.target/i386/memset-strategy-7.c
+index 07c2816910c..653829e6fc7 100644
+--- a/gcc/testsuite/gcc.target/i386/memset-strategy-7.c
++++ b/gcc/testsuite/gcc.target/i386/memset-strategy-7.c
+@@ -1,7 +1,7 @@
+ /* { dg-do compile } */
+ /* { dg-options "-O2 -march=skylake -mno-sse" } */
+-/* { dg-final { scan-assembler "jmp\tmemset" { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler "call\tmemset" { target ia32 } } } */
++/* { dg-final { scan-assembler "jmp\t_?memset" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "call\t_?memset" { target ia32 } } } */
+ /* { dg-final { scan-assembler-not "rep stosb" } } */
+ 
+ void
 diff --git a/gcc/testsuite/gcc.target/i386/pr104637.c b/gcc/testsuite/gcc.target/i386/pr104637.c
 new file mode 100644
 index 00000000000..36e8b6ed97d
@@ -48832,7 +49176,7 @@ index 2809f88b16f..c2ff05c2a37 100644
      # line numbers by converting them to "NN" form.
      set text [maybe-handle-nn-line-numbers $text]
 diff --git a/gcc/testsuite/lib/target-supports.exp b/gcc/testsuite/lib/target-supports.exp
-index 857e57218c1..63a5f5579be 100644
+index 857e57218c1..876b972a433 100644
 --- a/gcc/testsuite/lib/target-supports.exp
 +++ b/gcc/testsuite/lib/target-supports.exp
 @@ -348,6 +348,18 @@ proc check_weak_available { } {
@@ -49013,6 +49357,22 @@ index 857e57218c1..63a5f5579be 100644
      }]
  }
  
+@@ -9521,7 +9576,14 @@ proc check_effective_target_gas { } {
+ 	set status [remote_exec host "$gcc_as" "-v /dev/null"]
+ 	set as_output [lindex $status 1]
+ 	if { [ string first "GNU" $as_output ] >= 0 } {
+-	    set use_gas_saved 1
++	    # Some Darwin versions have an assembler which is based on an old
++	    # version of GAS (and reports GNU assembler in its -v output) but
++	    # but doesn't support many of the modern GAS features.
++	    if { [ string first "cctools" $as_output ] >= 0 } {
++	        set use_gas_saved 0
++	    } else {
++	        set use_gas_saved 1
++	    }
+ 	} else {
+ 	    set use_gas_saved 0
+ 	}
 diff --git a/gcc/testsuite/obj-c++.dg/cxx-ivars-3.mm b/gcc/testsuite/obj-c++.dg/cxx-ivars-3.mm
 index 07123559d72..27bae630ce8 100644
 --- a/gcc/testsuite/obj-c++.dg/cxx-ivars-3.mm
@@ -49039,6 +49399,70 @@ index 45ffbc5553d..18f2cbe8869 100644
  /* { dg-options "-fobjc-gc" } */
  /* { dg-prune-output "cc1objplus: warning: '-fobjc-gc' is ignored for '-fgnu-runtime'" } */
  
+diff --git a/gcc/testsuite/obj-c++.dg/pr101666-0.mm b/gcc/testsuite/obj-c++.dg/pr101666-0.mm
+new file mode 100644
+index 00000000000..5f87f605ae4
+--- /dev/null
++++ b/gcc/testsuite/obj-c++.dg/pr101666-0.mm
+@@ -0,0 +1,7 @@
++/* { dg-do run } */
++/* { dg-skip-if "NeXT only" { *-*-* } { "-fgnu-runtime" } { "" } } */
++/* { dg-skip-if "ABI 2 only" { *-*-* && { ! objc2 } } { "*" } { "" } } */
++/* { dg-additional-options "-fobjc-nilcheck -Wno-objc-root-class" } */
++
++#include "pr101666.inc"
++
+diff --git a/gcc/testsuite/obj-c++.dg/pr101666-1.mm b/gcc/testsuite/obj-c++.dg/pr101666-1.mm
+new file mode 100644
+index 00000000000..41ef3704bff
+--- /dev/null
++++ b/gcc/testsuite/obj-c++.dg/pr101666-1.mm
+@@ -0,0 +1,10 @@
++/* Later versions of Darwin can compile for 10.5, but cannot link it so we
++   can only run this test up to 10.13.  */
++/* { dg-do compile { target *-*-darwin* } } */
++/* { dg-do run { target *-*-darwin[89]* *-*-darwin1[0-7]* } } */
++/* { dg-skip-if "NeXT only" { *-*-* } { "-fgnu-runtime" } { "" } } */
++/* { dg-skip-if "ABI 2 only" { *-*-* && { ! objc2 } } { "*" } { "" } } */
++/* { dg-additional-options "-fobjc-nilcheck -mmacosx-version-min=10.5 " } */
++/* { dg-additional-options "-Wno-objc-root-class" } */
++
++#include "pr101666.inc"
+diff --git a/gcc/testsuite/obj-c++.dg/pr101666.inc b/gcc/testsuite/obj-c++.dg/pr101666.inc
+new file mode 100644
+index 00000000000..e81e1be2e4c
+--- /dev/null
++++ b/gcc/testsuite/obj-c++.dg/pr101666.inc
+@@ -0,0 +1,29 @@
++#include <cstdlib>
++struct point { double x, y, z; };
++
++@interface Foo
++- (struct point)bar;
++- (struct point)baz;
++@end
++
++@implementation Foo
++- (struct point)bar { struct point q = { 1.0, 2.0, 3.0 }; return q; };
++- (struct point)baz { struct point q = { 4.0, 5.0, 6.0 }; return q; };
++@end
++
++/* Cases where a check for nil should be inserted by the compiler, when
++   -fobjc-nilcheck is in force. We should not attempt the calls, and the
++   result should be 0-filled. */
++
++Foo *f;
++
++int main(void) {
++  struct point p = [f bar];
++  if (p.x != 0.0 || p.y != 0.0 || p.z != 0.0)
++    abort ();
++  id nilobj = (id)0;
++  p = [nilobj baz];
++  if (p.x != 0.0 || p.y != 0.0 || p.z != 0.0)
++    abort ();
++  return 0;
++}
 diff --git a/gcc/testsuite/obj-c++.dg/proto-lossage-4.mm b/gcc/testsuite/obj-c++.dg/proto-lossage-4.mm
 index 2e753d1f8ba..ff053bec7d0 100644
 --- a/gcc/testsuite/obj-c++.dg/proto-lossage-4.mm
@@ -49089,6 +49513,70 @@ index 8102a5a532f..1b2d9674969 100644
  /* { dg-options "-fobjc-gc" } */
  /* { dg-prune-output "cc1obj: warning: '-fobjc-gc' is ignored for '-fgnu-runtime'" } */
  
+diff --git a/gcc/testsuite/objc.dg/pr101666-0.m b/gcc/testsuite/objc.dg/pr101666-0.m
+new file mode 100644
+index 00000000000..5f87f605ae4
+--- /dev/null
++++ b/gcc/testsuite/objc.dg/pr101666-0.m
+@@ -0,0 +1,7 @@
++/* { dg-do run } */
++/* { dg-skip-if "NeXT only" { *-*-* } { "-fgnu-runtime" } { "" } } */
++/* { dg-skip-if "ABI 2 only" { *-*-* && { ! objc2 } } { "*" } { "" } } */
++/* { dg-additional-options "-fobjc-nilcheck -Wno-objc-root-class" } */
++
++#include "pr101666.inc"
++
+diff --git a/gcc/testsuite/objc.dg/pr101666-1.m b/gcc/testsuite/objc.dg/pr101666-1.m
+new file mode 100644
+index 00000000000..41ef3704bff
+--- /dev/null
++++ b/gcc/testsuite/objc.dg/pr101666-1.m
+@@ -0,0 +1,10 @@
++/* Later versions of Darwin can compile for 10.5, but cannot link it so we
++   can only run this test up to 10.13.  */
++/* { dg-do compile { target *-*-darwin* } } */
++/* { dg-do run { target *-*-darwin[89]* *-*-darwin1[0-7]* } } */
++/* { dg-skip-if "NeXT only" { *-*-* } { "-fgnu-runtime" } { "" } } */
++/* { dg-skip-if "ABI 2 only" { *-*-* && { ! objc2 } } { "*" } { "" } } */
++/* { dg-additional-options "-fobjc-nilcheck -mmacosx-version-min=10.5 " } */
++/* { dg-additional-options "-Wno-objc-root-class" } */
++
++#include "pr101666.inc"
+diff --git a/gcc/testsuite/objc.dg/pr101666.inc b/gcc/testsuite/objc.dg/pr101666.inc
+new file mode 100644
+index 00000000000..f1dddca6498
+--- /dev/null
++++ b/gcc/testsuite/objc.dg/pr101666.inc
+@@ -0,0 +1,29 @@
++#include <stdlib.h>
++struct point { double x, y, z; };
++
++@interface Foo
++- (struct point)bar;
++- (struct point)baz;
++@end
++
++@implementation Foo
++- (struct point)bar { struct point q = { 1.0, 2.0, 3.0 }; return q; };
++- (struct point)baz { struct point q = { 4.0, 5.0, 6.0 }; return q; };
++@end
++
++/* Cases where a check for nil should be inserted by the compiler, when
++   -fobjc-nilcheck is in force. We should not attempt the calls, and the
++   result should be 0-filled. */
++
++Foo *f;
++
++int main(void) {
++  struct point p = [f bar];
++  if (p.x != 0.0 || p.y != 0.0 || p.z != 0.0)
++    abort ();
++  id nilobj = (id)0;
++  p = [nilobj baz];
++  if (p.x != 0.0 || p.y != 0.0 || p.z != 0.0)
++    abort ();
++  return 0;
++}
 diff --git a/gcc/tree-if-conv.c b/gcc/tree-if-conv.c
 index 716eae44a21..6493ccd3f0d 100644
 --- a/gcc/tree-if-conv.c
@@ -53662,6 +54150,24 @@ index bbf785773d4..1dc91bc2e35 100644
  }
  else version (OSX)
  {
+diff --git a/libphobos/testsuite/lib/libphobos.exp b/libphobos/testsuite/lib/libphobos.exp
+index 3be2092b12e..2af430a0e45 100644
+--- a/libphobos/testsuite/lib/libphobos.exp
++++ b/libphobos/testsuite/lib/libphobos.exp
+@@ -90,6 +90,13 @@ proc libphobos-dg-test { prog do_what extra_tool_flags } {
+ }
+ 
+ proc libphobos-dg-prune { system text } {
++
++    # Ignore harmless warnings from Xcode.
++    regsub -all "(^|\n)\[^\n\]*ld: warning: could not create compact unwind for\[^\n\]*" $text "" text
++
++    # Ignore dsymutil warning (tool bug is actually linker)
++    regsub -all "(^|\n)\[^\n\]*could not find object file symbol for symbol\[^\n\]*" $text "" text
++
+     return $text
+ }
+ 
 diff --git a/libphobos/testsuite/testsuite_flags.in b/libphobos/testsuite/testsuite_flags.in
 index bafd5ad4502..8e2f1eefd5b 100755
 --- a/libphobos/testsuite/testsuite_flags.in
