@@ -78,7 +78,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (723):
+GCC Administrator (724):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -3342,10 +3343,27 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..8cd82785a4e 100644
+index a0587d18824..73cbab713c7 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,2924 @@
+@@ -1,3 +1,2941 @@
++2024-04-23  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2022-03-04  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* config/darwin.c (darwin_fold_builtin): Make fcode an int to
++	avoid a mismatch with DECL_MD_FUNCTION_CODE().
++
++2024-04-23  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2021-11-15  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* config.in: Regenerate.
++	* configure: Regenerate.
++	* configure.ac: Test ld64 for -platform-version support.
++
 +2024-04-22  Iain Sandoe  <iain@sandoe.co.uk>
 +
 +	Backported from master:
@@ -6720,10 +6738,18 @@ index 64f4999ab07..627a89b3c45 100644
    set_mem_alias_set (mem, 0);
    return mem;
 diff --git a/gcc/c-family/ChangeLog b/gcc/c-family/ChangeLog
-index dff48ba4655..b1491303ecd 100644
+index dff48ba4655..7d939a6e8c6 100644
 --- a/gcc/c-family/ChangeLog
 +++ b/gcc/c-family/ChangeLog
-@@ -1,3 +1,72 @@
+@@ -1,3 +1,80 @@
++2024-04-23  Matt Jacobson  <mhjacobson@me.com>
++
++	Backported from master:
++	2021-08-17  Matt Jacobson  <mhjacobson@me.com>
++
++	* c-opts.c (c_common_post_options): Default to
++	flag_objc_sjlj_exceptions = 1 only when flag_objc_abi < 2.
++
 +2024-01-27  Lewis Hyatt  <lhyatt@gmail.com>
 +
 +	PR preprocessor/105608
@@ -29179,10 +29205,42 @@ index e89601c0c14..d040c853942 100644
  		      wi::to_wide (@ipos) + isize))
      (BIT_FIELD_REF @1 @rsize { wide_int_to_tree (bitsizetype,
 diff --git a/gcc/objc/ChangeLog b/gcc/objc/ChangeLog
-index b3758fad724..8cf9f1de780 100644
+index b3758fad724..c7d062839aa 100644
 --- a/gcc/objc/ChangeLog
 +++ b/gcc/objc/ChangeLog
-@@ -1,3 +1,27 @@
+@@ -1,3 +1,59 @@
++2024-04-23  Matt Jacobson  <mhjacobson@me.com>
++
++	Backported from master:
++	2021-08-17  Matt Jacobson  <mhjacobson@me.com>
++
++	* objc-next-runtime-abi-02.c
++	(objc_next_runtime_abi_02_init): Warn about and reset
++	flag_objc_sjlj_exceptions regardless of flag_objc_exceptions.
++	(next_runtime_02_initialize): Use a checking assert that
++	flag_objc_sjlj_exceptions is off.
++
++2024-04-23  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2021-08-19  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* objc-next-runtime-abi-02.c (objc_next_runtime_abi_02_init):
++	Default receiver nilchecks on.
++
++2024-04-23  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2021-08-18  Iain Sandoe  <iain@sandoe.co.uk>
++		    Matt Jacobson   <mhjacobson@me.com>
++
++	PR objc/101666
++	* objc-act.c (objc_build_constructor): Handle empty constructor
++	lists.
++	* objc-next-runtime-abi-02.c (build_v2_objc_method_fixup_call):
++	Handle nil receivers.
++	(build_v2_build_objc_method_call): Likewise.
++
 +2024-04-22  Iain Sandoe  <iain@sandoe.co.uk>
 +
 +	Backported from master:
@@ -30407,10 +30465,47 @@ index 5530a124a9d..31f93f4b747 100644
  
  DEBUG_FUNCTION void
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..b4923266d50 100644
+index 5fc23605244..f4a0748e54c 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,3016 @@
+@@ -1,3 +1,3053 @@
++2024-04-23  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* gcc.target/i386/memcpy-strategy-10.c: Account for
++	__USER_LABEL_PREFIX__.
++	* gcc.target/i386/memcpy-strategy-5.c: Likewise.
++	* gcc.target/i386/memset-strategy-5.c: Likewise.
++	* gcc.target/i386/memset-strategy-7.c: Likewise.
++
++2024-04-23  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2022-03-28  Richard Biener  <rguenther@suse.de>
++
++	* gcc.dg/torture/pr100786.c: Add dg-require alias.
++
++2024-04-23  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2021-08-27  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* lib/target-supports.exp: Exclude cctools assembler based on
++	GAS 1.38.
++
++2024-04-23  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2021-08-18  Iain Sandoe  <iain@sandoe.co.uk>
++		    Matt Jacobson   <mhjacobson@me.com>
++
++	PR objc/101666
++	* obj-c++.dg/pr101666-0.mm: New test.
++	* obj-c++.dg/pr101666-1.mm: New test.
++	* obj-c++.dg/pr101666.inc: New.
++	* objc.dg/pr101666-0.m: New test.
++	* objc.dg/pr101666-1.m: New test.
++	* objc.dg/pr101666.inc: New.
++
 +2024-04-22  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
 +
 +	Backported from master:
@@ -53835,10 +53930,18 @@ index 5e1f76a461d..36c5bdff4d9 100644
  
  	* GCC 11.3.0 released.
 diff --git a/libphobos/ChangeLog b/libphobos/ChangeLog
-index acd0b312ef2..ab80f6c83b2 100644
+index acd0b312ef2..c8c4e9844f8 100644
 --- a/libphobos/ChangeLog
 +++ b/libphobos/ChangeLog
-@@ -1,3 +1,52 @@
+@@ -1,3 +1,60 @@
++2024-04-23  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2021-11-19  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* testsuite/lib/libphobos.exp: Prune warnings from external
++	tool bugs.
++
 +2023-11-07  Iain Buclaw  <ibuclaw@gdcproject.org>
 +
 +	Backported from master:
