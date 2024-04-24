@@ -931,7 +931,7 @@ Ian Lance Taylor (2):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
       syscall: add prlimit
 
-Jakub Jelinek (101):
+Jakub Jelinek (103):
       emit-rtl: Fix -fcompare-debug bug with label references in debug insns [PR105203]
       sparc: Preserve ORIGINAL_REGNO in epilogue_renumber [PR105257]
       rtlanal: Fix up replace_rtx [PR105333]
@@ -1033,6 +1033,8 @@ Jakub Jelinek (101):
       expand: Fix handling of asm goto outputs vs. PHI argument adjustments [PR113921]
       testsuite: Add testcase for already fixed PR [PR107385]
       testsuite: Require lra effective target for pr107385.c
+      ubsan: Don't -fsanitize=null instrument __seg_fs/gs pointers [PR111736]
+      tsan: Don't instrument non-generic AS accesses [PR111736]
 
 Jan Hubicka (5):
       Fix modref_tree::remap_params
@@ -1425,7 +1427,7 @@ Rainer Orth (3):
       Support parallel testing in libgomp, part I [PR66005]
       testsuite: Fix weak_undefined handling on Darwin
 
-Richard Biener (63):
+Richard Biener (65):
       Update BASE-VER to 11.3.1
       ipa/105598 - testcase for PR105598
       middle-end/105140 - fix bogus recursion in fold_convertible_p
@@ -1489,6 +1491,8 @@ Richard Biener (63):
       tree-optimization/111917 - bougs IL after guard hoisting
       middle-end/114599 - fix bitmap allocation for check_ifunc_callee_symtab_nodes
       add missing dg-require alias to gcc.dg/torture/pr100786.c
+      sanitizer/111736 - skip ASAN for globals in alternate address-space
+      tree-optimization/111736 - avoid address sanitizing of __seg_gs
 
 Richard Earnshaw (4):
       arm: big-endian issue in gen_cpymem_ldrd_strd [PR105981]
@@ -6570,7 +6574,7 @@ index a16563d912a..fa33e956d41 100644
        break;
      case SK_UNKNOWN:
 diff --git a/gcc/asan.c b/gcc/asan.c
-index ca036767134..2aa2be13bf6 100644
+index ca036767134..fe24f531a04 100644
 --- a/gcc/asan.c
 +++ b/gcc/asan.c
 @@ -64,6 +64,7 @@ along with GCC; see the file COPYING3.  If not see
@@ -6623,7 +6627,27 @@ index ca036767134..2aa2be13bf6 100644
    if (shadow_ptr_types[0] == NULL_TREE)
      asan_init_shadow_ptr_types ();
  
-@@ -3713,9 +3723,7 @@ asan_expand_mark_ifn (gimple_stmt_iterator *iter)
+@@ -2228,6 +2238,8 @@ asan_protect_global (tree decl, bool ignore_decl_rtl_set_p)
+       || (DECL_SECTION_NAME (decl) != NULL
+ 	  && !symtab_node::get (decl)->implicit_section
+ 	  && !section_sanitized_p (DECL_SECTION_NAME (decl)))
++      /* Don't protect variables in non-generic address-space.  */
++      || !ADDR_SPACE_GENERIC_P (TYPE_ADDR_SPACE (TREE_TYPE (decl)))
+       || DECL_SIZE (decl) == 0
+       || ASAN_RED_ZONE_SIZE * BITS_PER_UNIT > MAX_OFILE_ALIGNMENT
+       || TREE_CODE (DECL_SIZE_UNIT (decl)) != INTEGER_CST
+@@ -2687,6 +2699,10 @@ instrument_derefs (gimple_stmt_iterator *iter, tree t,
+   if (VAR_P (inner) && DECL_HARD_REGISTER (inner))
+     return;
+ 
++  /* Accesses to non-generic address-spaces should not be instrumented.  */
++  if (!ADDR_SPACE_GENERIC_P (TYPE_ADDR_SPACE (TREE_TYPE (inner))))
++    return;
++
+   poly_int64 decl_size;
+   if ((VAR_P (inner) || TREE_CODE (inner) == RESULT_DECL)
+       && offset == NULL_TREE
+@@ -3713,9 +3729,7 @@ asan_expand_mark_ifn (gimple_stmt_iterator *iter)
      }
    tree len = gimple_call_arg (g, 2);
  
@@ -6634,7 +6658,7 @@ index ca036767134..2aa2be13bf6 100644
  
    g = gimple_build_assign (make_ssa_name (pointer_sized_int_node),
  			   NOP_EXPR, base);
-@@ -3724,9 +3732,10 @@ asan_expand_mark_ifn (gimple_stmt_iterator *iter)
+@@ -3724,9 +3738,10 @@ asan_expand_mark_ifn (gimple_stmt_iterator *iter)
    tree base_addr = gimple_assign_lhs (g);
  
    /* Generate direct emission if size_in_bytes is small.  */
@@ -40518,6 +40542,29 @@ index 00000000000..f3eb0ef3a4e
 +/* { dg-final { scan-tree-dump "Sinking # VUSE" "sink" } } */
 +/* And remove the loop after final value replacement.  */
 +/* { dg-final { scan-tree-dump "fix_loop_structure: removing loop" "cddce2" } } */
+diff --git a/gcc/testsuite/gcc.dg/tsan/pr111736.c b/gcc/testsuite/gcc.dg/tsan/pr111736.c
+new file mode 100644
+index 00000000000..34ab88b3d4f
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/tsan/pr111736.c
+@@ -0,0 +1,17 @@
++/* PR sanitizer/111736 */
++/* { dg-do compile { target i?86-*-* x86_64-*-* } } */
++/* { dg-options "-fsanitize=thread -fdump-tree-optimized -ffat-lto-objects" } */
++/* { dg-final { scan-tree-dump-not "__tsan_read" "optimized" } } */
++/* { dg-final { scan-tree-dump-not "__tsan_write" "optimized" } } */
++
++#ifdef __x86_64__
++#define SEG __seg_fs
++#else
++#define SEG __seg_gs
++#endif
++
++void
++foo (int SEG *p, int SEG *q)
++{
++  *q = *p;
++}
 diff --git a/gcc/testsuite/gcc.dg/ubsan/pr107183.c b/gcc/testsuite/gcc.dg/ubsan/pr107183.c
 new file mode 100644
 index 00000000000..e54a361c7c9
@@ -40535,6 +40582,35 @@ index 00000000000..e54a361c7c9
 +{
 +  unsigned u = b || __builtin_rintl (c);
 +  return u + (unsigned) a;
++}
+diff --git a/gcc/testsuite/gcc.dg/ubsan/pr111736.c b/gcc/testsuite/gcc.dg/ubsan/pr111736.c
+new file mode 100644
+index 00000000000..359b31828f0
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/ubsan/pr111736.c
+@@ -0,0 +1,23 @@
++/* PR sanitizer/111736 */
++/* { dg-do compile { target i?86-*-* x86_64-*-* } } */
++/* { dg-options "-fsanitize=null,alignment -fdump-tree-optimized -ffat-lto-objects" } */
++/* { dg-final { scan-tree-dump-times "__ubsan_handle_type_mismatch" 1 "optimized" } } */
++/* { dg-final { scan-tree-dump-not "p_\[0-9]*.D. \[=!]= 0" "optimized" } } */
++
++#ifdef __x86_64__
++#define SEG __seg_fs
++#else
++#define SEG __seg_gs
++#endif
++
++int
++foo (int SEG *p, int *q)
++{
++  return *p;
++}
++
++__attribute__((no_sanitize("alignment"))) int
++bar (int SEG *p, int *q)
++{
++  return *p;
 +}
 diff --git a/gcc/testsuite/gcc.dg/vect/complex/fast-math-bb-slp-complex-mul-float.c b/gcc/testsuite/gcc.dg/vect/complex/fast-math-bb-slp-complex-mul-float.c
 index 827687b92fa..8eb8baceb31 100644
@@ -43784,6 +43860,35 @@ index 00000000000..6539ae566c0
 +{
 +  __asm ("# %0" : : "g" ((((unsigned __int128) 0x123456789abcdef0ULL) << 64) | 0x0fedcba987654321ULL));
 +}
+diff --git a/gcc/testsuite/gcc.target/i386/pr111736.c b/gcc/testsuite/gcc.target/i386/pr111736.c
+new file mode 100644
+index 00000000000..231fdd07e80
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/i386/pr111736.c
+@@ -0,0 +1,23 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -fsanitize=address" } */
++
++int __seg_gs m;
++
++int foo (void)
++{
++  return m;
++}
++
++extern int  __seg_gs n;
++
++int bar (void)
++{
++  return n;
++}
++
++int baz (int __seg_gs *o)
++{
++  return *o;
++}
++
++/* { dg-final { scan-assembler-not "asan_report_load" } } */
 diff --git a/gcc/testsuite/gcc.target/i386/pr112672.c b/gcc/testsuite/gcc.target/i386/pr112672.c
 new file mode 100644
 index 00000000000..583e9fdfb8b
@@ -51318,6 +51423,64 @@ index 44643c74ad9..32e7024ff23 100644
  extern void init_ttree (void);
  extern void build_common_tree_nodes (bool);
  extern void build_common_builtin_nodes (void);
+diff --git a/gcc/tsan.c b/gcc/tsan.c
+index 7db157e21e5..e426f647cb0 100644
+--- a/gcc/tsan.c
++++ b/gcc/tsan.c
+@@ -139,6 +139,9 @@ instrument_expr (gimple_stmt_iterator gsi, tree expr, bool is_write)
+   if (TREE_READONLY (base) || (VAR_P (base) && DECL_HARD_REGISTER (base)))
+     return false;
+ 
++  if (!ADDR_SPACE_GENERIC_P (TYPE_ADDR_SPACE (TREE_TYPE (base))))
++    return false;
++
+   stmt = gsi_stmt (gsi);
+   loc = gimple_location (stmt);
+   rhs = is_vptr_store (stmt, expr, is_write);
+diff --git a/gcc/ubsan.c b/gcc/ubsan.c
+index 04e8c1552a7..2b12651b440 100644
+--- a/gcc/ubsan.c
++++ b/gcc/ubsan.c
+@@ -49,6 +49,7 @@ along with GCC; see the file COPYING3.  If not see
+ #include "tree-cfg.h"
+ #include "gimple-fold.h"
+ #include "varasm.h"
++#include "target.h"
+ 
+ /* Map from a tree to a VAR_DECL tree.  */
+ 
+@@ -784,6 +785,13 @@ ubsan_expand_null_ifn (gimple_stmt_iterator *gsip)
+ 	}
+     }
+   check_null = sanitize_flags_p (SANITIZE_NULL);
++  if (check_null && POINTER_TYPE_P (TREE_TYPE (ptr)))
++    {
++      addr_space_t as = TYPE_ADDR_SPACE (TREE_TYPE (TREE_TYPE (ptr)));
++      if (!ADDR_SPACE_GENERIC_P (as)
++	  && targetm.addr_space.zero_address_valid (as))
++	check_null = false;
++    }
+ 
+   if (check_align == NULL_TREE && !check_null)
+     {
+@@ -1375,8 +1383,15 @@ instrument_mem_ref (tree mem, tree base, gimple_stmt_iterator *iter,
+       if (align <= 1)
+ 	align = 0;
+     }
+-  if (align == 0 && !sanitize_flags_p (SANITIZE_NULL))
+-    return;
++  if (align == 0)
++    {
++      if (!sanitize_flags_p (SANITIZE_NULL))
++	return;
++      addr_space_t as = TYPE_ADDR_SPACE (TREE_TYPE (base));
++      if (!ADDR_SPACE_GENERIC_P (as)
++	  && targetm.addr_space.zero_address_valid (as))
++	return;
++    }
+   tree t = TREE_OPERAND (base, 0);
+   if (!POINTER_TYPE_P (TREE_TYPE (t)))
+     return;
 diff --git a/gcc/value-prof.c b/gcc/value-prof.c
 index 42748771192..688089b04d2 100644
 --- a/gcc/value-prof.c
