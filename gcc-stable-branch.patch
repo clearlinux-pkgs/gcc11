@@ -65,11 +65,12 @@ Florian Weimer (2):
       libsanitizer: Avoid implicit function declaration in configure test
       libiberty: Fix C89-isms in configure tests
 
-Francois-Xavier Coudert (4):
+Francois-Xavier Coudert (5):
       LTO: Prune some warnings in the testsuite
       libgfortran: avoid duplicate libraries in spec
       Fixincludes: Handle __FLT_EVAL_METHOD__ == 16 on darwin
       Testsuite, darwin: account for macOS 13 and 14
+      testsuite: adjust for darwin linker warning
 
 François Dumont (1):
       libstdc++: Fix printing of std::span for versioned namespace
@@ -899,7 +900,7 @@ Iain Buclaw (22):
       d: Fix callee destructor call invalidates the live object [PR113758]
       d: Fix gdc -O2 -mavx generates misaligned vmovdqa instruction [PR114171]
 
-Iain Sandoe (34):
+Iain Sandoe (42):
       Darwin: Fix bootstrap for X86.
       Darwin: Update rules for handling alignment of globals.
       Darwin: Fix empty g++ command lines [PR105599].
@@ -934,6 +935,14 @@ Iain Sandoe (34):
       libstdc++, Darwin: Limit recursive mutex init to OS versions needing it.
       testsuite, objective-c: Cater for Windows intptr type.
       testsuite,objective-c++: Fix imported NSObjCRuntime.h.
+      Darwin: Match system sections and relocs for exception tables.
+      Darwin: Place global inits in the correct section.
+      Darwin: Partial reversion of r14-3648 (Inits Section).
+      Darwin, ppc: Add system stubs for all 32b PPC
+      Darwin,debug : Switch to DWARF 3 or 4 when dsymutil supports it.
+      Darwin, configure: Allow for an unrecognisable dsymutil [PR111610].
+      Darwin: Check as for .build_version support and use it if available.
+      Darwin: Correct a version check.
 
 Ian Lance Taylor (2):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
@@ -7994,10 +8003,23 @@ index 5636acc2270..6e6ce881d89 100644
        bdver4-*)
          arch=bdver4
 diff --git a/gcc/config.in b/gcc/config.in
-index 048bf52e8c2..982c453ca36 100644
+index 048bf52e8c2..6dd0ff010ce 100644
 --- a/gcc/config.in
 +++ b/gcc/config.in
-@@ -2207,6 +2207,12 @@
+@@ -598,6 +598,12 @@
+ #endif
+ 
+ 
++/* Define if your macOS assembler supports .build_version directives */
++#ifndef USED_FOR_TARGET
++#undef HAVE_AS_MACOS_BUILD_VERSION
++#endif
++
++
+ /* Define if the assembler understands -march=rv*_zifencei. */
+ #ifndef USED_FOR_TARGET
+ #undef HAVE_AS_MARCH_ZIFENCEI
+@@ -2207,6 +2213,12 @@
  #endif
  
  
@@ -11589,11 +11611,73 @@ index e48dd4559eb..61cbdff089f 100644
      }
    else if (major_vers - 4 <= 4)
      /* On 10.4 and earlier, the old linker is used which does not
+diff --git a/gcc/config/darwin-protos.h b/gcc/config/darwin-protos.h
+index f5ef82456aa..440e76ead42 100644
+--- a/gcc/config/darwin-protos.h
++++ b/gcc/config/darwin-protos.h
+@@ -129,4 +129,15 @@ extern void darwin_patch_builtins (void);
+ extern void darwin_rename_builtins (void);
+ extern bool darwin_libc_has_function (enum function_class fn_class, tree);
+ 
++/* For this port, there are several possible sources for external toolchain
++   components (e.g. as, ld, dsymutil) and we have to alter the allowable
++   output in response to which version and source is in use.  */
++enum darwin_external_toolchain {
++  DET_UNKNOWN=0,
++  CCTOOLS,
++  DWARFUTILS,
++  LLVM,
++  CLANG
++};
++
+ #endif /* CONFIG_DARWIN_PROTOS_H */
+diff --git a/gcc/config/darwin-sections.def b/gcc/config/darwin-sections.def
+index 8be89624c9c..dc4d0408a85 100644
+--- a/gcc/config/darwin-sections.def
++++ b/gcc/config/darwin-sections.def
+@@ -98,6 +98,8 @@ DEF_SECTION (mod_init_section, 0, ".mod_init_func", 0)
+ DEF_SECTION (mod_term_section, 0, ".mod_term_func", 0)
+ DEF_SECTION (constructor_section, 0, ".constructor", 0)
+ DEF_SECTION (destructor_section, 0, ".destructor", 0)
++DEF_SECTION (static_init_section, SECTION_CODE,
++	     ".section\t__TEXT,__StaticInit,regular,pure_instructions", 0)
+ 
+ /* Objective-C ABI=0 (Original version) sections.  */
+ DEF_SECTION (objc_class_section, 0, ".objc_class", 1)
+@@ -157,7 +159,7 @@ DEF_SECTION (machopic_picsymbol_stub3_section, SECTION_NO_ANCHOR,
+ 
+ /* Exception-related.  */
+ DEF_SECTION (darwin_exception_section, SECTION_NO_ANCHOR,
+-	     ".section __DATA,__gcc_except_tab", 0)
++	     ".section __TEXT,__gcc_except_tab", 0)
+ DEF_SECTION (darwin_eh_frame_section, SECTION_NO_ANCHOR,
+ 	     ".section " EH_FRAME_SECTION_NAME ",__eh_frame"
+ 	     EH_FRAME_SECTION_ATTR, 0)
 diff --git a/gcc/config/darwin.c b/gcc/config/darwin.c
-index 0dc26a9f252..2371816e251 100644
+index 0dc26a9f252..574424ac11c 100644
 --- a/gcc/config/darwin.c
 +++ b/gcc/config/darwin.c
-@@ -1933,6 +1933,8 @@ darwin_label_is_anonymous_local_objc_name (const char *name)
+@@ -111,6 +111,19 @@ static bool ld_needs_eh_markers = false;
+ /* Emit a section-start symbol for mod init and term sections.  */
+ static bool ld_init_term_start_labels = false;
+ 
++/* The source and version of dsymutil in use.  */
++#ifndef DSYMUTIL_VERSION
++# warning Darwin toolchain without a defined dsymutil.
++# define DSYMUTIL_VERSION DET_UNKNOWN,0,0,0
++#endif
++
++struct {
++  darwin_external_toolchain kind; /* cctools, llvm, clang etc.  */
++  int major; /* version number.  */
++  int minor;
++  int tiny;
++} dsymutil_version = {DSYMUTIL_VERSION};
++
+ /* Section names.  */
+ section * darwin_sections[NUM_DARWIN_SECTIONS];
+ 
+@@ -1933,6 +1946,8 @@ darwin_label_is_anonymous_local_objc_name (const char *name)
      }
    else if (!strncmp ((const char *)p, "ClassMethods", 12))
      return false;
@@ -11602,7 +11686,15 @@ index 0dc26a9f252..2371816e251 100644
    else if (!strncmp ((const char *)p, "Instance", 8))
      {
        if (p[8] == 'I' || p[8] == 'M')
-@@ -2556,7 +2558,6 @@ darwin_emit_common (FILE *fp, const char *name,
+@@ -2228,6 +2243,7 @@ darwin_emit_except_table_label (FILE *file)
+ {
+   char section_start_label[30];
+ 
++  fputs ("\t.p2align\t2\n", file);
+   ASM_GENERATE_INTERNAL_LABEL (section_start_label, "GCC_except_table",
+ 			       except_table_label_num++);
+   ASM_OUTPUT_LABEL (file, section_start_label);
+@@ -2556,7 +2572,6 @@ darwin_emit_common (FILE *fp, const char *name,
      rounded = (size + (align-1)) & ~(align-1);
  
    l2align = floor_log2 (align);
@@ -11610,7 +11702,7 @@ index 0dc26a9f252..2371816e251 100644
  
    in_section = comm_section;
    /* We mustn't allow multiple public symbols to share an address when using
-@@ -2707,6 +2708,10 @@ darwin_asm_output_aligned_decl_common (FILE *fp, tree decl, const char *name,
+@@ -2707,6 +2722,10 @@ darwin_asm_output_aligned_decl_common (FILE *fp, tree decl, const char *name,
  #ifdef DEBUG_DARWIN_MEM_ALLOCATORS
  fprintf (fp, "# adcom: %s (%d,%d) decl=0x0\n", name, (int)size, (int)align);
  #endif
@@ -11621,7 +11713,7 @@ index 0dc26a9f252..2371816e251 100644
        darwin_emit_common (fp, name, size, align);
        return;
      }
-@@ -2734,7 +2739,7 @@ fprintf (fp, "# adcom: %s (%lld,%d) ro %d cst %d stat %d com %d pub %d"
+@@ -2734,7 +2753,7 @@ fprintf (fp, "# adcom: %s (%lld,%d) ro %d cst %d stat %d com %d pub %d"
      }
  
    /* We shouldn't be messing with this if the decl has a section name.  */
@@ -11630,7 +11722,7 @@ index 0dc26a9f252..2371816e251 100644
  
    /* We would rather not have to check this here - but it seems that we might
       be passed a decl that should be in coalesced space.  */
-@@ -2763,10 +2768,16 @@ fprintf (fp, "# adcom: %s (%lld,%d) ro %d cst %d stat %d com %d pub %d"
+@@ -2763,10 +2782,16 @@ fprintf (fp, "# adcom: %s (%lld,%d) ro %d cst %d stat %d com %d pub %d"
  
    l2align = floor_log2 (align / BITS_PER_UNIT);
    /* Check we aren't asking for more aligment than the platform allows.  */
@@ -11649,7 +11741,86 @@ index 0dc26a9f252..2371816e251 100644
    else
      darwin_emit_local_bss (fp, decl, name, size, l2align);
  }
-@@ -3609,7 +3620,7 @@ tree
+@@ -3007,7 +3032,35 @@ darwin_asm_output_dwarf_offset (FILE *file, int size, const char * lab,
+ void
+ darwin_file_start (void)
+ {
+-  /* Nothing to do.  */
++#ifdef HAVE_AS_MMACOSX_VERSION_MIN_OPTION
++  /* This should not happen with a well-formed command line, but the user could
++     invoke cc1* directly without it.  */
++  if (!darwin_macosx_version_min)
++    return;
++  /* This assumes that the version passed has been validated in the driver.  */
++  unsigned maj, min, tiny;
++  int count = sscanf (darwin_macosx_version_min, "%u.%u.%u", &maj, &min, &tiny);
++  if (count < 0)
++    return;
++  if (count < 3)
++    tiny = 0;
++  if (count < 2)
++    min = 0;
++  const char *directive;
++#ifdef HAVE_AS_MACOS_BUILD_VERSION
++  /* We only handle macos, so far.  */
++  if (generating_for_darwin_version >= 18)
++    directive = "build_version macos, ";
++  else
++#endif
++    directive = "macosx_version_min ";
++  if (count > 2 && tiny != 0)
++    fprintf (asm_out_file, "\t.%s %u, %u, %u\n", directive, maj, min, tiny);
++  else if (count > 1)
++    fprintf (asm_out_file, "\t.%s %u, %u\n", directive, maj, min);
++  else
++     fprintf (asm_out_file, "\t.%s %u, 0\n", directive, maj);
++#endif
+ }
+ 
+ /* Called for the TARGET_ASM_FILE_END hook.
+@@ -3229,7 +3282,9 @@ darwin_override_options (void)
+   /* Keep track of which (major) version we're generating code for.  */
+   if (darwin_macosx_version_min)
+     {
+-      if (strverscmp (darwin_macosx_version_min, "10.7") >= 0)
++      if (strverscmp (darwin_macosx_version_min, "10.14") >= 0)
++	generating_for_darwin_version = 18;
++      else if (strverscmp (darwin_macosx_version_min, "10.7") >= 0)
+ 	generating_for_darwin_version = 11;
+       else if (strverscmp (darwin_macosx_version_min, "10.6") >= 0)
+ 	generating_for_darwin_version = 10;
+@@ -3304,14 +3359,26 @@ darwin_override_options (void)
+ 		  global_options.x_flag_objc_abi);
+     }
+ 
+-  /* Don't emit DWARF3/4 unless specifically selected.  This is a
+-     workaround for tool bugs.  */
++  /* Limit DWARF to the chosen version, the linker and debug linker might not
++     be able to consume newer structures.  */
+   if (!global_options_set.x_dwarf_strict)
+     dwarf_strict = 1;
++
+   if (!global_options_set.x_dwarf_version)
+-    dwarf_version = 2;
++    {
++      /* External toolchains based on LLVM or clang 7+ have support for
++	 dwarf-4.  */
++      if ((dsymutil_version.kind == LLVM && dsymutil_version.major >= 7)
++	  || (dsymutil_version.kind == CLANG && dsymutil_version.major >= 700))
++	dwarf_version = 4;
++      else if (dsymutil_version.kind == DWARFUTILS
++	       && dsymutil_version.major >= 121)
++	dwarf_version = 3;  /* From XC 6.4.  */
++      else
++	dwarf_version = 2;  /* Older cannot safely exceed dwarf-2.  */
++    }
+ 
+-  if (global_options_set.x_dwarf_split_debug_info)
++  if (global_options_set.x_dwarf_split_debug_info && dwarf_split_debug_info)
+     {
+       inform (input_location,
+ 	      "%<-gsplit-dwarf%> is not supported on this platform, ignored");
+@@ -3609,7 +3676,7 @@ tree
  darwin_fold_builtin (tree fndecl, int n_args, tree *argp,
  		     bool ARG_UNUSED (ignore))
  {
@@ -11658,8 +11829,32 @@ index 0dc26a9f252..2371816e251 100644
  
    if (fcode == darwin_builtin_cfstring)
      {
+@@ -3836,11 +3903,22 @@ darwin_function_section (tree decl, enum node_frequency freq,
+   if (decl && DECL_SECTION_NAME (decl) != NULL)
+     return get_named_section (decl, NULL, 0);
+ 
+-  /* We always put unlikely executed stuff in the cold section.  */
++  /* We always put unlikely executed stuff in the cold section; we have to put
++     this ahead of the global init section, since partitioning within a section
++     breaks some assumptions made in the DWARF handling.  */
+   if (freq == NODE_FREQUENCY_UNLIKELY_EXECUTED)
+     return (use_coal) ? darwin_sections[text_cold_coal_section]
+ 		      : darwin_sections[text_cold_section];
+ 
++  /* Intercept functions in global init; these are placed in separate sections.
++     FIXME: there should be some neater way to do this, FIXME we should be able
++     to partition within a section.  */
++  if (DECL_NAME (decl)
++      && (strncmp (IDENTIFIER_POINTER (DECL_NAME (decl)), "_GLOBAL__sub_I", 14) == 0
++	  || strncmp (IDENTIFIER_POINTER (DECL_NAME (decl)),
++			 "__static_initialization_and_destruction", 39) == 0))
++    return  darwin_sections[static_init_section];
++
+   /* If we have LTO *and* feedback information, then let LTO handle
+      the function ordering, it makes a better job (for normal, hot,
+      startup and exit - hence the bailout for cold above).  */
 diff --git a/gcc/config/darwin.h b/gcc/config/darwin.h
-index 3206b70c7c2..5be13293319 100644
+index 3206b70c7c2..9cae0165ae9 100644
 --- a/gcc/config/darwin.h
 +++ b/gcc/config/darwin.h
 @@ -141,10 +141,7 @@ extern GTY(()) int darwin_ms_struct;
@@ -11734,6 +11929,15 @@ index 3206b70c7c2..5be13293319 100644
  
  /*  These are the three variants that emit referenced blank space.  */
  #define ASM_OUTPUT_ALIGNED_BSS(FILE, DECL, NAME, SIZE, ALIGN)		\
+@@ -1103,7 +1098,7 @@ enum machopic_addr_class {
+ 
+ #undef ASM_PREFERRED_EH_DATA_FORMAT
+ #define ASM_PREFERRED_EH_DATA_FORMAT(CODE,GLOBAL)  \
+-  (((CODE) == 2 && (GLOBAL) == 1) \
++  (((CODE) == 2 && (GLOBAL) == 1) || ((CODE) == 0 && (GLOBAL) == 1) \
+    ? (DW_EH_PE_pcrel | DW_EH_PE_indirect | DW_EH_PE_sdata4) : \
+      ((CODE) == 1 || (GLOBAL) == 0) ? DW_EH_PE_pcrel : DW_EH_PE_absptr)
+ 
 diff --git a/gcc/config/darwin.opt b/gcc/config/darwin.opt
 index 48d3aa97800..91c05166b3e 100644
 --- a/gcc/config/darwin.opt
@@ -14756,6 +14960,30 @@ index 5b7b761b9d5..03299e6cccd 100644
  }
  
  /* these 32-bit implementations depend on 64-bit pdep/pext
+diff --git a/gcc/config/rs6000/darwin.h b/gcc/config/rs6000/darwin.h
+index 566794af706..e80dd7c77b6 100644
+--- a/gcc/config/rs6000/darwin.h
++++ b/gcc/config/rs6000/darwin.h
+@@ -98,7 +98,7 @@
+    Include libmx when targeting Darwin 7.0 and above, but before libSystem,
+    since the functions are actually in libSystem but for 7.x compatibility
+    we want them to be looked for in libmx first.
+-   Include libSystemStubs when compiling against 10.3 - 10.5 SDKs (we assume
++   Include libSystemStubs when compiling against 10.3 - 10.6 SDKs (we assume
+    this is the case when targetting these) - but not for 64-bit long double.
+    Don't do either for m64, the library is either a dummy or non-existent.
+ */
+@@ -107,8 +107,8 @@
+ #define LIB_SPEC \
+ "%{!static:								\
+   %{!m64:%{!mlong-double-64:						\
+-    %{pg:%:version-compare(>< 10.3 10.5 mmacosx-version-min= -lSystemStubs_profile)} \
+-    %{!pg:%:version-compare(>< 10.3 10.5 mmacosx-version-min= -lSystemStubs)} \
++    %{pg:%:version-compare(>< 10.3 10.7 mmacosx-version-min= -lSystemStubs_profile)} \
++    %{!pg:%:version-compare(>< 10.3 10.7 mmacosx-version-min= -lSystemStubs)} \
+      %:version-compare(>< 10.3 10.4 mmacosx-version-min= -lmx)}}	\
+   -lSystem								\
+ }"
 diff --git a/gcc/config/rs6000/emmintrin.h b/gcc/config/rs6000/emmintrin.h
 index ce1287edf78..991368095dd 100644
 --- a/gcc/config/rs6000/emmintrin.h
@@ -21332,7 +21560,7 @@ index cdf22f14b94..fabc313197a 100644
  	}
  
 diff --git a/gcc/configure b/gcc/configure
-index 7218b0c331a..bf0bd5f428d 100755
+index 7218b0c331a..86f44a35f42 100755
 --- a/gcc/configure
 +++ b/gcc/configure
 @@ -3746,31 +3746,54 @@ gcc_gxx_libcxx_include_dir=
@@ -21418,7 +21646,80 @@ index 7218b0c331a..bf0bd5f428d 100755
  #include "confdefs.h"
  
  #if HAVE_DLFCN_H
-@@ -27016,7 +27039,7 @@ $as_echo "$as_me: WARNING: LTO for $target requires binutils >= 2.20.1, but vers
+@@ -25984,16 +26007,22 @@ if ${gcc_cv_as_mmacosx_version_min+:} false; then :
+   $as_echo_n "(cached) " >&6
+ else
+   gcc_cv_as_mmacosx_version_min=no
+-  if test x$gcc_cv_as != x; then
+-    $as_echo '.text' > conftest.s
+-    if { ac_try='$gcc_cv_as $gcc_cv_as_flags -mmacosx-version-min=10.1 -o conftest.o conftest.s >&5'
++    if test $in_tree_gas = yes; then
++    if test $gcc_cv_gas_vers -ge `expr \( \( -mmacosx-version-min=10.1 \* 1000 \) + gcc_cv_as_mmacosx_version_min=yes \) \* 1000 + `
++  then :
++fi
++  elif test x$gcc_cv_as != x; then
++    $as_echo '' > conftest.s
++    if { ac_try='$gcc_cv_as $gcc_cv_as_flags .text -o conftest.o conftest.s >&5'
+   { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+   (eval $ac_try) 2>&5
+   ac_status=$?
+   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+   test $ac_status = 0; }; }
+     then
+-	gcc_cv_as_mmacosx_version_min=yes
++
++$as_echo "#define HAVE_AS_MMACOSX_VERSION_MIN_OPTION 1" >>confdefs.h
++
+     else
+       echo "configure: failed program was" >&5
+       cat conftest.s >&5
+@@ -26003,12 +26032,43 @@ else
+ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $gcc_cv_as_mmacosx_version_min" >&5
+ $as_echo "$gcc_cv_as_mmacosx_version_min" >&6; }
+-if test $gcc_cv_as_mmacosx_version_min = yes; then
+ 
+-$as_echo "#define HAVE_AS_MMACOSX_VERSION_MIN_OPTION 1" >>confdefs.h
+ 
++    if test x$gcc_cv_as_mmacosx_version_min = "xyes"; then
++       { $as_echo "$as_me:${as_lineno-$LINENO}: checking assembler for .build_version" >&5
++$as_echo_n "checking assembler for .build_version... " >&6; }
++if ${gcc_cv_as_darwin_build_version+:} false; then :
++  $as_echo_n "(cached) " >&6
++else
++  gcc_cv_as_darwin_build_version=no
++    if test $in_tree_gas = yes; then
++    if test $gcc_cv_gas_vers -ge `expr \( \( -mmacosx-version-min=10.14 \* 1000 \) + gcc_cv_as_darwin_build_version=yes \) \* 1000 + `
++  then :
+ fi
++  elif test x$gcc_cv_as != x; then
++    $as_echo '' > conftest.s
++    if { ac_try='$gcc_cv_as $gcc_cv_as_flags  .build_version macos, 10, 14 sdk_version 10, 14 -o conftest.o conftest.s >&5'
++  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
++  (eval $ac_try) 2>&5
++  ac_status=$?
++  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
++  test $ac_status = 0; }; }
++    then
+ 
++$as_echo "#define HAVE_AS_MACOS_BUILD_VERSION 1" >>confdefs.h
++
++    else
++      echo "configure: failed program was" >&5
++      cat conftest.s >&5
++    fi
++    rm -f conftest.o conftest.s
++  fi
++fi
++{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $gcc_cv_as_darwin_build_version" >&5
++$as_echo "$gcc_cv_as_darwin_build_version" >&6; }
++
++
++    fi
+     ;;
+ esac
+ 
+@@ -27016,7 +27076,7 @@ $as_echo "$as_me: WARNING: LTO for $target requires binutils >= 2.20.1, but vers
  	;;
      esac
      case $target_os in
@@ -21427,7 +21728,7 @@ index 7218b0c331a..bf0bd5f428d 100755
          { $as_echo "$as_me:${as_lineno-$LINENO}: checking assembler for llvm assembler x86-pad-for-align option" >&5
  $as_echo_n "checking assembler for llvm assembler x86-pad-for-align option... " >&6; }
  if ${gcc_cv_as_mllvm_x86_pad_for_align+:} false; then :
-@@ -30675,6 +30698,7 @@ if test x"$ld64_flag" = x"yes"; then
+@@ -30675,6 +30735,7 @@ if test x"$ld64_flag" = x"yes"; then
  
    # Set defaults for possibly untestable items.
    gcc_cv_ld64_export_dynamic=0
@@ -21435,7 +21736,7 @@ index 7218b0c331a..bf0bd5f428d 100755
  
    if test "$build" = "$host"; then
      darwin_try_test=1
-@@ -30698,15 +30722,19 @@ $as_echo_n "checking ld64 specified version... " >&6; }
+@@ -30698,15 +30759,19 @@ $as_echo_n "checking ld64 specified version... " >&6; }
      gcc_cv_ld64_major=`echo "$gcc_cv_ld64_version" | sed -e 's/\..*//'`
      { $as_echo "$as_me:${as_lineno-$LINENO}: result: $gcc_cv_ld64_major" >&5
  $as_echo "$gcc_cv_ld64_major" >&6; }
@@ -21457,7 +21758,7 @@ index 7218b0c331a..bf0bd5f428d 100755
      fi
      { $as_echo "$as_me:${as_lineno-$LINENO}: result: $gcc_cv_ld64_version" >&5
  $as_echo "$gcc_cv_ld64_version" >&6; }
-@@ -30719,6 +30747,15 @@ $as_echo_n "checking linker for -export_dynamic support... " >&6; }
+@@ -30719,6 +30784,15 @@ $as_echo_n "checking linker for -export_dynamic support... " >&6; }
      fi
      { $as_echo "$as_me:${as_lineno-$LINENO}: result: $gcc_cv_ld64_export_dynamic" >&5
  $as_echo "$gcc_cv_ld64_export_dynamic" >&6; }
@@ -21473,7 +21774,7 @@ index 7218b0c331a..bf0bd5f428d 100755
    fi
  
    if test x"${gcc_cv_ld64_version}" != x; then
-@@ -30734,6 +30771,12 @@ cat >>confdefs.h <<_ACEOF
+@@ -30734,6 +30808,12 @@ cat >>confdefs.h <<_ACEOF
  #define LD64_HAS_EXPORT_DYNAMIC $gcc_cv_ld64_export_dynamic
  _ACEOF
  
@@ -21486,8 +21787,17 @@ index 7218b0c331a..bf0bd5f428d 100755
  fi
  
  if test x"$dsymutil_flag" = x"yes"; then
+@@ -30761,7 +30841,7 @@ $as_echo_n "checking dsymutil version \"$dsymutil_temp\"... " >&6; }
+       dsymutil_kind=LLVM
+       dsymutil_vers=`echo $dsymutil_temp | sed 's/.*LLVM\ version\ \([0-9\.]*\).*/\1/'`
+     else
+-      dsymutil_kind=UNKNOWN
++      dsymutil_kind=DET_UNKNOWN
+       dsymutil_vers="0.0"
+     fi
+     dsymutil_major=`expr "$dsymutil_vers" : '\([0-9]*\)'`
 diff --git a/gcc/configure.ac b/gcc/configure.ac
-index 49f043ed29b..d52104fbd41 100644
+index 49f043ed29b..a4d5bdb1b8d 100644
 --- a/gcc/configure.ac
 +++ b/gcc/configure.ac
 @@ -236,27 +236,49 @@ AC_ARG_WITH(gxx-libcxx-include-dir,
@@ -21548,7 +21858,28 @@ index 49f043ed29b..d52104fbd41 100644
      if test x$host != x$target; then
         libcxx_incdir="$target_alias/$libcxx_incdir"
      fi
-@@ -4772,7 +4794,7 @@ foo:	nop
+@@ -4336,10 +4358,18 @@ AC_MSG_RESULT($gcc_cv_lto_plugin)
+ case "$target_os" in
+   darwin*)
+     gcc_GAS_CHECK_FEATURE([-mmacosx-version-min option],
+-      gcc_cv_as_mmacosx_version_min,,
++      gcc_cv_as_mmacosx_version_min,
+       [-mmacosx-version-min=10.1], [.text],,
+       [AC_DEFINE(HAVE_AS_MMACOSX_VERSION_MIN_OPTION, 1,
+-	[Define if your Mac OS X assembler supports the -mmacos-version-min option.])])
++	[Define if your macOS assembler supports the -mmacos-version-min option.])])
++    if test x$gcc_cv_as_mmacosx_version_min = "xyes"; then
++       gcc_GAS_CHECK_FEATURE([.build_version],
++           gcc_cv_as_darwin_build_version,
++           [-mmacosx-version-min=10.14],
++           [ .build_version macos, 10, 14 sdk_version 10, 14],,
++      [AC_DEFINE(HAVE_AS_MACOS_BUILD_VERSION, 1,
++	[Define if your macOS assembler supports .build_version directives])])
++    fi
+     ;;
+ esac
+ 
+@@ -4772,7 +4802,7 @@ foo:	nop
  	;;
      esac
      case $target_os in
@@ -21557,7 +21888,7 @@ index 49f043ed29b..d52104fbd41 100644
          gcc_GAS_CHECK_FEATURE([llvm assembler x86-pad-for-align option],
            gcc_cv_as_mllvm_x86_pad_for_align,,
            [-mllvm -x86-pad-for-align=false], [.text],,
-@@ -6329,6 +6351,7 @@ if test x"$ld64_flag" = x"yes"; then
+@@ -6329,6 +6359,7 @@ if test x"$ld64_flag" = x"yes"; then
  
    # Set defaults for possibly untestable items.
    gcc_cv_ld64_export_dynamic=0
@@ -21565,7 +21896,7 @@ index 49f043ed29b..d52104fbd41 100644
  
    if test "$build" = "$host"; then
      darwin_try_test=1
-@@ -6350,14 +6373,18 @@ if test x"$ld64_flag" = x"yes"; then
+@@ -6350,14 +6381,18 @@ if test x"$ld64_flag" = x"yes"; then
      AC_MSG_CHECKING(ld64 specified version)
      gcc_cv_ld64_major=`echo "$gcc_cv_ld64_version" | sed -e 's/\..*//'`
      AC_MSG_RESULT($gcc_cv_ld64_major)
@@ -21586,7 +21917,7 @@ index 49f043ed29b..d52104fbd41 100644
      fi
      AC_MSG_RESULT($gcc_cv_ld64_version)
  
-@@ -6367,6 +6394,13 @@ if test x"$ld64_flag" = x"yes"; then
+@@ -6367,6 +6402,13 @@ if test x"$ld64_flag" = x"yes"; then
        gcc_cv_ld64_export_dynamic=0
      fi
      AC_MSG_RESULT($gcc_cv_ld64_export_dynamic)
@@ -21600,7 +21931,7 @@ index 49f043ed29b..d52104fbd41 100644
    fi
  
    if test x"${gcc_cv_ld64_version}" != x; then
-@@ -6376,6 +6410,9 @@ if test x"$ld64_flag" = x"yes"; then
+@@ -6376,6 +6418,9 @@ if test x"$ld64_flag" = x"yes"; then
  
    AC_DEFINE_UNQUOTED(LD64_HAS_EXPORT_DYNAMIC, $gcc_cv_ld64_export_dynamic,
    [Define to 1 if ld64 supports '-export_dynamic'.])
@@ -21610,6 +21941,15 @@ index 49f043ed29b..d52104fbd41 100644
  fi
  
  if test x"$dsymutil_flag" = x"yes"; then
+@@ -6401,7 +6446,7 @@ if test x"$dsymutil_flag" = x"yes"; then
+       dsymutil_kind=LLVM
+       dsymutil_vers=`echo $dsymutil_temp | sed 's/.*LLVM\ version\ \([[0-9\.]]*\).*/\1/'`
+     else
+-      dsymutil_kind=UNKNOWN
++      dsymutil_kind=DET_UNKNOWN
+       dsymutil_vers="0.0"
+     fi
+     dsymutil_major=`expr "$dsymutil_vers" : '\([[0-9]]*\)'`
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
 index 85c8fdd38cd..a5d80090ee9 100644
 --- a/gcc/cp/ChangeLog
@@ -39295,6 +39635,18 @@ index 765fb799a91..a835e9d4648 100644
  
  int
  main ()
+diff --git a/gcc/testsuite/gcc.dg/darwin-segaddr.c b/gcc/testsuite/gcc.dg/darwin-segaddr.c
+index 526db77bd9c..77112ddb484 100644
+--- a/gcc/testsuite/gcc.dg/darwin-segaddr.c
++++ b/gcc/testsuite/gcc.dg/darwin-segaddr.c
+@@ -2,6 +2,7 @@
+ /* { dg-do run { target *-*-darwin* } } */
+ /* { dg-options "-O0 -segaddr __TEST 0x200000 -fno-pie" { target { *-*-darwin* && { ! lp64 } } } } */
+ /* { dg-options "-O0 -segaddr __TEST 0x110000000 -fno-pie" { target { *-*-darwin* && lp64 } } } */
++/* { dg-prune-output "-no_pie is deprecated when targeting new OS versions" } */
+ 
+ extern void abort ();
+ 
 diff --git a/gcc/testsuite/gcc.dg/dfp/pr108068.c b/gcc/testsuite/gcc.dg/dfp/pr108068.c
 new file mode 100644
 index 00000000000..6cbb0fbe602
@@ -39431,6 +39783,17 @@ index 00000000000..d18a7209983
 +  x |= (int) 0xf1234567U;
 +  return x;
 +}
+diff --git a/gcc/testsuite/gcc.dg/pie-7.c b/gcc/testsuite/gcc.dg/pie-7.c
+index e118a98bafd..3879a6cc120 100644
+--- a/gcc/testsuite/gcc.dg/pie-7.c
++++ b/gcc/testsuite/gcc.dg/pie-7.c
+@@ -1,5 +1,6 @@
+ /* { dg-do run { target pie } } */
+ /* { dg-options "-fno-pie -no-pie" } */
++/* { dg-prune-output "-no_pie is deprecated when targeting new OS versions" } */
+ 
+ int main(void)
+ {
 diff --git a/gcc/testsuite/gcc.dg/pr104464.c b/gcc/testsuite/gcc.dg/pr104464.c
 new file mode 100644
 index 00000000000..ed6a22c39d5
