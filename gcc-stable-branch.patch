@@ -65,12 +65,17 @@ Florian Weimer (2):
       libsanitizer: Avoid implicit function declaration in configure test
       libiberty: Fix C89-isms in configure tests
 
-Francois-Xavier Coudert (5):
+Francois-Xavier Coudert (10):
       LTO: Prune some warnings in the testsuite
       libgfortran: avoid duplicate libraries in spec
       Fixincludes: Handle __FLT_EVAL_METHOD__ == 16 on darwin
       Testsuite, darwin: account for macOS 13 and 14
       testsuite: adjust for darwin linker warning
+      Testsuite, DWARF2: adjust regexp to match darwin output
+      Testsuite, Darwin: Adjust handling of PIE test
+      Testsuite: mark IPA test as requiring alias support
+      Testsuite: fix analyzer tests on Darwin
+      Testsuite, i386: Mark test as requiring ifunc
 
 François Dumont (1):
       libstdc++: Fix printing of std::span for versioned namespace
@@ -81,7 +86,9 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (726):
+GCC Administrator (728):
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -901,7 +908,7 @@ Iain Buclaw (22):
       d: Fix callee destructor call invalidates the live object [PR113758]
       d: Fix gdc -O2 -mavx generates misaligned vmovdqa instruction [PR114171]
 
-Iain Sandoe (42):
+Iain Sandoe (55):
       Darwin: Fix bootstrap for X86.
       Darwin: Update rules for handling alignment of globals.
       Darwin: Fix empty g++ command lines [PR105599].
@@ -944,6 +951,19 @@ Iain Sandoe (42):
       Darwin, configure: Allow for an unrecognisable dsymutil [PR111610].
       Darwin: Check as for .build_version support and use it if available.
       Darwin: Correct a version check.
+      Darwin: Move checking of the 'shared' driver spec.
+      Darwin: Handle -dynamiclib on cc1 lines.
+      testsuite, Darwin: Skip g++.dg/debug/dwarf2/pr85550.C
+      Darwin: Make metadata symbol lables linker-visible for GNU objc.
+      Darwin: Handle the fPIE option specially.
+      Objective-C, Darwin: Fix a regression in handling bad receivers.
+      Darwin: Fix constant CFString code-gen [PR105522].
+      Darwin: Fix a typo in Objective-C meta-data.
+      Objective-C/C++: Ensure sufficient setup for the preprocessor.
+      Objective-C, Darwin: Do not overalign CFStrings and Objective-C metadata.
+      Darwin: Correct handling of weak crts.
+      testsuite, Objective-C: Fix duplicate libobjc cases.
+      testsuite, asan: Avoid color in asan test output.
 
 Ian Lance Taylor (2):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
@@ -3490,10 +3510,51 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..881e557ea44 100644
+index a0587d18824..69da075ed0c 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,3098 @@
+@@ -1,3 +1,3139 @@
++2024-04-27  Francois-Xavier Coudert  <fxcoudert@gcc.gnu.org>
++
++	Backported from master:
++	2023-10-30  Francois-Xavier Coudert  <fxcoudert@gcc.gnu.org>
++		    Iain Sandoe  <iain@sandoe.co.uk>
++
++	* config/darwin.c (darwin_override_options): Cannot use
++	OPTION_SET_P here.
++
++2024-04-27  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2023-10-25  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* config/darwin.c (darwin_override_options): Handle fPIE.
++
++2024-04-27  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2024-04-27  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* config/darwin.h
++	(darwin_label_is_anonymous_local_objc_name): Make metadata names
++	linker-visibile for GNU objective C.
++
++2024-04-27  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2023-09-26  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* config/darwin.h (DARWIN_CC1_SPEC): Remove -dynamiclib.
++
++2024-04-27  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2023-09-20  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* config/darwin.h:
++	(SUBTARGET_DRIVER_SELF_SPECS): Move handling of 'shared' into the same
++	specs as 'dynamiclib'. (STARTFILE_SPEC): Handle 'shared'.
++
 +2024-04-25  Iain Sandoe  <iain@sandoe.co.uk>
 +
 +	Backported from master:
@@ -11757,7 +11818,7 @@ index 8be89624c9c..dc4d0408a85 100644
  	     ".section " EH_FRAME_SECTION_NAME ",__eh_frame"
  	     EH_FRAME_SECTION_ATTR, 0)
 diff --git a/gcc/config/darwin.c b/gcc/config/darwin.c
-index 0dc26a9f252..574424ac11c 100644
+index 0dc26a9f252..6e887a9ba5a 100644
 --- a/gcc/config/darwin.c
 +++ b/gcc/config/darwin.c
 @@ -111,6 +111,19 @@ static bool ld_needs_eh_markers = false;
@@ -11780,7 +11841,56 @@ index 0dc26a9f252..574424ac11c 100644
  /* Section names.  */
  section * darwin_sections[NUM_DARWIN_SECTIONS];
  
-@@ -1933,6 +1946,8 @@ darwin_label_is_anonymous_local_objc_name (const char *name)
+@@ -1583,7 +1596,7 @@ darwin_objc1_section (tree decl ATTRIBUTE_UNUSED, tree meta, section * base)
+   else if (!strncmp (p, "V1_CEXT", 7))
+     return darwin_sections[objc1_class_ext_section];
+ 
+-  else if (!strncmp (p, "V2_CSTR", 7))
++  else if (!strncmp (p, "V1_CSTR", 7))
+     return darwin_sections[objc_constant_string_object_section];
+ 
+   return base;
+@@ -1676,7 +1689,16 @@ machopic_select_section (tree decl,
+ 	    base_section = darwin_sections[zobj_data_section];
+ 	}
+       else if (ro)
+-	base_section = darwin_sections[const_data_section];
++	{
++	  if (VAR_P (decl) && TREE_TYPE (decl)
++	      && TREE_CODE (TREE_TYPE (decl)) == RECORD_TYPE
++	      && DECL_NAME (decl)
++	      && strncmp (IDENTIFIER_POINTER (DECL_NAME (decl)),
++			  "__anon_cfstring", 15) == 0)
++	   base_section = darwin_sections[cfstring_constant_object_section];
++	  else
++	    base_section = darwin_sections[const_data_section];
++	}
+       else
+ 	base_section = data_section;
+       break;
+@@ -1718,7 +1740,7 @@ machopic_select_section (tree decl,
+ 	return base_section; /* GNU runtime is happy with it all in one pot.  */
+     }
+ 
+-  /* b) Constant string objects.  */
++  /* b) Constructors for constant NSstring [but not CFString] objects.  */
+   if (TREE_CODE (decl) == CONSTRUCTOR
+       && TREE_TYPE (decl)
+       && TREE_CODE (TREE_TYPE (decl)) == RECORD_TYPE
+@@ -1741,7 +1763,11 @@ machopic_select_section (tree decl,
+ 	    return darwin_sections[objc_string_object_section];
+ 	}
+       else if (!strcmp (IDENTIFIER_POINTER (name), "__builtin_CFString"))
+-	return darwin_sections[cfstring_constant_object_section];
++	{
++	  /* We should have handled __anon_cfstrings above.  */
++	  gcc_checking_assert (0);
++	  return darwin_sections[cfstring_constant_object_section];
++	}
+       else
+ 	return base_section;
+     }
+@@ -1933,6 +1959,8 @@ darwin_label_is_anonymous_local_objc_name (const char *name)
      }
    else if (!strncmp ((const char *)p, "ClassMethods", 12))
      return false;
@@ -11789,7 +11899,7 @@ index 0dc26a9f252..574424ac11c 100644
    else if (!strncmp ((const char *)p, "Instance", 8))
      {
        if (p[8] == 'I' || p[8] == 'M')
-@@ -2228,6 +2243,7 @@ darwin_emit_except_table_label (FILE *file)
+@@ -2228,6 +2256,7 @@ darwin_emit_except_table_label (FILE *file)
  {
    char section_start_label[30];
  
@@ -11797,7 +11907,7 @@ index 0dc26a9f252..574424ac11c 100644
    ASM_GENERATE_INTERNAL_LABEL (section_start_label, "GCC_except_table",
  			       except_table_label_num++);
    ASM_OUTPUT_LABEL (file, section_start_label);
-@@ -2556,7 +2572,6 @@ darwin_emit_common (FILE *fp, const char *name,
+@@ -2556,7 +2585,6 @@ darwin_emit_common (FILE *fp, const char *name,
      rounded = (size + (align-1)) & ~(align-1);
  
    l2align = floor_log2 (align);
@@ -11805,7 +11915,7 @@ index 0dc26a9f252..574424ac11c 100644
  
    in_section = comm_section;
    /* We mustn't allow multiple public symbols to share an address when using
-@@ -2707,6 +2722,10 @@ darwin_asm_output_aligned_decl_common (FILE *fp, tree decl, const char *name,
+@@ -2707,6 +2735,10 @@ darwin_asm_output_aligned_decl_common (FILE *fp, tree decl, const char *name,
  #ifdef DEBUG_DARWIN_MEM_ALLOCATORS
  fprintf (fp, "# adcom: %s (%d,%d) decl=0x0\n", name, (int)size, (int)align);
  #endif
@@ -11816,7 +11926,7 @@ index 0dc26a9f252..574424ac11c 100644
        darwin_emit_common (fp, name, size, align);
        return;
      }
-@@ -2734,7 +2753,7 @@ fprintf (fp, "# adcom: %s (%lld,%d) ro %d cst %d stat %d com %d pub %d"
+@@ -2734,7 +2766,7 @@ fprintf (fp, "# adcom: %s (%lld,%d) ro %d cst %d stat %d com %d pub %d"
      }
  
    /* We shouldn't be messing with this if the decl has a section name.  */
@@ -11825,7 +11935,7 @@ index 0dc26a9f252..574424ac11c 100644
  
    /* We would rather not have to check this here - but it seems that we might
       be passed a decl that should be in coalesced space.  */
-@@ -2763,10 +2782,16 @@ fprintf (fp, "# adcom: %s (%lld,%d) ro %d cst %d stat %d com %d pub %d"
+@@ -2763,10 +2795,16 @@ fprintf (fp, "# adcom: %s (%lld,%d) ro %d cst %d stat %d com %d pub %d"
  
    l2align = floor_log2 (align / BITS_PER_UNIT);
    /* Check we aren't asking for more aligment than the platform allows.  */
@@ -11844,7 +11954,7 @@ index 0dc26a9f252..574424ac11c 100644
    else
      darwin_emit_local_bss (fp, decl, name, size, l2align);
  }
-@@ -3007,7 +3032,35 @@ darwin_asm_output_dwarf_offset (FILE *file, int size, const char * lab,
+@@ -3007,7 +3045,35 @@ darwin_asm_output_dwarf_offset (FILE *file, int size, const char * lab,
  void
  darwin_file_start (void)
  {
@@ -11881,18 +11991,20 @@ index 0dc26a9f252..574424ac11c 100644
  }
  
  /* Called for the TARGET_ASM_FILE_END hook.
-@@ -3229,7 +3282,9 @@ darwin_override_options (void)
+@@ -3229,7 +3295,11 @@ darwin_override_options (void)
    /* Keep track of which (major) version we're generating code for.  */
    if (darwin_macosx_version_min)
      {
 -      if (strverscmp (darwin_macosx_version_min, "10.7") >= 0)
 +      if (strverscmp (darwin_macosx_version_min, "10.14") >= 0)
 +	generating_for_darwin_version = 18;
++      else if (strverscmp (darwin_macosx_version_min, "10.8") >= 0)
++	generating_for_darwin_version = 12;
 +      else if (strverscmp (darwin_macosx_version_min, "10.7") >= 0)
  	generating_for_darwin_version = 11;
        else if (strverscmp (darwin_macosx_version_min, "10.6") >= 0)
  	generating_for_darwin_version = 10;
-@@ -3304,14 +3359,26 @@ darwin_override_options (void)
+@@ -3304,14 +3374,26 @@ darwin_override_options (void)
  		  global_options.x_flag_objc_abi);
      }
  
@@ -11923,7 +12035,84 @@ index 0dc26a9f252..574424ac11c 100644
      {
        inform (input_location,
  	      "%<-gsplit-dwarf%> is not supported on this platform, ignored");
-@@ -3609,7 +3676,7 @@ tree
+@@ -3386,8 +3468,17 @@ darwin_override_options (void)
+       && write_symbols == DWARF2_DEBUG)
+     flag_var_tracking_uninit = flag_var_tracking;
+ 
+-  /* Final check on PCI options; for Darwin these are not dependent on the PIE
+-     ones, although PIE does require PIC to support it.  */
++  if (global_options_set.x_flag_pie && flag_pie)
++    {
++      /* This is a little complicated, to match Xcode tools.
++	 For Darwin, PIE requires PIC codegen, but otherwise is only a link-
++	 time change.  For almost all Darwin, we do not report __PIE__; the
++	 exception is Darwin12-17 and for 32b only.  */
++      flag_pie = generating_for_darwin_version >= 12 && !TARGET_64BIT ? 2 : 0;
++      flag_pic = 2; /* We always set this.  */
++    }
++
++  /* Final check on PIC options.  */
+   if (MACHO_DYNAMIC_NO_PIC_P)
+     {
+       if (flag_pic)
+@@ -3492,6 +3583,29 @@ darwin_patch_builtins (void)
+ }
+ #endif
+ 
++void
++darwin_rename_builtins (void)
++{
++}
++
++/* Implementation for the TARGET_LIBC_HAS_FUNCTION hook.  */
++
++bool
++darwin_libc_has_function (enum function_class fn_class,
++			  tree type ATTRIBUTE_UNUSED)
++{
++  if (fn_class == function_sincos && darwin_macosx_version_min)
++    return (strverscmp (darwin_macosx_version_min, "10.9") >= 0);
++#if DARWIN_PPC && SUPPORT_DARWIN_LEGACY
++  if (fn_class == function_c99_math_complex
++      || fn_class == function_c99_misc)
++    return (TARGET_64BIT
++	    || (darwin_macosx_version_min &&
++		strverscmp (darwin_macosx_version_min, "10.3") >= 0));
++#endif
++  return default_libc_has_function (fn_class, type);
++}
++
+ /*  CFStrings implementation.  */
+ static GTY(()) tree cfstring_class_reference = NULL_TREE;
+ static GTY(()) tree cfstring_type_node = NULL_TREE;
+@@ -3509,7 +3623,7 @@ typedef struct GTY ((for_user)) cfstring_descriptor {
+   /* The string literal.  */
+   tree literal;
+   /* The resulting constant CFString.  */
+-  tree constructor;
++  tree ccf_str;
+ } cfstring_descriptor;
+ 
+ struct cfstring_hasher : ggc_ptr_hash<cfstring_descriptor>
+@@ -3584,7 +3698,7 @@ darwin_init_cfstring_builtins (unsigned builtin_cfstring)
+   /* Make a lang-specific section - dup_lang_specific_decl makes a new node
+      in place of the existing, which may be NULL.  */
+   DECL_LANG_SPECIFIC (cfsfun) = NULL;
+-  (*lang_hooks.dup_lang_specific_decl) (cfsfun);
++  lang_hooks.dup_lang_specific_decl (cfsfun);
+   set_decl_built_in_function (cfsfun, BUILT_IN_MD, darwin_builtin_cfstring);
+   lang_hooks.builtin_function (cfsfun);
+ 
+@@ -3595,7 +3709,7 @@ darwin_init_cfstring_builtins (unsigned builtin_cfstring)
+ 
+   TREE_PUBLIC (cfstring_class_reference) = 1;
+   DECL_ARTIFICIAL (cfstring_class_reference) = 1;
+-  (*lang_hooks.decls.pushdecl) (cfstring_class_reference);
++  lang_hooks.decls.pushdecl (cfstring_class_reference);
+   DECL_EXTERNAL (cfstring_class_reference) = 1;
+   rest_of_decl_compilation (cfstring_class_reference, 0, 0);
+ 
+@@ -3609,7 +3723,7 @@ tree
  darwin_fold_builtin (tree fndecl, int n_args, tree *argp,
  		     bool ARG_UNUSED (ignore))
  {
@@ -11932,7 +12121,85 @@ index 0dc26a9f252..574424ac11c 100644
  
    if (fcode == darwin_builtin_cfstring)
      {
-@@ -3836,11 +3903,22 @@ darwin_function_section (tree decl, enum node_frequency freq,
+@@ -3632,26 +3746,6 @@ darwin_fold_builtin (tree fndecl, int n_args, tree *argp,
+   return NULL_TREE;
+ }
+ 
+-void
+-darwin_rename_builtins (void)
+-{
+-}
+-
+-bool
+-darwin_libc_has_function (enum function_class fn_class,
+-			  tree type ATTRIBUTE_UNUSED)
+-{
+-  if (fn_class == function_sincos)
+-    return (strverscmp (darwin_macosx_version_min, "10.9") >= 0);
+-
+-  if (fn_class == function_c99_math_complex
+-      || fn_class == function_c99_misc)
+-    return (TARGET_64BIT
+-	    || strverscmp (darwin_macosx_version_min, "10.3") >= 0);
+-
+-  return true;
+-}
+-
+ hashval_t
+ cfstring_hasher::hash (cfstring_descriptor *ptr)
+ {
+@@ -3749,29 +3843,37 @@ darwin_build_constant_cfstring (tree str)
+ 			     build_int_cst (TREE_TYPE (field), length));
+ 
+       constructor = build_constructor (ccfstring_type_node, v);
+-      TREE_READONLY (constructor) = 1;
+-      TREE_CONSTANT (constructor) = 1;
+-      TREE_STATIC (constructor) = 1;
++      TREE_READONLY (constructor) = true;
++      TREE_CONSTANT (constructor) = true;
++      TREE_STATIC (constructor) = true;
+ 
+-      /* Fromage: The C++ flavor of 'build_unary_op' expects constructor nodes
+-	 to have the TREE_HAS_CONSTRUCTOR (...) bit set.  However, this file is
+-	 being built without any knowledge of C++ tree accessors; hence, we shall
+-	 use the generic accessor that TREE_HAS_CONSTRUCTOR actually maps to!  */
++      /* This file is being built without any knowledge of C++ tree accessors;
++	 hence, we shall use the generic accessor to set TREE_HAS_CONSTRUCTOR.
++	 ??? Is this actually used any more? */
+       if (darwin_running_cxx)
+ 	TREE_LANG_FLAG_4 (constructor) = 1;  /* TREE_HAS_CONSTRUCTOR  */
+ 
+       /* Create an anonymous global variable for this CFString.  */
+-      var = build_decl (input_location, CONST_DECL,
++      var = build_decl (input_location, VAR_DECL,
+ 			NULL, TREE_TYPE (constructor));
+-      DECL_ARTIFICIAL (var) = 1;
+-      TREE_STATIC (var) = 1;
++      char *name = xasprintf ("__anon_cfstring.%u", DECL_UID (var));
++      DECL_NAME (var) = get_identifier (name);
++      free (name);
++      DECL_ARTIFICIAL (var) = true;
++      TREE_STATIC (var) = true;
++      TREE_READONLY (var) = true;
++      TREE_CONSTANT (var) = true;
+       DECL_INITIAL (var) = constructor;
+-      /* FIXME: This should use a translation_unit_decl to indicate file scope.  */
++      /* global namespace.  */
+       DECL_CONTEXT (var) = NULL_TREE;
+-      desc->constructor = var;
++      DECL_INITIAL (var) = constructor;
++      DECL_USER_ALIGN (var) = 1;
++      lang_hooks.decls.pushdecl (var);
++      rest_of_decl_compilation (var, 1, 0);
++      desc->ccf_str = var;
+     }
+ 
+-  addr = build1 (ADDR_EXPR, pccfstring_type_node, desc->constructor);
++  addr = build1 (ADDR_EXPR, pccfstring_type_node, desc->ccf_str);
+   TREE_CONSTANT (addr) = 1;
+ 
+   return addr;
+@@ -3836,11 +3938,22 @@ darwin_function_section (tree decl, enum node_frequency freq,
    if (decl && DECL_SECTION_NAME (decl) != NULL)
      return get_named_section (decl, NULL, 0);
  
@@ -11957,10 +12224,23 @@ index 0dc26a9f252..574424ac11c 100644
       the function ordering, it makes a better job (for normal, hot,
       startup and exit - hence the bailout for cold above).  */
 diff --git a/gcc/config/darwin.h b/gcc/config/darwin.h
-index 3206b70c7c2..9cae0165ae9 100644
+index 3206b70c7c2..1fded756c60 100644
 --- a/gcc/config/darwin.h
 +++ b/gcc/config/darwin.h
-@@ -141,10 +141,7 @@ extern GTY(()) int darwin_ms_struct;
+@@ -131,26 +131,22 @@ extern GTY(()) int darwin_ms_struct;
+    cases where these driver opts are used multiple times, or to control
+    operations on more than one command (e.g. dynamiclib).  These are handled
+    specially and we then add %<xxxx specs for the commands that _don't_ need
+-   them.  NOTE: the order of 'shared' and 'dynamiclib' is significant, hence
+-   they are placed out of alphabetical order at the start.  Likewise, we keep
+-   a couple of cases where a negative option originally appeared after the
+-   positive alternate, potentially overriding it.
++   them.
++   We keep a couple of cases where a negative option originally appeared after
++   the positive alternate, potentially overriding it.
+    When we report an error with %e, it seems necessary to strip the option
+    before doing so, otherwise it survives to the cc1 command line (%e doesn't
+    appear to abort the program before this).
     Right now there's no mechanism to split up the "variable portion" (%*) of
     the matched spec string, so where we have some driver specs that take 2
     or 3 arguments, these cannot be processed here, but are deferred until the
@@ -11972,6 +12252,44 @@ index 3206b70c7c2..9cae0165ae9 100644
  
  #undef SUBTARGET_DRIVER_SELF_SPECS
  #define SUBTARGET_DRIVER_SELF_SPECS					\
+-  "%{shared:%{!dynamiclib:-dynamiclib}} %<shared",			\
+-  "%{static:%{dynamic|dynamiclib:%econflicting code generation switches}}",\
+-  "%{dynamiclib:-Xlinker -dylib \
++  "%{static|fapple-kext|mkernel:%{shared|dynamic|dynamiclib: \
++     %econflicting code generation switches}}",\
++  "%{shared|dynamiclib:-Xlinker -dylib \
+      %{allowable_client*:-Xlinker -allowable_client -Xlinker %*} \
+        %<allowable_client* \
+      %{bundle_loader*: %<bundle_loader* \
+@@ -168,8 +164,8 @@ extern GTY(()) int darwin_ms_struct;
+        %e-keep_private_externs not allowed with -dynamiclib} \
+      %{private_bundle: %<private_bundle \
+        %e-private_bundle not allowed with -dynamiclib} \
+-    }",									\
+-  "%{!dynamiclib: \
++    }",							\
++  "%{!dynamiclib:%{!shared: \
+      %{bundle_loader*:-Xlinker -bundle_loader -Xlinker %*} \
+        %<bundle_loader* \
+      %{client_name*:-Xlinker -client_name -Xlinker %*} \
+@@ -184,13 +180,14 @@ extern GTY(()) int darwin_ms_struct;
+        %<keep_private_externs \
+      %{private_bundle:-Xlinker -private_bundle} \
+        %<private_bundle \
+-    }",									\
++    }}",									\
+   "%{all_load:-Xlinker -all_load} %<all_load",				\
+   "%{arch_errors_fatal:-Xlinker -arch_errors_fatal} \
+     %<arch_errors_fatal",						\
+   "%{bind_at_load:-Xlinker -bind_at_load} %<bind_at_load",		\
+-  "%{bundle:%{!dynamiclib:-Xlinker -bundle; \
+-              :%e-bundle not allowed with -dynamiclib}}",	\
++  "%{bundle:%{!dynamiclib:%{!shared: -Xlinker -bundle; \
++			    :%e-bundle not allowed with -shared}; \
++	      :%e-bundle not allowed with -dynamiclib}}",		\
+   "%{dead_strip:-Xlinker -dead_strip} %<dead_strip",			\
+   "%{dylib_file*:-Xlinker -dylib_file -Xlinker %*} %<dylib_file*",	\
+   "%{dylinker:-Xlinker -dylinker} %<dylinker",				\
 @@ -218,13 +215,8 @@ extern GTY(()) int darwin_ms_struct;
    "%{image_base*:-Xlinker -image_base -Xlinker %*} %<image_base*",	\
    "%{init*:-Xlinker -init -Xlinker %*} %<init*",			\
@@ -11993,11 +12311,47 @@ index 3206b70c7c2..9cae0165ae9 100644
  
  #define DARWIN_CC1_SPEC							\
 -  "%<dynamic %<dynamiclib %<force_cpusubtype_ALL "
-+  "%<dynamic %<dynamiclib %<force_cpusubtype_ALL %<multiply_defined* "
++  "%<dynamic %<force_cpusubtype_ALL %<multiply_defined* %<dynamiclib"
  
  #define SUBSUBTARGET_OVERRIDE_OPTIONS					\
    do {									\
-@@ -445,12 +437,16 @@ extern GTY(()) int darwin_ms_struct;
+@@ -359,7 +351,9 @@ extern GTY(()) int darwin_ms_struct;
+     %{e*} %{r} \
+     %{o*}%{!o:-o a.out} \
+     %{!r:%{!nostdlib:%{!nostartfiles:%S}}} \
+-    %{L*} %(link_libgcc) %o \
++    %{L*} %(link_libgcc) \
++    %{!r:%{!nostdlib:%{!nodefaultlibs: " DARWIN_WEAK_CRTS "}}} \
++    %o \
+     %{!r:%{!nostdlib:%{!nodefaultlibs:\
+       %{fprofile-arcs|fprofile-generate*|coverage:-lgcov} \
+       %{fopenacc|fopenmp|%:gt(%{ftree-parallelize-loops=*:%*} 1): \
+@@ -373,15 +367,15 @@ extern GTY(()) int darwin_ms_struct;
+       %(link_ssp) \
+       %:version-compare(>< 10.6 10.7 mmacosx-version-min= -ld10-uwfef) \
+       %(link_gcc_c_sequence) \
+-      %{!nodefaultexport:%{dylib|dynamiclib|bundle: \
+-	%:version-compare(>= 10.11 asm_macosx_version_min= -U) \
+-	%:version-compare(>= 10.11 asm_macosx_version_min= ___emutls_get_address) \
+-	%:version-compare(>= 10.11 asm_macosx_version_min= -exported_symbol) \
+-	%:version-compare(>= 10.11 asm_macosx_version_min= ___emutls_get_address) \
+-	%:version-compare(>= 10.11 asm_macosx_version_min= -U) \
+-	%:version-compare(>= 10.11 asm_macosx_version_min= ___emutls_register_common) \
+-	%:version-compare(>= 10.11 asm_macosx_version_min= -exported_symbol) \
+-	%:version-compare(>= 10.11 asm_macosx_version_min= ___emutls_register_common) \
++      %{!nodefaultexport: \
++	%{%:version-compare(>= 10.11 asm_macosx_version_min= -U): \
++	   ___emutls_get_address -exported_symbol ___emutls_get_address \
++	  -U ___emutls_register_common \
++	  -exported_symbol ___emutls_register_common \
++	  -U ___gcc_nested_func_ptr_created \
++	  -exported_symbol ___gcc_nested_func_ptr_created \
++	  -U ___gcc_nested_func_ptr_deleted \
++	  -exported_symbol ___gcc_nested_func_ptr_deleted \
+       }} \
+     }}}\
+     %{!r:%{!nostdlib:%{!nostartfiles:%E}}} %{T*} %{F*} "\
+@@ -445,12 +439,16 @@ extern GTY(()) int darwin_ms_struct;
                       %:replace-outfile(-lobjc libobjc-gnu.a%s); \
                      :%:replace-outfile(-lobjc -lobjc-gnu )}}\
     %{static|static-libgcc|static-libgfortran:%:replace-outfile(-lgfortran libgfortran.a%s)}\
@@ -12014,7 +12368,65 @@ index 3206b70c7c2..9cae0165ae9 100644
     %{sectalign*} %{sectcreate*} %{sectobjectsymbols*}  %{sectorder*} \
     %{segaddr*} %{segcreate*} %{segprot*} "
  
-@@ -867,13 +863,12 @@ int darwin_label_is_anonymous_local_objc_name (const char *name);
+@@ -504,23 +502,28 @@ extern GTY(()) int darwin_ms_struct;
+ #undef REAL_LIBGCC_SPEC
+ #define REAL_LIBGCC_SPEC \
+ "%{static-libgcc|static:						  \
+-    %:version-compare(!> 10.6 mmacosx-version-min= -lgcc_eh)		  \
+-    %:version-compare(>= 10.6 mmacosx-version-min= -lemutls_w);		  \
++    %:version-compare(!> 10.6 mmacosx-version-min= -lgcc_eh);		  \
+    shared-libgcc|fexceptions|fobjc-exceptions|fgnu-runtime:		  \
+     %:version-compare(!> 10.11 mmacosx-version-min= -lgcc_s.1.1)	  \
+-    %:version-compare(>= 10.11 mmacosx-version-min= -lemutls_w)		  \
+     %:version-compare(!> 10.3.9 mmacosx-version-min= -lgcc_eh)		  \
+     %:version-compare(>< 10.3.9 10.5 mmacosx-version-min= -lgcc_s.10.4)   \
+-    %:version-compare(>< 10.5 10.6 mmacosx-version-min= -lgcc_s.10.5);	  \
+-   : -lemutls_w								  \
++    %:version-compare(>< 10.5 10.6 mmacosx-version-min= -lgcc_s.10.5)	  \
+   } -lgcc "
+ 
++#define DARWIN_WEAK_CRTS \
++"%{static-libgcc|static:						  \
++   %:version-compare(>= 10.6 mmacosx-version-min= -lemutls_w) ; \
++   shared-libgcc|fexceptions|fobjc-exceptions|fgnu-runtime: \
++     %:version-compare(>= 10.11 mmacosx-version-min= -lemutls_w) ; \
++   : -lemutls_w \
++  }"
++
+ /* We specify crt0.o as -lcrt0.o so that ld will search the library path.  */
+ 
+ #undef  STARTFILE_SPEC
+ #define STARTFILE_SPEC							    \
+-"%{dynamiclib: %(darwin_dylib1) %{fgnu-tm: -lcrttms.o}}			   \
+- %{!dynamiclib:%{bundle:%(darwin_bundle1)}				    \
++"%{dynamiclib|shared: %(darwin_dylib1) %{fgnu-tm: -lcrttms.o}}		   \
++ %{!dynamiclib:%{!shared:%{bundle:%(darwin_bundle1)}			    \
+      %{!bundle:%{pg:%{static:-lgcrt0.o}					    \
+                      %{!static:%{object:-lgcrt0.o}			    \
+                                %{!object:%{preload:-lgcrt0.o}		    \
+@@ -531,8 +534,8 @@ extern GTY(()) int darwin_ms_struct;
+                       %{!static:%{object:-lcrt0.o}			    \
+                                 %{!object:%{preload:-lcrt0.o}		    \
+                                   %{!preload: %(darwin_crt1)		    \
+-					      %(darwin_crt2)}}}}}}	    \
+- %(darwin_crt3) %<dynamiclib "
++					      %(darwin_crt2)}}}}}}}	    \
++ %(darwin_crt3) "
+ 
+ /* We want a destructor last in the list.  */
+ #define TM_DESTRUCTOR "%{fgnu-tm: -lcrttme.o}"
+@@ -843,7 +846,9 @@ int darwin_label_is_anonymous_local_objc_name (const char *name);
+        else if (xname[0] == '+' || xname[0] == '-')			     \
+          fprintf (FILE, "\"%s\"", xname);				     \
+        else if (darwin_label_is_anonymous_local_objc_name (xname))	     \
+-         fprintf (FILE, "L%s", xname);					     \
++	fprintf (FILE, "%c%s", flag_next_runtime ? 'L' : 'l', xname);	     \
++       else if (strncmp (xname, "__anon_cfstring", 15) == 0)		     \
++	fprintf (FILE, "L%s", xname);					     \
+        else if (xname[0] != '"' && name_needs_quotes (xname))		     \
+ 	 asm_fprintf (FILE, "\"%U%s\"", xname);				     \
+        else								     \
+@@ -867,13 +872,12 @@ int darwin_label_is_anonymous_local_objc_name (const char *name);
    if ((LOG) != 0)			\
      fprintf (FILE, "\t%s\t%d\n", ALIGN_ASM_OP, (LOG))
  
@@ -12032,7 +12444,7 @@ index 3206b70c7c2..9cae0165ae9 100644
  
  /*  These are the three variants that emit referenced blank space.  */
  #define ASM_OUTPUT_ALIGNED_BSS(FILE, DECL, NAME, SIZE, ALIGN)		\
-@@ -1103,7 +1098,7 @@ enum machopic_addr_class {
+@@ -1103,7 +1107,7 @@ enum machopic_addr_class {
  
  #undef ASM_PREFERRED_EH_DATA_FORMAT
  #define ASM_PREFERRED_EH_DATA_FORMAT(CODE,GLOBAL)  \
@@ -29977,10 +30389,19 @@ index e89601c0c14..d040c853942 100644
  		      wi::to_wide (@ipos) + isize))
      (BIT_FIELD_REF @1 @rsize { wide_int_to_tree (bitsizetype,
 diff --git a/gcc/objc/ChangeLog b/gcc/objc/ChangeLog
-index b3758fad724..c7d062839aa 100644
+index b3758fad724..eec45421338 100644
 --- a/gcc/objc/ChangeLog
 +++ b/gcc/objc/ChangeLog
-@@ -1,3 +1,59 @@
+@@ -1,3 +1,68 @@
++2024-04-27  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2024-01-12  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* objc-next-runtime-abi-02.c
++	(build_v2_objc_method_fixup_call): Early exit for cases
++	where the sender or receiver are known to be in error.
++
 +2024-04-23  Matt Jacobson  <mhjacobson@me.com>
 +
 +	Backported from master:
@@ -30041,10 +30462,31 @@ index b3758fad724..c7d062839aa 100644
  
  	* GCC 11.3.0 released.
 diff --git a/gcc/objc/objc-act.c b/gcc/objc/objc-act.c
-index 1cbd586b8fb..536ec028dbd 100644
+index 1cbd586b8fb..cb1fcbb2086 100644
 --- a/gcc/objc/objc-act.c
 +++ b/gcc/objc/objc-act.c
-@@ -3376,8 +3376,10 @@ objc_build_string_object (tree string)
+@@ -347,6 +347,11 @@ bool
+ objc_init (void)
+ {
+   bool ok;
++
++  /* Set up stuff used by the preprocessor as well as FE parser.  */
++  interface_hash_init ();
++  hash_init ();
++
+ #ifdef OBJCPLUS
+   if (cxx_init () == false)
+ #else
+@@ -376,8 +381,6 @@ objc_init (void)
+ 
+   /* Set up stuff used by FE parser and all runtimes.  */
+   errbuf = XNEWVEC (char, 1024 * 10);
+-  interface_hash_init ();
+-  hash_init ();
+   objc_encoding_init ();
+   /* ... and then check flags and set-up for the selected runtime ... */
+   if (flag_next_runtime && flag_objc_abi >= 2)
+@@ -3376,8 +3379,10 @@ objc_build_string_object (tree string)
    return addr;
  }
  
@@ -30057,7 +30499,7 @@ index 1cbd586b8fb..536ec028dbd 100644
  
  tree
  objc_build_constructor (tree type, vec<constructor_elt, va_gc> *elts)
-@@ -3389,12 +3391,10 @@ objc_build_constructor (tree type, vec<constructor_elt, va_gc> *elts)
+@@ -3389,12 +3394,10 @@ objc_build_constructor (tree type, vec<constructor_elt, va_gc> *elts)
    TREE_READONLY (constructor) = 1;
  
  #ifdef OBJCPLUS
@@ -30072,7 +30514,7 @@ index 1cbd586b8fb..536ec028dbd 100644
    return constructor;
  }
  
-@@ -9663,7 +9663,9 @@ objc_gimplify_property_ref (tree *expr_p)
+@@ -9663,7 +9666,9 @@ objc_gimplify_property_ref (tree *expr_p)
        call_exp = TREE_OPERAND (getter, 1);
      }
  #endif
@@ -30084,7 +30526,7 @@ index 1cbd586b8fb..536ec028dbd 100644
    *expr_p = call_exp;
  }
 diff --git a/gcc/objc/objc-next-runtime-abi-02.c b/gcc/objc/objc-next-runtime-abi-02.c
-index af68c1c84a3..2a4f87cc726 100644
+index af68c1c84a3..cb22a773fcb 100644
 --- a/gcc/objc/objc-next-runtime-abi-02.c
 +++ b/gcc/objc/objc-next-runtime-abi-02.c
 @@ -245,7 +245,7 @@ objc_next_runtime_abi_02_init (objc_runtime_hooks *rthooks)
@@ -30124,7 +30566,16 @@ index af68c1c84a3..2a4f87cc726 100644
    return decl;
  }
  
-@@ -1675,13 +1680,8 @@ build_v2_objc_method_fixup_call (int super_flag, tree method_prototype,
+@@ -1658,6 +1663,8 @@ build_v2_objc_method_fixup_call (int super_flag, tree method_prototype,
+   rcv_p = (super_flag ? objc_super_type : objc_object_type);
+ 
+   lookup_object = build_c_cast (input_location, rcv_p, lookup_object);
++  if (sender == error_mark_node || lookup_object == error_mark_node)
++    return error_mark_node;
+ 
+   /* Use SAVE_EXPR to avoid evaluating the receiver twice.  */
+   lookup_object = save_expr (lookup_object);
+@@ -1675,13 +1682,8 @@ build_v2_objc_method_fixup_call (int super_flag, tree method_prototype,
  
        if (TREE_CODE (ret_type) == RECORD_TYPE
  	  || TREE_CODE (ret_type) == UNION_TYPE)
@@ -30140,7 +30591,7 @@ index af68c1c84a3..2a4f87cc726 100644
        else
  	ftree = fold_convert (ret_type, integer_zero_node);
  
-@@ -1694,11 +1694,11 @@ build_v2_objc_method_fixup_call (int super_flag, tree method_prototype,
+@@ -1694,11 +1696,11 @@ build_v2_objc_method_fixup_call (int super_flag, tree method_prototype,
  					ifexp, ret_val, ftree,
  					tf_warning_or_error);
  #else
@@ -30154,7 +30605,7 @@ index af68c1c84a3..2a4f87cc726 100644
  #endif
      }
    return ret_val;
-@@ -1740,15 +1740,16 @@ build_v2_build_objc_method_call (int super, tree method_prototype,
+@@ -1740,15 +1742,16 @@ build_v2_build_objc_method_call (int super, tree method_prototype,
    /* Param list + 2 slots for object and selector.  */
    vec_alloc (parms, nparm + 2);
  
@@ -30180,7 +30631,7 @@ index af68c1c84a3..2a4f87cc726 100644
      {
        if (super)
  	sender = umsg_id_super2_stret_fixup_decl;
-@@ -1790,11 +1791,8 @@ build_v2_build_objc_method_call (int super, tree method_prototype,
+@@ -1790,11 +1793,8 @@ build_v2_build_objc_method_call (int super, tree method_prototype,
        if (TREE_CODE (ret_type) == RECORD_TYPE
  	  || TREE_CODE (ret_type) == UNION_TYPE)
  	{
@@ -30194,7 +30645,7 @@ index af68c1c84a3..2a4f87cc726 100644
  	}
        else
  	ftree = fold_convert (ret_type, integer_zero_node);
-@@ -1807,10 +1805,10 @@ build_v2_build_objc_method_call (int super, tree method_prototype,
+@@ -1807,10 +1807,10 @@ build_v2_build_objc_method_call (int super, tree method_prototype,
        ret_val = build_conditional_expr (loc, ifexp, ret_val, ftree,
  					tf_warning_or_error);
  #else
@@ -30206,7 +30657,7 @@ index af68c1c84a3..2a4f87cc726 100644
  #endif
      }
    return ret_val;
-@@ -1853,10 +1851,12 @@ next_runtime_abi_02_build_objc_method_call (location_t loc,
+@@ -1853,10 +1853,12 @@ next_runtime_abi_02_build_objc_method_call (location_t loc,
  	     ? TREE_VALUE (TREE_TYPE (method_prototype))
  	     : objc_object_type;
  
@@ -30223,7 +30674,7 @@ index af68c1c84a3..2a4f87cc726 100644
      {
        if (super)
  	message_func_decl = umsg_id_super2_stret_fixup_decl;
-@@ -2121,8 +2121,8 @@ build_v2_classrefs_table (void)
+@@ -2121,8 +2123,8 @@ build_v2_classrefs_table (void)
  	  expr = convert (objc_class_type, build_fold_addr_expr (expr));
  	}
        /* The runtime wants this, even if it appears unused, so we must force the
@@ -30234,14 +30685,163 @@ index af68c1c84a3..2a4f87cc726 100644
        finish_var_decl (decl, expr);
      }
  }
-@@ -2324,6 +2324,7 @@ build_v2_protocol_list_address_table (void)
+@@ -2249,6 +2251,7 @@ build_v2_address_table (vec<tree, va_gc> *src, const char *nam, tree attr)
+   DECL_PRESERVE_P (decl) = 1;
+   expr = objc_build_constructor (type, initlist);
+   OBJCMETA (decl, objc_meta, attr);
++  DECL_USER_ALIGN (decl) = 1;
+   finish_var_decl (decl, expr);
+ }
+ 
+@@ -2323,6 +2326,8 @@ build_v2_protocol_list_address_table (void)
+ 	decl = create_global_decl (objc_protocol_type, buf, /*is def=*/true);
        expr = convert (objc_protocol_type, build_fold_addr_expr (ref->refdecl));
        OBJCMETA (decl, objc_meta, meta_label_protocollist);
-       finish_var_decl (decl, expr);
 +      DECL_PRESERVE_P (decl) = 1;
++      DECL_USER_ALIGN (decl) = 1;
+       finish_var_decl (decl, expr);
      }
  
-     /* TODO: delete the vec.  */
+@@ -2401,6 +2406,7 @@ generate_v2_protocol_list (tree i_or_p, tree klass_ctxt)
+   /* ObjC2 puts all these in the base section.  */
+   OBJCMETA (refs_decl, objc_meta, meta_base);
+   DECL_PRESERVE_P (refs_decl) = 1;
++  DECL_USER_ALIGN (refs_decl) = 1;
+   finish_var_decl (refs_decl,
+ 		   objc_build_constructor (TREE_TYPE (refs_decl),initlist));
+   return refs_decl;
+@@ -2509,6 +2515,7 @@ generate_v2_meth_descriptor_table (tree chain, tree protocol,
+   CONSTRUCTOR_APPEND_ELT (v, NULL_TREE, initlist);
+   /* Get into the right section.  */
+   OBJCMETA (decl, objc_meta, attr);
++  DECL_USER_ALIGN (decl) = 1;
+   finish_var_decl (decl, objc_build_constructor (method_list_template, v));
+   return decl;
+ }
+@@ -2527,13 +2534,14 @@ generate_v2_meth_type_list (vec<tree>& all_meths, tree protocol,
+ 	    IDENTIFIER_POINTER (PROTOCOL_NAME (protocol)));
+   tree decl = start_var_decl (list_type, nam);
+   free (nam);
+-  OBJCMETA (decl, objc_meta, meta_base);
+   vec<constructor_elt, va_gc> *v = NULL;
+ 
+   for (unsigned i = 0; i < size; ++i)
+     CONSTRUCTOR_APPEND_ELT (v, NULL_TREE,
+ 			    add_objc_string (METHOD_ENCODING (all_meths[i]),
+ 					     meth_var_types));
++  OBJCMETA (decl, objc_meta, meta_base);
++  DECL_USER_ALIGN (decl) = 1;
+   finish_var_decl (decl, objc_build_constructor (list_type, v));
+   return decl;
+ }
+@@ -2656,6 +2664,7 @@ generate_v2_property_table (tree context, tree klass_ctxt)
+   CONSTRUCTOR_APPEND_ELT (inits, NULL_TREE, initlist);
+ 
+   OBJCMETA (decl, objc_meta, meta_base);
++  DECL_USER_ALIGN (decl) = 1;
+   finish_var_decl (decl, objc_build_constructor (TREE_TYPE (decl), inits));
+   return decl;
+ }
+@@ -2867,6 +2876,7 @@ generate_v2_dispatch_table (tree chain, const char *name, tree attr)
+   CONSTRUCTOR_APPEND_ELT (v, NULL_TREE, initlist);
+ 
+   OBJCMETA (decl, objc_meta, attr);
++  DECL_USER_ALIGN (decl) = 1;
+   finish_var_decl (decl,
+ 		   objc_build_constructor (TREE_TYPE (decl), v));
+   return decl;
+@@ -3164,6 +3174,7 @@ generate_v2_ivars_list (tree chain, const char *name, tree attr, tree templ)
+ 			  build_int_cst (integer_type_node, size));
+   CONSTRUCTOR_APPEND_ELT (inits, NULL_TREE, initlist);
+   OBJCMETA (decl, objc_meta, attr);
++  DECL_USER_ALIGN (decl) = 1;
+   finish_var_decl (decl, objc_build_constructor (TREE_TYPE (decl), inits));
+   generating_instance_variables = 0;
+   return decl;
+@@ -3431,7 +3442,6 @@ generate_v2_class_structs (struct imp_entry *impent)
+   decl = start_var_decl (objc_v2_class_ro_template,
+ 			 newabi_append_ro (IDENTIFIER_POINTER
+ 						(DECL_NAME (metaclass_decl))));
+-
+   /* TODO: ivarLayout needs t be built.  */
+   initlist =
+ 	build_v2_class_ro_t_initializer (TREE_TYPE (decl), name_expr,
+@@ -3441,6 +3451,7 @@ generate_v2_class_structs (struct imp_entry *impent)
+ 					class_ivars, NULL_TREE);
+   /* The ROs sit in the default const section.  */
+   OBJCMETA (decl, objc_meta, meta_base);
++  DECL_USER_ALIGN (decl) = 1;
+   finish_var_decl (decl, initlist);
+ 
+   /* static struct class_t _OBJC_METACLASS_Foo = { ... }; */
+@@ -3452,6 +3463,7 @@ generate_v2_class_structs (struct imp_entry *impent)
+ 				      build_fold_addr_expr (UOBJC_V2_CACHE_decl),
+ 				      build_fold_addr_expr (UOBJC_V2_VTABLE_decl));
+   /* The class section attributes are set when they are created.  */
++  DECL_USER_ALIGN (metaclass_decl) = 1;
+   finish_var_decl (metaclass_decl, initlist);
+   impent->meta_decl = metaclass_decl;
+ 
+@@ -3531,6 +3543,7 @@ generate_v2_class_structs (struct imp_entry *impent)
+ 					 inst_ivars, props);
+   /* The ROs sit in the default const section.  */
+   OBJCMETA (decl, objc_meta, meta_base);
++  DECL_USER_ALIGN (decl) = 1;
+   finish_var_decl (decl, initlist);
+ 
+   /* static struct class_t _OBJC_CLASS_Foo = { ... }; */
+@@ -3542,6 +3555,7 @@ generate_v2_class_structs (struct imp_entry *impent)
+ 					build_fold_addr_expr (UOBJC_V2_VTABLE_decl));
+ 
+   /* The class section attributes are set when they are created.  */
++  DECL_USER_ALIGN (class_decl) = 1;
+   finish_var_decl (class_decl, initlist);
+   impent->class_decl = class_decl;
+ 
+@@ -3716,6 +3730,7 @@ build_ehtype (tree name, const char *eh_name, bool weak)
+     DECL_WEAK (ehtype_decl) = 1;
+   inits = objc2_build_ehtype_initializer (name_expr, class_name_expr);
+   OBJCMETA (ehtype_decl, objc_meta, meta_ehtype);
++  DECL_USER_ALIGN (ehtype_decl) = 1;
+   finish_var_decl (ehtype_decl, inits);
+   return ehtype_decl;
+ }
+diff --git a/gcc/objc/objc-runtime-shared-support.c b/gcc/objc/objc-runtime-shared-support.c
+index 40f506c6e75..e68e98af4dd 100644
+--- a/gcc/objc/objc-runtime-shared-support.c
++++ b/gcc/objc/objc-runtime-shared-support.c
+@@ -689,6 +689,7 @@ generate_strings (void)
+       decl = TREE_PURPOSE (chain);
+       string_expr = my_build_string (IDENTIFIER_LENGTH (string) + 1,
+ 				     IDENTIFIER_POINTER (string));
++      DECL_USER_ALIGN (decl) = 1;
+       finish_var_decl (decl, string_expr);
+     }
+ 
+@@ -698,6 +699,7 @@ generate_strings (void)
+       decl = TREE_PURPOSE (chain);
+       string_expr = my_build_string (IDENTIFIER_LENGTH (string) + 1,
+ 				     IDENTIFIER_POINTER (string));
++      DECL_USER_ALIGN (decl) = 1;
+       finish_var_decl (decl, string_expr);
+     }
+ 
+@@ -707,6 +709,7 @@ generate_strings (void)
+       decl = TREE_PURPOSE (chain);
+       string_expr = my_build_string (IDENTIFIER_LENGTH (string) + 1,
+ 				     IDENTIFIER_POINTER (string));
++      DECL_USER_ALIGN (decl) = 1;
+       finish_var_decl (decl, string_expr);
+     }
+ 
+@@ -716,6 +719,7 @@ generate_strings (void)
+       decl = TREE_PURPOSE (chain);
+       string_expr = my_build_string (IDENTIFIER_LENGTH (string) + 1,
+ 				     IDENTIFIER_POINTER (string));
++      DECL_USER_ALIGN (decl) = 1;
+       finish_var_decl (decl, string_expr);
+     }
+ }
 diff --git a/gcc/objcp/ChangeLog b/gcc/objcp/ChangeLog
 index 5654106fb88..66c468bd675 100644
 --- a/gcc/objcp/ChangeLog
@@ -31237,10 +31837,33 @@ index 5530a124a9d..31f93f4b747 100644
  
  DEBUG_FUNCTION void
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..3abc1c519eb 100644
+index 5fc23605244..e37e99c5f10 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,3128 @@
+@@ -1,3 +1,3151 @@
++2024-04-27  Francois-Xavier Coudert  <fxcoudert@gcc.gnu.org>
++
++	Backported from master:
++	2023-10-30  Francois-Xavier Coudert  <fxcoudert@gcc.gnu.org>
++		    Iain Sandoe  <iain@sandoe.co.uk>
++
++	* gcc.dg/pie-2.c: Skip test on darwin.
++
++2024-04-27  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2023-10-02  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* g++.dg/debug/dwarf2/pr85550.C: Skip for Darwin.
++
++2024-04-27  Francois-Xavier Coudert  <fxcoudert@gmail.com>
++
++	Backported from master:
++	2023-09-29  Francois-Xavier Coudert  <fxcoudert@gmail.com>
++
++	* gcc.dg/debug/dwarf2/inline4.c: Ajdust regexp to match darwin
++	output.
++
 +2024-04-25  Francois-Xavier Coudert  <fxcoudert@gcc.gnu.org>
 +
 +	Backported from master:
@@ -36272,6 +36895,18 @@ index 00000000000..59ed52424da
 +  using namespace M;
 +  return 0;
 +}
+diff --git a/gcc/testsuite/g++.dg/debug/dwarf2/pr85550.C b/gcc/testsuite/g++.dg/debug/dwarf2/pr85550.C
+index 35b0f56e959..c95f75255d4 100644
+--- a/gcc/testsuite/g++.dg/debug/dwarf2/pr85550.C
++++ b/gcc/testsuite/g++.dg/debug/dwarf2/pr85550.C
+@@ -2,6 +2,7 @@
+ // { dg-do link }
+ // { dg-options "-O2 -g -fdebug-types-section" }
+ // { dg-skip-if "AIX DWARF5" { powerpc-ibm-aix* } }
++// { dg-skip-if "No debug linker support" { *-*-darwin* } }
+ 
+ struct A {
+   int bar () const { return 0; }
 diff --git a/gcc/testsuite/g++.dg/debug/pr106261.C b/gcc/testsuite/g++.dg/debug/pr106261.C
 new file mode 100644
 index 00000000000..6dee7e68ff5
@@ -39546,6 +40181,25 @@ index 00000000000..6dfb0a384f1
 +	__builtin_abort ();
 +    }
 +}
+diff --git a/gcc/testsuite/gcc.dg/analyzer/analyzer.exp b/gcc/testsuite/gcc.dg/analyzer/analyzer.exp
+index e4b198bee87..7a2f7e906e9 100644
+--- a/gcc/testsuite/gcc.dg/analyzer/analyzer.exp
++++ b/gcc/testsuite/gcc.dg/analyzer/analyzer.exp
+@@ -32,6 +32,14 @@ if [info exists DEFAULT_CFLAGS] then {
+ # If a testcase doesn't have special options, use these.
+ set DEFAULT_CFLAGS "-fanalyzer -Wanalyzer-too-complex -fanalyzer-call-summaries"
+ 
++if { [istarget "*-*-darwin*" ] } {
++  # On macOS, system headers redefine by default some macros (memcpy,
++  # memmove, etc) to checked versions, which defeats the analyzer. We
++  # want to turn this off.
++  # See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=104042
++  set DEFAULT_CFLAGS "$DEFAULT_CFLAGS -D_FORTIFY_SOURCE=0"
++}
++
+ # Initialize `dg'.
+ dg-init
+ 
 diff --git a/gcc/testsuite/gcc.dg/analyzer/pr105252.c b/gcc/testsuite/gcc.dg/analyzer/pr105252.c
 new file mode 100644
 index 00000000000..a093eababc5
@@ -39775,6 +40429,19 @@ index 526db77bd9c..77112ddb484 100644
  
  extern void abort ();
  
+diff --git a/gcc/testsuite/gcc.dg/debug/dwarf2/inline4.c b/gcc/testsuite/gcc.dg/debug/dwarf2/inline4.c
+index 2faef6e2a4f..22eb35fcf09 100644
+--- a/gcc/testsuite/gcc.dg/debug/dwarf2/inline4.c
++++ b/gcc/testsuite/gcc.dg/debug/dwarf2/inline4.c
+@@ -2,7 +2,7 @@
+    the DW_TAG_inlined_subroutine and the DW_TAG_variable for the local.  */
+ /* { dg-options "-O -gdwarf -dA" } */
+ /* { dg-do compile } */
+-/* { dg-final { scan-assembler "DW_TAG_inlined_subroutine\[^\\(\]*\\(\[^\\)\]*\\)\[^\\(\]*\\(DIE \\(0x\[0-9a-f\]*\\) DW_TAG_formal_parameter\[^\\(\]*\\(DIE \\(0x\[0-9a-f\]*\\) DW_TAG_variable" } } */
++/* { dg-final { scan-assembler "DW_TAG_inlined_subroutine\[^\\(\]*\(\|\\(\[^\\)\]*\\)\)\[^\\(\]*\\(DIE \\(0x\[0-9a-f\]*\\) DW_TAG_formal_parameter\[^\\(\]*\\(DIE \\(0x\[0-9a-f\]*\\) DW_TAG_variable" } } */
+ /* { dg-final { scan-assembler-times "DW_TAG_inlined_subroutine" 2 } } */
+ 
+ static int foo (int i)
 diff --git a/gcc/testsuite/gcc.dg/dfp/pr108068.c b/gcc/testsuite/gcc.dg/dfp/pr108068.c
 new file mode 100644
 index 00000000000..6cbb0fbe602
@@ -39834,6 +40501,16 @@ index ba87132aef2..075bebe34e8 100644
  if { [istarget "powerpc-ibm-aix*"] } {
      set torture_execute_xfail "powerpc-ibm-aix*"
      return
+diff --git a/gcc/testsuite/gcc.dg/ipa/ipa-icf-38.c b/gcc/testsuite/gcc.dg/ipa/ipa-icf-38.c
+index 452e1b88514..57c5262dd4a 100644
+--- a/gcc/testsuite/gcc.dg/ipa/ipa-icf-38.c
++++ b/gcc/testsuite/gcc.dg/ipa/ipa-icf-38.c
+@@ -1,4 +1,5 @@
+ /* { dg-do link } */
++/* { dg-require-alias "" } */
+ /* { dg-options "-O2 -fdump-ipa-icf-optimized -flto -fdump-tree-optimized" } */
+ /* { dg-require-effective-target lto } */
+ /* { dg-additional-sources "ipa-icf-38a.c" }*/
 diff --git a/gcc/testsuite/gcc.dg/ipa/pr105739.c b/gcc/testsuite/gcc.dg/ipa/pr105739.c
 new file mode 100644
 index 00000000000..8dbe8fc2494
@@ -39911,6 +40588,18 @@ index 00000000000..d18a7209983
 +  x |= (int) 0xf1234567U;
 +  return x;
 +}
+diff --git a/gcc/testsuite/gcc.dg/pie-2.c b/gcc/testsuite/gcc.dg/pie-2.c
+index 1838745a11a..0a1cc27a503 100644
+--- a/gcc/testsuite/gcc.dg/pie-2.c
++++ b/gcc/testsuite/gcc.dg/pie-2.c
+@@ -2,6 +2,7 @@
+ /* { dg-options "-fPIE" } */
+ /* { dg-require-effective-target pie } */
+ /* { dg-skip-if "__PIC__ is always 1 for MIPS" { mips*-*-* } } */
++/* { dg-skip-if "__PIE__ is often not defined on darwin" { *-*-darwin* } } */
+ 
+ #if __PIC__ != 2
+ # error __PIC__ is not 2!
 diff --git a/gcc/testsuite/gcc.dg/pie-7.c b/gcc/testsuite/gcc.dg/pie-7.c
 index e118a98bafd..3879a6cc120 100644
 --- a/gcc/testsuite/gcc.dg/pie-7.c
@@ -40103,6 +40792,29 @@ index 00000000000..bd8bd4cd56c
 +foo (void)
 +{
 +  g *= (__int128) bar (1, 1);
++}
+diff --git a/gcc/testsuite/gcc.dg/pr105522.c b/gcc/testsuite/gcc.dg/pr105522.c
+new file mode 100644
+index 00000000000..186cd60cd32
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/pr105522.c
+@@ -0,0 +1,17 @@
++/* { dg-do compile { target *-*-darwin* } } */
++typedef const struct __CFString * CFStringRef;
++
++/* This used to ICE on powerpc darwin, in decode_addr_const.  */
++const void
++* create_usage_match(const unsigned int page, const unsigned int usage, int
++*okay)
++{
++
++  const void *keys[2] = 
++    { (void *) ((CFStringRef) __builtin___CFStringMakeConstantString (""
++      "DeviceUsagePage" ""))
++      , (void *) ((CFStringRef) __builtin___CFStringMakeConstantString (""
++      "DeviceUsage" ""))
++    };
++  return keys[1];
 +}
 diff --git a/gcc/testsuite/gcc.dg/pr105528.c b/gcc/testsuite/gcc.dg/pr105528.c
 new file mode 100644
@@ -44775,12 +45487,13 @@ index 00000000000..36e8b6ed97d
 +}
 diff --git a/gcc/testsuite/gcc.target/i386/pr105554.c b/gcc/testsuite/gcc.target/i386/pr105554.c
 new file mode 100644
-index 00000000000..08e90bb3368
+index 00000000000..e9ef494270a
 --- /dev/null
 +++ b/gcc/testsuite/gcc.target/i386/pr105554.c
-@@ -0,0 +1,10 @@
+@@ -0,0 +1,11 @@
 +/* PR target/105554 */
 +/* { dg-do compile } */
++/* { dg-require-ifunc "" } */
 +/* { dg-options "-O2 -Wno-psabi -mno-sse3" } */
 +
 +typedef long long v4di __attribute__((__vector_size__(32)));
@@ -50385,6 +51098,19 @@ index 00000000000..7496e965fd3
 +     raise Program_Error;
 +  end if;
 +end;
+diff --git a/gcc/testsuite/lib/asan-dg.exp b/gcc/testsuite/lib/asan-dg.exp
+index e926dc3ad03..954b0ae22d4 100644
+--- a/gcc/testsuite/lib/asan-dg.exp
++++ b/gcc/testsuite/lib/asan-dg.exp
+@@ -111,6 +111,8 @@ proc asan_init { args } {
+     global asan_saved_TEST_ALWAYS_FLAGS
+     global asan_saved_ALWAYS_CXXFLAGS
+ 
++    setenv ASAN_OPTIONS "color=never"
++
+     set link_flags ""
+     if ![is_remote host] {
+ 	if [info exists TOOL_OPTIONS] {
 diff --git a/gcc/testsuite/lib/g++.exp b/gcc/testsuite/lib/g++.exp
 index eea79001d99..70e5d8f833f 100644
 --- a/gcc/testsuite/lib/g++.exp
@@ -50670,6 +51396,26 @@ index 07123559d72..27bae630ce8 100644
  // { dg-additional-options "-fobjc-call-cxx-cdtors -mmacosx-version-min=10.4 -framework Foundation" }
  // This test has no equivalent or meaning for m64/ABI V2
  // { dg-xfail-run-if "No Test Avail" {  *-*-darwin* && lp64 } { "-fnext-runtime" } { "" } }
+diff --git a/gcc/testsuite/obj-c++.dg/encode-10.mm b/gcc/testsuite/obj-c++.dg/encode-10.mm
+index 2b3af88dcb1..2477400b7f3 100644
+--- a/gcc/testsuite/obj-c++.dg/encode-10.mm
++++ b/gcc/testsuite/obj-c++.dg/encode-10.mm
+@@ -1,5 +1,4 @@
+ /* Test for @encode in templates.  */
+-/* { dg-options "-lobjc" } */
+ /* { dg-do run } */
+ #include <string.h>           
+ #include <stdlib.h>
+diff --git a/gcc/testsuite/obj-c++.dg/encode-9.mm b/gcc/testsuite/obj-c++.dg/encode-9.mm
+index 6b064dfdc09..4fdb5fa50fb 100644
+--- a/gcc/testsuite/obj-c++.dg/encode-9.mm
++++ b/gcc/testsuite/obj-c++.dg/encode-9.mm
+@@ -1,5 +1,4 @@
+ /* Test than @encode is properly instantiated. */
+-/* { dg-options "-lobjc" } */
+ /* { dg-do run } */
+ 
+ #include <string.h>           
 diff --git a/gcc/testsuite/obj-c++.dg/objc-gc-3.mm b/gcc/testsuite/obj-c++.dg/objc-gc-3.mm
 index 45ffbc5553d..18f2cbe8869 100644
 --- a/gcc/testsuite/obj-c++.dg/objc-gc-3.mm
