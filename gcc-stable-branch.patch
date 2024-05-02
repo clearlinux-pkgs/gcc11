@@ -88,7 +88,9 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (730):
+GCC Administrator (732):
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1145,7 +1147,7 @@ John David Anglin (4):
       hppa: Fix typo in PA 2.0 trampoline template
       hppa: Fix bug in atomic_storedi_1 pattern
 
-Jonathan Wakely (136):
+Jonathan Wakely (137):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -1282,6 +1284,7 @@ Jonathan Wakely (136):
       libstdc++: Adjust std::in_range template parameter name
       libstdc++: Add assertion to std::string_view::remove_suffix [PR112314]
       libstdc++: Missing constexpr for __gnu_debug::__valid_range etc
+      libstdc++: Add missing std::tuple constructor [PR114147]
 
 José Rui Faustino de Sousa (5):
       Fortran: Fix ICE with -fcheck=pointer [PR100136]
@@ -72747,7 +72750,7 @@ index db6ebd50471..ac39d0f2243 100644
      {
        using __ostream_type = basic_ostream<_CharT, _Traits>;
 diff --git a/libstdc++-v3/include/std/tuple b/libstdc++-v3/include/std/tuple
-index dcf30bd9a8d..63bd68fbe43 100644
+index dcf30bd9a8d..b02b0bfbd59 100644
 --- a/libstdc++-v3/include/std/tuple
 +++ b/libstdc++-v3/include/std/tuple
 @@ -553,10 +553,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
@@ -72761,6 +72764,34 @@ index dcf30bd9a8d..63bd68fbe43 100644
        // Constraint for a non-explicit constructor.
        // True iff each Ti in _Types... can be constructed from Ui in _UTypes...
        // and every Ui is implicitly convertible to Ti.
+@@ -805,6 +801,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	tuple(allocator_arg_t __tag, const _Alloc& __a)
+ 	: _Inherited(__tag, __a) { }
+ 
++      template<typename _Alloc,
++	       _ExplicitDefaultCtor<is_object<_Alloc>::value> = false>
++	_GLIBCXX20_CONSTEXPR
++	explicit
++	tuple(allocator_arg_t __tag, const _Alloc& __a)
++	: _Inherited(__tag, __a) { }
++
+       template<typename _Alloc, bool _NotEmpty = (sizeof...(_Elements) >= 1),
+ 	       _ImplicitCtor<_NotEmpty, const _Elements&...> = true>
+ 	_GLIBCXX20_CONSTEXPR
+@@ -1159,6 +1162,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	tuple(allocator_arg_t __tag, const _Alloc& __a)
+ 	: _Inherited(__tag, __a) { }
+ 
++      template<typename _Alloc,
++	       _ExplicitDefaultCtor<is_object<_Alloc>::value, _T1, _T2> = false>
++	_GLIBCXX20_CONSTEXPR
++	explicit
++	tuple(allocator_arg_t __tag, const _Alloc& __a)
++	: _Inherited(__tag, __a) { }
++
+       template<typename _Alloc, bool _Dummy = true,
+ 	       _ImplicitCtor<_Dummy, const _T1&, const _T2&> = true>
+ 	_GLIBCXX20_CONSTEXPR
 diff --git a/libstdc++-v3/include/std/type_traits b/libstdc++-v3/include/std/type_traits
 index cccc6eed763..d544759f28e 100644
 --- a/libstdc++-v3/include/std/type_traits
@@ -76282,6 +76313,27 @@ index 00000000000..a6b9c67498c
 +  a.construct(p, std::move(rvals));
 +  a.deallocate(p, 1);
 +}
+diff --git a/libstdc++-v3/testsuite/20_util/tuple/cons/114147.cc b/libstdc++-v3/testsuite/20_util/tuple/cons/114147.cc
+new file mode 100644
+index 00000000000..916e7204964
+--- /dev/null
++++ b/libstdc++-v3/testsuite/20_util/tuple/cons/114147.cc
+@@ -0,0 +1,15 @@
++// { dg-do compile { target c++11 } }
++
++// PR libstdc++/114147
++// tuple allocator-extended ctor requires non-explicit default ctor
++
++#include <tuple>
++#include <memory>
++
++struct X { explicit X(); };
++
++std::allocator<int> a;
++std::tuple<X> t0(std::allocator_arg, a);
++std::tuple<int, X> t1(std::allocator_arg, a);
++std::tuple<X, int> t2(std::allocator_arg, a);
++std::tuple<int, X, int> t3(std::allocator_arg, a);
 diff --git a/libstdc++-v3/testsuite/20_util/tuple/swap.cc b/libstdc++-v3/testsuite/20_util/tuple/swap.cc
 index 06d14612176..7142e95c782 100644
 --- a/libstdc++-v3/testsuite/20_util/tuple/swap.cc
