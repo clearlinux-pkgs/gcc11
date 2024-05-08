@@ -17,10 +17,11 @@ Andre Vieira (1):
 Andreas Krebbel (1):
       IBM zSystems/testsuite: PR105147: Skip pr105140.c
 
-Andrew Pinski (3):
+Andrew Pinski (4):
       Fix fc-prototypes usage with C_INT64_T and non LP64 Targets.
       match.pd: When simplifying BFR of an insert, require a mode precision integral type [PR108688]
       MATCH: Fix infinite loop between `vec_cond(vec_cond(a,b,0), c, d)` and `a & b`
+      c++/c-common: Fix convert_vector_to_array_for_subscript for qualified vector types [PR89224]
 
 Anthony Sharp (1):
       call_summary: add missing template keyword
@@ -88,7 +89,11 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (733):
+GCC Administrator (737):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -7318,7 +7323,7 @@ index dff48ba4655..7d939a6e8c6 100644
  
  	* GCC 11.3.0 released.
 diff --git a/gcc/c-family/c-common.c b/gcc/c-family/c-common.c
-index 7b8f49d78dc..9417b7fb4d1 100644
+index 7b8f49d78dc..ae3ef89b05c 100644
 --- a/gcc/c-family/c-common.c
 +++ b/gcc/c-family/c-common.c
 @@ -1854,12 +1854,12 @@ verify_tree (tree x, struct tlist **pbefore_sp, struct tlist **pno_sp,
@@ -7354,6 +7359,28 @@ index 7b8f49d78dc..9417b7fb4d1 100644
      default:
      do_default:
        /* For other expressions, simply recurse on their operands.
+@@ -8269,6 +8274,7 @@ convert_vector_to_array_for_subscript (location_t loc,
+   if (gnu_vector_type_p (TREE_TYPE (*vecp)))
+     {
+       tree type = TREE_TYPE (*vecp);
++      tree newitype;
+ 
+       ret = !lvalue_p (*vecp);
+ 
+@@ -8283,8 +8289,12 @@ convert_vector_to_array_for_subscript (location_t loc,
+ 	 for function parameters.  */
+       c_common_mark_addressable_vec (*vecp);
+ 
++      /* Make sure qualifiers are copied from the vector type to the new element
++	 of the array type.  */
++      newitype = build_qualified_type (TREE_TYPE (type), TYPE_QUALS (type));
++
+       *vecp = build1 (VIEW_CONVERT_EXPR,
+-		      build_array_type_nelts (TREE_TYPE (type),
++		      build_array_type_nelts (newitype,
+ 					      TYPE_VECTOR_SUBPARTS (type)),
+ 		      *vecp);
+     }
 diff --git a/gcc/c-family/c-gimplify.c b/gcc/c-family/c-gimplify.c
 index 39c969d8f40..10a971001c4 100644
 --- a/gcc/c-family/c-gimplify.c
@@ -23545,7 +23572,7 @@ index 3251aaa1a46..32667255a85 100644
        }
  
 diff --git a/gcc/cp/constexpr.c b/gcc/cp/constexpr.c
-index c13c920ade3..38f684144f0 100644
+index c13c920ade3..eb18b5b3537 100644
 --- a/gcc/cp/constexpr.c
 +++ b/gcc/cp/constexpr.c
 @@ -890,7 +890,7 @@ maybe_save_constexpr_fundef (tree fun)
@@ -23557,7 +23584,17 @@ index c13c920ade3..38f684144f0 100644
        && cx_check_missing_mem_inits (DECL_CONTEXT (fun),
  				     massaged, !DECL_GENERATED_P (fun)))
      potential = false;
-@@ -4280,19 +4280,18 @@ cxx_eval_bit_cast (const constexpr_ctx *ctx, tree t, bool *non_constant_p,
+@@ -3767,7 +3767,8 @@ cxx_eval_array_reference (const constexpr_ctx *ctx, tree t,
+   if (!lval
+       && TREE_CODE (ary) == VIEW_CONVERT_EXPR
+       && VECTOR_TYPE_P (TREE_TYPE (TREE_OPERAND (ary, 0)))
+-      && TREE_TYPE (t) == TREE_TYPE (TREE_TYPE (TREE_OPERAND (ary, 0))))
++      && (TYPE_MAIN_VARIANT (TREE_TYPE (t))
++	  == TYPE_MAIN_VARIANT (TREE_TYPE (TREE_TYPE (TREE_OPERAND (ary, 0))))))
+     ary = TREE_OPERAND (ary, 0);
+ 
+   tree oldidx = TREE_OPERAND (t, 1);
+@@ -4280,19 +4281,18 @@ cxx_eval_bit_cast (const constexpr_ctx *ctx, tree t, bool *non_constant_p,
  static tree
  cxx_eval_logical_expression (const constexpr_ctx *ctx, tree t,
                               tree bailout_value, tree continue_value,
@@ -23581,7 +23618,7 @@ index c13c920ade3..38f684144f0 100644
  				    overflow_p);
    VERIFY_CONSTANT (r);
    return r;
-@@ -4468,12 +4467,9 @@ cxx_eval_bare_aggregate (const constexpr_ctx *ctx, tree t,
+@@ -4468,12 +4468,9 @@ cxx_eval_bare_aggregate (const constexpr_ctx *ctx, tree t,
        tree orig_value = value;
        /* Like in cxx_eval_store_expression, omit entries for empty fields.  */
        bool no_slot = TREE_CODE (type) == RECORD_TYPE && is_empty_field (index);
@@ -23596,7 +23633,7 @@ index c13c920ade3..38f684144f0 100644
  	{
  	  /* If we built a new CONSTRUCTOR, attach it now so that other
  	     initializers can refer to it.  */
-@@ -5579,6 +5575,12 @@ cxx_eval_store_expression (const constexpr_ctx *ctx, tree t,
+@@ -5579,6 +5576,12 @@ cxx_eval_store_expression (const constexpr_ctx *ctx, tree t,
      {
        /* See above on initialization of empty bases.  */
        gcc_assert (is_empty_class (TREE_TYPE (init)) && !lval);
@@ -23609,7 +23646,7 @@ index c13c920ade3..38f684144f0 100644
        return init;
      }
    else
-@@ -5672,6 +5674,18 @@ cxx_eval_increment_expression (const constexpr_ctx *ctx, tree t,
+@@ -5672,6 +5675,18 @@ cxx_eval_increment_expression (const constexpr_ctx *ctx, tree t,
  	offset = fold_build1 (NEGATE_EXPR, TREE_TYPE (offset), offset);
        mod = fold_build2 (POINTER_PLUS_EXPR, type, val, offset);
      }
@@ -23628,7 +23665,7 @@ index c13c920ade3..38f684144f0 100644
    else
      mod = fold_build2 (inc ? PLUS_EXPR : MINUS_EXPR, type, val, offset);
    if (!ptr)
-@@ -7158,6 +7172,49 @@ cxx_eval_constant_expression (const constexpr_ctx *ctx, tree t,
+@@ -7158,6 +7173,49 @@ cxx_eval_constant_expression (const constexpr_ctx *ctx, tree t,
        r = cxx_eval_bit_cast (ctx, t, non_constant_p, overflow_p);
        break;
  
@@ -23678,7 +23715,7 @@ index c13c920ade3..38f684144f0 100644
      default:
        if (STATEMENT_CODE_P (TREE_CODE (t)))
  	{
-@@ -8575,6 +8632,7 @@ potential_constant_expression_1 (tree t, bool want_rval, bool strict, bool now,
+@@ -8575,6 +8633,7 @@ potential_constant_expression_1 (tree t, bool want_rval, bool strict, bool now,
      case OMP_ORDERED:
      case OMP_CRITICAL:
      case OMP_SINGLE:
@@ -23686,7 +23723,7 @@ index c13c920ade3..38f684144f0 100644
      case OMP_SECTION:
      case OMP_MASTER:
      case OMP_TASKGROUP:
-@@ -8868,13 +8926,18 @@ potential_constant_expression_1 (tree t, bool want_rval, bool strict, bool now,
+@@ -8868,13 +8927,18 @@ potential_constant_expression_1 (tree t, bool want_rval, bool strict, bool now,
        tmp = boolean_false_node;
      truth:
        {
@@ -23710,7 +23747,7 @@ index c13c920ade3..38f684144f0 100644
  	else
  	  return true;
        }
-@@ -9075,6 +9138,17 @@ bool
+@@ -9075,6 +9139,17 @@ bool
  potential_constant_expression_1 (tree t, bool want_rval, bool strict, bool now,
  				 tsubst_flags_t flags)
  {
@@ -38867,6 +38904,35 @@ index 00000000000..4a88e1519d0
 +    }
 +  }
 +}
+diff --git a/gcc/testsuite/g++.dg/torture/vector-subaccess-1.C b/gcc/testsuite/g++.dg/torture/vector-subaccess-1.C
+new file mode 100644
+index 00000000000..0c8958a4e03
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/torture/vector-subaccess-1.C
+@@ -0,0 +1,23 @@
++/* PR c++/89224 */
++
++/* The access of `vector[i]` has the same qualifiers as the original
++   vector which was missing. */
++
++typedef __attribute__((vector_size(16))) unsigned char  Int8x8_t;
++
++template <class T>
++void g(T &x) {
++    __builtin_abort();
++}
++template <class T>
++void g(const T &x) {
++  __builtin_exit(0);
++}
++void f(const Int8x8_t x) {
++  g(x[0]);
++}
++int main(void)
++{
++    Int8x8_t x ={};
++    f(x);
++}
 diff --git a/gcc/testsuite/g++.dg/ubsan/pr105729.C b/gcc/testsuite/g++.dg/ubsan/pr105729.C
 new file mode 100644
 index 00000000000..fb676630994
@@ -42118,6 +42184,18 @@ index f2728fbc938..18afa9d0232 100644
  	  e += 6;
  	}
      }
+diff --git a/gcc/testsuite/gcc.dg/pr83415.c b/gcc/testsuite/gcc.dg/pr83415.c
+index 5934c16d97c..2fc85031505 100644
+--- a/gcc/testsuite/gcc.dg/pr83415.c
++++ b/gcc/testsuite/gcc.dg/pr83415.c
+@@ -7,6 +7,6 @@ int
+ main (int argc, short *argv[])
+ {
+   int i = argc;
+-  y[i] = 7 - i; /* { dg-warning "read-only" } */
++  y[i] = 7 - i; /* { dg-error "read-only" } */
+   return 0;
+ }
 diff --git a/gcc/testsuite/gcc.dg/pragma-message.c b/gcc/testsuite/gcc.dg/pragma-message.c
 index 2f44b617710..1b7cf09de0a 100644
 --- a/gcc/testsuite/gcc.dg/pragma-message.c
