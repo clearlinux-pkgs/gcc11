@@ -17,11 +17,13 @@ Andre Vieira (1):
 Andreas Krebbel (1):
       IBM zSystems/testsuite: PR105147: Skip pr105140.c
 
-Andrew Pinski (4):
+Andrew Pinski (6):
       Fix fc-prototypes usage with C_INT64_T and non LP64 Targets.
       match.pd: When simplifying BFR of an insert, require a mode precision integral type [PR108688]
       MATCH: Fix infinite loop between `vec_cond(vec_cond(a,b,0), c, d)` and `a & b`
       c++/c-common: Fix convert_vector_to_array_for_subscript for qualified vector types [PR89224]
+      Fold: Fix up merge_truthop_with_opposite_arm for NaNs [PR95351]
+      Fix PR 111331: wrong code for `a > 28 ? MIN<a, 28> : 29`
 
 Anthony Sharp (1):
       call_summary: add missing template keyword
@@ -27166,7 +27168,7 @@ index 14a25c25450..eae9c023cb7 100644
    if (TREE_CODE (treeop0) == SSA_NAME
        && (srcstmt = get_def_for_expr_class (treeop0, tcc_comparison)))
 diff --git a/gcc/fold-const.c b/gcc/fold-const.c
-index 70c5b3886ef..f4fd980dbbc 100644
+index 70c5b3886ef..97f77da5b93 100644
 --- a/gcc/fold-const.c
 +++ b/gcc/fold-const.c
 @@ -2355,7 +2355,7 @@ build_zero_vector (tree type)
@@ -27219,7 +27221,24 @@ index 70c5b3886ef..f4fd980dbbc 100644
  		  return;
  		}
  	      break;
-@@ -7508,7 +7498,7 @@ tree_swap_operands_p (const_tree arg0, const_tree arg1)
+@@ -6181,7 +6171,6 @@ static tree
+ merge_truthop_with_opposite_arm (location_t loc, tree op, tree cmpop,
+ 				 bool rhs_only)
+ {
+-  tree type = TREE_TYPE (cmpop);
+   enum tree_code code = TREE_CODE (cmpop);
+   enum tree_code truthop_code = TREE_CODE (op);
+   tree lhs = TREE_OPERAND (op, 0);
+@@ -6197,6 +6186,8 @@ merge_truthop_with_opposite_arm (location_t loc, tree op, tree cmpop,
+   if (TREE_CODE_CLASS (code) != tcc_comparison)
+     return NULL_TREE;
+ 
++  tree type = TREE_TYPE (TREE_OPERAND (cmpop, 0));
++
+   if (rhs_code == truthop_code)
+     {
+       tree newrhs = merge_truthop_with_opposite_arm (loc, rhs, cmpop, rhs_only);
+@@ -7508,7 +7499,7 @@ tree_swap_operands_p (const_tree arg0, const_tree arg1)
  static tree
  fold_to_nonsharp_ineq_using_bound (location_t loc, tree ineq, tree bound)
  {
@@ -27228,7 +27247,7 @@ index 70c5b3886ef..f4fd980dbbc 100644
  
    if (TREE_CODE (bound) == LT_EXPR)
      a = TREE_OPERAND (bound, 0);
-@@ -9488,6 +9478,16 @@ fold_unary_loc (location_t loc, enum tree_code code, tree type, tree op0)
+@@ -9488,6 +9479,16 @@ fold_unary_loc (location_t loc, enum tree_code code, tree type, tree op0)
  		  > min_align_of_type (TREE_TYPE (TREE_TYPE (arg00)))))
  	    return NULL_TREE;
  
@@ -27245,7 +27264,7 @@ index 70c5b3886ef..f4fd980dbbc 100644
  	  arg00 = fold_convert_loc (loc, type, arg00);
  	  return fold_build_pointer_plus_loc (loc, arg00, arg01);
  	}
-@@ -11987,11 +11987,15 @@ fold_binary_loc (location_t loc, enum tree_code code, tree type,
+@@ -11987,11 +11988,15 @@ fold_binary_loc (location_t loc, enum tree_code code, tree type,
  	{
  	  tem = fold_to_nonsharp_ineq_using_bound (loc, arg0, arg1);
  	  if (tem && !operand_equal_p (tem, arg0, 0))
@@ -27263,7 +27282,7 @@ index 70c5b3886ef..f4fd980dbbc 100644
  	}
  
        if ((tem = fold_truth_andor (loc, code, type, arg0, arg1, op0, op1))
-@@ -14181,7 +14185,7 @@ multiple_of_p (tree type, const_tree top, const_tree bottom)
+@@ -14181,7 +14186,7 @@ multiple_of_p (tree type, const_tree top, const_tree bottom)
  	      && TREE_CODE (op2) == INTEGER_CST
  	      && integer_pow2p (bottom)
  	      && wi::multiple_of_p (wi::to_widest (op2),
@@ -40968,6 +40987,75 @@ index 00000000000..ccc04e1bdd4
 +    __builtin_abort ();
 +  return 0;
 +}
+diff --git a/gcc/testsuite/gcc.c-torture/execute/pr111331-1.c b/gcc/testsuite/gcc.c-torture/execute/pr111331-1.c
+new file mode 100644
+index 00000000000..4c7f4fdbaa9
+--- /dev/null
++++ b/gcc/testsuite/gcc.c-torture/execute/pr111331-1.c
+@@ -0,0 +1,17 @@
++int a;
++int b;
++int c(int d, int e, int f) {
++  if (d < e)
++    return e;
++  if (d > f)
++    return f;
++  return d;
++}
++int main() {
++  int g = -1;
++  a = c(b + 30, 29, g + 29);
++  volatile t = a;
++  if (t != 28)
++    __builtin_abort();
++  return 0;
++}
+diff --git a/gcc/testsuite/gcc.c-torture/execute/pr111331-2.c b/gcc/testsuite/gcc.c-torture/execute/pr111331-2.c
+new file mode 100644
+index 00000000000..5c677f2caa9
+--- /dev/null
++++ b/gcc/testsuite/gcc.c-torture/execute/pr111331-2.c
+@@ -0,0 +1,19 @@
++
++int a;
++int b;
++
++int main() {
++  int d = b+30;
++  {
++        int t;
++        if (d < 29)
++          t =  29;
++        else
++          t = (d > 28) ? 28 : d;
++    a = t;
++  }
++  volatile int t = a;
++  if (a != 28)
++    __builtin_abort();
++  return 0;
++}
+diff --git a/gcc/testsuite/gcc.c-torture/execute/pr111331-3.c b/gcc/testsuite/gcc.c-torture/execute/pr111331-3.c
+new file mode 100644
+index 00000000000..213d9bdd539
+--- /dev/null
++++ b/gcc/testsuite/gcc.c-torture/execute/pr111331-3.c
+@@ -0,0 +1,15 @@
++int a;
++int b;
++
++int main() {
++  int d = b+30;
++  {
++    int t;
++    t = d < 29 ? 29 : ((d > 28) ? 28 : d);
++    a = t;
++  }
++  volatile int t = a;
++  if (a != 28)
++    __builtin_abort();
++  return 0;
++}
 diff --git a/gcc/testsuite/gcc.c-torture/execute/pr111408.c b/gcc/testsuite/gcc.c-torture/execute/pr111408.c
 new file mode 100644
 index 00000000000..6dfb0a384f1
@@ -41293,6 +41381,29 @@ index 00000000000..6cbb0fbe602
 +  if (!__builtin_signbit (d))
 +    __builtin_abort ();
 +}
+diff --git a/gcc/testsuite/gcc.dg/float_opposite_arm-1.c b/gcc/testsuite/gcc.dg/float_opposite_arm-1.c
+new file mode 100644
+index 00000000000..d2dbff35066
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/float_opposite_arm-1.c
+@@ -0,0 +1,17 @@
++/* { dg-do compile } */
++/* { dg-options "-O1 -fdump-tree-original -fdump-tree-optimized" } */
++/* { dg-add-options ieee } */
++/* PR middle-end/95351 */
++
++int Foo(double possiblyNAN, double b, double c)
++{
++    return (possiblyNAN <= 2.0) || ((possiblyNAN  > 2.0) && (b > c));
++}
++
++/* Make sure we don't remove either >/<=  */
++
++/* { dg-final { scan-tree-dump "possiblyNAN > 2.0e.0" "original" } } */
++/* { dg-final { scan-tree-dump "possiblyNAN_\[0-9\]+.D. > 2.0e.0" "optimized" } } */
++
++/* { dg-final { scan-tree-dump "possiblyNAN <= 2.0e.0" "original" } } */
++/* { dg-final { scan-tree-dump "possiblyNAN_\[0-9\]+.D. <= 2.0e.0" "optimized" } } */
 diff --git a/gcc/testsuite/gcc.dg/framework-1.c b/gcc/testsuite/gcc.dg/framework-1.c
 index de4adc39868..fdec129a8fb 100644
 --- a/gcc/testsuite/gcc.dg/framework-1.c
@@ -53513,6 +53624,46 @@ index 94f9cc4d6b6..dcaf272d73f 100644
    to_mode = SCALAR_INT_TYPE_MODE (type);
    from_mode = SCALAR_INT_TYPE_MODE (type1);
    if (to_mode == from_mode)
+diff --git a/gcc/tree-ssa-phiopt.c b/gcc/tree-ssa-phiopt.c
+index 5831a7764a4..d26d7889d95 100644
+--- a/gcc/tree-ssa-phiopt.c
++++ b/gcc/tree-ssa-phiopt.c
+@@ -1676,7 +1676,7 @@ minmax_replacement (basic_block cond_bb, basic_block middle_bb,
+ 
+ 	      /* We need BOUND <= LARGER.  */
+ 	      if (!integer_nonzerop (fold_build2 (LE_EXPR, boolean_type_node,
+-						  bound, larger)))
++						  bound, arg_false)))
+ 		return false;
+ 	    }
+ 	  else if (operand_equal_for_phi_arg_p (arg_false, smaller)
+@@ -1707,7 +1707,7 @@ minmax_replacement (basic_block cond_bb, basic_block middle_bb,
+ 
+ 	      /* We need BOUND >= SMALLER.  */
+ 	      if (!integer_nonzerop (fold_build2 (GE_EXPR, boolean_type_node,
+-						  bound, smaller)))
++						  bound, arg_false)))
+ 		return false;
+ 	    }
+ 	  else
+@@ -1747,7 +1747,7 @@ minmax_replacement (basic_block cond_bb, basic_block middle_bb,
+ 
+ 	      /* We need BOUND >= LARGER.  */
+ 	      if (!integer_nonzerop (fold_build2 (GE_EXPR, boolean_type_node,
+-						  bound, larger)))
++						  bound, arg_true)))
+ 		return false;
+ 	    }
+ 	  else if (operand_equal_for_phi_arg_p (arg_true, smaller)
+@@ -1774,7 +1774,7 @@ minmax_replacement (basic_block cond_bb, basic_block middle_bb,
+ 
+ 	      /* We need BOUND <= SMALLER.  */
+ 	      if (!integer_nonzerop (fold_build2 (LE_EXPR, boolean_type_node,
+-						  bound, smaller)))
++						  bound, arg_true)))
+ 		return false;
+ 	    }
+ 	  else
 diff --git a/gcc/tree-ssa-reassoc.c b/gcc/tree-ssa-reassoc.c
 index 32e1632705b..7dca793adbb 100644
 --- a/gcc/tree-ssa-reassoc.c
