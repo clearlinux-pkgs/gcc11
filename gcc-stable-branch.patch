@@ -17,13 +17,14 @@ Andre Vieira (1):
 Andreas Krebbel (1):
       IBM zSystems/testsuite: PR105147: Skip pr105140.c
 
-Andrew Pinski (6):
+Andrew Pinski (7):
       Fix fc-prototypes usage with C_INT64_T and non LP64 Targets.
       match.pd: When simplifying BFR of an insert, require a mode precision integral type [PR108688]
       MATCH: Fix infinite loop between `vec_cond(vec_cond(a,b,0), c, d)` and `a & b`
       c++/c-common: Fix convert_vector_to_array_for_subscript for qualified vector types [PR89224]
       Fold: Fix up merge_truthop_with_opposite_arm for NaNs [PR95351]
       Fix PR 111331: wrong code for `a > 28 ? MIN<a, 28> : 29`
+      Fix PR 110386: backprop vs ABSU_EXPR
 
 Anthony Sharp (1):
       call_summary: add missing template keyword
@@ -91,7 +92,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (737):
+GCC Administrator (738):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -993,7 +995,7 @@ Ian Lance Taylor (2):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
       syscall: add prlimit
 
-Jakub Jelinek (103):
+Jakub Jelinek (104):
       emit-rtl: Fix -fcompare-debug bug with label references in debug insns [PR105203]
       sparc: Preserve ORIGINAL_REGNO in epilogue_renumber [PR105257]
       rtlanal: Fix up replace_rtx [PR105333]
@@ -1097,6 +1099,7 @@ Jakub Jelinek (103):
       testsuite: Require lra effective target for pr107385.c
       ubsan: Don't -fsanitize=null instrument __seg_fs/gs pointers [PR111736]
       tsan: Don't instrument non-generic AS accesses [PR111736]
+      testsuite: Fix up vector-subaccess-1.C test for ia32 [PR89224]
 
 Jan Hubicka (5):
       Fix modref_tree::remap_params
@@ -3537,10 +3540,38 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..c5e70acf212 100644
+index a0587d18824..2f6faf12ae3 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,3229 @@
+@@ -1,3 +1,3257 @@
++2024-05-09  Andrew Pinski  <apinski@marvell.com>
++
++	Backported from master:
++	2023-09-25  Andrew Pinski  <apinski@marvell.com>
++
++	PR tree-optimization/110386
++	* gimple-ssa-backprop.c (strip_sign_op_1): Remove ABSU_EXPR.
++
++2024-05-08  Andrew Pinski  <apinski@marvell.com>
++
++	Backported from master:
++	2023-09-10  Andrew Pinski  <apinski@marvell.com>
++
++	PR tree-optimization/111331
++	* tree-ssa-phiopt.c (minmax_replacement):
++	Fix the LE/GE comparison for the
++	`(a CMP CST1) ? max<a,CST2> : a` optimization.
++
++2024-05-08  Andrew Pinski  <quic_apinski@quicinc.com>
++
++	Backported from master:
++	2024-03-11  Andrew Pinski  <quic_apinski@quicinc.com>
++
++	PR middle-end/95351
++	* fold-const.c (merge_truthop_with_opposite_arm): Use
++	the type of the operands of the comparison and not the type
++	of the comparison.
++
 +2024-05-02  Peter Bergner  <bergner@linux.ibm.com>
 +
 +	Backported from master:
@@ -7240,10 +7271,19 @@ index 64f4999ab07..627a89b3c45 100644
    set_mem_alias_set (mem, 0);
    return mem;
 diff --git a/gcc/c-family/ChangeLog b/gcc/c-family/ChangeLog
-index dff48ba4655..7d939a6e8c6 100644
+index dff48ba4655..ee3e5424935 100644
 --- a/gcc/c-family/ChangeLog
 +++ b/gcc/c-family/ChangeLog
-@@ -1,3 +1,80 @@
+@@ -1,3 +1,89 @@
++2024-05-08  Andrew Pinski  <quic_apinski@quicinc.com>
++
++	Backported from master:
++	2024-05-07  Andrew Pinski  <quic_apinski@quicinc.com>
++
++	PR c++/89224
++	* c-common.c (convert_vector_to_array_for_subscript): Call build_qualified_type
++	for the inner type.
++
 +2024-04-23  Matt Jacobson  <mhjacobson@me.com>
 +
 +	Backported from master:
@@ -22818,10 +22858,19 @@ index 49f043ed29b..a4d5bdb1b8d 100644
      fi
      dsymutil_major=`expr "$dsymutil_vers" : '\([[0-9]]*\)'`
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..a5d80090ee9 100644
+index 85c8fdd38cd..139db15b36d 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,645 @@
+@@ -1,3 +1,654 @@
++2024-05-08  Andrew Pinski  <quic_apinski@quicinc.com>
++
++	Backported from master:
++	2024-05-07  Andrew Pinski  <quic_apinski@quicinc.com>
++
++	PR c++/89224
++	* constexpr.c (cxx_eval_array_reference): Compare main variants
++	for the vector/array types instead of the types directly.
++
 +2024-04-22  Iain Sandoe  <iain@sandoe.co.uk>
 +
 +	Backported from master:
@@ -30113,6 +30162,18 @@ index 2c78a08d3f1..a055cbecd0c 100644
      }
  
  }; // class pass_gimple_isel
+diff --git a/gcc/gimple-ssa-backprop.c b/gcc/gimple-ssa-backprop.c
+index 4b62bb92a21..8c0a37e6e97 100644
+--- a/gcc/gimple-ssa-backprop.c
++++ b/gcc/gimple-ssa-backprop.c
+@@ -688,7 +688,6 @@ strip_sign_op_1 (tree rhs)
+     switch (gimple_assign_rhs_code (assign))
+       {
+       case ABS_EXPR:
+-      case ABSU_EXPR:
+       case NEGATE_EXPR:
+ 	return gimple_assign_rhs1 (assign);
+ 
 diff --git a/gcc/gimple-ssa-store-merging.c b/gcc/gimple-ssa-store-merging.c
 index 0a74b025d00..288a73d68a6 100644
 --- a/gcc/gimple-ssa-store-merging.c
@@ -32514,10 +32575,55 @@ index 5530a124a9d..31f93f4b747 100644
  
  DEBUG_FUNCTION void
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..636d9c3d6ff 100644
+index 5fc23605244..1479fdb3b00 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,3263 @@
+@@ -1,3 +1,3308 @@
++2024-05-09  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-05-09  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/89224
++	* g++.dg/torture/vector-subaccess-1.C: Add -Wno-psabi as additional
++	options.
++
++2024-05-09  Andrew Pinski  <apinski@marvell.com>
++
++	Backported from master:
++	2023-09-25  Andrew Pinski  <apinski@marvell.com>
++
++	PR tree-optimization/110386
++	* gcc.c-torture/compile/pr110386-1.c: New test.
++	* gcc.c-torture/compile/pr110386-2.c: New test.
++
++2024-05-08  Andrew Pinski  <apinski@marvell.com>
++
++	Backported from master:
++	2023-09-10  Andrew Pinski  <apinski@marvell.com>
++
++	PR tree-optimization/111331
++	* gcc.c-torture/execute/pr111331-1.c: New test.
++	* gcc.c-torture/execute/pr111331-2.c: New test.
++	* gcc.c-torture/execute/pr111331-3.c: New test.
++
++2024-05-08  Andrew Pinski  <quic_apinski@quicinc.com>
++
++	Backported from master:
++	2024-03-11  Andrew Pinski  <quic_apinski@quicinc.com>
++
++	PR middle-end/95351
++	* gcc.dg/float_opposite_arm-1.c: New test.
++
++2024-05-08  Andrew Pinski  <quic_apinski@quicinc.com>
++
++	Backported from master:
++	2024-05-07  Andrew Pinski  <quic_apinski@quicinc.com>
++
++	PR c++/89224
++	* g++.dg/torture/vector-subaccess-1.C: New test.
++	* gcc.dg/pr83415.c: Change warning to error.
++
 +2024-05-02  Peter Bergner  <bergner@linux.ibm.com>
 +
 +	Backported from master:
@@ -38925,11 +39031,12 @@ index 00000000000..4a88e1519d0
 +}
 diff --git a/gcc/testsuite/g++.dg/torture/vector-subaccess-1.C b/gcc/testsuite/g++.dg/torture/vector-subaccess-1.C
 new file mode 100644
-index 00000000000..0c8958a4e03
+index 00000000000..4b909dae492
 --- /dev/null
 +++ b/gcc/testsuite/g++.dg/torture/vector-subaccess-1.C
-@@ -0,0 +1,23 @@
+@@ -0,0 +1,24 @@
 +/* PR c++/89224 */
++/* { dg-additional-options "-Wno-psabi" } */
 +
 +/* The access of `vector[i]` has the same qualifiers as the original
 +   vector which was missing. */
@@ -40702,6 +40809,38 @@ index 00000000000..43d782d62bd
 +    }
 +}
 +
+diff --git a/gcc/testsuite/gcc.c-torture/compile/pr110386-1.c b/gcc/testsuite/gcc.c-torture/compile/pr110386-1.c
+new file mode 100644
+index 00000000000..4fcc977ad16
+--- /dev/null
++++ b/gcc/testsuite/gcc.c-torture/compile/pr110386-1.c
+@@ -0,0 +1,9 @@
++
++int f(int a)
++{
++        int c = c < 0 ? c : -c;
++        c = -c;
++        unsigned b =  c;
++        unsigned t = b*a;
++        return t*t;
++}
+diff --git a/gcc/testsuite/gcc.c-torture/compile/pr110386-2.c b/gcc/testsuite/gcc.c-torture/compile/pr110386-2.c
+new file mode 100644
+index 00000000000..c60e1b6994b
+--- /dev/null
++++ b/gcc/testsuite/gcc.c-torture/compile/pr110386-2.c
+@@ -0,0 +1,11 @@
++/* { dg-do compile { target i?86-*-* x86_64-*-* } } */
++/* { dg-options "-mavx" } */
++
++#include <immintrin.h>
++
++__m128i do_stuff(__m128i XMM0) {
++	__m128i ABS0 = _mm_abs_epi32(XMM0);
++	__m128i MUL0 = _mm_mullo_epi32(ABS0, XMM0);
++	__m128i MUL1 = _mm_mullo_epi32(MUL0, MUL0);
++	return MUL1;
++}
 diff --git a/gcc/testsuite/gcc.c-torture/compile/pr111699-1.c b/gcc/testsuite/gcc.c-torture/compile/pr111699-1.c
 new file mode 100644
 index 00000000000..87b127ed199
