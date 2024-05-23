@@ -92,7 +92,15 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (739):
+GCC Administrator (747):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1696,8 +1704,9 @@ Tom de Vries (2):
       [nvptx] Add bar.warp.sync
       [nvptx] Add uniform_warp_check insn
 
-Torbjörn SVENSSON (1):
+Torbjörn SVENSSON (2):
       IRA: Make sure array is big enough
+      testsuite: Verify r0-r3 are extended with CMSE
 
 Uros Bizjak (4):
       i386: Fix assert in ix86_function_arg [PR105970]
@@ -32622,10 +32631,19 @@ index 5530a124a9d..31f93f4b747 100644
  
  DEBUG_FUNCTION void
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..1479fdb3b00 100644
+index 5fc23605244..ca85efb26dc 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,3308 @@
+@@ -1,3 +1,3317 @@
++2024-05-22  Torbjörn SVENSSON  <torbjorn.svensson@foss.st.com>
++
++	Backported from master:
++	2024-05-22  Torbjörn SVENSSON  <torbjorn.svensson@foss.st.com>
++
++	* gcc.target/arm/cmse/extend-param.c: Add regression test. Add
++	-fshort-enums.
++	* gcc.target/arm/cmse/extend-return.c: Add -fshort-enums option.
++
 +2024-05-09  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -45767,12 +45785,12 @@ index 00000000000..b89be96dc1d
 +}
 diff --git a/gcc/testsuite/gcc.target/arm/cmse/extend-param.c b/gcc/testsuite/gcc.target/arm/cmse/extend-param.c
 new file mode 100644
-index 00000000000..01fac786238
+index 00000000000..d01ef87e0be
 --- /dev/null
 +++ b/gcc/testsuite/gcc.target/arm/cmse/extend-param.c
-@@ -0,0 +1,96 @@
+@@ -0,0 +1,109 @@
 +/* { dg-do compile } */
-+/* { dg-options "-mcmse" } */
++/* { dg-options "-mcmse -fshort-enums" } */
 +/* { dg-final { check-function-bodies "**" "" "" } } */
 +
 +#include <arm_cmse.h>
@@ -45851,7 +45869,6 @@ index 00000000000..01fac786238
 +  if (index >= ARRAY_SIZE)
 +    return 0;
 +  return array[index];
-+
 +}
 +
 +/*
@@ -45861,21 +45878,34 @@ index 00000000000..01fac786238
 +**	...
 +*/
 +__attribute__((cmse_nonsecure_entry)) char boolSecureFunc (bool index) {
-+
 +  if (index >= ARRAY_SIZE)
 +    return 0;
 +  return array[index];
-+
 +}
-\ No newline at end of file
++
++/*
++**__acle_se_boolCharShortEnumSecureFunc:
++**	...
++**	uxtb	r0, r0
++**	uxtb	r1, r1
++**	uxth	r2, r2
++**	uxtb	r3, r3
++**	...
++*/
++__attribute__((cmse_nonsecure_entry,optimize(0))) char boolCharShortEnumSecureFunc (bool a, unsigned char b, unsigned short c, enum offset d) {
++  size_t index = a + b + c + d;
++  if (index >= ARRAY_SIZE)
++    return 0;
++  return array[index];
++}
 diff --git a/gcc/testsuite/gcc.target/arm/cmse/extend-return.c b/gcc/testsuite/gcc.target/arm/cmse/extend-return.c
 new file mode 100644
-index 00000000000..cf731ed33df
+index 00000000000..081de0d699f
 --- /dev/null
 +++ b/gcc/testsuite/gcc.target/arm/cmse/extend-return.c
 @@ -0,0 +1,92 @@
 +/* { dg-do compile } */
-+/* { dg-options "-mcmse" } */
++/* { dg-options "-mcmse -fshort-enums" } */
 +/* { dg-final { check-function-bodies "**" "" "" } } */
 +
 +#include <arm_cmse.h>
@@ -45966,7 +45996,6 @@ index 00000000000..cf731ed33df
 +{
 +  return ns_foo_p ();
 +}
-\ No newline at end of file
 diff --git a/gcc/testsuite/gcc.target/arm/mve/intrinsics/vldst24q_reg_offset.c b/gcc/testsuite/gcc.target/arm/mve/intrinsics/vldst24q_reg_offset.c
 new file mode 100644
 index 00000000000..d028b91e81a
