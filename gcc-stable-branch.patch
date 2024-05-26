@@ -92,7 +92,10 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (747):
+GCC Administrator (750):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1118,7 +1121,7 @@ Jan Hubicka (5):
       Zen4 tuning part 2
       FIx handling of X86_TUNE_AVOID_512FMA_CHAINS
 
-Jason Merrill (33):
+Jason Merrill (37):
       c++: rodata and defaulted ctor [PR104142]
       c++: low -faligned-new [PR102071]
       c++: local function versioning [PR104669]
@@ -1152,6 +1155,10 @@ Jason Merrill (33):
       c++: NRV and goto [PR92407]
       c++: -Wdeprecated-copy and using operator= [PR92145]
       c++: xvalue array subscript [PR103185]
+      c++: binding reference to comma expr [PR114561]
+      c++: __is_constructible ref binding [PR100667]
+      c++: unroll pragma in templates [PR111529]
+      c++: array of PMF [PR113598]
 
 Jeevitha (1):
       rs6000: Don't allow AltiVec address in movoo & movxo pattern [PR110411]
@@ -22878,10 +22885,48 @@ index 49f043ed29b..a4d5bdb1b8d 100644
      fi
      dsymutil_major=`expr "$dsymutil_vers" : '\([[0-9]]*\)'`
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..139db15b36d 100644
+index 85c8fdd38cd..5f74493cbba 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,654 @@
+@@ -1,3 +1,692 @@
++2024-05-24  Jason Merrill  <jason@redhat.com>
++
++	Backported from master:
++	2024-01-25  Jason Merrill  <jason@redhat.com>
++
++	PR c++/113598
++	* init.c (build_vec_init): Don't use {} for PMF.
++
++2024-05-24  Jason Merrill  <jason@redhat.com>
++
++	Backported from master:
++	2023-09-22  Jason Merrill  <jason@redhat.com>
++
++	PR c++/111529
++	* parser.c (cp_parser_lambda_declarator_opt): Don't suggest
++	-std=c++14 for lambda templates.
++	* pt.c (tsubst_expr): Move ANNOTATE_EXPR handling...
++	(tsubst_copy_and_build): ...here.
++
++2024-05-24  Jason Merrill  <jason@redhat.com>
++
++	Backported from master:
++	2024-03-28  Jason Merrill  <jason@redhat.com>
++
++	PR c++/100667
++	* semantics.c (same_type_ref_bind_p): New.
++	(finish_trait_expr): Use it.
++
++2024-05-24  Jason Merrill  <jason@redhat.com>
++
++	Backported from master:
++	2024-04-02  Jason Merrill  <jason@redhat.com>
++
++	PR c++/114561
++	PR c++/114562
++	* call.c (convert_like_internal): Avoid adding qualification
++	conversion in direct reference binding.
++
 +2024-05-08  Andrew Pinski  <quic_apinski@quicinc.com>
 +
 +	Backported from master:
@@ -23569,7 +23614,7 @@ index 155be74efdb..4be5cc6a942 100644
  
  # Create the compiler driver for g++.
 diff --git a/gcc/cp/call.c b/gcc/cp/call.c
-index 55bb9c45f8c..7c3ce1693e1 100644
+index 55bb9c45f8c..fbe29f38384 100644
 --- a/gcc/cp/call.c
 +++ b/gcc/cp/call.c
 @@ -1683,8 +1683,19 @@ direct_reference_binding (tree type, conversion *conv)
@@ -23604,14 +23649,23 @@ index 55bb9c45f8c..7c3ce1693e1 100644
  	      && !(convflags & LOOKUP_NO_TEMP_BIND))
  	    cand->second_conv
  	      = build_conv (ck_rvalue, totype, cand->second_conv);
-@@ -7804,13 +7816,10 @@ convert_like_internal (conversion *convs, tree expr, tree fn, int argnum,
+@@ -7804,13 +7816,18 @@ convert_like_internal (conversion *convs, tree expr, tree fn, int argnum,
        break;
      };
  
 -  tsubst_flags_t sub_complain = complain;
 -  if (!flag_elide_constructors)
 -    sub_complain &= ~tf_no_cleanup;
-   expr = convert_like (next_conversion (convs), expr, fn, argnum,
+-  expr = convert_like (next_conversion (convs), expr, fn, argnum,
++  conversion *nc = next_conversion (convs);
++  if (convs->kind == ck_ref_bind && nc->kind == ck_qual
++      && !convs->need_temporary_p)
++    /* direct_reference_binding might have inserted a ck_qual under
++       this ck_ref_bind for the benefit of conversion sequence ranking.
++       Don't actually perform that conversion.  */
++    nc = next_conversion (nc);
++
++  expr = convert_like (nc, expr, fn, argnum,
  		       convs->kind == ck_ref_bind
  		       ? issue_conversion_warnings : false,
 -		       c_cast_p, sub_complain);
@@ -23619,7 +23673,27 @@ index 55bb9c45f8c..7c3ce1693e1 100644
    if (expr == error_mark_node)
      return error_mark_node;
  
-@@ -11584,6 +11593,8 @@ joust_maybe_elide_copy (z_candidate *&cand)
+@@ -7888,19 +7905,6 @@ convert_like_internal (conversion *convs, tree expr, tree fn, int argnum,
+       {
+ 	tree ref_type = totype;
+ 
+-	/* direct_reference_binding might have inserted a ck_qual under
+-	   this ck_ref_bind for the benefit of conversion sequence ranking.
+-	   Ignore the conversion; we'll create our own below.  */
+-	if (next_conversion (convs)->kind == ck_qual
+-	    && !convs->need_temporary_p)
+-	  {
+-	    gcc_assert (same_type_p (TREE_TYPE (expr),
+-				     next_conversion (convs)->type));
+-	    /* Strip the cast created by the ck_qual; cp_build_addr_expr
+-	       below expects an lvalue.  */
+-	    STRIP_NOPS (expr);
+-	  }
+-
+ 	if (convs->bad_p && !next_conversion (convs)->bad_p)
+ 	  {
+ 	    tree extype = TREE_TYPE (expr);
+@@ -11584,6 +11588,8 @@ joust_maybe_elide_copy (z_candidate *&cand)
    if (!DECL_COPY_CONSTRUCTOR_P (fn) && !DECL_MOVE_CONSTRUCTOR_P (fn))
      return false;
    conversion *conv = cand->convs[0];
@@ -24602,7 +24676,7 @@ index 3c9bd1490b4..984106f10dd 100644
  
  	case OPT_stdlib_:
 diff --git a/gcc/cp/init.c b/gcc/cp/init.c
-index bd27c92324b..08b26ba9a17 100644
+index bd27c92324b..b6e63ee8f28 100644
 --- a/gcc/cp/init.c
 +++ b/gcc/cp/init.c
 @@ -597,15 +597,9 @@ get_nsdmi (tree member, bool in_ctor, tsubst_flags_t complain)
@@ -24680,6 +24754,17 @@ index bd27c92324b..08b26ba9a17 100644
    alloc_node = TARGET_EXPR_SLOT (alloc_expr);
  
    /* Strip any COMPOUND_EXPRs from ALLOC_CALL.  */
+@@ -4479,7 +4479,9 @@ build_vec_init (tree base, tree maxindex, tree init,
+ 	 But for non-classes, that's the same as value-initialization.  */
+       if (empty_list)
+ 	{
+-	  if (cxx_dialect >= cxx11 && AGGREGATE_TYPE_P (type))
++	  if (cxx_dialect >= cxx11
++	      && (CLASS_TYPE_P (type)
++		  || TREE_CODE (type) == ARRAY_TYPE))
+ 	    {
+ 	      init = build_constructor (init_list_type_node, NULL);
+ 	    }
 diff --git a/gcc/cp/lambda.c b/gcc/cp/lambda.c
 index d8efe91d9fe..bc849beef41 100644
 --- a/gcc/cp/lambda.c
@@ -24832,7 +24917,7 @@ index c6d0aa96b55..350a9c05cfe 100644
  extern void discard_operator_bindings (tree);
  
 diff --git a/gcc/cp/parser.c b/gcc/cp/parser.c
-index 90d119eaa28..0619b834cf4 100644
+index 90d119eaa28..4f75f19ac50 100644
 --- a/gcc/cp/parser.c
 +++ b/gcc/cp/parser.c
 @@ -249,7 +249,7 @@ static cp_token_cache *cp_token_cache_new
@@ -24865,6 +24950,15 @@ index 90d119eaa28..0619b834cf4 100644
  	      || TREE_TYPE (current.lhs) == NULL_TREE
  	      || TREE_CODE (TREE_TYPE (current.lhs)) != BOOLEAN_TYPE))
  	warn_logical_not_parentheses (current.loc, current.tree_type,
+@@ -11307,7 +11310,7 @@ cp_parser_lambda_declarator_opt (cp_parser* parser, tree lambda_expr)
+       if (cxx_dialect < cxx14)
+ 	pedwarn (parser->lexer->next_token->location, 0,
+ 		 "lambda templates are only available with "
+-		 "%<-std=c++14%> or %<-std=gnu++14%>");
++		 "%<-std=c++20%> or %<-std=gnu++20%>");
+       else if (cxx_dialect < cxx20)
+ 	pedwarn (parser->lexer->next_token->location, OPT_Wpedantic,
+ 		 "lambda templates are only available with "
 @@ -17728,7 +17731,7 @@ cp_parser_template_name (cp_parser* parser,
  			: parser->context->object_type);
  	  if (scope && TYPE_P (scope)
@@ -25071,7 +25165,7 @@ index 90d119eaa28..0619b834cf4 100644
    if (!INTEGRAL_TYPE_P (TREE_TYPE (expr))
        || TREE_CODE (expr) != INTEGER_CST
 diff --git a/gcc/cp/pt.c b/gcc/cp/pt.c
-index 318d42d800d..07515f63d29 100644
+index 318d42d800d..8d39473de9e 100644
 --- a/gcc/cp/pt.c
 +++ b/gcc/cp/pt.c
 @@ -2524,17 +2524,14 @@ determine_specialization (tree template_id,
@@ -25334,6 +25428,34 @@ index 318d42d800d..07515f63d29 100644
  		    if (VAR_P (decl)
  			&& DECL_DECOMPOSITION_P (decl)
  			&& TREE_TYPE (pattern_decl) != error_mark_node)
+@@ -19292,13 +19367,6 @@ tsubst_expr (tree t, tree args, tsubst_flags_t complain, tree in_decl,
+ 				    RECUR (TREE_OPERAND (t, 1)),
+ 				    complain));
+ 
+-    case ANNOTATE_EXPR:
+-      tmp = RECUR (TREE_OPERAND (t, 0));
+-      RETURN (build3_loc (EXPR_LOCATION (t), ANNOTATE_EXPR,
+-			  TREE_TYPE (tmp), tmp,
+-			  RECUR (TREE_OPERAND (t, 1)),
+-			  RECUR (TREE_OPERAND (t, 2))));
+-
+     case PREDICT_EXPR:
+       RETURN (add_stmt (copy_node (t)));
+ 
+@@ -21048,6 +21116,13 @@ tsubst_copy_and_build (tree t,
+ 	 with constant operands.  */
+       RETURN (t);
+ 
++    case ANNOTATE_EXPR:
++      op1 = RECUR (TREE_OPERAND (t, 0));
++      RETURN (build3_loc (EXPR_LOCATION (t), ANNOTATE_EXPR,
++			  TREE_TYPE (op1), op1,
++			  RECUR (TREE_OPERAND (t, 1)),
++			  RECUR (TREE_OPERAND (t, 2))));
++
+     case NON_LVALUE_EXPR:
+     case VIEW_CONVERT_EXPR:
+       if (location_wrapper_p (t))
 @@ -23410,6 +23485,8 @@ unify_pack_expansion (tree tparms, tree targs, tree packed_parms,
  	     arguments if it is not otherwise deduced.  */
  	  if (cxx_dialect >= cxx20
@@ -25449,7 +25571,7 @@ index 318d42d800d..07515f63d29 100644
  	  for (j = 0; j < natparms; ++j)
  	    TREE_VEC_ELT (gtparms, j) = TREE_VEC_ELT (atparms, j);
 diff --git a/gcc/cp/semantics.c b/gcc/cp/semantics.c
-index d447ce80174..385e108a1c8 100644
+index d447ce80174..57e71ec3a3c 100644
 --- a/gcc/cp/semantics.c
 +++ b/gcc/cp/semantics.c
 @@ -655,7 +655,8 @@ do_pushlevel (scope_kind sk)
@@ -25481,6 +25603,63 @@ index d447ce80174..385e108a1c8 100644
        if (expr == error_mark_node)
  	return error_mark_node;
      }
+@@ -10568,6 +10570,38 @@ check_trait_type (tree type)
+   return !!complete_type_or_else (strip_array_types (type), NULL_TREE);
+ }
+ 
++/* True iff the conversion (if any) would be a direct reference
++   binding, not requiring complete types.  This is LWG2939.  */
++
++static bool
++same_type_ref_bind_p (cp_trait_kind kind, tree type1, tree type2)
++{
++  tree from, to;
++  switch (kind)
++    {
++      /* These put the target type first.  */
++    case CPTK_IS_CONSTRUCTIBLE:
++    case CPTK_IS_NOTHROW_CONSTRUCTIBLE:
++    case CPTK_IS_TRIVIALLY_CONSTRUCTIBLE:
++      to = type1;
++      from = type2;
++      break;
++
++    default:
++      gcc_unreachable ();
++    }
++
++  if (TREE_CODE (to) != REFERENCE_TYPE || !from)
++    return false;
++  if (TREE_CODE (from) == TREE_VEC && TREE_VEC_LENGTH (from) == 1)
++    from = TREE_VEC_ELT (from, 0);
++  else if (TREE_CODE (from) == TREE_LIST && !TREE_CHAIN (from))
++    from = TREE_VALUE (from);
++  return (TYPE_P (from)
++	  && (same_type_ignoring_top_level_qualifiers_p
++	      (non_reference (to), non_reference (from))));
++}
++
+ /* Process a trait expression.  */
+ 
+ tree
+@@ -10617,10 +10651,15 @@ finish_trait_expr (location_t loc, cp_trait_kind kind, tree type1, tree type2)
+     case CPTK_IS_CONSTRUCTIBLE:
+       break;
+ 
+-    case CPTK_IS_TRIVIALLY_ASSIGNABLE:
+     case CPTK_IS_TRIVIALLY_CONSTRUCTIBLE:
+-    case CPTK_IS_NOTHROW_ASSIGNABLE:
+     case CPTK_IS_NOTHROW_CONSTRUCTIBLE:
++      /* Don't check completeness for direct reference binding.  */;
++      if (same_type_ref_bind_p (kind, type1, type2))
++	break;
++      gcc_fallthrough ();
++
++    case CPTK_IS_NOTHROW_ASSIGNABLE:
++    case CPTK_IS_TRIVIALLY_ASSIGNABLE:
+       if (!check_trait_type (type1)
+ 	  || !check_trait_type (type2))
+ 	return error_mark_node;
 diff --git a/gcc/cp/tree.c b/gcc/cp/tree.c
 index b499f38be15..e414d8cfd18 100644
 --- a/gcc/cp/tree.c
@@ -32631,10 +32810,44 @@ index 5530a124a9d..31f93f4b747 100644
  
  DEBUG_FUNCTION void
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..ca85efb26dc 100644
+index 5fc23605244..ccd4d0d47dc 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,3317 @@
+@@ -1,3 +1,3351 @@
++2024-05-24  Jason Merrill  <jason@redhat.com>
++
++	Backported from master:
++	2024-01-25  Jason Merrill  <jason@redhat.com>
++
++	PR c++/113598
++	* g++.dg/cpp0x/initlist-pmf2.C: New test.
++
++2024-05-24  Jason Merrill  <jason@redhat.com>
++
++	Backported from master:
++	2023-09-22  Jason Merrill  <jason@redhat.com>
++
++	PR c++/111529
++	* g++.dg/ext/unroll-4.C: New test.
++
++2024-05-24  Jason Merrill  <jason@redhat.com>
++
++	Backported from master:
++	2024-03-28  Jason Merrill  <jason@redhat.com>
++
++	PR c++/100667
++	* g++.dg/ext/is_constructible8.C: New test.
++
++2024-05-24  Jason Merrill  <jason@redhat.com>
++
++	Backported from master:
++	2024-04-02  Jason Merrill  <jason@redhat.com>
++
++	PR c++/114561
++	PR c++/114562
++	* g++.dg/conversion/ref10.C: New test.
++	* g++.dg/conversion/ref11.C: New test.
++
 +2024-05-22  Torbjörn SVENSSON  <torbjorn.svensson@foss.st.com>
 +
 +	Backported from master:
@@ -36329,6 +36542,56 @@ index 00000000000..ec678740cb8
 +int called;
 +template<> void g(Y) { called = 3; }
 +int main() { g(y); }
+diff --git a/gcc/testsuite/g++.dg/conversion/ref10.C b/gcc/testsuite/g++.dg/conversion/ref10.C
+new file mode 100644
+index 00000000000..1913f733a6b
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/conversion/ref10.C
+@@ -0,0 +1,5 @@
++// PR c++/114561
++
++void create(void* u) {
++  const void* const& r = ( (void)0, u );
++}
+diff --git a/gcc/testsuite/g++.dg/conversion/ref11.C b/gcc/testsuite/g++.dg/conversion/ref11.C
+new file mode 100644
+index 00000000000..bb9b835034c
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/conversion/ref11.C
+@@ -0,0 +1,33 @@
++// PR c++/114562
++// { dg-do compile { target c++11 } }
++
++template <typename T>
++struct Optional {
++  Optional(T&&);
++};
++
++struct MyClass {
++  MyClass(Optional<const void*>);
++};
++
++// const void* NONE = nullptr; // Correct Error
++void* NONE = nullptr; // Crash
++
++void beforeParam();
++
++template<typename T>
++struct Create {
++  template <typename U> static T create(U &&) noexcept;
++};
++
++
++template <typename T>
++template<typename U>
++T Create<T>::create(U && u) noexcept {
++  return T( ( (beforeParam()), (u) ) ); // { dg-error "cannot bind rvalue reference" }
++  // return T( (u) ); // Correct Error
++}
++
++void test_func() {
++  Create<MyClass>::create(NONE);
++}
 diff --git a/gcc/testsuite/g++.dg/coroutines/co-await-initlist1.C b/gcc/testsuite/g++.dg/coroutines/co-await-initlist1.C
 new file mode 100644
 index 00000000000..b8e8923a9c8
@@ -36766,6 +37029,24 @@ index 00000000000..e44dbecfece
 +  B b = foo();
 +  if (!destroyed)
 +    __builtin_abort();
++}
+diff --git a/gcc/testsuite/g++.dg/cpp0x/initlist-pmf2.C b/gcc/testsuite/g++.dg/cpp0x/initlist-pmf2.C
+new file mode 100644
+index 00000000000..59c3698a9f8
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/cpp0x/initlist-pmf2.C
+@@ -0,0 +1,12 @@
++// PR c++/113598
++// { dg-additional-options -w }
++
++struct Cpu
++{
++  int op_nop();
++};
++typedef int(Cpu::*OpCode)();
++void f()
++{
++  new OpCode[256]{&Cpu::op_nop};
 +}
 diff --git a/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-const11.C b/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-const11.C
 new file mode 100644
@@ -37981,6 +38262,50 @@ index 00000000000..173df8a6703
 +  new thing_t;
 +}
 +int main() { exercise<1>(); }
+diff --git a/gcc/testsuite/g++.dg/ext/is_constructible8.C b/gcc/testsuite/g++.dg/ext/is_constructible8.C
+new file mode 100644
+index 00000000000..4b8204c0768
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/ext/is_constructible8.C
+@@ -0,0 +1,16 @@
++// PR c++/100667
++// { dg-do compile { target c++11 } }
++
++struct T;
++
++#define SA(X) static_assert ((X), #X);
++
++SA (__is_constructible(T&&, T));
++SA (__is_constructible(const T&, T));
++SA (!__is_constructible(T&, T));
++SA (__is_nothrow_constructible(T&&, T));
++SA (__is_nothrow_constructible(const T&, T));
++SA (!__is_nothrow_constructible(T&, T));
++SA (__is_trivially_constructible(T&&, T));
++SA (__is_trivially_constructible(const T&, T));
++SA (!__is_trivially_constructible(T&, T));
+diff --git a/gcc/testsuite/g++.dg/ext/unroll-4.C b/gcc/testsuite/g++.dg/ext/unroll-4.C
+new file mode 100644
+index 00000000000..1d1643a6bd9
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/ext/unroll-4.C
+@@ -0,0 +1,16 @@
++// PR c++/111529
++// { dg-do compile { target c++11 } }
++// { dg-additional-options -w }
++
++template <int>
++void f() {
++  []<int>() {
++    #pragma GCC unroll 9
++    for (int i = 1; i; --i) {
++    }
++  };
++}
++
++int main() {
++  f<0>();
++}
 diff --git a/gcc/testsuite/g++.dg/ext/unroll-5.C b/gcc/testsuite/g++.dg/ext/unroll-5.C
 new file mode 100644
 index 00000000000..f0bc51b2239
