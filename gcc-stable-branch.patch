@@ -92,7 +92,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (753):
+GCC Administrator (754):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1734,6 +1735,9 @@ Wilco Dijkstra (1):
 Xi Ruoyao (2):
       MIPS: Fix wrong MSA FP vector negation
       mips: Fix missing mode in neg<mode:MSA>2
+
+YunQiang Su (1):
+      MIPS16: Mark $2/$3 as clobbered if GP is used
 
 liuhongt (11):
       Fix insn does not satisfy its constraints: sse2_lshrv1ti3
@@ -15206,6 +15210,35 @@ index 3a67f25be56..98045154673 100644
  (define_expand "msa_ldi<mode>"
    [(match_operand:IMSA 0 "register_operand")
     (match_operand 1 "const_imm10_operand")]
+diff --git a/gcc/config/mips/mips.c b/gcc/config/mips/mips.c
+index bb6ff08e94c..3cf09494aec 100644
+--- a/gcc/config/mips/mips.c
++++ b/gcc/config/mips/mips.c
+@@ -3138,6 +3138,9 @@ mips_emit_call_insn (rtx pattern, rtx orig_addr, rtx addr, bool lazy_p)
+     {
+       rtx post_call_tmp_reg = gen_rtx_REG (word_mode, POST_CALL_TMP_REG);
+       clobber_reg (&CALL_INSN_FUNCTION_USAGE (insn), post_call_tmp_reg);
++      clobber_reg (&CALL_INSN_FUNCTION_USAGE (insn), MIPS16_PIC_TEMP);
++      clobber_reg (&CALL_INSN_FUNCTION_USAGE (insn),
++			MIPS_PROLOGUE_TEMP (word_mode));
+     }
+ 
+   return insn;
+@@ -3234,7 +3237,13 @@ mips16_gp_pseudo_reg (void)
+       rtx set = gen_load_const_gp (cfun->machine->mips16_gp_pseudo_rtx);
+       rtx_insn *insn = emit_insn_after (set, scan);
+       INSN_LOCATION (insn) = 0;
+-
++      /* NewABI support hasn't been implement.  NewABI should generate RTL
++	 sequence instead of ASM sequence directly.  */
++      if (mips_current_loadgp_style () == LOADGP_OLDABI)
++	{
++	  emit_clobber (MIPS16_PIC_TEMP);
++	  emit_clobber (MIPS_PROLOGUE_TEMP (Pmode));
++	}
+       pop_topmost_sequence ();
+     }
+ 
 diff --git a/gcc/config/nvptx/nvptx.c b/gcc/config/nvptx/nvptx.c
 index 7a7a9130e84..d25ddf45408 100644
 --- a/gcc/config/nvptx/nvptx.c
