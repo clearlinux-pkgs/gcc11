@@ -92,7 +92,10 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (755):
+GCC Administrator (758):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1181,7 +1184,7 @@ John David Anglin (4):
       hppa: Fix typo in PA 2.0 trampoline template
       hppa: Fix bug in atomic_storedi_1 pattern
 
-Jonathan Wakely (137):
+Jonathan Wakely (138):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -1319,6 +1322,7 @@ Jonathan Wakely (137):
       libstdc++: Add assertion to std::string_view::remove_suffix [PR112314]
       libstdc++: Missing constexpr for __gnu_debug::__valid_range etc
       libstdc++: Add missing std::tuple constructor [PR114147]
+      libstdc++: Replace link to gcc-4.3.2 docs in manual [PR115269]
 
 José Rui Faustino de Sousa (5):
       Fortran: Fix ICE with -fcheck=pointer [PR100136]
@@ -1721,11 +1725,12 @@ Torbjörn SVENSSON (2):
       IRA: Make sure array is big enough
       testsuite: Verify r0-r3 are extended with CMSE
 
-Uros Bizjak (4):
+Uros Bizjak (5):
       i386: Fix assert in ix86_function_arg [PR105970]
       alpha: Introduce target specific store_data_bypass_p function [PR105209]
       i386: Handle CONST_WIDE_INT in output_pic_addr_const [PR111340]
       i386: Wrong code with __builtin_parityl [PR112672]
+      alpha: Fix invalid RTX in divmodsi insn patterns [PR115297]
 
 Vladimir N. Makarov (1):
       [PR104637] LRA: Split hard regs as many as possible on one subpass
@@ -11487,6 +11492,72 @@ index 335f1db5335..9c05ce5a804 100644
  
  /* Helper function to set RTX_FRAME_RELATED_P on instructions, including
     sequences.  */
+diff --git a/gcc/config/alpha/alpha.md b/gcc/config/alpha/alpha.md
+index 98d09d43721..6ee8eb81df8 100644
+--- a/gcc/config/alpha/alpha.md
++++ b/gcc/config/alpha/alpha.md
+@@ -756,7 +756,8 @@
+ 	(sign_extend:DI (match_operand:SI 2 "nonimmediate_operand")))
+    (parallel [(set (match_dup 5)
+ 		   (sign_extend:DI
+-		    (any_divmod:SI (match_dup 3) (match_dup 4))))
++		    (any_divmod:SI (truncate:SI (match_dup 3))
++				   (truncate:SI (match_dup 4)))))
+ 	      (clobber (reg:DI 23))
+ 	      (clobber (reg:DI 28))])
+    (set (match_operand:SI 0 "nonimmediate_operand")
+@@ -782,9 +783,10 @@
+ 
+ (define_insn_and_split "*divmodsi_internal_er"
+   [(set (match_operand:DI 0 "register_operand" "=c")
+-	(sign_extend:DI (match_operator:SI 3 "divmod_operator"
+-			[(match_operand:DI 1 "register_operand" "a")
+-			 (match_operand:DI 2 "register_operand" "b")])))
++	(sign_extend:DI
++	 (match_operator:SI 3 "divmod_operator"
++	  [(truncate:SI (match_operand:DI 1 "register_operand" "a"))
++	   (truncate:SI (match_operand:DI 2 "register_operand" "b"))])))
+    (clobber (reg:DI 23))
+    (clobber (reg:DI 28))]
+   "TARGET_EXPLICIT_RELOCS && TARGET_ABI_OSF"
+@@ -826,8 +828,8 @@
+ (define_insn "*divmodsi_internal_er_1"
+   [(set (match_operand:DI 0 "register_operand" "=c")
+ 	(sign_extend:DI (match_operator:SI 3 "divmod_operator"
+-                        [(match_operand:DI 1 "register_operand" "a")
+-                         (match_operand:DI 2 "register_operand" "b")])))
++	 [(truncate:SI (match_operand:DI 1 "register_operand" "a"))
++	  (truncate:SI (match_operand:DI 2 "register_operand" "b"))])))
+    (use (match_operand:DI 4 "register_operand" "c"))
+    (use (match_operand 5 "const_int_operand"))
+    (clobber (reg:DI 23))
+@@ -839,9 +841,10 @@
+ 
+ (define_insn "*divmodsi_internal"
+   [(set (match_operand:DI 0 "register_operand" "=c")
+-	(sign_extend:DI (match_operator:SI 3 "divmod_operator"
+-			[(match_operand:DI 1 "register_operand" "a")
+-			 (match_operand:DI 2 "register_operand" "b")])))
++	(sign_extend:DI
++	 (match_operator:SI 3 "divmod_operator"
++	  [(truncate:SI (match_operand:DI 1 "register_operand" "a"))
++	   (truncate:SI (match_operand:DI 2 "register_operand" "b"))])))
+    (clobber (reg:DI 23))
+    (clobber (reg:DI 28))]
+   "TARGET_ABI_OSF"
+diff --git a/gcc/config/alpha/constraints.md b/gcc/config/alpha/constraints.md
+index e75a1489b4b..4b245233644 100644
+--- a/gcc/config/alpha/constraints.md
++++ b/gcc/config/alpha/constraints.md
+@@ -27,7 +27,7 @@
+  "General register 24, input to division routine")
+ 
+ (define_register_constraint "b" "R25_REG"
+- "General register 24, input to division routine")
++ "General register 25, input to division routine")
+ 
+ (define_register_constraint "c" "R27_REG"
+  "General register 27, function call address")
 diff --git a/gcc/config/alpha/ev4.md b/gcc/config/alpha/ev4.md
 index c22d0ba2903..2f70f1a6ffc 100644
 --- a/gcc/config/alpha/ev4.md
@@ -46200,6 +46271,25 @@ index 00000000000..b89be96dc1d
 +        *offsp = offs1 + offs2;
 +        return 1;
 +}
+diff --git a/gcc/testsuite/gcc.target/alpha/pr115297.c b/gcc/testsuite/gcc.target/alpha/pr115297.c
+new file mode 100644
+index 00000000000..4d5890ec8d9
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/alpha/pr115297.c
+@@ -0,0 +1,13 @@
++/* PR target/115297 */
++/* { dg-do compile } */
++/* { dg-options "-O1" } */
++
++enum { BPF_F_USER_BUILD_ID } __bpf_get_stack_size;
++long __bpf_get_stack_flags, bpf_get_stack___trans_tmp_2;
++
++void bpf_get_stack() {
++  unsigned elem_size;
++  int err = elem_size = __bpf_get_stack_flags ?: sizeof(long);
++  if (__builtin_expect(__bpf_get_stack_size % elem_size, 0))
++    bpf_get_stack___trans_tmp_2 = err;
++}
 diff --git a/gcc/testsuite/gcc.target/arm/cmse/extend-param.c b/gcc/testsuite/gcc.target/arm/cmse/extend-param.c
 new file mode 100644
 index 00000000000..d01ef87e0be
@@ -58555,10 +58645,20 @@ index 72119b01c69..2cc64a39649 100644
  
  	* GCC 11.3.0 released.
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..4a83ed8928d 100644
+index 85e04c45288..9c539c7e243 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,2305 @@
+@@ -1,3 +1,2315 @@
++2024-06-01  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2024-06-01  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/115269
++	* doc/xml/manual/using.xml: Replace link to gcc-4.3.2 docs.
++	Replace list of -std=... options with a single entry for -std.
++	* doc/html/manual/using.html: Regenerate.
++
 +2024-05-10  Matthias Kretz  <m.kretz@gsi.de>
 +
 +	Backported from master:
@@ -61846,6 +61946,34 @@ index 25c676d2892..3805e9e24f0 100644
               <code class="code">__STDCPP_WANT_MATH_SPEC_FUNCS__</code></td></tr><tr><td align="left">8</td><td align="left">Mathematical special functions</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1</td><td align="left">Additions to header <code class="code">&lt;cmath&gt;</code> synopsis</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.1</td><td align="left">associated Laguerre polynomials</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.2</td><td align="left">associated Legendre functions</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.3</td><td align="left">beta function</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.4</td><td align="left">(complete) elliptic integral of the first kind</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.5</td><td align="left">(complete) elliptic integral of the second kind</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.6</td><td align="left">(complete) elliptic integral of the third kind</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.7</td><td align="left">regular modified cylindrical Bessel functions</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.8</td><td align="left">cylindrical Bessel functions (of the first kind)</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.9</td><td align="left">irregular modified cylindrical Bessel functions</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.10</td><td align="left">cylindrical Neumann functions</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.11</td><td align="left">(incomplete) elliptic integral of the first kind</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.12</td><td align="left">(incomplete) elliptic integral of the second kind</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.13</td><td align="left">(incomplete) elliptic integral of the third kind</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.14</td><td align="left">exponential integral</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.15</td><td align="left">Hermite polynomials</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.16</td><td align="left">Laguerre polynomials</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.17</td><td align="left">Legendre polynomials</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.18</td><td align="left">Riemann zeta function</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.19</td><td align="left">spherical Bessel functions (of the first kind)</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.20</td><td align="left">spherical associated Legendre functions</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.1.21</td><td align="left">spherical Neumann functions</td><td align="left">Y</td><td align="left"> </td></tr><tr><td align="left">8.2</td><td align="left">Additions to header <code class="code">&lt;math.h&gt;</code></td><td align="left">Y</td><td align="left"> </td></tr><tr bgcolor="#B0B0B0"><td align="left">8.3</td><td align="left">The header <code class="code">&lt;ctgmath&gt;</code></td><td align="left">Partial</td><td align="left">Conflicts with C++ 2011 requirements.</td></tr><tr bgcolor="#C8B0B0"><td align="left">8.4</td><td align="left">The header <code class="code">&lt;tgmath.h&gt;</code></td><td align="left">N</td><td align="left">Conflicts with C++ 2011 requirements.</td></tr></tbody></table></div></div><br class="table-break" /><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="iso.specfun.specific"></a>Implementation Specific Behavior</h4></div></div></div><p>For behaviour which is specified by the 2011 standard,
        see <a class="link" href="status.html#iso.2011.specific" title="Implementation Specific Behavior">C++ 2011 Implementation
        Specific Behavior</a>. This section documents behaviour which
+diff --git a/libstdc++-v3/doc/html/manual/using.html b/libstdc++-v3/doc/html/manual/using.html
+index 641a08c688b..c0d7535d332 100644
+--- a/libstdc++-v3/doc/html/manual/using.html
++++ b/libstdc++-v3/doc/html/manual/using.html
+@@ -4,7 +4,7 @@
+   
+ </th><td width="20%" align="right"> <a accesskey="n" href="using_headers.html">Next</a></td></tr></table><hr /></div><div class="chapter"><div class="titlepage"><div><div><h2 class="title"><a id="manual.intro.using"></a>Chapter 3. Using</h2></div></div></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="section"><a href="using.html#manual.intro.using.flags">Command Options</a></span></dt><dt><span class="section"><a href="using_headers.html">Headers</a></span></dt><dd><dl><dt><span class="section"><a href="using_headers.html#manual.intro.using.headers.all">Header Files</a></span></dt><dt><span class="section"><a href="using_headers.html#manual.intro.using.headers.mixing">Mixing Headers</a></span></dt><dt><span class="section"><a href="using_headers.html#manual.intro.using.headers.cheaders">The C Headers and <code class="code">namespace std</code></a></span></dt><dt><span class="section"><a href="using_headers.html#manual.intro.using.headers.pre">Precompiled Headers</a></span></dt></dl></dd><dt><span class="section"><a href="using_macros.html">Macros</a></span></dt><dt><span class="section"><a href="using_dual_abi.html">Dual ABI</a></span></dt><dd><dl><dt><span class="section"><a href="using_dual_abi.html#manual.intro.using.abi.trouble">Troubleshooting</a></span></dt></dl></dd><dt><span class="section"><a href="using_namespaces.html">Namespaces</a></span></dt><dd><dl><dt><span class="section"><a href="using_namespaces.html#manual.intro.using.namespaces.all">Available Namespaces</a></span></dt><dt><span class="section"><a href="using_namespaces.html#manual.intro.using.namespaces.std">namespace std</a></span></dt><dt><span class="section"><a href="using_namespaces.html#manual.intro.using.namespaces.comp">Using Namespace Composition</a></span></dt></dl></dd><dt><span class="section"><a href="using_dynamic_or_shared.html">Linking</a></span></dt><dd><dl><dt><span class="section"><a href="using_dynamic_or_shared.html#manual.intro.using.linkage.freestanding">Almost Nothing</a></span></dt><dt><span class="section"><a href="using_dynamic_or_shared.html#manual.intro.using.linkage.dynamic">Finding Dynamic or Shared Libraries</a></span></dt><dt><span class="section"><a href="using_dynamic_or_shared.html#manual.intro.using.linkage.experimental">Experimental Library Extensions</a></span></dt></dl></dd><dt><span class="section"><a href="using_concurrency.html">Concurrency</a></span></dt><dd><dl><dt><span class="section"><a href="using_concurrency.html#manual.intro.using.concurrency.prereq">Prerequisites</a></span></dt><dt><span class="section"><a href="using_concurrency.html#manual.intro.using.concurrency.thread_safety">Thread Safety</a></span></dt><dt><span class="section"><a href="using_concurrency.html#manual.intro.using.concurrency.atomics">Atomics</a></span></dt><dt><span class="section"><a href="using_concurrency.html#manual.intro.using.concurrency.io">IO</a></span></dt><dd><dl><dt><span class="section"><a href="using_concurrency.html#concurrency.io.structure">Structure</a></span></dt><dt><span class="section"><a href="using_concurrency.html#concurrency.io.defaults">Defaults</a></span></dt><dt><span class="section"><a href="using_concurrency.html#concurrency.io.future">Future</a></span></dt><dt><span class="section"><a href="using_concurrency.html#concurrency.io.alt">Alternatives</a></span></dt></dl></dd><dt><span class="section"><a href="using_concurrency.html#manual.intro.using.concurrency.containers">Containers</a></span></dt></dl></dd><dt><span class="section"><a href="using_exceptions.html">Exceptions</a></span></dt><dd><dl><dt><span class="section"><a href="using_exceptions.html#intro.using.exception.safety">Exception Safety</a></span></dt><dt><span class="section"><a href="using_exceptions.html#intro.using.exception.propagating">Exception Neutrality</a></span></dt><dt><span class="section"><a href="using_exceptions.html#intro.using.exception.no">Doing without</a></span></dt><dt><span class="section"><a href="using_exceptions.html#intro.using.exception.compat">Compatibility</a></span></dt><dd><dl><dt><span class="section"><a href="using_exceptions.html#using.exception.compat.c">With <code class="literal">C</code></a></span></dt><dt><span class="section"><a href="using_exceptions.html#using.exception.compat.posix">With <code class="literal">POSIX</code> thread cancellation</a></span></dt></dl></dd></dl></dd><dt><span class="section"><a href="debug.html">Debugging Support</a></span></dt><dd><dl><dt><span class="section"><a href="debug.html#debug.compiler">Using <span class="command"><strong>g++</strong></span></a></span></dt><dt><span class="section"><a href="debug.html#debug.req">Debug Versions of Library Binary Files</a></span></dt><dt><span class="section"><a href="debug.html#debug.memory">Memory Leak Hunting</a></span></dt><dd><dl><dt><span class="section"><a href="debug.html#debug.memory.mtalloc">Non-memory leaks in Pool and MT allocators</a></span></dt></dl></dd><dt><span class="section"><a href="debug.html#debug.races">Data Race Hunting</a></span></dt><dt><span class="section"><a href="debug.html#debug.gdb">Using <span class="command"><strong>gdb</strong></span></a></span></dt><dt><span class="section"><a href="debug.html#debug.exceptions">Tracking uncaught exceptions</a></span></dt><dt><span class="section"><a href="debug.html#debug.debug_mode">Debug Mode</a></span></dt><dt><span class="section"><a href="debug.html#debug.compile_time_checks">Compile Time Checking</a></span></dt></dl></dd></dl></div><div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="manual.intro.using.flags"></a>Command Options</h2></div></div></div><p>
+       The set of features available in the GNU C++ library is shaped by
+-      several <a class="link" href="http://gcc.gnu.org/onlinedocs/gcc-4.3.2/gcc/Invoking-GCC.html" target="_top">GCC
++      several <a class="link" href="https://gcc.gnu.org/onlinedocs/gcc-11.1.0/gcc/Invoking-GCC.html" target="_top">GCC
+       Command Options</a>. Options that impact libstdc++ are
+       enumerated and detailed in the table below.
+     </p><p>
+@@ -14,9 +14,11 @@
+       <span class="command"><strong>g++ -std=gnu++17</strong></span> since GCC 11, and
+       <span class="command"><strong>g++ -std=gnu++14</strong></span> in GCC 6, 7, 8, 9, and 10, and
+       <span class="command"><strong>g++ -std=gnu++98</strong></span> for older releases.
+-    </p><div class="table"><a id="table.cmd_options"></a><p class="title"><strong>Table 3.1. C++ Command Options</strong></p><div class="table-contents"><table class="table" summary="C++ Command Options" border="1"><colgroup><col align="left" class="c1" /><col align="left" class="c2" /></colgroup><thead><tr><th align="left">Option Flags</th><th align="left">Description</th></tr></thead><tbody><tr><td align="left"><code class="literal">-std=c++98</code> or <code class="literal">-std=c++03</code>
+-      </td><td align="left">Use the 1998 ISO C++ standard plus amendments.</td></tr><tr><td align="left"><code class="literal">-std=gnu++98</code> or <code class="literal">-std=gnu++03</code>
+-      </td><td align="left">As directly above, with GNU extensions.</td></tr><tr><td align="left"><code class="literal">-std=c++11</code></td><td align="left">Use the 2011 ISO C++ standard.</td></tr><tr><td align="left"><code class="literal">-std=gnu++11</code></td><td align="left">As directly above, with GNU extensions.</td></tr><tr><td align="left"><code class="literal">-std=c++14</code></td><td align="left">Use the 2014 ISO C++ standard.</td></tr><tr><td align="left"><code class="literal">-std=gnu++14</code></td><td align="left">As directly above, with GNU extensions.</td></tr><tr><td align="left"><code class="literal">-fexceptions</code></td><td align="left">See <a class="link" href="using_exceptions.html#intro.using.exception.no" title="Doing without">exception-free dialect</a></td></tr><tr><td align="left"><code class="literal">-frtti</code></td><td align="left">As above, but RTTI-free dialect.</td></tr><tr><td align="left"><code class="literal">-pthread</code></td><td align="left">For ISO C++11
++    </p><div class="table"><a id="table.cmd_options"></a><p class="title"><strong>Table 3.1. C++ Command Options</strong></p><div class="table-contents"><table class="table" summary="C++ Command Options" border="1"><colgroup><col align="left" class="c1" /><col align="left" class="c2" /></colgroup><thead><tr><th align="left">Option Flags</th><th align="left">Description</th></tr></thead><tbody><tr><td align="left"><code class="literal">-std</code>
++      </td><td align="left">
++	Select the C++ standard, and whether to use the base standard
++	or GNU dialect.
++      </td></tr><tr><td align="left"><code class="literal">-fexceptions</code></td><td align="left">See <a class="link" href="using_exceptions.html#intro.using.exception.no" title="Doing without">exception-free dialect</a></td></tr><tr><td align="left"><code class="literal">-frtti</code></td><td align="left">As above, but RTTI-free dialect.</td></tr><tr><td align="left"><code class="literal">-pthread</code></td><td align="left">For ISO C++11
+         <code class="filename">&lt;thread&gt;</code>,
+         <code class="filename">&lt;future&gt;</code>,
+         <code class="filename">&lt;mutex&gt;</code>,
 diff --git a/libstdc++-v3/doc/xml/authors.xml b/libstdc++-v3/doc/xml/authors.xml
 index 0a120b508e9..95626d46cba 100644
 --- a/libstdc++-v3/doc/xml/authors.xml
@@ -62400,6 +62528,59 @@ index 00000000000..75f31f55aa9
 +</table>
 +
 +</section>
+diff --git a/libstdc++-v3/doc/xml/manual/using.xml b/libstdc++-v3/doc/xml/manual/using.xml
+index ff22e509aa8..656943c39e3 100644
+--- a/libstdc++-v3/doc/xml/manual/using.xml
++++ b/libstdc++-v3/doc/xml/manual/using.xml
+@@ -7,7 +7,7 @@
+ 
+     <para>
+       The set of features available in the GNU C++ library is shaped by
+-      several <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://gcc.gnu.org/onlinedocs/gcc-4.3.2/gcc/Invoking-GCC.html">GCC
++      several <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/onlinedocs/gcc-11.1.0/gcc/Invoking-GCC.html">GCC
+       Command Options</link>. Options that impact libstdc++ are
+       enumerated and detailed in the table below.
+     </para>
+@@ -37,35 +37,12 @@
+ 
+   <tbody>
+     <row>
+-      <entry><literal>-std=c++98</literal> or <literal>-std=c++03</literal>
++      <entry><literal>-std</literal>
+       </entry>
+-      <entry>Use the 1998 ISO C++ standard plus amendments.</entry>
+-    </row>
+-
+-    <row>
+-      <entry><literal>-std=gnu++98</literal> or <literal>-std=gnu++03</literal>
++      <entry>
++	Select the C++ standard, and whether to use the base standard
++	or GNU dialect.
+       </entry>
+-      <entry>As directly above, with GNU extensions.</entry>
+-    </row>
+-
+-    <row>
+-      <entry><literal>-std=c++11</literal></entry>
+-      <entry>Use the 2011 ISO C++ standard.</entry>
+-    </row>
+-
+-    <row>
+-      <entry><literal>-std=gnu++11</literal></entry>
+-      <entry>As directly above, with GNU extensions.</entry>
+-    </row>
+-
+-    <row>
+-      <entry><literal>-std=c++14</literal></entry>
+-      <entry>Use the 2014 ISO C++ standard.</entry>
+-    </row>
+-
+-    <row>
+-      <entry><literal>-std=gnu++14</literal></entry>
+-      <entry>As directly above, with GNU extensions.</entry>
+     </row>
+ 
+     <row>
 diff --git a/libstdc++-v3/include/Makefile.am b/libstdc++-v3/include/Makefile.am
 index 174fafeee5e..16ea5ffef52 100644
 --- a/libstdc++-v3/include/Makefile.am
