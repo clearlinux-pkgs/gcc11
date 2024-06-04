@@ -92,7 +92,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (758):
+GCC Administrator (759):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1610,7 +1611,7 @@ Richard Earnshaw (4):
       cselib: add function to check if SET is redundant [PR106187]
       arm: fix ICE with vectorized reciprocal division [PR108120]
 
-Richard Sandiford (26):
+Richard Sandiford (30):
       rtl-ssa: Fix prev/next_def confusion [PR104869]
       aarch64: Fix GTY markup for arm_sve.h [PR106491]
       aarch64: Define __ARM_FEATURE_RCPC
@@ -1637,6 +1638,10 @@ Richard Sandiford (26):
       aarch64: Make stack smash canary protect saved registers
       aarch64: Fix vld1/st1_x4 intrinsic definitions
       asan: Handle poly-int sizes in ASAN_MARK [PR97696]
+      vect: Fix access size alignment assumption [PR115192]
+      vect: Tighten vect_determine_precisions_from_range [PR113281]
+      rtl-ssa: Extend m_num_defs to a full unsigned int [PR108086]
+      rtl-ssa: Fix -fcompare-debug failure [PR100303]
 
 Sebastian Huber (3):
       RTEMS: Do not define _GNU_SOURCE by default
@@ -3581,10 +3586,24 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..d971bd7f9a8 100644
+index a0587d18824..803afadba54 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,3277 @@
+@@ -1,3 +1,3291 @@
++2024-06-03  Uros Bizjak  <ubizjak@gmail.com>
++
++	Backported from master:
++	2024-05-31  Uros Bizjak  <ubizjak@gmail.com>
++
++	PR target/115297
++	* config/alpha/alpha.md (<any_divmod:code>si3): Wrap DImode
++	operands 3 and 4 with truncate:SI RTX.
++	(*divmodsi_internal_er): Ditto for operands 1 and 2.
++	(*divmodsi_internal_er_1): Ditto.
++	(*divmodsi_internal): Ditto.
++	* config/alpha/constraints.md ("b"): Correct register
++	number in the description.
++
 +2024-05-30  YunQiang Su  <syq@gcc.gnu.org>
 +
 +	Backported from master:
@@ -30113,6 +30132,20 @@ index 66cfa973808..a41514acafc 100644
 +extern bool currently_expanding_function_start;
 +
  #endif  /* GCC_FUNCTION_H */
+diff --git a/gcc/fwprop.c b/gcc/fwprop.c
+index d7203672886..73284a7ae3e 100644
+--- a/gcc/fwprop.c
++++ b/gcc/fwprop.c
+@@ -606,7 +606,8 @@ try_fwprop_subst (use_info *use, set_info *def,
+   if (def_insn->bb () != use_insn->bb ())
+     {
+       src_uses = crtl->ssa->make_uses_available (attempt, src_uses,
+-						 use_insn->bb ());
++						 use_insn->bb (),
++						 use_insn->is_debug_insn ());
+       if (!src_uses.is_valid ())
+ 	return false;
+     }
 diff --git a/gcc/gcc.c b/gcc/gcc.c
 index 0af888c7d78..20a649ea08e 100644
 --- a/gcc/gcc.c
@@ -32537,7 +32570,7 @@ index c0d4643f802..0cf93d323d9 100644
    struct du_chain *tmp;
  
 diff --git a/gcc/rtl-ssa/accesses.cc b/gcc/rtl-ssa/accesses.cc
-index de3a29edbeb..af7b568fa98 100644
+index de3a29edbeb..0621ea22880 100644
 --- a/gcc/rtl-ssa/accesses.cc
 +++ b/gcc/rtl-ssa/accesses.cc
 @@ -393,6 +393,28 @@ set_node::print (pretty_printer *pp) const
@@ -32602,7 +32635,38 @@ index de3a29edbeb..af7b568fa98 100644
  // Return a clobber_group for CLOBBER, creating one if CLOBBER doesn't
  // already belong to a group.
  clobber_group *
-@@ -1295,9 +1343,9 @@ function_info::make_use_available (use_info *use, bb_info *bb)
+@@ -1242,7 +1290,10 @@ function_info::insert_temp_clobber (obstack_watermark &watermark,
+ }
+ 
+ // A subroutine of make_uses_available.  Try to make USE's definition
+-// available at the head of BB.  On success:
++// available at the head of BB.  WILL_BE_DEBUG_USE is true if the
++// definition will be used only in debug instructions.
++//
++// On success:
+ //
+ // - If the use would have the same def () as USE, return USE.
+ //
+@@ -1254,7 +1305,8 @@ function_info::insert_temp_clobber (obstack_watermark &watermark,
+ //
+ // Return null on failure.
+ use_info *
+-function_info::make_use_available (use_info *use, bb_info *bb)
++function_info::make_use_available (use_info *use, bb_info *bb,
++				   bool will_be_debug_use)
+ {
+   set_info *def = use->def ();
+   if (!def)
+@@ -1270,7 +1322,7 @@ function_info::make_use_available (use_info *use, bb_info *bb)
+       && single_pred (cfg_bb) == use_bb->cfg_bb ()
+       && remains_available_on_exit (def, use_bb))
+     {
+-      if (def->ebb () == bb->ebb ())
++      if (def->ebb () == bb->ebb () || will_be_debug_use)
+ 	return use;
+ 
+       resource_info resource = use->resource ();
+@@ -1295,9 +1347,9 @@ function_info::make_use_available (use_info *use, bb_info *bb)
  	  input->m_is_temp = true;
  	  phi->m_is_temp = true;
  	  phi->make_degenerate (input);
@@ -32614,6 +32678,25 @@ index de3a29edbeb..af7b568fa98 100644
  	    phi->set_next_def (next);
  	}
  
+@@ -1314,7 +1366,8 @@ function_info::make_use_available (use_info *use, bb_info *bb)
+ // See the comment above the declaration.
+ use_array
+ function_info::make_uses_available (obstack_watermark &watermark,
+-				    use_array uses, bb_info *bb)
++				    use_array uses, bb_info *bb,
++				    bool will_be_debug_uses)
+ {
+   unsigned int num_uses = uses.size ();
+   if (num_uses == 0)
+@@ -1323,7 +1376,7 @@ function_info::make_uses_available (obstack_watermark &watermark,
+   auto **new_uses = XOBNEWVEC (watermark, access_info *, num_uses);
+   for (unsigned int i = 0; i < num_uses; ++i)
+     {
+-      use_info *use = make_use_available (uses[i], bb);
++      use_info *use = make_use_available (uses[i], bb, will_be_debug_uses);
+       if (!use)
+ 	return use_array (access_array::invalid ());
+       new_uses[i] = use;
 diff --git a/gcc/rtl-ssa/accesses.h b/gcc/rtl-ssa/accesses.h
 index 91e64f3321f..ed72a3f61f0 100644
 --- a/gcc/rtl-ssa/accesses.h
@@ -32669,6 +32752,79 @@ index 91e64f3321f..ed72a3f61f0 100644
  
    def_mux mux;
    int comparison;
+diff --git a/gcc/rtl-ssa/functions.h b/gcc/rtl-ssa/functions.h
+index 58755d74cc9..cf68c94647a 100644
+--- a/gcc/rtl-ssa/functions.h
++++ b/gcc/rtl-ssa/functions.h
+@@ -126,8 +126,11 @@ public:
+   // If the operation fails, return an invalid use_array.
+   //
+   // WATERMARK is a watermark returned by new_change_attempt ().
++  // WILL_BE_DEBUG_USES is true if the returned use_array will be
++  // used only for debug instructions.
+   use_array make_uses_available (obstack_watermark &watermark,
+-				 use_array uses, bb_info *bb);
++				 use_array uses, bb_info *bb,
++				 bool will_be_debug_uses);
+ 
+   // If CHANGE doesn't already clobber REGNO, try to add such a clobber,
+   // limiting the movement range in order to make the clobber valid.
+@@ -196,7 +199,7 @@ private:
+   def_node *need_def_node (def_info *);
+   def_splay_tree need_def_splay_tree (def_info *);
+ 
+-  use_info *make_use_available (use_info *, bb_info *);
++  use_info *make_use_available (use_info *, bb_info *, bool);
+   def_array insert_temp_clobber (obstack_watermark &, insn_info *,
+ 				 unsigned int, def_array);
+ 
+diff --git a/gcc/rtl-ssa/insns.h b/gcc/rtl-ssa/insns.h
+index e4aa6d1d5ce..ab715adc151 100644
+--- a/gcc/rtl-ssa/insns.h
++++ b/gcc/rtl-ssa/insns.h
+@@ -141,7 +141,7 @@ using insn_call_clobbers_tree = default_splay_tree<insn_call_clobbers_note *>;
+ // of "notes", a bit like REG_NOTES for the underlying RTL insns.
+ class insn_info
+ {
+-  // Size: 8 LP64 words.
++  // Size: 9 LP64 words.
+   friend class ebb_info;
+   friend class function_info;
+ 
+@@ -401,10 +401,11 @@ private:
+   // The number of definitions and the number uses.  FIRST_PSEUDO_REGISTER + 1
+   // is the maximum number of accesses to hard registers and memory, and
+   // MAX_RECOG_OPERANDS is the maximum number of pseudos that can be
+-  // defined by an instruction, so the number of definitions should fit
+-  // easily in 16 bits.
++  // defined by an instruction, so the number of definitions in a real
++  // instruction should fit easily in 16 bits.  However, there are no
++  // limits on the number of definitions in artifical instructions.
+   unsigned int m_num_uses;
+-  unsigned int m_num_defs : 16;
++  unsigned int m_num_defs;
+ 
+   // Flags returned by the accessors above.
+   unsigned int m_is_debug_insn : 1;
+@@ -414,7 +415,7 @@ private:
+   unsigned int m_has_volatile_refs : 1;
+ 
+   // For future expansion.
+-  unsigned int m_spare : 11;
++  unsigned int m_spare : 27;
+ 
+   // The program point at which the instruction occurs.
+   //
+@@ -431,6 +432,9 @@ private:
+   // instruction.
+   mutable int m_cost_or_uid;
+ 
++  // On LP64 systems, there's a gap here that could be used for future
++  // expansion.
++
+   // The list of notes that have been attached to the instruction.
+   insn_note *m_first_note;
+ };
 diff --git a/gcc/rtl-ssa/member-fns.inl b/gcc/rtl-ssa/member-fns.inl
 index 0b821ae1a77..2aae89e5a94 100644
 --- a/gcc/rtl-ssa/member-fns.inl
@@ -32939,10 +33095,18 @@ index 5530a124a9d..31f93f4b747 100644
  
  DEBUG_FUNCTION void
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..f1ce220b3d5 100644
+index 5fc23605244..7b7f662990a 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,3359 @@
+@@ -1,3 +1,3367 @@
++2024-06-03  Uros Bizjak  <ubizjak@gmail.com>
++
++	Backported from master:
++	2024-05-31  Uros Bizjak  <ubizjak@gmail.com>
++
++	PR target/115297
++	* gcc.target/alpha/pr115297.c: New test.
++
 +2024-05-28  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -39456,6 +39620,124 @@ index 75862e2b5be..fef69e7cf09 100644
  
  /* When compiled with C++, this code was breaking because of different
     tree representations of arrays between C and C++.  */
+diff --git a/gcc/testsuite/g++.dg/torture/pr100303.C b/gcc/testsuite/g++.dg/torture/pr100303.C
+new file mode 100644
+index 00000000000..5af9412df40
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/torture/pr100303.C
+@@ -0,0 +1,112 @@
++/* { dg-additional-options "-w -fcompare-debug -fno-dce -ftracer" } */
++
++template < typename _T1 > struct pair
++{
++  _T1 first;
++  int second;
++};
++struct __aligned_membuf
++{
++  void _M_ptr ();
++};
++struct _Rb_tree_node_base
++{
++  typedef _Rb_tree_node_base *_Base_ptr;
++};
++struct _Rb_tree_node:_Rb_tree_node_base
++{
++  __aligned_membuf _M_storage;
++  void _M_valptr ()
++  {
++    _M_storage._M_ptr ();
++  }
++};
++struct _Rb_tree_iterator
++{
++  typedef _Rb_tree_node_base::_Base_ptr _Base_ptr;
++    _Rb_tree_iterator (_Base_ptr __x):_M_node (__x)
++  {
++  }
++  void operator* ()
++  {
++    static_cast < _Rb_tree_node * >(_M_node)->_M_valptr ();
++  }
++  friend bool operator== (_Rb_tree_iterator __x, _Rb_tree_iterator)
++  {
++    return __x._M_node;
++  }
++  _Base_ptr _M_node;
++};
++
++template < typename, typename, typename, typename, typename =
++  int >class _Rb_tree
++{
++  typedef _Rb_tree_node_base *_Base_ptr;
++public:
++    pair < _Base_ptr > _M_get_insert_hint_unique_pos (int);
++  void _M_insert_node (_Base_ptr, int);
++    template < typename ... _Args >
++    _Rb_tree_iterator _M_emplace_hint_unique (_Args && ...);
++  _Rb_tree_iterator lower_bound ()
++  {
++    _Rb_tree_node_base __trans_tmp_2;
++      return &__trans_tmp_2;
++  }
++};
++template < typename _Key, typename _Val, typename _KeyOfValue,
++  typename _Compare,
++  typename _Alloc > template < typename ... _Args >
++  _Rb_tree_iterator _Rb_tree < _Key, _Val, _KeyOfValue, _Compare,
++  _Alloc >::_M_emplace_hint_unique (_Args && ...)
++{
++  int __z;
++  try
++  {
++    auto __res = _M_get_insert_hint_unique_pos (0);
++    _Rb_tree_node_base *__res_1;
++    if (__res_1)
++      _M_insert_node (__res.first, __z);
++    return __res.first;
++  }
++  catch ( ...)
++  {
++  }
++}
++
++class map
++{
++  _Rb_tree < int, int, int, int >_M_t;
++public:
++    _Rb_tree_iterator end ();
++  void operator[] (int)
++  {
++    _Rb_tree_iterator __i = lower_bound ();
++    if (__i == end ())
++      __i = _M_t._M_emplace_hint_unique (__i);
++    *__i;
++  }
++  _Rb_tree_iterator lower_bound ()
++  {
++    return _M_t.lower_bound ();
++  }
++};
++
++class FlowStat
++{
++public:
++  int FlowStat_flow;
++    FlowStat ()
++  {
++    shares[FlowStat_flow];
++  }
++  map shares;
++};
++
++class LinkGraphJob
++{
++  ~LinkGraphJob ();
++};
++LinkGraphJob::~LinkGraphJob ()
++{
++  FlowStat ();
++}
 diff --git a/gcc/testsuite/g++.dg/torture/pr104450.C b/gcc/testsuite/g++.dg/torture/pr104450.C
 new file mode 100644
 index 00000000000..402a4849e54
@@ -44335,6 +44617,297 @@ index 00000000000..f4e110f3bbf
 +  return 0;
 +}
 +
+diff --git a/gcc/testsuite/gcc.dg/vect/pr113281-1.c b/gcc/testsuite/gcc.dg/vect/pr113281-1.c
+new file mode 100644
+index 00000000000..6df4231cb5f
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/vect/pr113281-1.c
+@@ -0,0 +1,17 @@
++#include "tree-vect.h"
++
++unsigned char a;
++
++int main() {
++  check_vect ();
++
++  short b = a = 0;
++  for (; a != 19; a++)
++    if (a)
++      b = 32872 >> a;
++
++  if (b == 0)
++    return 0;
++  else
++    return 1;
++}
+diff --git a/gcc/testsuite/gcc.dg/vect/pr113281-2.c b/gcc/testsuite/gcc.dg/vect/pr113281-2.c
+new file mode 100644
+index 00000000000..3a1170c28b6
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/vect/pr113281-2.c
+@@ -0,0 +1,50 @@
++/* { dg-do compile } */
++
++#define N 128
++
++short x[N];
++short y[N];
++
++void
++f1 (void)
++{
++  for (int i = 0; i < N; ++i)
++    x[i] >>= y[i];
++}
++
++void
++f2 (void)
++{
++  for (int i = 0; i < N; ++i)
++    x[i] >>= (y[i] < 32 ? y[i] : 32);
++}
++
++void
++f3 (void)
++{
++  for (int i = 0; i < N; ++i)
++    x[i] >>= (y[i] < 31 ? y[i] : 31);
++}
++
++void
++f4 (void)
++{
++  for (int i = 0; i < N; ++i)
++    x[i] >>= (y[i] & 31);
++}
++
++void
++f5 (void)
++{
++  for (int i = 0; i < N; ++i)
++    x[i] >>= 0x8000 >> y[i];
++}
++
++void
++f6 (void)
++{
++  for (int i = 0; i < N; ++i)
++    x[i] >>= 0x8000 >> (y[i] & 31);
++}
++
++/* { dg-final { scan-tree-dump-not {can narrow[^\n]+>>} "vect" } } */
+diff --git a/gcc/testsuite/gcc.dg/vect/pr113281-3.c b/gcc/testsuite/gcc.dg/vect/pr113281-3.c
+new file mode 100644
+index 00000000000..5982dd2d16f
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/vect/pr113281-3.c
+@@ -0,0 +1,39 @@
++/* { dg-do compile } */
++
++#define N 128
++
++short x[N];
++short y[N];
++
++void
++f1 (void)
++{
++  for (int i = 0; i < N; ++i)
++    x[i] >>= (y[i] < 30 ? y[i] : 30);
++}
++
++void
++f2 (void)
++{
++  for (int i = 0; i < N; ++i)
++    x[i] >>= ((y[i] & 15) + 2);
++}
++
++void
++f3 (void)
++{
++  for (int i = 0; i < N; ++i)
++    x[i] >>= (y[i] < 16 ? y[i] : 16);
++}
++
++void
++f4 (void)
++{
++  for (int i = 0; i < N; ++i)
++    x[i] = 32768 >> ((y[i] & 15) + 3);
++}
++
++/* { dg-final { scan-tree-dump {can narrow to signed:31 without loss [^\n]+>>} "vect" } } */
++/* { dg-final { scan-tree-dump {can narrow to signed:18 without loss [^\n]+>>} "vect" } } */
++/* { dg-final { scan-tree-dump {can narrow to signed:17 without loss [^\n]+>>} "vect" } } */
++/* { dg-final { scan-tree-dump {can narrow to unsigned:19 without loss [^\n]+>>} "vect" } } */
+diff --git a/gcc/testsuite/gcc.dg/vect/pr113281-4.c b/gcc/testsuite/gcc.dg/vect/pr113281-4.c
+new file mode 100644
+index 00000000000..10fbc0e8405
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/vect/pr113281-4.c
+@@ -0,0 +1,55 @@
++/* { dg-do compile } */
++
++#define N 128
++
++short x[N];
++short y[N];
++
++void
++f1 (void)
++{
++  for (int i = 0; i < N; ++i)
++    x[i] >>= (y[i] & 15);
++}
++
++void
++f2 (void)
++{
++  for (int i = 0; i < N; ++i)
++    x[i] >>= ((y[i] & 7) + 8);
++}
++
++void
++f3 (void)
++{
++  for (int i = 0; i < N; ++i)
++    x[i] >>= ((y[i] & 7) ^ 11);
++}
++
++void
++f4 (void)
++{
++  for (int i = 0; i < N; ++i)
++    x[i] >>= (y[i] < 15 ? y[i] : 15);
++}
++
++void
++f5 (void)
++{
++  for (int i = 0; i < N; ++i)
++    x[i] >>= (y[i] < 15 ? y[i] : 1);
++}
++
++void
++f6 (void)
++{
++  for (int i = 0; i < N; ++i)
++    x[i] = 32768 >> (y[i] & 15);
++}
++
++/* { dg-final { scan-tree-dump {:11:[^\n]+can narrow to signed:16 without loss [^\n]+>>} "vect" } } */
++/* { dg-final { scan-tree-dump {:18:[^\n]+can narrow to signed:16 without loss [^\n]+>>} "vect" } } */
++/* { dg-final { scan-tree-dump {:25:[^\n]+can narrow to signed:16 without loss [^\n]+>>} "vect" } } */
++/* { dg-final { scan-tree-dump {:32:[^\n]+can narrow to signed:16 without loss [^\n]+>>} "vect" } } */
++/* { dg-final { scan-tree-dump {:39:[^\n]+can narrow to signed:16 without loss [^\n]+>>} "vect" } } */
++/* { dg-final { scan-tree-dump {can narrow to unsigned:16 without loss [^\n]+>>} "vect" } } */
+diff --git a/gcc/testsuite/gcc.dg/vect/pr113281-5.c b/gcc/testsuite/gcc.dg/vect/pr113281-5.c
+new file mode 100644
+index 00000000000..4a4571792e2
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/vect/pr113281-5.c
+@@ -0,0 +1,66 @@
++/* { dg-do compile } */
++
++#define N 128
++
++short x[N];
++short y[N];
++
++void
++f1 (void)
++{
++  for (int i = 0; i < N; ++i)
++    {
++      int a = y[i];
++      int b = ~a;
++      x[i] = b;
++    }
++}
++
++void
++f2 (void)
++{
++  for (int i = 0; i < N; ++i)
++    {
++      int a = y[i];
++      int b = -a;
++      x[i] = b;
++    }
++}
++
++void
++f3 (void)
++{
++  for (int i = 0; i < N; ++i)
++    {
++      int a = x[i];
++      int b = a / y[i];
++      x[i] = b;
++    }
++}
++
++void
++f4 (void)
++{
++  for (int i = 0; i < N; ++i)
++    {
++      int a = x[i];
++      int b = a < y[i] ? a : y[i];
++      x[i] = b;
++    }
++}
++
++void
++f5 (void)
++{
++  for (int i = 0; i < N; ++i)
++    {
++      int a = x[i];
++      int b = a > y[i] ? a : y[i];
++      x[i] = b;
++    }
++}
++
++/* { dg-final { scan-tree-dump {can narrow to signed:17 without loss [^\n]+= -} "vect" } } */
++/* { dg-final { scan-tree-dump {can narrow to signed:16 without loss [^\n]+= ~} "vect" } } */
++/* { dg-final { scan-tree-dump {can narrow to signed:16 without loss [^\n]+ MIN_EXPR} "vect" } } */
++/* { dg-final { scan-tree-dump {can narrow to signed:16 without loss [^\n]+ MAX_EXPR} "vect" } } */
+diff --git a/gcc/testsuite/gcc.dg/vect/pr115192.c b/gcc/testsuite/gcc.dg/vect/pr115192.c
+new file mode 100644
+index 00000000000..923d377c1bb
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/vect/pr115192.c
+@@ -0,0 +1,28 @@
++#include "tree-vect.h"
++
++int data[4 * 16 * 16] __attribute__((aligned(16)));
++
++__attribute__((noipa)) void
++foo (__SIZE_TYPE__ n)
++{
++  for (__SIZE_TYPE__ i = 1; i < n; ++i)
++    {
++      data[i * n * 4] = data[(i - 1) * n * 4] + 1;
++      data[i * n * 4 + 1] = data[(i - 1) * n * 4 + 1] + 2;
++    }
++}
++
++int
++main ()
++{
++  check_vect ();
++
++  data[0] = 10;
++  data[1] = 20;
++
++  foo (3);
++
++  if (data[24] != 12 || data[25] != 24)
++    __builtin_abort ();
++  return 0;
++}
 diff --git a/gcc/testsuite/gcc.dg/vect/pr97428.c b/gcc/testsuite/gcc.dg/vect/pr97428.c
 index bbd743a76c4..ad6416096aa 100644
 --- a/gcc/testsuite/gcc.dg/vect/pr97428.c
@@ -53652,6 +54225,29 @@ index 9d1def5f9de..9b2367a568a 100644
  
    receiver += [(Obj *)objrcvr2 anotherValue];
  
+diff --git a/gcc/tree-data-ref.c b/gcc/tree-data-ref.c
+index b3dd2f0ca41..d127aba8792 100644
+--- a/gcc/tree-data-ref.c
++++ b/gcc/tree-data-ref.c
+@@ -73,6 +73,7 @@ along with GCC; see the file COPYING3.  If not see
+ 
+ */
+ 
++#define INCLUDE_ALGORITHM
+ #include "config.h"
+ #include "system.h"
+ #include "coretypes.h"
+@@ -2629,7 +2630,9 @@ create_intersect_range_checks (class loop *loop, tree *cond_expr,
+ 	 Because the maximum values are inclusive, there is an alias
+ 	 if the maximum value of one segment is equal to the minimum
+ 	 value of the other.  */
+-      min_align = MIN (dr_a.align, dr_b.align);
++      min_align = std::min (dr_a.align, dr_b.align);
++      min_align = std::min (min_align, known_alignment (dr_a.access_size));
++      min_align = std::min (min_align, known_alignment (dr_b.access_size));
+       cmp_code = LT_EXPR;
+     }
+ 
 diff --git a/gcc/tree-if-conv.c b/gcc/tree-if-conv.c
 index 716eae44a21..6493ccd3f0d 100644
 --- a/gcc/tree-if-conv.c
@@ -55099,7 +55695,7 @@ index 968087a9008..76580c1e3dd 100644
  		  dump_printf_loc (MSG_MISSED_OPTIMIZATION, vect_location,
  				   "Using original scalar computation for "
 diff --git a/gcc/tree-vect-patterns.c b/gcc/tree-vect-patterns.c
-index f6e8c3c8575..01bcea9dca2 100644
+index f6e8c3c8575..14e5ba54ae7 100644
 --- a/gcc/tree-vect-patterns.c
 +++ b/gcc/tree-vect-patterns.c
 @@ -579,7 +579,25 @@ vect_widened_op_tree (vec_info *vinfo, stmt_vec_info stmt_info, tree_code code,
@@ -55140,6 +55736,133 @@ index f6e8c3c8575..01bcea9dca2 100644
      return NULL;
  
    type = gimple_expr_type (last_stmt);
+@@ -4725,9 +4745,11 @@ vect_truncatable_operation_p (tree_code code)
+ {
+   switch (code)
+     {
++    case NEGATE_EXPR:
+     case PLUS_EXPR:
+     case MINUS_EXPR:
+     case MULT_EXPR:
++    case BIT_NOT_EXPR:
+     case BIT_AND_EXPR:
+     case BIT_IOR_EXPR:
+     case BIT_XOR_EXPR:
+@@ -4886,38 +4908,85 @@ vect_determine_precisions_from_range (stmt_vec_info stmt_info, gassign *stmt)
+   unsigned int nops = gimple_num_ops (stmt);
+ 
+   if (!vect_truncatable_operation_p (code))
+-    /* Check that all relevant input operands are compatible, and update
+-       [MIN_VALUE, MAX_VALUE] to include their ranges.  */
+-    for (unsigned int i = 1; i < nops; ++i)
+-      {
+-	tree op = gimple_op (stmt, i);
+-	if (TREE_CODE (op) == INTEGER_CST)
+-	  {
+-	    /* Don't require the integer to have RHS_TYPE (which it might
+-	       not for things like shift amounts, etc.), but do require it
+-	       to fit the type.  */
+-	    if (!int_fits_type_p (op, type))
+-	      return;
++    {
++      /* Handle operations that can be computed in type T if all inputs
++	 and outputs can be represented in type T.  Also handle left and
++	 right shifts, where (in addition) the maximum shift amount must
++	 be less than the number of bits in T.  */
++      bool is_shift;
++      switch (code)
++	{
++	case LSHIFT_EXPR:
++	case RSHIFT_EXPR:
++	  is_shift = true;
++	  break;
+ 
+-	    min_value = wi::min (min_value, wi::to_wide (op, precision), sign);
+-	    max_value = wi::max (max_value, wi::to_wide (op, precision), sign);
+-	  }
+-	else if (TREE_CODE (op) == SSA_NAME)
+-	  {
+-	    /* Ignore codes that don't take uniform arguments.  */
+-	    if (!types_compatible_p (TREE_TYPE (op), type))
+-	      return;
++	case ABS_EXPR:
++	case MIN_EXPR:
++	case MAX_EXPR:
++	case TRUNC_DIV_EXPR:
++	case CEIL_DIV_EXPR:
++	case FLOOR_DIV_EXPR:
++	case ROUND_DIV_EXPR:
++	case EXACT_DIV_EXPR:
++	  /* Modulus is excluded because it is typically calculated by doing
++	     a division, for which minimum signed / -1 isn't representable in
++	     the original signed type.  We could take the division range into
++	     account instead, if handling modulus ever becomes important.  */
++	  is_shift = false;
++	  break;
+ 
+-	    wide_int op_min_value, op_max_value;
+-	    if (!vect_get_range_info (op, &op_min_value, &op_max_value))
+-	      return;
+-
+-	    min_value = wi::min (min_value, op_min_value, sign);
+-	    max_value = wi::max (max_value, op_max_value, sign);
+-	  }
+-	else
++	default:
+ 	  return;
+-      }
++	}
++      for (unsigned int i = 1; i < nops; ++i)
++	{
++	  tree op = gimple_op (stmt, i);
++	  wide_int op_min_value, op_max_value;
++	  if (TREE_CODE (op) == INTEGER_CST)
++	    {
++	      unsigned int op_precision = TYPE_PRECISION (TREE_TYPE (op));
++	      op_min_value = op_max_value = wi::to_wide (op, op_precision);
++	    }
++	  else if (TREE_CODE (op) == SSA_NAME)
++	    {
++	      if (!vect_get_range_info (op, &op_min_value, &op_max_value))
++		return;
++	    }
++	  else
++	    return;
++
++	  if (is_shift && i == 2)
++	    {
++	      /* There needs to be one more bit than the maximum shift amount.
++
++		 If the maximum shift amount is already 1 less than PRECISION
++		 then we can't narrow the shift further.  Dealing with that
++		 case first ensures that we can safely use an unsigned range
++		 below.
++
++		 op_min_value isn't relevant, since shifts by negative amounts
++		 are UB.  */
++	      if (wi::geu_p (op_max_value, precision - 1))
++		return;
++	      unsigned int min_bits = op_max_value.to_uhwi () + 1;
++
++	      /* As explained below, we can convert a signed shift into an
++		 unsigned shift if the sign bit is always clear.  At this
++		 point we've already processed the ranges of the output and
++		 the first input.  */
++	      auto op_sign = sign;
++	      if (sign == SIGNED && !wi::neg_p (min_value))
++		op_sign = UNSIGNED;
++	      op_min_value = wide_int::from (wi::min_value (min_bits, op_sign),
++					     precision, op_sign);
++	      op_max_value = wide_int::from (wi::max_value (min_bits, op_sign),
++					     precision, op_sign);
++	    }
++	  min_value = wi::min (min_value, op_min_value, sign);
++	  max_value = wi::max (max_value, op_max_value, sign);
++	}
++    }
+ 
+   /* Try to switch signed types for unsigned types if we can.
+      This is better for two reasons.  First, unsigned ops tend
 diff --git a/gcc/tree-vect-slp.c b/gcc/tree-vect-slp.c
 index 7289656db0f..7c75799f625 100644
 --- a/gcc/tree-vect-slp.c
