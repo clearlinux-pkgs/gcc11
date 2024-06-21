@@ -93,7 +93,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (775):
+GCC Administrator (776):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1585,7 +1586,7 @@ Rainer Orth (5):
 Richard Ball (1):
       arm: Zero/Sign extends for CMSE security
 
-Richard Biener (65):
+Richard Biener (77):
       Update BASE-VER to 11.3.1
       ipa/105598 - testcase for PR105598
       middle-end/105140 - fix bogus recursion in fold_convertible_p
@@ -1651,6 +1652,18 @@ Richard Biener (65):
       add missing dg-require alias to gcc.dg/torture/pr100786.c
       sanitizer/111736 - skip ASAN for globals in alternate address-space
       tree-optimization/111736 - avoid address sanitizing of __seg_gs
+      middle-end/114734 - wrong code with expand_call_mem_ref
+      tree-optimization/114027 - conditional reduction chain
+      tree-optimization/114027 - fix testcase
+      tree-optimization/112793 - SLP of constant/external code-generated twice
+      debug/112718 - reset all type units with -ffat-lto-objects
+      tree-optimization/112505 - bit-precision induction vectorization
+      tree-optimization/112495 - alias versioning and address spaces
+      tree-optimization/111445 - simple_iv simplification fault
+      debug/111080 - avoid outputting debug info for unused restrict qualified type
+      tree-optimization/111039 - abnormals and bit test merging
+      tree-optimization/111070 - fix ICE with recent ifcombine fix
+      middle-end/110176 - wrong zext (bool) <= (int) 4294967295u folding
 
 Richard Earnshaw (4):
       arm: big-endian issue in gen_cpymem_ldrd_strd [PR105981]
@@ -3635,10 +3648,229 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..abd19ccac62 100644
+index a0587d18824..68cdc623975 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,3350 @@
+@@ -1,3 +1,3569 @@
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-06-17  Jakub Jelinek  <jakub@redhat.com>
++
++	PR driver/115440
++	* opts-common.c (add_misspelling_candidates): If opt1 is non-NULL,
++	add a space and opt1 to the alternative suggestion text.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-06-04  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/115337
++	* fold-const.c (tree_call_nonnegative_warnv_p) <CASE_CFN_CLZ>:
++	If fn is CFN_CLZ, use CLZ_DEFINED_VALUE_AT.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-06-04  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/108789
++	* builtins.c (fold_builtin_arith_overflow): For ovf_only,
++	don't call save_expr and don't build REALPART_EXPR, otherwise
++	set TREE_SIDE_EFFECTS on call before calling save_expr.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-05-15  Jakub Jelinek  <jakub@redhat.com>
++
++	PR rtl-optimization/114902
++	PR rtl-optimization/115092
++	* combine.c (simplify_compare_const): Don't optimize
++	GE op0 SIGNED_MIN or LT op0 SIGNED_MIN into NE op0 const0_rtx or
++	EQ op0 const0_rtx.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-05-07  Jakub Jelinek  <jakub@redhat.com>
++
++	PR sanitizer/114956
++	* tree-inline.c: Include asan.h.
++	(copy_bb): Remove also .ASAN_MARK calls if id->dst_fn has asan/hwasan
++	sanitization disabled.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-04-30  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/114876
++	* gimple-ssa-sprintf.c (format_character): For min == 0 && max == 0,
++	set max, likely and unlikely members to 1 rather than 0.  Remove
++	useless res.knownrange = true;.  Formatting fixes.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-04-25  Jakub Jelinek  <jakub@redhat.com>
++
++	PR fortran/114825
++	* tree-nested.c (get_debug_decl): New function.
++	(get_nonlocal_debug_decl): Use it.
++	(get_local_debug_decl): Likewise.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-04-19  Jakub Jelinek  <jakub@redhat.com>
++
++	PR rtl-optimization/114768
++	* rtlanal.c (set_noop_p): Don't return true for MEM <- MEM
++	sets if src has side-effects or for stores into ZERO_EXTRACT
++	if ZERO_EXTRACT operand has side-effects.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-04-18  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/114753
++	* internal-fn.c (expand_mul_overflow): Save flag_trapv and
++	temporarily clear it for the duration of the function, then
++	restore previous value.
++	(expand_vector_ubsan_overflow): Likewise.
++	(expand_arith_overflow): Likewise.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-04-15  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/114634
++	* attribs.c (diag_attr_exclusions): Set attrs[1] to NULL_TREE for
++	decls with NULL TREE_TYPE.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-04-11  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/110027
++	* asan.c (asan_emit_stack_protection): Assert offsets[0] is
++	zero if there is no stack protect guard, otherwise
++	-ASAN_RED_ZONE_SIZE.  If alignb > ASAN_RED_ZONE_SIZE and there is
++	stack pointer guard, take the ASAN_RED_ZONE_SIZE bytes allocated at
++	the top of the stack into account when computing base_align_bias.
++	Recompute use_after_return_class from asan_frame_size + base_align_bias
++	and set to -1 if that would overflow to 11.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-04-05  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/114566
++	* tree-vect-loop.c (update_epilogue_loop_vinfo): Don't clear
++	base_misaligned.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-04-04  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/114537
++	* fold-const.c (native_encode_initializer): Look through
++	NON_LVALUE_EXPR if val is INTEGER_CST.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-03-14  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/113907
++	* ipa-icf.c (sem_item_optimizer::merge_classes): Reset
++	SSA_NAME_RANGE_INFO and SSA_NAME_PTR_INFO on successfully ICF merged
++	functions.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-03-14  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/114310
++	* config/aarch64/aarch64.c (aarch64_expand_compare_and_swap): For
++	TImode force newval into a register.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-03-07  Jakub Jelinek  <jakub@redhat.com>
++
++	PR rtl-optimization/110079
++	* bb-reorder.c (fix_crossing_unconditional_branches): Don't adjust
++	asm goto.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-03-04  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/114184
++	* config/i386/i386-expand.c (ix86_expand_move): If XFmode op1
++	is SUBREG of CONSTANT_P, force the SUBREG_REG into memory or
++	register.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-02-12  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/113674
++	* attribs.c (extract_attribute_substring): Remove.
++	(lookup_scoped_attribute_spec): Don't call it.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-01-30  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/113603
++	* tree-ssa-strlen.c (strlen_pass::handle_store): After
++	count_nonzero_bytes call refetch si using get_strinfo in case it
++	has been unshared in the meantime.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-01-25  Jakub Jelinek  <jakub@redhat.com>
++
++	* doc/generic.texi (VECTOR_CST): Fix typo - petterns -> patterns.
++	* doc/rtl.texi (CONST_VECTOR): Likewise.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-01-18  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/113122
++	* config/i386/i386.c (x86_function_profiler): Add -masm=intel
++	support.  Add missing space after , in emitted assembly in some
++	cases.  Formatting fixes.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-01-16  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/113372
++	PR middle-end/90348
++	PR middle-end/110115
++	PR middle-end/111422
++	* cfgexpand.c (add_scope_conflicts_2): New function.
++	(add_scope_conflicts_1): Use it.
++
 +2024-06-12  Torbjörn SVENSSON  <torbjorn.svensson@foss.st.com>
 +
 +	Backported from master:
@@ -7582,10 +7814,38 @@ index 64f4999ab07..30e2ebfdffe 100644
        ovfres = build1_loc (loc, IMAGPART_EXPR, type, tgt);
        ovfres = fold_convert_loc (loc, boolean_type_node, ovfres);
 diff --git a/gcc/c-family/ChangeLog b/gcc/c-family/ChangeLog
-index dff48ba4655..ee3e5424935 100644
+index dff48ba4655..f82ac087814 100644
 --- a/gcc/c-family/ChangeLog
 +++ b/gcc/c-family/ChangeLog
-@@ -1,3 +1,89 @@
+@@ -1,3 +1,117 @@
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-02-22  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c/114007
++	* c-lex.c (c_common_has_attribute): Parse 2 CPP_COLONs with
++	the first one with COLON_SCOPE flag the same as CPP_SCOPE but
++	ensure 0 is returned then.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-02-12  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/113674
++	* c-lex.c (c_common_has_attribute): Call canonicalize_attr_name.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-01-09  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c/113262
++	* c-attribs.c (handle_copy_attribute): Don't use
++	DECL_SOURCE_LOCATION (decl) if decl is not DECL_P, use input_location
++	instead.  Formatting fixes.
++
 +2024-05-08  Andrew Pinski  <quic_apinski@quicinc.com>
 +
 +	Backported from master:
@@ -8065,10 +8325,20 @@ index ac9a64108ec..3b85dd1aff8 100644
  		    "comparison of promoted bitwise complement "
  		    "of an unsigned value with unsigned");
 diff --git a/gcc/c/ChangeLog b/gcc/c/ChangeLog
-index 8d0dffcaa10..c6a2e86aa3f 100644
+index 8d0dffcaa10..c2e1f24bcb7 100644
 --- a/gcc/c/ChangeLog
 +++ b/gcc/c/ChangeLog
-@@ -1,3 +1,35 @@
+@@ -1,3 +1,45 @@
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-06-06  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c/114493
++	* c-decl.c (c_fixup_may_alias): New function.
++	(finish_struct): Call it if "may_alias" attribute is
++	specified.
++
 +2023-05-29  Release Manager
 +
 +	* GCC 11.4.0 released.
@@ -23725,10 +23995,29 @@ index 49f043ed29b..a4d5bdb1b8d 100644
      fi
      dsymutil_major=`expr "$dsymutil_vers" : '\([[0-9]]*\)'`
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..5f74493cbba 100644
+index 85c8fdd38cd..0fbbcf93670 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,692 @@
+@@ -1,3 +1,711 @@
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-04-12  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/114691
++	* semantics.c (simplify_loop_decl_cond): Use cp_build_unary_op with
++	TRUTH_NOT_EXPR on ANNOTATE_EXPR argument (if any) rather than
++	ANNOTATE_EXPR itself.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-04-05  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/114572
++	* cp-gimplify.c (cxx_omp_clause_apply_fn): Call build_cplus_new
++	on build_call_a result if it has class type.
++
 +2024-05-24  Jason Merrill  <jason@redhat.com>
 +
 +	Backported from master:
@@ -28228,7 +28517,7 @@ index b634429449c..dd99756d151 100644
  	      if (GET_MODE (mem) == BLKmode)
  		{
 diff --git a/gcc/dwarf2out.c b/gcc/dwarf2out.c
-index e5d3ce4966d..bd6c00957ac 100644
+index e5d3ce4966d..3d8e0e6d6b3 100644
 --- a/gcc/dwarf2out.c
 +++ b/gcc/dwarf2out.c
 @@ -5791,6 +5791,7 @@ lookup_type_die (tree type)
@@ -28249,6 +28538,54 @@ index e5d3ce4966d..bd6c00957ac 100644
      {
        if (early_dwarf)
  	dwarf2out_imported_module_or_decl_1 (decl_or_origin, DECL_NAME (decl_or_origin),
+@@ -29691,8 +29693,13 @@ prune_unused_types_walk (dw_die_ref die)
+     case DW_TAG_reference_type:
+     case DW_TAG_rvalue_reference_type:
+     case DW_TAG_volatile_type:
++    case DW_TAG_restrict_type:
++    case DW_TAG_shared_type:
++    case DW_TAG_atomic_type:
++    case DW_TAG_immutable_type:
+     case DW_TAG_typedef:
+     case DW_TAG_array_type:
++    case DW_TAG_coarray_type:
+     case DW_TAG_friend:
+     case DW_TAG_enumeration_type:
+     case DW_TAG_subroutine_type:
+@@ -29701,6 +29708,8 @@ prune_unused_types_walk (dw_die_ref die)
+     case DW_TAG_subrange_type:
+     case DW_TAG_ptr_to_member_type:
+     case DW_TAG_file_type:
++    case DW_TAG_unspecified_type:
++    case DW_TAG_dynamic_type:
+       /* Type nodes are useful only when other DIEs reference them --- don't
+ 	 mark them.  */
+       /* FALLTHROUGH */
+@@ -31695,24 +31704,12 @@ dwarf2out_finish (const char *filename)
+       reset_dies (comp_unit_die ());
+       for (limbo_die_node *node = cu_die_list; node; node = node->next)
+ 	reset_dies (node->die);
+-
+-      hash_table<comdat_type_hasher> comdat_type_table (100);
+       for (ctnode = comdat_type_list; ctnode != NULL; ctnode = ctnode->next)
+ 	{
+-	  comdat_type_node **slot
+-	      = comdat_type_table.find_slot (ctnode, INSERT);
+-
+-	  /* Don't reset types twice.  */
+-	  if (*slot != HTAB_EMPTY_ENTRY)
+-	    continue;
+-
+ 	  /* Remove the pointer to the line table.  */
+ 	  remove_AT (ctnode->root_die, DW_AT_stmt_list);
+-
+ 	  if (debug_info_level >= DINFO_LEVEL_TERSE)
+ 	    reset_dies (ctnode->root_die);
+-
+-	  *slot = ctnode;
+ 	}
+ 
+       /* Reset die CU symbol so we don't output it twice.  */
 diff --git a/gcc/emit-rtl.c b/gcc/emit-rtl.c
 index 07e908624a0..0dc51220682 100644
 --- a/gcc/emit-rtl.c
@@ -31601,10 +31938,22 @@ index 0439a8aacff..367d5c25c56 100644
  
    if (!noce_can_force_operand (t))
 diff --git a/gcc/internal-fn.c b/gcc/internal-fn.c
-index d209a52f823..dc4337c2285 100644
+index d209a52f823..ebd3da32623 100644
 --- a/gcc/internal-fn.c
 +++ b/gcc/internal-fn.c
-@@ -1388,7 +1388,11 @@ expand_mul_overflow (location_t loc, tree lhs, tree arg0, tree arg1,
+@@ -51,6 +51,11 @@ along with GCC; see the file COPYING3.  If not see
+ #include "ssa-iterators.h"
+ #include "explow.h"
+ #include "rtl-iter.h"
++#include "tree-ssa-live.h"
++#include "tree-outof-ssa.h"
++
++/* For lang_hooks.types.type_for_mode.  */
++#include "langhooks.h"
+ 
+ /* The names of each internal function, indexed by function number.  */
+ const char *const internal_fn_name_array[] = {
+@@ -1388,7 +1393,11 @@ expand_mul_overflow (location_t loc, tree lhs, tree arg0, tree arg1,
    rtx target = NULL_RTX;
    signop sign;
    enum insn_code icode;
@@ -31616,7 +31965,7 @@ index d209a52f823..dc4337c2285 100644
    done_label = gen_label_rtx ();
    do_error = gen_label_rtx ();
  
-@@ -2230,6 +2234,7 @@ expand_mul_overflow (location_t loc, tree lhs, tree arg0, tree arg1,
+@@ -2230,6 +2239,7 @@ expand_mul_overflow (location_t loc, tree lhs, tree arg0, tree arg1,
        else
  	expand_arith_overflow_result_store (lhs, target, mode, res);
      }
@@ -31624,7 +31973,7 @@ index d209a52f823..dc4337c2285 100644
  }
  
  /* Expand UBSAN_CHECK_* internal function if it has vector operands.  */
-@@ -2250,7 +2255,11 @@ expand_vector_ubsan_overflow (location_t loc, enum tree_code code, tree lhs,
+@@ -2250,7 +2260,11 @@ expand_vector_ubsan_overflow (location_t loc, enum tree_code code, tree lhs,
    rtx resvr = NULL_RTX;
    unsigned HOST_WIDE_INT const_cnt = 0;
    bool use_loop_p = (!cnt.is_constant (&const_cnt) || const_cnt > 4);
@@ -31636,7 +31985,7 @@ index d209a52f823..dc4337c2285 100644
    if (lhs)
      {
        optab op;
-@@ -2380,6 +2389,7 @@ expand_vector_ubsan_overflow (location_t loc, enum tree_code code, tree lhs,
+@@ -2380,6 +2394,7 @@ expand_vector_ubsan_overflow (location_t loc, enum tree_code code, tree lhs,
      }
    else if (resvr)
      emit_move_insn (lhsr, resvr);
@@ -31644,7 +31993,7 @@ index d209a52f823..dc4337c2285 100644
  }
  
  /* Expand UBSAN_CHECK_ADD call STMT.  */
-@@ -2458,7 +2468,11 @@ expand_arith_overflow (enum tree_code code, gimple *stmt)
+@@ -2458,7 +2473,11 @@ expand_arith_overflow (enum tree_code code, gimple *stmt)
    prec0 = MIN (prec0, pr);
    pr = get_min_precision (arg1, uns1_p ? UNSIGNED : SIGNED);
    prec1 = MIN (prec1, pr);
@@ -31656,7 +32005,7 @@ index d209a52f823..dc4337c2285 100644
    /* If uns0_p && uns1_p, precop is minimum needed precision
       of unsigned type to hold the exact result, otherwise
       precop is minimum needed precision of signed type to
-@@ -2499,6 +2513,7 @@ expand_arith_overflow (enum tree_code code, gimple *stmt)
+@@ -2499,6 +2518,7 @@ expand_arith_overflow (enum tree_code code, gimple *stmt)
  	  ops.location = loc;
  	  rtx tem = expand_expr_real_2 (&ops, NULL_RTX, mode, EXPAND_NORMAL);
  	  expand_arith_overflow_result_store (lhs, target, mode, tem);
@@ -31664,7 +32013,7 @@ index d209a52f823..dc4337c2285 100644
  	  return;
  	}
  
-@@ -2522,16 +2537,19 @@ expand_arith_overflow (enum tree_code code, gimple *stmt)
+@@ -2522,16 +2542,19 @@ expand_arith_overflow (enum tree_code code, gimple *stmt)
  	      if (integer_zerop (arg0) && !unsr_p)
  		{
  		  expand_neg_overflow (loc, lhs, arg1, false, NULL);
@@ -31684,13 +32033,24 @@ index d209a52f823..dc4337c2285 100644
  	      return;
  	    default:
  	      gcc_unreachable ();
-@@ -2577,6 +2595,7 @@ expand_arith_overflow (enum tree_code code, gimple *stmt)
+@@ -2577,6 +2600,7 @@ expand_arith_overflow (enum tree_code code, gimple *stmt)
  	  else
  	    expand_mul_overflow (loc, lhs, arg0, arg1, unsr_p,
  				 uns0_p, uns1_p, false, NULL);
 +	  flag_trapv = save_flag_trapv;
  	  return;
  	}
+ 
+@@ -2658,8 +2682,8 @@ expand_call_mem_ref (tree type, gcall *stmt, int index)
+   tree tmp = addr;
+   if (TREE_CODE (tmp) == SSA_NAME)
+     {
+-      gimple *def = SSA_NAME_DEF_STMT (tmp);
+-      if (gimple_assign_single_p (def))
++      gimple *def = get_gimple_for_ssa_name (tmp);
++      if (def && gimple_assign_single_p (def))
+ 	tmp = gimple_assign_rhs1 (def);
+     }
  
 diff --git a/gcc/ipa-icf.c b/gcc/ipa-icf.c
 index 5dd33a75c3a..f054a9c7842 100644
@@ -32327,7 +32687,7 @@ index 0a1fa489549..fe5c2a2123e 100644
  
  	* GCC 11.3.0 released.
 diff --git a/gcc/match.pd b/gcc/match.pd
-index e89601c0c14..d040c853942 100644
+index e89601c0c14..7f59b1dac8a 100644
 --- a/gcc/match.pd
 +++ b/gcc/match.pd
 @@ -1543,7 +1543,7 @@ DEFINE_INT_AND_FLOAT_ROUND_FN (RINT)
@@ -32446,6 +32806,32 @@ index e89601c0c14..d040c853942 100644
      (eq @0 @0)))))
  (for cmp (ne gt lt)
   (simplify
+@@ -4704,19 +4712,19 @@ DEFINE_INT_AND_FLOAT_ROUND_FN (RINT)
+ 		   >= TYPE_PRECISION (TREE_TYPE (@10)))
+ 		  && (TYPE_UNSIGNED (TREE_TYPE (@00))
+ 		      == TYPE_UNSIGNED (TREE_TYPE (@10))))
+-	      || (TREE_CODE (@10) == INTEGER_CST
++	      || (TREE_CODE (@1) == INTEGER_CST
+ 		  && INTEGRAL_TYPE_P (TREE_TYPE (@00))
+-		  && int_fits_type_p (@10, TREE_TYPE (@00)))))
++		  && int_fits_type_p (@1, TREE_TYPE (@00)))))
+       (cmp @00 (convert @10))
+-      (if (TREE_CODE (@10) == INTEGER_CST
++      (if (TREE_CODE (@1) == INTEGER_CST
+ 	   && INTEGRAL_TYPE_P (TREE_TYPE (@00))
+-	   && !int_fits_type_p (@10, TREE_TYPE (@00)))
++	   && !int_fits_type_p (@1, TREE_TYPE (@00)))
+        (with
+ 	{
+ 	  tree min = lower_bound_in_type (TREE_TYPE (@10), TREE_TYPE (@00));
+ 	  tree max = upper_bound_in_type (TREE_TYPE (@10), TREE_TYPE (@00));
+-	  bool above = integer_nonzerop (const_binop (LT_EXPR, type, max, @10));
+-	  bool below = integer_nonzerop (const_binop (LT_EXPR, type, @10, min));
++	  bool above = integer_nonzerop (const_binop (LT_EXPR, type, max, @1));
++	  bool below = integer_nonzerop (const_binop (LT_EXPR, type, @1, min));
+ 	}
+ 	(if (above || below)
+ 	 (if (cmp == EQ_EXPR || cmp == NE_EXPR)
 @@ -6261,7 +6269,9 @@ DEFINE_INT_AND_FLOAT_ROUND_FN (RINT)
        isize = tree_to_uhwi (TYPE_SIZE (TREE_TYPE (@1)));
    }
@@ -34132,10 +34518,215 @@ index 5530a124a9d..31f93f4b747 100644
  
  DEBUG_FUNCTION void
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..fd5e1cdbd53 100644
+index 5fc23605244..b688f4800a5 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,3405 @@
+@@ -1,3 +1,3610 @@
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-06-17  Jakub Jelinek  <jakub@redhat.com>
++
++	PR driver/115440
++	* g++.dg/cpp1z/pr115440.C: New test.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-06-06  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c/114493
++	* gcc.dg/pr114493-1.c: New test.
++	* gcc.dg/pr114493-2.c: New test.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-06-04  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/108789
++	* gcc.c-torture/execute/pr108789.c: New test.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-05-15  Jakub Jelinek  <jakub@redhat.com>
++
++	PR rtl-optimization/114902
++	PR rtl-optimization/115092
++	* gcc.dg/pr114902.c: New test.
++	* gcc.dg/pr115092.c: New test.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-05-07  Jakub Jelinek  <jakub@redhat.com>
++
++	PR sanitizer/114956
++	* gcc.dg/asan/pr114956.c: New test.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-04-30  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/114876
++	* gcc.dg/pr114876.c: New test.
++	* gcc.dg/tree-ssa/builtin-sprintf-warn-1.c: Adjust expected
++	diagnostics.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-04-25  Jakub Jelinek  <jakub@redhat.com>
++
++	PR fortran/114825
++	* gfortran.dg/gomp/pr114825.f90: New test.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-04-19  Jakub Jelinek  <jakub@redhat.com>
++
++	PR rtl-optimization/114768
++	* gcc.dg/pr114768.c: New test.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-04-18  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/114753
++	* gcc.dg/pr114753.c: New test.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-04-15  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/114634
++	* g++.dg/ext/attrib68.C: New test.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-04-12  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/114691
++	* g++.dg/ext/pr114691.C: New test.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-04-11  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/110027
++	* gcc.dg/asan/pr110027.c: New test.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-04-05  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/114566
++	* gcc.target/i386/avx512f-pr114566.c: New test.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-04-04  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/114537
++	* g++.dg/cpp2a/bit-cast16.C: New test.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-03-14  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/113907
++	* gcc.dg/pr113907-1.c: New test.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-03-14  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/114310
++	* gcc.dg/pr114310.c: New test.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-03-07  Jakub Jelinek  <jakub@redhat.com>
++
++	PR rtl-optimization/110079
++	* gcc.dg/pr110079.c: New test.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-03-04  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/114184
++	* gcc.target/i386/pr114184.c: New test.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-02-22  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c/114007
++	* gcc.dg/c23-attr-syntax-8.c: New test.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-02-12  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/113674
++	* c-c++-common/Wattributes-3.c: New test.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-01-30  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/113603
++	* gcc.c-torture/compile/pr113603.c: New test.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-01-18  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/113122
++	* gcc.target/i386/pr113122-1.c: New test.
++	* gcc.target/i386/pr113122-2.c: New test.
++	* gcc.target/i386/pr113122-3.c: New test.
++	* gcc.target/i386/pr113122-4.c: New test.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-01-16  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/113372
++	PR middle-end/90348
++	PR middle-end/110115
++	PR middle-end/111422
++	* gcc.c-torture/execute/pr90348.c: New test.
++	* gcc.c-torture/execute/pr110115.c: New test.
++	* gcc.c-torture/execute/pr111422.c: New test.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-01-09  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c/113262
++	* gcc.dg/pr113262.c: New test.
++
 +2024-06-12  Torbjörn SVENSSON  <torbjorn.svensson@foss.st.com>
 +
 +	Backported from master:
@@ -41202,6 +41793,44 @@ index 00000000000..d96f86f9579
 +  Label __trans_tmp_7 = **deferred_call_stack_guard_return;
 +  bind(&__trans_tmp_7);
 +}
+diff --git a/gcc/testsuite/g++.dg/vect/pr112793.cc b/gcc/testsuite/g++.dg/vect/pr112793.cc
+new file mode 100644
+index 00000000000..258d7c1b111
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/vect/pr112793.cc
+@@ -0,0 +1,32 @@
++// { dg-do compile }
++// { dg-require-effective-target c++11 }
++// { dg-additional-options "-march=znver2" { target x86_64-*-* i?86-*-* } }
++
++typedef double T;
++T c, s;
++T a[16];
++struct Matrix4 {
++  Matrix4(){}
++  Matrix4(T e, T f, T i, T j) {
++    r[1] = r[4] = e;
++    r[5] = f;
++    r[8] = i;
++    r[9] = j;
++  }
++  Matrix4 operator*(Matrix4 a) {
++    return Matrix4(
++       r[0] * a.r[4] + r[4] + r[15] + r[6],
++       r[1] * a.r[4] + 1 + 2 + 3,  r[0] * r[8] + 1 + 2 + 3,
++       r[1] * r[8] + r[1] + r[14] + r[2] * r[3]);
++  }
++  T r[16] = {};
++};
++Matrix4 t1, t2;
++Matrix4 tt;
++Matrix4 getRotAltAzToEquatorial()
++{
++  t2.r[4] =  0;
++  t1.r[1] =  -s;
++  t1.r[8] = 0;
++  return t1 * t2;
++}
 diff --git a/gcc/testsuite/g++.dg/warn/Warray-bounds-27.C b/gcc/testsuite/g++.dg/warn/Warray-bounds-27.C
 new file mode 100644
 index 00000000000..06ce089c4b0
@@ -43844,6 +44473,48 @@ index 2faef6e2a4f..22eb35fcf09 100644
  /* { dg-final { scan-assembler-times "DW_TAG_inlined_subroutine" 2 } } */
  
  static int foo (int i)
+diff --git a/gcc/testsuite/gcc.dg/debug/dwarf2/pr111080.c b/gcc/testsuite/gcc.dg/debug/dwarf2/pr111080.c
+new file mode 100644
+index 00000000000..3949d7e7c64
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/debug/dwarf2/pr111080.c
+@@ -0,0 +1,18 @@
++/* { dg-do compile } */
++/* { dg-options "-save-temps -gdwarf-3 -dA" } */
++
++struct foo {
++        int field_number_1;
++        int field_number_2;
++        int field_number_3;
++        int field_number_4;
++        int field_number_5;
++};
++
++typedef int fun_t(struct foo *restrict);
++
++int main() {
++        return 0;
++}
++
++/* { dg-final { scan-assembler-not "DW_TAG_structure_type" } } */
+diff --git a/gcc/testsuite/gcc.dg/debug/pr112718.c b/gcc/testsuite/gcc.dg/debug/pr112718.c
+new file mode 100644
+index 00000000000..ff80ca5a298
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/debug/pr112718.c
+@@ -0,0 +1,12 @@
++/* { dg-do compile } */
++/* { dg-require-effective-target lto } */
++/* { dg-options "-g -fdebug-types-section -flto -ffat-lto-objects" } */
++
++struct {
++  int h;
++  unsigned char data[20 + 24 * 6];
++} _EC_X9_62_PRIME_192V2;
++struct {
++  int h;
++  unsigned char data[20 + 24 * 6];
++} _EC_X9_62_PRIME_192V3;
 diff --git a/gcc/testsuite/gcc.dg/dfp/pr108068.c b/gcc/testsuite/gcc.dg/dfp/pr108068.c
 new file mode 100644
 index 00000000000..6cbb0fbe602
@@ -44689,6 +45360,53 @@ index 00000000000..599a14e6ecc
 +      || d.b != 11
 +      || d.c != (0x123456789abcdef0ULL | (((unsigned __int128) 26) << 64)))
 +    __builtin_abort ();
++}
+diff --git a/gcc/testsuite/gcc.dg/pr111039.c b/gcc/testsuite/gcc.dg/pr111039.c
+new file mode 100644
+index 00000000000..bec9983b35f
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/pr111039.c
+@@ -0,0 +1,15 @@
++/* { dg-do compile } */
++/* { dg-options "-O" } */
++
++int _setjmp ();
++void abcd ();
++void abcde ();
++void compiler_corruption_function(int flags)
++{
++  int nowait = flags & 1048576, isexpand = flags & 8388608;
++  abcd();
++  _setjmp(flags);
++  if (nowait && isexpand)
++    flags &= 0;
++  abcde();
++}
+diff --git a/gcc/testsuite/gcc.dg/pr111070.c b/gcc/testsuite/gcc.dg/pr111070.c
+new file mode 100644
+index 00000000000..1ebc7adf782
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/pr111070.c
+@@ -0,0 +1,20 @@
++/* { dg-do compile } */
++/* { dg-options "-O" } */
++
++/* common */
++char c;
++/* arrays must be 8 byte aligned, regardless of size */
++char c_ary[1];
++
++/* data */
++char d = 1;
++char d_ary[1] = {1};
++
++int main ()
++{
++  if (((unsigned long)&c_ary[0] & 7) != 0)
++    return 1;
++  if (((unsigned long)&d_ary[0] & 7) != 0)
++    return 1;
++  return 0;
 +}
 diff --git a/gcc/testsuite/gcc.dg/pr111407.c b/gcc/testsuite/gcc.dg/pr111407.c
 new file mode 100644
@@ -45542,6 +46260,58 @@ index 00000000000..f92de7c1f2e
 +    abort ();
 +  return 0;
 +}
+diff --git a/gcc/testsuite/gcc.dg/torture/pr110176.c b/gcc/testsuite/gcc.dg/torture/pr110176.c
+new file mode 100644
+index 00000000000..e41e3a0c3a7
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/torture/pr110176.c
+@@ -0,0 +1,46 @@
++/* { dg-do run } */
++
++int f(_Bool t)
++{
++        int tt = t;
++        unsigned x = -1;
++        int xx = x;
++        return xx <= tt;
++}
++
++int a, b;
++void c() {}
++__attribute__((noipa))
++void h() {__builtin_abort();}
++int d() {
++  unsigned f[1];
++  int i;
++  if (a)
++    goto h;
++  f[0] = -1;
++  while (1) {
++    c();
++    for (; a < 1; a++) {
++      if (0) {
++      j:
++        continue;
++      }
++      i = f[0];
++      if (a)
++        break;
++      b = i >= (b == 0);
++    }
++    if (!b) {
++      if (0) {
++      h:
++        goto j;
++      }
++      return 0;
++    }
++    h();
++  }
++}
++int main() {
++  d();
++  return 0;
++}
 diff --git a/gcc/testsuite/gcc.dg/torture/pr110298.c b/gcc/testsuite/gcc.dg/torture/pr110298.c
 new file mode 100644
 index 00000000000..139f5c77d89
@@ -45583,6 +46353,41 @@ index 00000000000..2e171a7a19e
 +  return 0;
 +lab:
 +  return -5;
++}
+diff --git a/gcc/testsuite/gcc.dg/torture/pr111445.c b/gcc/testsuite/gcc.dg/torture/pr111445.c
+new file mode 100644
+index 00000000000..320e0b90675
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/torture/pr111445.c
+@@ -0,0 +1,29 @@
++/* { dg-do run } */
++
++extern void abort (void);
++short a, b;
++unsigned char c = 255;
++unsigned cnt;
++void __attribute__((noipa))
++check (int x)
++{
++  if (x != 0)
++    abort ();
++  cnt++;
++}
++int main()
++{
++  int d;
++  unsigned char e;
++  d = 0;
++  for (; a >= 0; a--) {
++    int *f = &d;
++    *f = c;
++  }
++  e = 0;
++  for (; (unsigned char)(d - 255) + e <= 1; e++)
++    check (b);
++  if (cnt != 2)
++    abort ();
++  return 0;
 +}
 diff --git a/gcc/testsuite/gcc.dg/torture/pr111614.c b/gcc/testsuite/gcc.dg/torture/pr111614.c
 new file mode 100644
@@ -46490,6 +47295,26 @@ index 00000000000..f4e110f3bbf
 +  return 0;
 +}
 +
+diff --git a/gcc/testsuite/gcc.dg/vect/pr112505.c b/gcc/testsuite/gcc.dg/vect/pr112505.c
+new file mode 100644
+index 00000000000..56546c1095a
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/vect/pr112505.c
+@@ -0,0 +1,14 @@
++/* { dg-do compile } */
++/* { dg-additional-options "-O3" } */
++
++short int w9;
++struct T {
++  short a : 14;
++  int b;
++};
++struct T v;
++void zc()
++{
++  for(int i = 0; i < 4; i ++)
++    w9 *= v.b ? v.a-- < 0 : 0;
++}
 diff --git a/gcc/testsuite/gcc.dg/vect/pr113281-1.c b/gcc/testsuite/gcc.dg/vect/pr113281-1.c
 new file mode 100644
 index 00000000000..6df4231cb5f
@@ -46747,6 +47572,38 @@ index 00000000000..4a4571792e2
 +/* { dg-final { scan-tree-dump {can narrow to signed:16 without loss [^\n]+= ~} "vect" } } */
 +/* { dg-final { scan-tree-dump {can narrow to signed:16 without loss [^\n]+ MIN_EXPR} "vect" } } */
 +/* { dg-final { scan-tree-dump {can narrow to signed:16 without loss [^\n]+ MAX_EXPR} "vect" } } */
+diff --git a/gcc/testsuite/gcc.dg/vect/pr114027.c b/gcc/testsuite/gcc.dg/vect/pr114027.c
+new file mode 100644
+index 00000000000..b3f3e30e15f
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/vect/pr114027.c
+@@ -0,0 +1,26 @@
++#include "tree-vect.h"
++
++int __attribute__((noipa))
++foo (int *f, int n)
++{
++  int res = 0;
++  for (int i = 0; i < n; ++i)
++    {
++      if (f[2*i])
++        res = 2;
++      if (f[2*i+1])
++        res = -2;
++    }
++  return res;
++}
++
++int f[] = { 1, 1, 1, 1, 1, 1, 1, 1,
++            1, 1, 1, 1, 1, 1, 1, 0 };
++
++int
++main ()
++{
++  if (foo (f, 8) != 2)
++    __builtin_abort ();
++  return 0;
++}
 diff --git a/gcc/testsuite/gcc.dg/vect/pr115192.c b/gcc/testsuite/gcc.dg/vect/pr115192.c
 new file mode 100644
 index 00000000000..923d377c1bb
@@ -49906,6 +50763,24 @@ index 00000000000..231fdd07e80
 +}
 +
 +/* { dg-final { scan-assembler-not "asan_report_load" } } */
+diff --git a/gcc/testsuite/gcc.target/i386/pr112495.c b/gcc/testsuite/gcc.target/i386/pr112495.c
+new file mode 100644
+index 00000000000..21afbaa6945
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/i386/pr112495.c
+@@ -0,0 +1,12 @@
++/* { dg-do compile } */
++/* { dg-options "-O3" } */
++
++typedef struct { int v; } T1;
++typedef struct { T1 v[32]; } T2;
++
++T1 s;
++T1 f1() { return s; }
++
++void f2(__seg_gs T2 *p, int n) {
++  for (int i = 0; i < n; ++i) p->v[i] = f1();
++}
 diff --git a/gcc/testsuite/gcc.target/i386/pr112672.c b/gcc/testsuite/gcc.target/i386/pr112672.c
 new file mode 100644
 index 00000000000..583e9fdfb8b
@@ -56303,7 +57178,7 @@ index 9d1def5f9de..9b2367a568a 100644
    receiver += [(Obj *)objrcvr2 anotherValue];
  
 diff --git a/gcc/tree-data-ref.c b/gcc/tree-data-ref.c
-index b3dd2f0ca41..d127aba8792 100644
+index b3dd2f0ca41..53c73bd5ba0 100644
 --- a/gcc/tree-data-ref.c
 +++ b/gcc/tree-data-ref.c
 @@ -73,6 +73,7 @@ along with GCC; see the file COPYING3.  If not see
@@ -56314,7 +57189,21 @@ index b3dd2f0ca41..d127aba8792 100644
  #include "config.h"
  #include "system.h"
  #include "coretypes.h"
-@@ -2629,7 +2630,9 @@ create_intersect_range_checks (class loop *loop, tree *cond_expr,
+@@ -1641,6 +1642,13 @@ runtime_alias_check_p (ddr_p ddr, class loop *loop, bool speed_p)
+ 				   "runtime alias check not supported for"
+ 				   " outer loop.\n");
+ 
++  /* FORNOW: We don't support handling different address spaces.  */
++  if (TYPE_ADDR_SPACE (TREE_TYPE (TREE_TYPE (DR_BASE_ADDRESS (DDR_A (ddr)))))
++      != TYPE_ADDR_SPACE (TREE_TYPE (TREE_TYPE (DR_BASE_ADDRESS (DDR_B (ddr))))))
++    return opt_result::failure_at (DR_STMT (DDR_A (ddr)),
++				   "runtime alias check between different "
++				   "address spaces not supported.\n");
++
+   return opt_result::success ();
+ }
+ 
+@@ -2629,7 +2637,9 @@ create_intersect_range_checks (class loop *loop, tree *cond_expr,
  	 Because the maximum values are inclusive, there is an alias
  	 if the maximum value of one segment is equal to the minimum
  	 value of the other.  */
@@ -56830,6 +57719,20 @@ index 5a74cc96e13..64d25cf4d17 100644
      return;
  
    gimple_init_gcov_profiler ();
+diff --git a/gcc/tree-scalar-evolution.c b/gcc/tree-scalar-evolution.c
+index ff052be1021..da85647c70d 100644
+--- a/gcc/tree-scalar-evolution.c
++++ b/gcc/tree-scalar-evolution.c
+@@ -3281,7 +3281,8 @@ simple_iv_with_niters (class loop *wrto_loop, class loop *use_loop,
+ 
+   type = TREE_TYPE (iv->base);
+   e = TREE_OPERAND (iv->base, 0);
+-  if (TREE_CODE (e) != PLUS_EXPR
++  if (!tree_nop_conversion_p (type, TREE_TYPE (e))
++      || TREE_CODE (e) != PLUS_EXPR
+       || TREE_CODE (TREE_OPERAND (e, 1)) != INTEGER_CST
+       || !tree_int_cst_equal (iv->step,
+ 			      fold_convert (type, TREE_OPERAND (e, 1))))
 diff --git a/gcc/tree-sra.c b/gcc/tree-sra.c
 index 970ad386873..7ae0d10734b 100644
 --- a/gcc/tree-sra.c
@@ -56974,6 +57877,34 @@ index 4786dbd3849..735d88c5eb4 100644
  	      class edge_info *edge_info;
  
  	      edge_info = new class edge_info (true_edge);
+diff --git a/gcc/tree-ssa-ifcombine.c b/gcc/tree-ssa-ifcombine.c
+index 836a12d6b80..e22bed94f11 100644
+--- a/gcc/tree-ssa-ifcombine.c
++++ b/gcc/tree-ssa-ifcombine.c
+@@ -413,6 +413,10 @@ ifcombine_ifandif (basic_block inner_cond_bb, bool inner_inv,
+     {
+       tree t, t2;
+ 
++      if (TREE_CODE (name1) == SSA_NAME
++	  && SSA_NAME_OCCURS_IN_ABNORMAL_PHI (name1))
++	return false;
++
+       /* Do it.  */
+       gsi = gsi_for_stmt (inner_cond);
+       t = fold_build2 (LSHIFT_EXPR, TREE_TYPE (name1),
+@@ -463,6 +467,12 @@ ifcombine_ifandif (basic_block inner_cond_bb, bool inner_inv,
+       gimple_stmt_iterator gsi;
+       tree t;
+ 
++      if ((TREE_CODE (name1) == SSA_NAME
++	   && SSA_NAME_OCCURS_IN_ABNORMAL_PHI (name1))
++	  || (TREE_CODE (name2) == SSA_NAME
++	      && SSA_NAME_OCCURS_IN_ABNORMAL_PHI (name2)))
++	return false;
++
+       /* Find the common name which is bit-tested.  */
+       if (name1 == name2)
+ 	;
 diff --git a/gcc/tree-ssa-loop-im.c b/gcc/tree-ssa-loop-im.c
 index 8b1b1b2bede..8ee6c1aca12 100644
 --- a/gcc/tree-ssa-loop-im.c
@@ -57735,7 +58666,7 @@ index 0828ff97569..27c09ac38d6 100644
       and we can expand the comparison into the vector boolean bitmask,
       or otherwise if it is compatible with type, we can transform
 diff --git a/gcc/tree-vect-loop.c b/gcc/tree-vect-loop.c
-index 968087a9008..01d1361c9f0 100644
+index 968087a9008..0c1f7e49ed9 100644
 --- a/gcc/tree-vect-loop.c
 +++ b/gcc/tree-vect-loop.c
 @@ -3466,24 +3466,15 @@ pop:
@@ -57849,7 +58780,7 @@ index 968087a9008..01d1361c9f0 100644
  	{
  	  if (dump_enabled_p ())
  	    dump_printf_loc (MSG_MISSED_OPTIMIZATION, vect_location,
-@@ -6739,15 +6747,20 @@ vectorizable_reduction (loop_vec_info loop_vinfo,
+@@ -6739,27 +6747,33 @@ vectorizable_reduction (loop_vec_info loop_vinfo,
        if (VECTORIZABLE_CYCLE_DEF (dt))
  	return false;
  
@@ -57871,9 +58802,27 @@ index 968087a9008..01d1361c9f0 100644
 +		  < GET_MODE_SIZE (SCALAR_TYPE_MODE (TREE_TYPE (vectype_op[i]))))))
 +	vectype_in = vectype_op[i];
  
-       if (code == COND_EXPR)
+-      if (code == COND_EXPR)
++      /* Record how the non-reduction-def value of COND_EXPR is defined.
++	 ???  For a chain of multiple CONDs we'd have to match them up all.  */
++      if (code == COND_EXPR && reduc_chain_length == 1)
  	{
-@@ -7270,7 +7283,7 @@ vectorizable_reduction (loop_vec_info loop_vinfo,
+-	  /* Record how the non-reduction-def value of COND_EXPR is defined.  */
+ 	  if (dt == vect_constant_def)
+ 	    {
+ 	      cond_reduc_dt = dt;
+ 	      cond_reduc_val = op;
+ 	    }
+-	  if (dt == vect_induction_def
+-	      && def_stmt_info
+-	      && is_nonwrapping_integer_induction (def_stmt_info, loop))
++	  else if (dt == vect_induction_def
++		   && def_stmt_info
++		   && is_nonwrapping_integer_induction (def_stmt_info, loop))
+ 	    {
+ 	      cond_reduc_dt = dt;
+ 	      cond_stmt_vinfo = def_stmt_info;
+@@ -7270,7 +7284,7 @@ vectorizable_reduction (loop_vec_info loop_vinfo,
  	   && code != SAD_EXPR
  	   && reduction_type != FOLD_LEFT_REDUCTION))
      for (i = 0; i < op_type; i++)
@@ -57882,7 +58831,23 @@ index 968087a9008..01d1361c9f0 100644
  	{
  	  if (dump_enabled_p ())
  	    dump_printf_loc (MSG_MISSED_OPTIMIZATION, vect_location,
-@@ -8578,10 +8591,6 @@ vectorizable_live_operation (vec_info *vinfo,
+@@ -8018,6 +8032,15 @@ vectorizable_induction (loop_vec_info loop_vinfo,
+ 
+   step_expr = STMT_VINFO_LOOP_PHI_EVOLUTION_PART (stmt_info);
+   gcc_assert (step_expr != NULL_TREE);
++  if (INTEGRAL_TYPE_P (TREE_TYPE (step_expr))
++      && !type_has_mode_precision_p (TREE_TYPE (step_expr)))
++    {
++      if (dump_enabled_p ())
++	dump_printf_loc (MSG_MISSED_OPTIMIZATION, vect_location,
++			 "bit-precision induction vectorization not "
++			 "supported.\n");
++      return false;
++    }
+   tree step_vectype = get_same_sized_vectype (TREE_TYPE (step_expr), vectype);
+ 
+   /* Check for backend support of PLUS/MINUS_EXPR. */
+@@ -8578,10 +8601,6 @@ vectorizable_live_operation (vec_info *vinfo,
  	     all involved stmts together.  */
  	  else if (slp_index != 0)
  	    return true;
@@ -57893,7 +58858,7 @@ index 968087a9008..01d1361c9f0 100644
  	}
        stmt_vec_info reduc_info = info_for_reduction (loop_vinfo, stmt_info);
        gcc_assert (reduc_info->is_reduc_info);
-@@ -8864,9 +8873,10 @@ vectorizable_live_operation (vec_info *vinfo,
+@@ -8864,9 +8883,10 @@ vectorizable_live_operation (vec_info *vinfo,
  						use_stmt))
  	      {
  		enum tree_code code = gimple_assign_rhs_code (use_stmt);
@@ -57907,7 +58872,7 @@ index 968087a9008..01d1361c9f0 100644
  		if (dump_enabled_p ())
  		  dump_printf_loc (MSG_MISSED_OPTIMIZATION, vect_location,
  				   "Using original scalar computation for "
-@@ -9286,9 +9296,7 @@ find_in_mapping (tree t, void *context)
+@@ -9286,9 +9306,7 @@ find_in_mapping (tree t, void *context)
     corresponding dr_vec_info need to be reconnected to the EPILOGUE's
     stmt_vec_infos, their statements need to point to their corresponding copy,
     if they are gather loads or scatter stores then their reference needs to be
@@ -57918,7 +58883,7 @@ index 968087a9008..01d1361c9f0 100644
  
  static void
  update_epilogue_loop_vinfo (class loop *epilogue, tree advance)
-@@ -9429,10 +9437,6 @@ update_epilogue_loop_vinfo (class loop *epilogue, tree advance)
+@@ -9429,10 +9447,6 @@ update_epilogue_loop_vinfo (class loop *epilogue, tree advance)
  	}
        DR_STMT (dr) = STMT_VINFO_STMT (stmt_vinfo);
        stmt_vinfo->dr_aux.stmt = stmt_vinfo;
@@ -58099,7 +59064,7 @@ index f6e8c3c8575..14e5ba54ae7 100644
    /* Try to switch signed types for unsigned types if we can.
       This is better for two reasons.  First, unsigned ops tend
 diff --git a/gcc/tree-vect-slp.c b/gcc/tree-vect-slp.c
-index 7289656db0f..7c75799f625 100644
+index 7289656db0f..a7eb9149221 100644
 --- a/gcc/tree-vect-slp.c
 +++ b/gcc/tree-vect-slp.c
 @@ -3824,7 +3824,23 @@ vect_slp_analyze_node_operations_1 (vec_info *vinfo, slp_tree node,
@@ -58127,7 +59092,40 @@ index 7289656db0f..7c75799f625 100644
  
    gcc_assert (STMT_SLP_TYPE (stmt_info) != loop_vect);
    if (is_a <bb_vec_info> (vinfo)
-@@ -6319,6 +6335,13 @@ vect_schedule_slp_node (vec_info *vinfo,
+@@ -6186,12 +6202,6 @@ vect_schedule_slp_node (vec_info *vinfo,
+   int i;
+   slp_tree child;
+ 
+-  /* For existing vectors there's nothing to do.  */
+-  if (SLP_TREE_VEC_DEFS (node).exists ())
+-    return;
+-
+-  gcc_assert (SLP_TREE_VEC_STMTS (node).is_empty ());
+-
+   /* Vectorize externals and constants.  */
+   if (SLP_TREE_DEF_TYPE (node) == vect_constant_def
+       || SLP_TREE_DEF_TYPE (node) == vect_external_def)
+@@ -6202,10 +6212,18 @@ vect_schedule_slp_node (vec_info *vinfo,
+       if (!SLP_TREE_VECTYPE (node))
+ 	return;
+ 
+-      vect_create_constant_vectors (vinfo, node);
++      /* There are two reasons vector defs might already exist.  The first
++	 is that we are vectorizing an existing vector def.  The second is
++	 when performing BB vectorization shared constant/external nodes
++	 are not split apart during partitioning so during the code-gen
++	 DFS walk we can end up visiting them twice.  */
++      if (! SLP_TREE_VEC_DEFS (node).exists ())
++	vect_create_constant_vectors (vinfo, node);
+       return;
+     }
+ 
++  gcc_assert (SLP_TREE_VEC_DEFS (node).is_empty ());
++
+   stmt_vec_info stmt_info = SLP_TREE_REPRESENTATIVE (node);
+ 
+   gcc_assert (SLP_TREE_NUMBER_OF_VEC_STMTS (node) != 0);
+@@ -6319,6 +6337,13 @@ vect_schedule_slp_node (vec_info *vinfo,
  	  gcc_assert (seen_vector_def);
  	  si = gsi_after_labels (as_a <bb_vec_info> (vinfo)->bbs[0]);
  	}
@@ -58141,7 +59139,7 @@ index 7289656db0f..7c75799f625 100644
        else if (is_a <bb_vec_info> (vinfo)
  	       && gimple_bb (last_stmt) != gimple_bb (stmt_info->stmt)
  	       && gimple_could_trap_p (stmt_info->stmt))
-@@ -6343,8 +6366,6 @@ vect_schedule_slp_node (vec_info *vinfo,
+@@ -6343,8 +6368,6 @@ vect_schedule_slp_node (vec_info *vinfo,
  	}
      }
  
@@ -58150,7 +59148,7 @@ index 7289656db0f..7c75799f625 100644
    /* Handle purely internal nodes.  */
    if (SLP_TREE_CODE (node) == VEC_PERM_EXPR)
      {
-@@ -6355,9 +6376,18 @@ vect_schedule_slp_node (vec_info *vinfo,
+@@ -6355,9 +6378,18 @@ vect_schedule_slp_node (vec_info *vinfo,
  	 but open-code it here (partly).  */
        bool done = vectorizable_slp_permutation (vinfo, &si, node, NULL);
        gcc_assert (done);
@@ -59058,10 +60056,21 @@ index 35839598dfa..62eccb3888b 100644
  
  	* GCC 11.3.0 released.
 diff --git a/libcpp/ChangeLog b/libcpp/ChangeLog
-index 3f63896333e..8edf621d50d 100644
+index 3f63896333e..f307f5a26fa 100644
 --- a/libcpp/ChangeLog
 +++ b/libcpp/ChangeLog
-@@ -1,3 +1,26 @@
+@@ -1,3 +1,37 @@
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-02-22  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c/114007
++	* include/cpplib.h (COLON_SCOPE): Define to PURE_ZERO.
++	* lex.c (_cpp_lex_direct): When lexing CPP_COLON with another
++	colon after it, if !CPP_OPTION (pfile, scope) set COLON_SCOPE
++	flag on the first CPP_COLON token.
++
 +2023-05-29  Release Manager
 +
 +	* GCC 11.4.0 released.
@@ -59731,10 +60740,28 @@ index 8ce061e2f5f..336a5983750 100644
  #include <linux/reboot.h>
  #endif
 diff --git a/libgomp/ChangeLog b/libgomp/ChangeLog
-index 0fa2757d939..1c18a927b15 100644
+index 0fa2757d939..d40ba289e36 100644
 --- a/libgomp/ChangeLog
 +++ b/libgomp/ChangeLog
-@@ -1,3 +1,118 @@
+@@ -1,3 +1,136 @@
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-04-05  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/114572
++	* testsuite/libgomp.c++/pr114572.C: New test.
++
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-01-10  Jakub Jelinek  <jakub@redhat.com>
++
++	PR libgomp/113192
++	* configure.ac (FLOCK): Use $libgomp_abs_srcdir/testsuite/flock
++	instead of \$(abs_top_srcdir)/testsuite/flock.
++	* configure: Regenerated.
++
 +2023-06-28  Thomas Schwinge  <thomas@codesourcery.com>
 +
 +	Backported from master:
@@ -61465,10 +62492,21 @@ index bafd5ad4502..8e2f1eefd5b 100755
        echo ${GDCLDFLAGS}
        ;;
 diff --git a/libquadmath/ChangeLog b/libquadmath/ChangeLog
-index 6f7c20c430d..8733d230628 100644
+index 6f7c20c430d..212a2a96183 100644
 --- a/libquadmath/ChangeLog
 +++ b/libquadmath/ChangeLog
-@@ -1,3 +1,22 @@
+@@ -1,3 +1,33 @@
++2024-06-20  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-04-03  Simon Chopin  <simon.chopin@canonical.com>
++		    Jakub Jelinek  <jakub@redhat.com>
++
++	PR libquadmath/114533
++	* printf/printf_fp.c (__quadmath_printf_fp): Use memcpy to copy
++	__float128 out of args.
++	* printf/printf_fphex.c (__quadmath_printf_fphex): Likewise.
++
 +2023-05-29  Release Manager
 +
 +	* GCC 11.4.0 released.
@@ -61733,10 +62771,23 @@ index 72119b01c69..2cc64a39649 100644
  
  	* GCC 11.3.0 released.
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..9c539c7e243 100644
+index 85e04c45288..be6b102f767 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,2315 @@
+@@ -1,3 +1,2328 @@
++2024-06-20  Matthias Kretz  <m.kretz@gsi.de>
++
++	Backported from master:
++	2024-06-20  Matthias Kretz  <m.kretz@gsi.de>
++
++	PR libstdc++/115454
++	* include/experimental/bits/simd_x86.h (_S_not_equal_to): Use
++	neq comparison instead of bitwise negation after eq.
++	(_S_find_last_set): Clear unused high bits before computing
++	bit_width.
++	* testsuite/experimental/simd/pr115454_find_last_set.cc: New
++	test.
++
 +2024-06-01  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backported from master:
