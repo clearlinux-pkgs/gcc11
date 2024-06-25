@@ -93,7 +93,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (779):
+GCC Administrator (780):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -3653,10 +3654,24 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..93bc393f3a0 100644
+index a0587d18824..15199e829d6 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,3663 @@
+@@ -1,3 +1,3677 @@
++2024-06-24  Kewen Lin  <linkw@linux.ibm.com>
++
++	Backported from master:
++	2024-05-29  Kewen Lin  <linkw@linux.ibm.com>
++
++	PR target/114846
++	* config/rs6000/rs6000-logue.c (rs6000_emit_epilogue): As
++	EPILOGUE_TYPE_EH_RETURN would be passed as epilogue_type directly
++	now, adjust the relevant handlings on it.
++	* config/rs6000/rs6000.md (eh_return expander): Append by calling
++	gen_eh_return_internal and emit_barrier.
++	(eh_return_internal): New define_insn_and_split, call function
++	rs6000_emit_epilogue with epilogue type EPILOGUE_TYPE_EH_RETURN.
++
 +2024-06-21  Richard Biener  <rguenther@suse.de>
 +
 +	Backported from master:
@@ -34667,10 +34682,18 @@ index 5530a124a9d..31f93f4b747 100644
  
  DEBUG_FUNCTION void
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..84d18f3ef8e 100644
+index 5fc23605244..c155f08d77a 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,3689 @@
+@@ -1,3 +1,3697 @@
++2024-06-24  Kewen Lin  <linkw@linux.ibm.com>
++
++	Backported from master:
++	2024-05-29  Kewen Lin  <linkw@linux.ibm.com>
++
++	PR target/114846
++	* gcc.target/powerpc/pr114846.c: New test.
++
 +2024-06-21  Richard Biener  <rguenther@suse.de>
 +
 +	Backported from master:
