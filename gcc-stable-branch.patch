@@ -93,7 +93,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (780):
+GCC Administrator (781):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1236,7 +1237,7 @@ John David Anglin (4):
       hppa: Fix typo in PA 2.0 trampoline template
       hppa: Fix bug in atomic_storedi_1 pattern
 
-Jonathan Wakely (138):
+Jonathan Wakely (139):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -1375,6 +1376,7 @@ Jonathan Wakely (138):
       libstdc++: Missing constexpr for __gnu_debug::__valid_range etc
       libstdc++: Add missing std::tuple constructor [PR114147]
       libstdc++: Replace link to gcc-4.3.2 docs in manual [PR115269]
+      libstdc++: Replace reference to mainline in release branch docs
 
 José Rui Faustino de Sousa (5):
       Fortran: Fix ICE with -fcheck=pointer [PR100136]
@@ -63048,10 +63050,16 @@ index 72119b01c69..2cc64a39649 100644
  
  	* GCC 11.3.0 released.
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..4ca3d6c6ca0 100644
+index 85e04c45288..1303caa89a6 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,2337 @@
+@@ -1,3 +1,2343 @@
++2024-06-25  Jonathan Wakely  <jwakely@redhat.com>
++
++	* doc/xml/manual/status_cxx2023.xml: Change reference from
++	mainline GCC to the release branch.
++	* doc/html/manual/status.html: Regenerate.
++
 +2024-06-21  Matthias Kretz  <m.kretz@gsi.de>
 +
 +	Backported from master:
@@ -66172,7 +66180,7 @@ index 636a4401602..f27b8d806df 100644
  	  will be made to use "C" library functionality necessary for
  	  C++ named locale support.  For GCC 4.6.0 and later, this
 diff --git a/libstdc++-v3/doc/html/manual/status.html b/libstdc++-v3/doc/html/manual/status.html
-index 25c676d2892..3805e9e24f0 100644
+index 25c676d2892..838cba72f47 100644
 --- a/libstdc++-v3/doc/html/manual/status.html
 +++ b/libstdc++-v3/doc/html/manual/status.html
 @@ -2,7 +2,7 @@
@@ -66235,7 +66243,7 @@ index 25c676d2892..3805e9e24f0 100644
          <a class="link" href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p0811r3.html" target="_top">
          P0811R3 </a>
        </td><td align="center"> 9.1 </td><td align="left"> <code class="code">__cpp_lib_interpolate &gt;= 201902L</code> </td></tr><tr><td align="left"> Mathematical constants </td><td align="left">
-@@ -1684,16 +1684,105 @@ or any notes about the implementation.
+@@ -1684,16 +1684,104 @@ or any notes about the implementation.
        </td><td align="center"> 10.1 </td><td align="left"> <code class="code">__cpp_lib_math_constants &gt;= 201907L</code> </td></tr><tr><td align="left"> std::source_location </td><td align="left">
          <a class="link" href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1208r6.pdf" target="_top">
          P1208R6 </a>
@@ -66260,8 +66268,7 @@ index 25c676d2892..3805e9e24f0 100644
 +<code class="constant">__cplusplus</code> is used to check for the
 +presence of the required flag.
 +</p><p>
-+This section describes the C++23 and library TS support in mainline GCC,
-+not in any particular release.
++This section describes the C++23 and library TS support in the GCC 11 release series.
 +</p><p>
 +The following table lists new library features that have been accepted into
 +the C++23 working draft. The "Proposal" column provides a link to the
@@ -66344,7 +66351,7 @@ index 25c676d2892..3805e9e24f0 100644
  This table is based on the table of contents of ISO/IEC DTR 19768
  Doc No: N1836=05-0096 Date: 2005-06-24
  Draft Technical Report on C++ Library Extensions
-@@ -1703,7 +1792,7 @@ In this implementation the header names are prefixed by
+@@ -1703,7 +1791,7 @@ In this implementation the header names are prefixed by
  <code class="code">&lt;tr1/memory&gt;</code>, and so on.
  </p><p>
  This page describes the TR1 support in the GCC 11 release series.
@@ -66353,7 +66360,7 @@ index 25c676d2892..3805e9e24f0 100644
  	<p>
  	  Uses code from
  	  <a class="link" href="http://www.boost.org/libs/smart_ptr/shared_ptr.htm" target="_top">boost::shared_ptr</a>.
-@@ -1723,7 +1812,7 @@ Extension for the programming language C++ to support
+@@ -1723,7 +1811,7 @@ Extension for the programming language C++ to support
  decimal floating-point arithmetic
  </p><p>
  This page describes the TR 24733 support in the GCC 11 release series.
@@ -66362,7 +66369,7 @@ index 25c676d2892..3805e9e24f0 100644
  	<span class="emphasis"><em>0</em></span>
        </td><td colspan="3" align="left">
  	<span class="emphasis"><em>Introduction</em></span>
-@@ -1763,7 +1852,7 @@ non-strict modes (i.e. <code class="code">-std=gnu++NN</code> modes) the
+@@ -1763,7 +1851,7 @@ non-strict modes (i.e. <code class="code">-std=gnu++NN</code> modes) the
  hypergeometric functions and confluent hypergeometric functions
  from TR1 are also provided, defined in namespace
  <code class="code">__gnu_cxx</code>.
@@ -66700,10 +66707,10 @@ index 411a337c534..67aac7d64b8 100644
  
 diff --git a/libstdc++-v3/doc/xml/manual/status_cxx2023.xml b/libstdc++-v3/doc/xml/manual/status_cxx2023.xml
 new file mode 100644
-index 00000000000..75f31f55aa9
+index 00000000000..381f989d482
 --- /dev/null
 +++ b/libstdc++-v3/doc/xml/manual/status_cxx2023.xml
-@@ -0,0 +1,249 @@
+@@ -0,0 +1,248 @@
 +<section xmlns="http://docbook.org/ns/docbook" version="5.0"
 +   xml:id="status.iso.2023" xreflabel="Status C++ 2023">
 +<?dbhtml filename="status_iso_cxx2023.html"?>
@@ -66726,8 +66733,7 @@ index 00000000000..75f31f55aa9
 +</para>
 +
 +<para>
-+This section describes the C++23 and library TS support in mainline GCC,
-+not in any particular release.
++This section describes the C++23 and library TS support in the GCC 11 release series.
 +</para>
 +
 +<para>
