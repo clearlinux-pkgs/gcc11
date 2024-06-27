@@ -93,7 +93,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (781):
+GCC Administrator (782):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -968,7 +969,7 @@ Iain Buclaw (22):
       d: Fix callee destructor call invalidates the live object [PR113758]
       d: Fix gdc -O2 -mavx generates misaligned vmovdqa instruction [PR114171]
 
-Iain Sandoe (66):
+Iain Sandoe (70):
       Darwin: Fix bootstrap for X86.
       Darwin: Update rules for handling alignment of globals.
       Darwin: Fix empty g++ command lines [PR105599].
@@ -1035,6 +1036,10 @@ Iain Sandoe (66):
       testsuite: Remove duplicate -lgcov [PR114034]
       jit, Darwin: Implement library exports list.
       Objective-C, NeXT, v2: Correct a regression in code-gen.
+      coroutines: Await expressions are not allowed in handlers [PR 99710].
+      coroutines: Pass lvalues to user-defined operator new [PR 100772].
+      coroutines: Fail with a sorry when presented with a VLA [PR 101765].
+      c++, coroutines: Improve check for throwing final await [PR104051].
 
 Ian Lance Taylor (2):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
@@ -1413,8 +1418,9 @@ Kito Cheng (2):
       RISC-V: Fix wrong expansion for arch-canonicalize
       RISC-V: Fix __atomic_compare_exchange with 32 bit value on RV64
 
-Kyrylo Tkachov (1):
+Kyrylo Tkachov (2):
       aarch64: Add support for -mcpu=neoverse-v2
+      Add support for -mcpu=grace
 
 Lewis Hyatt (2):
       c: Fix location for _Pragma tokens [PR97498]
@@ -1444,7 +1450,7 @@ Martin Jambor (4):
       ipa: Release body more carefully when removing nodes (PR 107944)
       sra: Disqualify bases of operands of asm gotos
 
-Martin Liska (7):
+Martin Liska (8):
       ipa-icf: skip variables with body_removed
       libsanitizer: cherry-pick 9cf13067cb5088626ba7 from upstream
       x86: fix VENDOR_MAX enum value
@@ -1452,6 +1458,7 @@ Martin Liska (7):
       Factor out jobserver_active_p.
       lto: support --jobserver-style=fifo for recent GNU make
       lto-wrapper: silent warnings in tests
+      libstdc++: fix typo in acinclude.m4.
 
 Matt Jacobson (1):
       Objective-C: Default flag_objc_sjlj_exceptions off for NeXT ABI >= 2.
@@ -9456,7 +9463,7 @@ index 8eeef588559..05869463e4b 100644
    /* Not for ACLE, but required to keep "float.h" correct if we switch
       target between implementations that do or do not support ARMv8.2-A
 diff --git a/gcc/config/aarch64/aarch64-cores.def b/gcc/config/aarch64/aarch64-cores.def
-index 4643e0e2795..5599cde700f 100644
+index 4643e0e2795..0243e3d4d1c 100644
 --- a/gcc/config/aarch64/aarch64-cores.def
 +++ b/gcc/config/aarch64/aarch64-cores.def
 @@ -69,7 +69,8 @@ AARCH64_CORE("thunderxt81",   thunderxt81,   thunderx,  8A,  AARCH64_FL_FOR_ARCH
@@ -9469,7 +9476,7 @@ index 4643e0e2795..5599cde700f 100644
  /* Do not swap around "emag" and "xgene1",
     this order is required to handle variant correctly. */
  AARCH64_CORE("emag",        emag,      xgene1,    8A,  AARCH64_FL_FOR_ARCH8 | AARCH64_FL_CRC | AARCH64_FL_CRYPTO, emag, 0x50, 0x000, 3)
-@@ -133,20 +134,22 @@ AARCH64_CORE("tsv110",  tsv110, tsv110, 8_2A,  AARCH64_FL_FOR_ARCH8_2 | AARCH64_
+@@ -133,20 +134,23 @@ AARCH64_CORE("tsv110",  tsv110, tsv110, 8_2A,  AARCH64_FL_FOR_ARCH8_2 | AARCH64_
  /* ARMv8.3-A Architecture Processors.  */
  
  /* Marvell cores (TX3). */
@@ -9494,6 +9501,7 @@ index 4643e0e2795..5599cde700f 100644
  AARCH64_CORE("neoverse-n2", neoversen2, cortexa57, 8_5A, AARCH64_FL_FOR_ARCH8_5 | AARCH64_FL_I8MM | AARCH64_FL_BF16 | AARCH64_FL_F16 | AARCH64_FL_SVE | AARCH64_FL_SVE2 | AARCH64_FL_SVE2_BITPERM | AARCH64_FL_RNG | AARCH64_FL_MEMTAG, neoversen2, 0x41, 0xd49, -1)
 +AARCH64_CORE("cobalt-100",   cobalt100, cortexa57, 8_5A, AARCH64_FL_FOR_ARCH8_5 | AARCH64_FL_I8MM | AARCH64_FL_BF16 | AARCH64_FL_F16 | AARCH64_FL_SVE | AARCH64_FL_SVE2 | AARCH64_FL_SVE2_BITPERM | AARCH64_FL_RNG | AARCH64_FL_MEMTAG, neoversen2, 0x6d, 0xd49, -1)
 +AARCH64_CORE("neoverse-v2", neoversev2, cortexa57, 8_5A, AARCH64_FL_FOR_ARCH8_5 | AARCH64_FL_I8MM | AARCH64_FL_BF16 | AARCH64_FL_F16 | AARCH64_FL_SVE | AARCH64_FL_SVE2 | AARCH64_FL_SVE2_BITPERM | AARCH64_FL_RNG | AARCH64_FL_MEMTAG, neoverse512tvb, 0x41, 0xd4f, -1)
++AARCH64_CORE("grace", grace, cortexa57, 8_5A, AARCH64_FL_FOR_ARCH8_5 | AARCH64_FL_I8MM | AARCH64_FL_BF16 | AARCH64_FL_F16 | AARCH64_FL_CRYPTO | AARCH64_FL_SHA3 | AARCH64_FL_SM4 | AARCH64_FL_SVE | AARCH64_FL_SVE2 | AARCH64_FL_SVE2_BITPERM | AARCH64_FL_SVE2_AES | AARCH64_FL_SVE2_SM4 | AARCH64_FL_SVE2_SHA3, neoverse512tvb, 0x41, 0xd4f, -1)
  
  /* ARMv8-A big.LITTLE implementations.  */
  
@@ -9850,7 +9858,7 @@ index 8eb9ec24909..509b7120a1b 100644
  
  ;; -------------------------------------------------------------------------
 diff --git a/gcc/config/aarch64/aarch64-tune.md b/gcc/config/aarch64/aarch64-tune.md
-index 2beac8c8353..8953f1c0332 100644
+index 2beac8c8353..f233a7cce6c 100644
 --- a/gcc/config/aarch64/aarch64-tune.md
 +++ b/gcc/config/aarch64/aarch64-tune.md
 @@ -1,5 +1,5 @@
@@ -9858,7 +9866,7 @@ index 2beac8c8353..8953f1c0332 100644
  ;; Generated automatically by gentune.sh from aarch64-cores.def
  (define_attr "tune"
 -	"cortexa34,cortexa35,cortexa53,cortexa57,cortexa72,cortexa73,thunderx,thunderxt88p1,thunderxt88,octeontx,octeontxt81,octeontxt83,thunderxt81,thunderxt83,ampere1,emag,xgene1,falkor,qdf24xx,exynosm1,phecda,thunderx2t99p1,vulcan,thunderx2t99,cortexa55,cortexa75,cortexa76,cortexa76ae,cortexa77,cortexa78,cortexa78ae,cortexa78c,cortexa65,cortexa65ae,cortexx1,ares,neoversen1,neoversee1,octeontx2,octeontx2t98,octeontx2t96,octeontx2t93,octeontx2f95,octeontx2f95n,octeontx2f95mm,a64fx,tsv110,thunderx3t110,zeus,neoversev1,neoverse512tvb,saphira,neoversen2,cortexa57cortexa53,cortexa72cortexa53,cortexa73cortexa35,cortexa73cortexa53,cortexa75cortexa55,cortexa76cortexa55,cortexr82"
-+	"cortexa34,cortexa35,cortexa53,cortexa57,cortexa72,cortexa73,thunderx,thunderxt88p1,thunderxt88,octeontx,octeontxt81,octeontxt83,thunderxt81,thunderxt83,ampere1,ampere1a,emag,xgene1,falkor,qdf24xx,exynosm1,phecda,thunderx2t99p1,vulcan,thunderx2t99,cortexa55,cortexa75,cortexa76,cortexa76ae,cortexa77,cortexa78,cortexa78ae,cortexa78c,cortexa65,cortexa65ae,cortexx1,ares,neoversen1,neoversee1,octeontx2,octeontx2t98,octeontx2t96,octeontx2t93,octeontx2f95,octeontx2f95n,octeontx2f95mm,a64fx,tsv110,thunderx3t110,zeus,neoversev1,neoverse512tvb,saphira,neoversen2,cobalt100,neoversev2,cortexa57cortexa53,cortexa72cortexa53,cortexa73cortexa35,cortexa73cortexa53,cortexa75cortexa55,cortexa76cortexa55,cortexr82"
++	"cortexa34,cortexa35,cortexa53,cortexa57,cortexa72,cortexa73,thunderx,thunderxt88p1,thunderxt88,octeontx,octeontxt81,octeontxt83,thunderxt81,thunderxt83,ampere1,ampere1a,emag,xgene1,falkor,qdf24xx,exynosm1,phecda,thunderx2t99p1,vulcan,thunderx2t99,cortexa55,cortexa75,cortexa76,cortexa76ae,cortexa77,cortexa78,cortexa78ae,cortexa78c,cortexa65,cortexa65ae,cortexx1,ares,neoversen1,neoversee1,octeontx2,octeontx2t98,octeontx2t96,octeontx2t93,octeontx2f95,octeontx2f95n,octeontx2f95mm,a64fx,tsv110,thunderx3t110,zeus,neoversev1,neoverse512tvb,saphira,neoversen2,cobalt100,neoversev2,grace,cortexa57cortexa53,cortexa72cortexa53,cortexa73cortexa35,cortexa73cortexa53,cortexa75cortexa55,cortexa76cortexa55,cortexr82"
  	(const (symbol_ref "((enum attr_tune) aarch64_tune)")))
 diff --git a/gcc/config/aarch64/aarch64-tuning-flags.def b/gcc/config/aarch64/aarch64-tuning-flags.def
 index 65b4c37d652..dcb96d71a1c 100644
@@ -25417,10 +25425,31 @@ index dea94b5fb27..822bc6261d8 100644
      {
      case TRAIT_EXPR:
 diff --git a/gcc/cp/coroutines.cc b/gcc/cp/coroutines.cc
-index e982cdb89a7..34d9d3e7d61 100644
+index e982cdb89a7..b12d74bf975 100644
 --- a/gcc/cp/coroutines.cc
 +++ b/gcc/cp/coroutines.cc
-@@ -1016,9 +1016,13 @@ build_co_await (location_t loc, tree a, suspend_point_kind suspend_kind)
+@@ -877,13 +877,14 @@ coro_diagnose_throwing_fn (tree fndecl)
+ static bool
+ coro_diagnose_throwing_final_aw_expr (tree expr)
+ {
+-  tree t = TARGET_EXPR_INITIAL (expr);
++  if (TREE_CODE (expr) == TARGET_EXPR)
++    expr = TARGET_EXPR_INITIAL (expr);
+   tree fn = NULL_TREE;
+-  if (TREE_CODE (t) == CALL_EXPR)
+-    fn = CALL_EXPR_FN(t);
+-  else if (TREE_CODE (t) == AGGR_INIT_EXPR)
+-    fn = AGGR_INIT_EXPR_FN (t);
+-  else if (TREE_CODE (t) == CONSTRUCTOR)
++  if (TREE_CODE (expr) == CALL_EXPR)
++    fn = CALL_EXPR_FN (expr);
++  else if (TREE_CODE (expr) == AGGR_INIT_EXPR)
++    fn = AGGR_INIT_EXPR_FN (expr);
++  else if (TREE_CODE (expr) == CONSTRUCTOR)
+     return false;
+   else
+     {
+@@ -1016,9 +1017,13 @@ build_co_await (location_t loc, tree a, suspend_point_kind suspend_kind)
      }
    else
      {
@@ -25435,7 +25464,7 @@ index e982cdb89a7..34d9d3e7d61 100644
      }
  
    /* I suppose we could check that this is contextually convertible to bool.  */
-@@ -1111,6 +1115,9 @@ build_co_await (location_t loc, tree a, suspend_point_kind suspend_kind)
+@@ -1111,6 +1116,9 @@ build_co_await (location_t loc, tree a, suspend_point_kind suspend_kind)
      }
    TREE_VEC_ELT (awaiter_calls, 2) = awrs_call; /* await_resume().  */
  
@@ -25445,7 +25474,7 @@ index e982cdb89a7..34d9d3e7d61 100644
    tree await_expr = build5_loc (loc, CO_AWAIT_EXPR,
  				TREE_TYPE (TREE_TYPE (awrs_func)),
  				a, e_proxy, o, awaiter_calls,
-@@ -2867,7 +2874,7 @@ flatten_await_stmt (var_nest_node *n, hash_set<tree> *promoted,
+@@ -2867,7 +2875,7 @@ flatten_await_stmt (var_nest_node *n, hash_set<tree> *promoted,
  	  tree init = t;
  	  temps_used->add (init);
  	  tree var_type = TREE_TYPE (init);
@@ -25454,7 +25483,48 @@ index e982cdb89a7..34d9d3e7d61 100644
  	  tree var = build_lang_decl (VAR_DECL, get_identifier (buf), var_type);
  	  DECL_ARTIFICIAL (var) = true;
  	  free (buf);
-@@ -4067,6 +4074,19 @@ coro_rewrite_function_body (location_t fn_start, tree fnbody, tree orig,
+@@ -3706,7 +3714,22 @@ await_statement_walker (tree *stmt, int *do_subtree, void *d)
+ 	      }
+ 	    return NULL_TREE; /* Done.  */
+ 	  }
+-	break;
++	  break;
++	case HANDLER:
++	  {
++	    /* [expr.await] An await-expression shall appear only in a
++	       potentially-evaluated expression within the compound-statement
++	       of a function-body outside of a handler.  */
++	    tree *await_ptr;
++	    hash_set<tree> visited;
++	    if (!(cp_walk_tree (&HANDLER_BODY (expr), find_any_await,
++		  &await_ptr, &visited)))
++	      return NULL_TREE; /* All OK.  */
++	    location_t loc = EXPR_LOCATION (*await_ptr);
++	    error_at (loc, "await expressions are not permitted in handlers");
++	    return NULL_TREE; /* This is going to fail later anyway.  */
++	  }
++	  break;
+       }
+   else if (EXPR_P (expr))
+     {
+@@ -3919,6 +3942,16 @@ register_local_var_uses (tree *stmt, int *do_subtree, void *d)
+ 	  if (local_var.is_static)
+ 	    continue;
+ 
++	  poly_uint64 size;
++	  if (TREE_CODE (lvtype) == ARRAY_TYPE
++	      && !poly_int_tree_p (DECL_SIZE_UNIT (lvar), &size))
++	    {
++	      sorry_at (local_var.def_loc, "variable length arrays are not"
++			" yet supported in coroutines");
++	      /* Ignore it, this is broken anyway.  */
++	      continue;
++	    }
++
+ 	  lvd->local_var_seen = true;
+ 	  /* If this var is a lambda capture proxy, we want to leave it alone,
+ 	     and later rewrite the DECL_VALUE_EXPR to indirect through the
+@@ -4067,6 +4100,19 @@ coro_rewrite_function_body (location_t fn_start, tree fnbody, tree orig,
        BLOCK_SUPERCONTEXT (replace_blk) = top_block;
        BLOCK_SUBBLOCKS (top_block) = replace_blk;
      }
@@ -25474,6 +25544,30 @@ index e982cdb89a7..34d9d3e7d61 100644
  
    /* Wrap the function body in a try {} catch (...) {} block, if exceptions
       are enabled.  */
+@@ -4578,8 +4624,8 @@ morph_fn_to_coro (tree orig, tree *resumer, tree *destroyer)
+ 	If the lookup finds an allocation function in the scope of the promise
+ 	type, overload resolution is performed on a function call created by
+ 	assembling an argument list.  The first argument is the amount of space
+-	requested, and has type std::size_t.  The succeeding arguments are
+-	those of the original function.  */
++	requested, and has type std::size_t.  The lvalues p1...pn are the
++	succeeding arguments..  */
+       vec<tree, va_gc> *args = make_tree_vector ();
+       vec_safe_push (args, resizeable); /* Space needed.  */
+ 
+@@ -4597,10 +4643,10 @@ morph_fn_to_coro (tree orig, tree *resumer, tree *destroyer)
+ 	      this_ref = convert_to_reference (tt, this_ref, CONV_STATIC,
+ 					       LOOKUP_NORMAL , NULL_TREE,
+ 					       tf_warning_or_error);
+-	      vec_safe_push (args, this_ref);
++	      vec_safe_push (args, convert_from_reference (this_ref));
+ 	    }
+ 	  else
+-	    vec_safe_push (args, arg);
++	    vec_safe_push (args, convert_from_reference (arg));
+ 	}
+ 
+       /* Note the function selected; we test to see if it's NOTHROW.  */
 diff --git a/gcc/cp/cp-gimplify.c b/gcc/cp/cp-gimplify.c
 index 4eee9ff6eb6..c6c5cfa18c2 100644
 --- a/gcc/cp/cp-gimplify.c
@@ -28520,7 +28614,7 @@ index 4b05ccfaffb..68a0f2b04e9 100644
  
  Several support libraries are necessary to build GCC, some are required,
 diff --git a/gcc/doc/invoke.texi b/gcc/doc/invoke.texi
-index 35508efb4ef..1ae94fb3677 100644
+index 35508efb4ef..ef331d72beb 100644
 --- a/gcc/doc/invoke.texi
 +++ b/gcc/doc/invoke.texi
 @@ -1396,7 +1396,7 @@ See RS/6000 and PowerPC Options.
@@ -28549,15 +28643,17 @@ index 35508efb4ef..1ae94fb3677 100644
  
  @item -fgnu-runtime
  @opindex fgnu-runtime
-@@ -18231,7 +18233,7 @@ performance of the code.  Permissible values for this option are:
+@@ -18231,8 +18233,8 @@ performance of the code.  Permissible values for this option are:
  @samp{cortex-a78}, @samp{cortex-a78ae}, @samp{cortex-a78c},
  @samp{ares}, @samp{exynos-m1}, @samp{emag}, @samp{falkor},
  @samp{neoverse-512tvb}, @samp{neoverse-e1}, @samp{neoverse-n1},
 -@samp{neoverse-n2}, @samp{neoverse-v1}, @samp{qdf24xx},
-+@samp{neoverse-n2}, @samp{neoverse-v1},@samp{neoverse-v2}, @samp{qdf24xx},
- @samp{saphira}, @samp{phecda}, @samp{xgene1}, @samp{vulcan},
+-@samp{saphira}, @samp{phecda}, @samp{xgene1}, @samp{vulcan},
++@samp{neoverse-n2}, @samp{neoverse-v1},@samp{neoverse-v2}, @samp{grace},
++@samp{qdf24xx}, @samp{saphira}, @samp{phecda}, @samp{xgene1}, @samp{vulcan},
  @samp{octeontx}, @samp{octeontx81},  @samp{octeontx83},
  @samp{octeontx2}, @samp{octeontx2t98}, @samp{octeontx2t96}
+ @samp{octeontx2t93}, @samp{octeontx2f95}, @samp{octeontx2f95n},
 @@ -18244,7 +18246,8 @@ performance of the code.  Permissible values for this option are:
  @samp{cortex-a57.cortex-a53}, @samp{cortex-a72.cortex-a53},
  @samp{cortex-a73.cortex-a35}, @samp{cortex-a73.cortex-a53},
@@ -38927,6 +39023,274 @@ index 00000000000..e2831c104bf
 +        co_await moveonly;
 +    }
 +}
+diff --git a/gcc/testsuite/g++.dg/coroutines/pr100772-a.C b/gcc/testsuite/g++.dg/coroutines/pr100772-a.C
+new file mode 100644
+index 00000000000..a325d384fc3
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/coroutines/pr100772-a.C
+@@ -0,0 +1,77 @@
++//  { dg-additional-options "-fsyntax-only " }
++#ifdef __clang__
++#include <experimental/coroutine>
++namespace std {
++  using namespace std::experimental;
++}
++#else
++#include <coroutine>
++#endif
++
++struct Task
++{
++    struct promise_type
++    {        
++		void return_void() const noexcept {}
++
++		void* operator new(std::size_t, auto &&...args) noexcept
++		{
++            static_assert(sizeof...(args) > 0);
++            static_assert(sizeof...(args) == 2);
++
++			return nullptr;
++		}
++
++		void operator delete(void *, std::size_t) noexcept
++		{
++		}
++
++        static Task get_return_object_on_allocation_failure() noexcept
++        {
++            return {};
++        }
++
++        Task get_return_object() noexcept
++        {
++            return Task{ *this };
++        }
++
++        std::suspend_always initial_suspend() noexcept
++        {
++            return {};
++        }
++
++        std::suspend_always final_suspend() noexcept
++        {
++            return {};
++        }
++
++        void unhandled_exception() noexcept {}
++    };
++
++    using promise_handle = std::coroutine_handle<promise_type>;
++
++    Task() = default;
++    Task(promise_type & promise) noexcept
++        : m_handle{ promise_handle::from_promise(promise) }
++    {}
++
++    ~Task()
++    {
++        if (m_handle.address()) { m_handle.destroy(); }
++    }
++    
++    promise_handle m_handle{};
++};
++
++
++Task Foo(auto && ... args) noexcept
++{
++    co_return;
++}
++
++int main()
++{
++    int v;
++    Foo(v, 2134);
++}
+diff --git a/gcc/testsuite/g++.dg/coroutines/pr100772-b.C b/gcc/testsuite/g++.dg/coroutines/pr100772-b.C
+new file mode 100644
+index 00000000000..6cdf8d1e529
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/coroutines/pr100772-b.C
+@@ -0,0 +1,93 @@
++#ifdef __clang__
++#include <experimental/coroutine>
++namespace std {
++  using namespace std::experimental;
++}
++#else
++#include <coroutine>
++#endif
++#include <cstdio>
++#include <typeinfo>
++#include <cxxabi.h>  // needed for abi::__cxa_demangle
++#include <memory>
++
++std::shared_ptr<char> cppDemangle(const char *abiName)
++{
++  int status;    
++  char *ret = abi::__cxa_demangle(abiName, 0, 0, &status);  
++
++  /* NOTE: must free() the returned char when done with it! */
++  std::shared_ptr<char> retval;
++  retval.reset( (char *)ret, [](char *mem) { if (mem) free((void*)mem); } );
++  return retval;
++}
++
++template <typename T>
++struct Id{};
++struct Task
++{
++  struct promise_type
++  {        
++    void return_void() const noexcept {}
++
++    static void is_int (std::string x) {
++      if (x != "Id<int>")
++	abort() ;
++    }
++    template <typename ... Args>
++    void* operator new(std::size_t len, Args ...args) noexcept
++      {
++	(is_int (cppDemangle(typeid(Id<Args>).name()).get()), ...);
++	(std::puts (cppDemangle(typeid(Id<Args>).name()).get()), ...);
++	return nullptr;
++      }
++
++        static Task get_return_object_on_allocation_failure() noexcept
++        {
++            return {};
++        }
++
++        Task get_return_object() noexcept
++        {
++            return Task{ *this };
++        }
++
++        std::suspend_always initial_suspend() noexcept
++        {
++            return {};
++        }
++
++        std::suspend_always final_suspend() noexcept
++        {
++            return {};
++        }
++
++        void unhandled_exception() noexcept {}
++    };
++
++    using promise_handle = std::coroutine_handle<promise_type>;
++
++    Task() = default;
++    Task(promise_type & promise) noexcept
++        : m_handle{ promise_handle::from_promise(promise) }
++    {}
++
++    ~Task()
++    {
++        if (m_handle.address()) { m_handle.destroy(); }
++    }
++    
++    promise_handle m_handle{};
++};
++
++
++Task Foo(auto && ... args) noexcept
++{
++    co_return;
++}
++
++int main()
++{
++    int v;
++    Foo(v, 2134);
++}
+diff --git a/gcc/testsuite/g++.dg/coroutines/pr101765.C b/gcc/testsuite/g++.dg/coroutines/pr101765.C
+new file mode 100644
+index 00000000000..49a49d11299
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/coroutines/pr101765.C
+@@ -0,0 +1,45 @@
++// We cannot compile this yet, much run it - but one day it might be
++// feasible, so do the minimum for now.
++// { dg-additional-options " -fsyntax-only -Wno-vla" }
++
++#include "coro.h"
++
++// boiler-plate for tests of codegen
++#include "coro1-ret-int-yield-int.h"
++
++struct coro1
++foo (int arg) noexcept
++{
++  PRINTF ("foo arg = %d\n", arg);
++  char arr[arg]; /* { dg-message "sorry, unimplemented: variable length arrays are not yet supported in coroutines" "" { target *-*-* } } */
++  if (arg < 4)
++    co_return -6174;
++  else
++    for (int i = 0; i < arg; ++i) arr[i] = (char) i;
++  co_yield (int) arr[2];
++  co_return (int) arr[3];
++}
++
++int main ()
++{
++  PRINT ("main: create coro1");
++  struct coro1 x = foo (10);
++  PRINT ("main: got coro1 - resuming");
++  if (x.handle.done())
++    abort();
++  x.handle.resume();
++  PRINT ("main: after resume");
++  int y = x.handle.promise().get_value();
++  if ( y == -6174 )
++    {
++      PRINT ("main: saw -6174");
++      return 1;
++    }
++  else if ( y != 2 )
++    abort;
++  x.handle.resume();
++  y = x.handle.promise().get_value();
++  if ( y != 3 )
++    abort ();
++  return 0;
++}
+diff --git a/gcc/testsuite/g++.dg/coroutines/pr104051.C b/gcc/testsuite/g++.dg/coroutines/pr104051.C
+new file mode 100644
+index 00000000000..ce7ae55405a
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/coroutines/pr104051.C
+@@ -0,0 +1,29 @@
++// { dg-additional-options "-fsyntax-only" }
++#include <coroutine>
++#include <vector>
++template <typename> struct promise {
++  struct final_awaitable {
++    bool await_ready() noexcept;
++    template <typename Promise>
++    std::coroutine_handle<>
++        await_suspend(std::coroutine_handle<Promise>) noexcept;
++    void await_resume() noexcept;
++  };
++  auto get_return_object() {
++    return std::coroutine_handle<promise>::from_promise(*this);
++  }
++  auto initial_suspend() { return std::suspend_always(); }
++  auto final_suspend() noexcept { return true; }
++  void unhandled_exception();
++};
++template <typename T> struct task {
++  using promise_type = promise<T>;
++  task(std::coroutine_handle<promise<T>>);
++  bool await_ready();
++  std::coroutine_handle<> await_suspend(std::coroutine_handle<>);
++  T await_resume();
++};
++task<std::vector<int>> foo() { // { dg-error {awaitable type 'bool' is not a structure} }
++  while ((co_await foo()).empty())
++    ;
++}
 diff --git a/gcc/testsuite/g++.dg/coroutines/pr106188.C b/gcc/testsuite/g++.dg/coroutines/pr106188.C
 new file mode 100644
 index 00000000000..9db3778d079
@@ -38966,6 +39330,37 @@ index 00000000000..9db3778d079
 +int main() {
 +  f();
 +  g();
++}
+diff --git a/gcc/testsuite/g++.dg/coroutines/pr99710.C b/gcc/testsuite/g++.dg/coroutines/pr99710.C
+new file mode 100644
+index 00000000000..e4f7116b8d7
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/coroutines/pr99710.C
+@@ -0,0 +1,25 @@
++#include <coroutine>
++
++struct task {
++    struct promise_type {
++        std::suspend_always initial_suspend();
++        std::suspend_always final_suspend() noexcept;
++        task get_return_object();
++        void return_void();
++        void unhandled_exception();
++    };
++};
++
++task
++my_coro ()
++{
++  try
++    { }
++  catch (...)
++    {
++      // [expr.await] An await-expression shall appear only in a potentially-
++      // evaluated expression within the compound-statement of a function-body
++      // outside of a handler 
++      co_await std::suspend_always{}; // { dg-error "await expressions are not permitted in handlers" }
++    }
 +}
 diff --git a/gcc/testsuite/g++.dg/cpp0x/constexpr-105321.C b/gcc/testsuite/g++.dg/cpp0x/constexpr-105321.C
 new file mode 100644
@@ -65398,7 +65793,7 @@ index 85e04c45288..1303caa89a6 100644
  
  	* GCC 11.3.0 released.
 diff --git a/libstdc++-v3/acinclude.m4 b/libstdc++-v3/acinclude.m4
-index 15c975ff86e..696756a6df6 100644
+index 15c975ff86e..e2a12607d5d 100644
 --- a/libstdc++-v3/acinclude.m4
 +++ b/libstdc++-v3/acinclude.m4
 @@ -4825,6 +4825,55 @@ dnl
@@ -65414,7 +65809,7 @@ index 15c975ff86e..696756a6df6 100644
 +      [glibcxx_cv_fdopendir=yes],
 +      [glibcxx_cv_fdopendir=no])
 +  ])
-+  if test $glibcxx_cv_truncate = yes; then
++  if test $glibcxx_cv_fdopendir = yes; then
 +    AC_DEFINE(HAVE_FDOPENDIR, 1, [Define if fdopendir is available in <dirent.h>.])
 +  fi
 +dnl
@@ -65543,7 +65938,7 @@ index 9d01c16ee27..1d37454ba2e 100644
  
        wrong_protocol_type = 			EPROTOTYPE
 diff --git a/libstdc++-v3/configure b/libstdc++-v3/configure
-index 3120d5855f6..316c19a2c95 100755
+index 3120d5855f6..64f2552afe5 100755
 --- a/libstdc++-v3/configure
 +++ b/libstdc++-v3/configure
 @@ -776,6 +776,8 @@ GLIBCXX_HOSTED_TRUE
@@ -65729,7 +66124,7 @@ index 3120d5855f6..316c19a2c95 100755
 +fi
 +{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $glibcxx_cv_fdopendir" >&5
 +$as_echo "$glibcxx_cv_fdopendir" >&6; }
-+  if test $glibcxx_cv_truncate = yes; then
++  if test $glibcxx_cv_fdopendir = yes; then
 +
 +$as_echo "#define HAVE_FDOPENDIR 1" >>confdefs.h
 +
