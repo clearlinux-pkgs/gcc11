@@ -93,7 +93,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (782):
+GCC Administrator (783):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -3663,10 +3664,16 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..15199e829d6 100644
+index a0587d18824..f1bd0dd1137 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,3677 @@
+@@ -1,3 +1,3683 @@
++2024-06-27  Kyrylo Tkachov  <ktkachov@nvidia.com>
++
++	* config/aarch64/aarch64-cores.def (grace): New entry.
++	* config/aarch64/aarch64-tune.md: Regenerate.
++	* doc/invoke.texi (AArch64 Options): Document the above.
++
 +2024-06-24  Kewen Lin  <linkw@linux.ibm.com>
 +
 +	Backported from master:
@@ -24169,10 +24176,47 @@ index 49f043ed29b..a4d5bdb1b8d 100644
      fi
      dsymutil_major=`expr "$dsymutil_vers" : '\([[0-9]]*\)'`
 diff --git a/gcc/cp/ChangeLog b/gcc/cp/ChangeLog
-index 85c8fdd38cd..0fbbcf93670 100644
+index 85c8fdd38cd..a5e8bfb94a4 100644
 --- a/gcc/cp/ChangeLog
 +++ b/gcc/cp/ChangeLog
-@@ -1,3 +1,711 @@
+@@ -1,3 +1,748 @@
++2024-06-27  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2022-04-28  Iain Sandoe  <iain@sandoe.co.uk>
++
++	PR c++/104051
++	* coroutines.cc (coro_diagnose_throwing_final_aw_expr): Handle
++	non-target expression inputs.
++
++2024-06-27  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2021-10-03  Iain Sandoe  <iain@sandoe.co.uk>
++
++	PR c++/101765
++	* coroutines.cc (register_local_var_uses): Emit a sorry if
++	we encounter a VLA in the coroutine local variables.
++
++2024-06-27  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2021-12-17  Iain Sandoe  <iain@sandoe.co.uk>
++
++	PR c++/100772
++	* coroutines.cc (morph_fn_to_coro): Convert function parms
++	from reference before constructing any operator-new args
++	list.
++
++2024-06-27  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2021-10-03  Iain Sandoe  <iain@sandoe.co.uk>
++
++	PR c++/99710
++	* coroutines.cc (await_statement_walker): Report an error if
++	an await expression is found in a handler body.
++
 +2024-06-20  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -34780,10 +34824,43 @@ index 5530a124a9d..31f93f4b747 100644
  
  DEBUG_FUNCTION void
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..c155f08d77a 100644
+index 5fc23605244..85aa3c22a94 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,3697 @@
+@@ -1,3 +1,3730 @@
++2024-06-27  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2022-04-28  Iain Sandoe  <iain@sandoe.co.uk>
++
++	PR c++/104051
++	* g++.dg/coroutines/pr104051.C: New test.
++
++2024-06-27  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2021-10-03  Iain Sandoe  <iain@sandoe.co.uk>
++
++	PR c++/101765
++	* g++.dg/coroutines/pr101765.C: New test.
++
++2024-06-27  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2021-12-17  Iain Sandoe  <iain@sandoe.co.uk>
++
++	PR c++/100772
++	* g++.dg/coroutines/pr100772-a.C: New test.
++	* g++.dg/coroutines/pr100772-b.C: New test.
++
++2024-06-27  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2021-10-03  Iain Sandoe  <iain@sandoe.co.uk>
++
++	PR c++/99710
++	* g++.dg/coroutines/pr99710.C: New test.
++
 +2024-06-24  Kewen Lin  <linkw@linux.ibm.com>
 +
 +	Backported from master:
@@ -63445,10 +63522,19 @@ index 72119b01c69..2cc64a39649 100644
  
  	* GCC 11.3.0 released.
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..1303caa89a6 100644
+index 85e04c45288..238f5c8adfd 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,2343 @@
+@@ -1,3 +1,2352 @@
++2024-06-27  Martin Liska  <mliska@suse.cz>
++
++	Backported from master:
++	2022-01-27  Martin Liska  <mliska@suse.cz>
++
++	PR libstdc++/104259
++	* acinclude.m4: Fix typo.
++	* configure: Regenerate.
++
 +2024-06-25  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	* doc/xml/manual/status_cxx2023.xml: Change reference from
