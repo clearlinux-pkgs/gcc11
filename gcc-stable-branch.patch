@@ -70,7 +70,7 @@ Florian Weimer (2):
       libsanitizer: Avoid implicit function declaration in configure test
       libiberty: Fix C89-isms in configure tests
 
-Francois-Xavier Coudert (12):
+Francois-Xavier Coudert (14):
       LTO: Prune some warnings in the testsuite
       libgfortran: avoid duplicate libraries in spec
       Fixincludes: Handle __FLT_EVAL_METHOD__ == 16 on darwin
@@ -83,6 +83,8 @@ Francois-Xavier Coudert (12):
       Testsuite, i386: Mark test as requiring ifunc
       Darwin, testsuite: -bind_at_load is deprecated
       Darwin, testsuite: -multiply_defined is obsolete
+      Include safe-ctype.h after C++ standard headers, to avoid over-poisoning
+      libcc1: fix <vector> include
 
 François Dumont (1):
       libstdc++: Fix printing of std::span for versioned namespace
@@ -93,7 +95,10 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (783):
+GCC Administrator (786):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -970,7 +975,7 @@ Iain Buclaw (22):
       d: Fix callee destructor call invalidates the live object [PR113758]
       d: Fix gdc -O2 -mavx generates misaligned vmovdqa instruction [PR114171]
 
-Iain Sandoe (70):
+Iain Sandoe (71):
       Darwin: Fix bootstrap for X86.
       Darwin: Update rules for handling alignment of globals.
       Darwin: Fix empty g++ command lines [PR105599].
@@ -1041,6 +1046,7 @@ Iain Sandoe (70):
       coroutines: Pass lvalues to user-defined operator new [PR 100772].
       coroutines: Fail with a sorry when presented with a VLA [PR 101765].
       c++, coroutines: Improve check for throwing final await [PR104051].
+      Ada, Darwin : Use DSYMUTIL_FOR_TARGET in libgnat/gnarl builds.
 
 Ian Lance Taylor (2):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
@@ -3664,10 +3670,17 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..f1bd0dd1137 100644
+index a0587d18824..67235b4f955 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,3683 @@
+@@ -1,3 +1,3690 @@
++2024-06-29  Francois-Xavier Coudert  <fxcoudert@gcc.gnu.org>
++
++	Backported from master:
++	2024-03-07  Francois-Xavier Coudert  <fxcoudert@gcc.gnu.org>
++
++	* system.h: Include safe-ctype.h after C++ standard headers.
++
 +2024-06-27  Kyrylo Tkachov  <ktkachov@nvidia.com>
 +
 +	* config/aarch64/aarch64-cores.def (grace): New entry.
@@ -7352,10 +7365,15 @@ index a0587d18824..f1bd0dd1137 100644
  
  	* GCC 11.3.0 released.
 diff --git a/gcc/ada/ChangeLog b/gcc/ada/ChangeLog
-index 9c36606130e..b6ecdeaa2b0 100644
+index 9c36606130e..9a2ae5076d8 100644
 --- a/gcc/ada/ChangeLog
 +++ b/gcc/ada/ChangeLog
-@@ -1,3 +1,25 @@
+@@ -1,3 +1,30 @@
++2024-06-29  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* gcc-interface/Makefile.in: Use DSYMUTIL_FOR_TARGET in
++	libgnat/libgnarl recipies.
++
 +2024-03-07  Eric Botcazou  <ebotcazou@adacore.com>
 +
 +	PR ada/113979
@@ -7458,6 +7476,21 @@ index cf4059a3d5c..d35e94aa253 100644
        --  The only other kind of allocation / deallocation supported by this
        --  routine is on / from a subpool.
  
+diff --git a/gcc/ada/gcc-interface/Makefile.in b/gcc/ada/gcc-interface/Makefile.in
+index 6cc95038c40..1f15652d2c8 100644
+--- a/gcc/ada/gcc-interface/Makefile.in
++++ b/gcc/ada/gcc-interface/Makefile.in
+@@ -805,8 +805,8 @@ gnatlib-shared-darwin:
+ 		libgnat$(soext)
+ 	cd $(RTSDIR); $(LN_S) libgnarl$(hyphen)$(LIBRARY_VERSION)$(soext) \
+ 		libgnarl$(soext)
+-	cd $(RTSDIR); dsymutil libgnat$(hyphen)$(LIBRARY_VERSION)$(soext)
+-	cd $(RTSDIR); dsymutil libgnarl$(hyphen)$(LIBRARY_VERSION)$(soext)
++	cd $(RTSDIR); $(DSYMUTIL_FOR_TARGET) libgnat$(hyphen)$(LIBRARY_VERSION)$(soext)
++	cd $(RTSDIR); $(DSYMUTIL_FOR_TARGET) libgnarl$(hyphen)$(LIBRARY_VERSION)$(soext)
+ 
+ gnatlib-shared:
+ 	$(MAKE) $(FLAGS_TO_PASS) \
 diff --git a/gcc/ada/sem_res.adb b/gcc/ada/sem_res.adb
 index f6e0eab84b7..aa2a0019e50 100644
 --- a/gcc/ada/sem_res.adb
@@ -34823,6 +34856,70 @@ index 5530a124a9d..31f93f4b747 100644
  /* Verify symbol table for internal consistency.  */
  
  DEBUG_FUNCTION void
+diff --git a/gcc/system.h b/gcc/system.h
+index b13e9429577..28c721565a4 100644
+--- a/gcc/system.h
++++ b/gcc/system.h
+@@ -194,27 +194,8 @@ extern int fprintf_unlocked (FILE *, const char *, ...);
+ #undef fread_unlocked
+ #undef fwrite_unlocked
+ 
+-/* Include <string> before "safe-ctype.h" to avoid GCC poisoning
+-   the ctype macros through safe-ctype.h */
+-
+-#ifdef __cplusplus
+-#ifdef INCLUDE_STRING
+-# include <string>
+-#endif
+-#endif
+-
+-/* There are an extraordinary number of issues with <ctype.h>.
+-   The last straw is that it varies with the locale.  Use libiberty's
+-   replacement instead.  */
+-#include "safe-ctype.h"
+-
+-#include <sys/types.h>
+-
+-#include <errno.h>
+-
+-#if !defined (errno) && defined (HAVE_DECL_ERRNO) && !HAVE_DECL_ERRNO
+-extern int errno;
+-#endif
++/* Include C++ standard headers before "safe-ctype.h" to avoid GCC
++   poisoning the ctype macros through safe-ctype.h */
+ 
+ #ifdef __cplusplus
+ #if defined (INCLUDE_ALGORITHM) || !defined (HAVE_SWAP_IN_UTILITY)
+@@ -229,6 +210,9 @@ extern int errno;
+ #ifdef INCLUDE_SET
+ # include <set>
+ #endif
++#ifdef INCLUDE_STRING
++# include <string>
++#endif
+ #ifdef INCLUDE_VECTOR
+ # include <vector>
+ #endif
+@@ -244,6 +228,19 @@ extern int errno;
+ # include <type_traits>
+ #endif
+ 
++/* There are an extraordinary number of issues with <ctype.h>.
++   The last straw is that it varies with the locale.  Use libiberty's
++   replacement instead.  */
++#include "safe-ctype.h"
++
++#include <sys/types.h>
++
++#include <errno.h>
++
++#if !defined (errno) && defined (HAVE_DECL_ERRNO) && !HAVE_DECL_ERRNO
++extern int errno;
++#endif
++
+ /* Some of glibc's string inlines cause warnings.  Plus we'd rather
+    rely on (and therefore test) GCC's string builtins.  */
+ #define __NO_STRING_INLINES
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
 index 5fc23605244..85aa3c22a94 100644
 --- a/gcc/testsuite/ChangeLog
@@ -60783,10 +60880,19 @@ index 25326ce0ef1..7f5c0dd0b79 100644
  
  	* GCC 11.3.0 released.
 diff --git a/libcc1/ChangeLog b/libcc1/ChangeLog
-index 56402bc4ca1..a28d9c7223d 100644
+index 56402bc4ca1..78da1df07fa 100644
 --- a/libcc1/ChangeLog
 +++ b/libcc1/ChangeLog
-@@ -1,3 +1,7 @@
+@@ -1,3 +1,16 @@
++2024-06-29  Francois-Xavier Coudert  <fxcoudert@gcc.gnu.org>
++
++	Backported from master:
++	2024-03-16  Francois-Xavier Coudert  <fxcoudert@gcc.gnu.org>
++
++	PR middle-end/111632
++	* libcc1plugin.cc: Fix include.
++	* libcp1plugin.cc: Fix include.
++
 +2023-05-29  Release Manager
 +
 +	* GCC 11.4.0 released.
@@ -60794,6 +60900,32 @@ index 56402bc4ca1..a28d9c7223d 100644
  2022-04-21  Release Manager
  
  	* GCC 11.3.0 released.
+diff --git a/libcc1/libcc1plugin.cc b/libcc1/libcc1plugin.cc
+index e80ecd8f4b3..e58fa55c0f5 100644
+--- a/libcc1/libcc1plugin.cc
++++ b/libcc1/libcc1plugin.cc
+@@ -31,6 +31,8 @@
+ #undef PACKAGE_TARNAME
+ #undef PACKAGE_VERSION
+ 
++#define INCLUDE_MEMORY
++#define INCLUDE_VECTOR
+ #include "gcc-plugin.h"
+ #include "system.h"
+ #include "coretypes.h"
+diff --git a/libcc1/libcp1plugin.cc b/libcc1/libcp1plugin.cc
+index 27a6175e34e..378c65d43c2 100644
+--- a/libcc1/libcp1plugin.cc
++++ b/libcc1/libcp1plugin.cc
+@@ -32,6 +32,8 @@
+ #undef PACKAGE_TARNAME
+ #undef PACKAGE_VERSION
+ 
++#define INCLUDE_MEMORY
++#define INCLUDE_VECTOR
+ #include "gcc-plugin.h"
+ #include "system.h"
+ #include "coretypes.h"
 diff --git a/libcody/ChangeLog b/libcody/ChangeLog
 index 35839598dfa..62eccb3888b 100644
 --- a/libcody/ChangeLog
