@@ -95,7 +95,10 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (786):
+GCC Administrator (789):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1243,11 +1246,12 @@ Jeff Law (1):
 Jerry DeLisle (1):
       ICE in gfc_free_namespace. ice-on-invalid.
 
-John David Anglin (4):
+John David Anglin (5):
       Fix addvdi3 and subvdi3 patterns
       Skip guality tests on hppa-hpux.
       hppa: Fix typo in PA 2.0 trampoline template
       hppa: Fix bug in atomic_storedi_1 pattern
+      hppa: Fix ICE caused by mismatched predicate and constraint in xmpyu patterns
 
 Jonathan Wakely (139):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
@@ -3670,10 +3674,15 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..67235b4f955 100644
+index a0587d18824..687498afbd5 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,3690 @@
+@@ -1,3 +1,3695 @@
++2024-07-03  John David Anglin  <danglin@gcc.gnu.org>
++
++	PR target/115691
++	* config/pa/pa.md: Remove incorrect xmpyu patterns.
++
 +2024-06-29  Francois-Xavier Coudert  <fxcoudert@gcc.gnu.org>
 +
 +	Backported from master:
@@ -16597,7 +16606,7 @@ index 341c5f0d765..dd26e295993 100644
  	  fputs ("\t.word	0\n", f);
  	  fputs ("\t.word	0\n", f);
 diff --git a/gcc/config/pa/pa.md b/gcc/config/pa/pa.md
-index 31e3b1bff80..b252486fa94 100644
+index 31e3b1bff80..072e62455d8 100644
 --- a/gcc/config/pa/pa.md
 +++ b/gcc/config/pa/pa.md
 @@ -5071,23 +5071,25 @@
@@ -16670,7 +16679,32 @@ index 31e3b1bff80..b252486fa94 100644
  
  (define_insn ""
    [(set (match_operand:DI 0 "register_operand" "=r,&r")
-@@ -10484,13 +10488,13 @@ add,l %2,%3,%3\;bv,n %%r0(%3)"
+@@ -5489,24 +5493,6 @@
+   [(set_attr "type" "fpmuldbl")
+    (set_attr "length" "4")])
+ 
+-(define_insn ""
+-  [(set (match_operand:DI 0 "register_operand" "=f")
+-	(mult:DI (zero_extend:DI (match_operand:SI 1 "register_operand" "f"))
+-		 (match_operand:DI 2 "uint32_operand" "f")))]
+-  "TARGET_PA_11 && ! TARGET_SOFT_FLOAT && ! TARGET_SOFT_MULT && !TARGET_64BIT"
+-  "xmpyu %1,%R2,%0"
+-  [(set_attr "type" "fpmuldbl")
+-   (set_attr "length" "4")])
+-
+-(define_insn ""
+-  [(set (match_operand:DI 0 "register_operand" "=f")
+-	(mult:DI (zero_extend:DI (match_operand:SI 1 "register_operand" "f"))
+-		 (match_operand:DI 2 "uint32_operand" "f")))]
+-  "TARGET_PA_11 && ! TARGET_SOFT_FLOAT && ! TARGET_SOFT_MULT && TARGET_64BIT"
+-  "xmpyu %1,%2R,%0"
+-  [(set_attr "type" "fpmuldbl")
+-   (set_attr "length" "4")])
+-
+ (define_insn ""
+   [(set (reg:SI 29) (mult:SI (reg:SI 26) (reg:SI 25)))
+    (clobber (match_operand:SI 0 "register_operand" "=a"))
+@@ -10484,13 +10470,13 @@ add,l %2,%3,%3\;bv,n %%r0(%3)"
  (define_insn "atomic_storedi_1"
    [(set (mem:DI (match_operand:SI 0 "register_operand" "r,r"))
          (match_operand:DI 1 "reg_or_0_operand" "M,r"))
