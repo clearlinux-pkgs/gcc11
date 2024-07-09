@@ -18,7 +18,7 @@ Andre Vieira (2):
 Andreas Krebbel (1):
       IBM zSystems/testsuite: PR105147: Skip pr105140.c
 
-Andrew Pinski (7):
+Andrew Pinski (8):
       Fix fc-prototypes usage with C_INT64_T and non LP64 Targets.
       match.pd: When simplifying BFR of an insert, require a mode precision integral type [PR108688]
       MATCH: Fix infinite loop between `vec_cond(vec_cond(a,b,0), c, d)` and `a & b`
@@ -26,6 +26,7 @@ Andrew Pinski (7):
       Fold: Fix up merge_truthop_with_opposite_arm for NaNs [PR95351]
       Fix PR 111331: wrong code for `a > 28 ? MIN<a, 28> : 29`
       Fix PR 110386: backprop vs ABSU_EXPR
+      c++: Add testcase for this PR [PR97990]
 
 Anthony Sharp (1):
       call_summary: add missing template keyword
@@ -95,7 +96,12 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (789):
+GCC Administrator (794):
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1429,9 +1435,11 @@ Kito Cheng (2):
       RISC-V: Fix wrong expansion for arch-canonicalize
       RISC-V: Fix __atomic_compare_exchange with 32 bit value on RV64
 
-Kyrylo Tkachov (2):
+Kyrylo Tkachov (4):
       aarch64: Add support for -mcpu=neoverse-v2
       Add support for -mcpu=grace
+      aarch64: PR target/115457 Implement missing __ARM_FEATURE_BF16 macro
+      aarch64: PR target/115475 Implement missing __ARM_FEATURE_SVE_BF16 macro
 
 Lewis Hyatt (2):
       c: Fix location for _Pragma tokens [PR97498]
@@ -1612,7 +1620,7 @@ Rainer Orth (5):
 Richard Ball (1):
       arm: Zero/Sign extends for CMSE security
 
-Richard Biener (77):
+Richard Biener (78):
       Update BASE-VER to 11.3.1
       ipa/105598 - testcase for PR105598
       middle-end/105140 - fix bogus recursion in fold_convertible_p
@@ -1690,6 +1698,7 @@ Richard Biener (77):
       tree-optimization/111039 - abnormals and bit test merging
       tree-optimization/111070 - fix ICE with recent ifcombine fix
       middle-end/110176 - wrong zext (bool) <= (int) 4294967295u folding
+      middle-end/112732 - stray TYPE_ALIAS_SET in type variant
 
 Richard Earnshaw (4):
       arm: big-endian issue in gen_cpymem_ldrd_strd [PR105981]
@@ -3674,10 +3683,19 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..687498afbd5 100644
+index a0587d18824..9d26963248f 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,3695 @@
+@@ -1,3 +1,3704 @@
++2024-07-08  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2023-11-28  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/112732
++	* tree.c (build_opaque_vector_type): Reset TYPE_ALIAS_SET
++	of the newly built type.
++
 +2024-07-03  John David Anglin  <danglin@gcc.gnu.org>
 +
 +	PR target/115691
@@ -9500,13 +9518,18 @@ index acdea2a0601..f9a8c0aa6a0 100644
  }
  
 diff --git a/gcc/config/aarch64/aarch64-c.c b/gcc/config/aarch64/aarch64-c.c
-index 8eeef588559..05869463e4b 100644
+index 8eeef588559..ba732e4d877 100644
 --- a/gcc/config/aarch64/aarch64-c.c
 +++ b/gcc/config/aarch64/aarch64-c.c
-@@ -200,6 +200,7 @@ aarch64_update_cpp_builtins (cpp_reader *pfile)
+@@ -200,6 +200,12 @@ aarch64_update_cpp_builtins (cpp_reader *pfile)
  			"__ARM_FEATURE_BF16_VECTOR_ARITHMETIC", pfile);
    aarch64_def_or_undef (TARGET_BF16_FP,
  			"__ARM_FEATURE_BF16_SCALAR_ARITHMETIC", pfile);
++  aarch64_def_or_undef (TARGET_BF16_FP,
++			"__ARM_FEATURE_BF16", pfile);
++  aarch64_def_or_undef (TARGET_SVE_BF16,
++			"__ARM_FEATURE_SVE_BF16", pfile);
++
 +  aarch64_def_or_undef (AARCH64_ISA_RCPC, "__ARM_FEATURE_RCPC", pfile);
  
    /* Not for ACLE, but required to keep "float.h" correct if we switch
@@ -34955,10 +34978,18 @@ index b13e9429577..28c721565a4 100644
     rely on (and therefore test) GCC's string builtins.  */
  #define __NO_STRING_INLINES
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..85aa3c22a94 100644
+index 5fc23605244..90b996ef19b 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,3730 @@
+@@ -1,3 +1,3738 @@
++2024-07-08  Andrew Pinski  <quic_apinski@quicinc.com>
++
++	Backported from master:
++	2024-02-16  Andrew Pinski  <quic_apinski@quicinc.com>
++
++	PR c++/97990
++	* g++.dg/torture/vector-struct-1.C: New test.
++
 +2024-06-27  Iain Sandoe  <iain@sandoe.co.uk>
 +
 +	Backported from master:
@@ -42457,6 +42488,30 @@ index 00000000000..4a88e1519d0
 +    }
 +  }
 +}
+diff --git a/gcc/testsuite/g++.dg/torture/vector-struct-1.C b/gcc/testsuite/g++.dg/torture/vector-struct-1.C
+new file mode 100644
+index 00000000000..e2747417e2d
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/torture/vector-struct-1.C
+@@ -0,0 +1,18 @@
++/* PR c++/97990 */
++/* This used to crash with lto and strict aliasing enabled as the
++   vector type variant still had TYPE_ALIAS_SET set on it. */
++
++typedef __attribute__((__vector_size__(sizeof(short)))) short TSimd;
++TSimd hh(int);
++struct y6
++{
++  TSimd VALUE;
++  ~y6();
++};
++template <class T1,class T2>
++auto f2(T1 p1, T2){
++  return hh(p1) <= 0;
++}
++void f1(){
++  f2(0, y6{});
++}
 diff --git a/gcc/testsuite/g++.dg/torture/vector-subaccess-1.C b/gcc/testsuite/g++.dg/torture/vector-subaccess-1.C
 new file mode 100644
 index 00000000000..4b909dae492
@@ -48542,6 +48597,38 @@ index 2bebf7e4a93..61a9191c068 100644
  /* { dg-require-weak "" } */
  /* { dg-skip-if "undefined weak not supported" { { hppa*-*-hpux* } && { ! lp64 } } } */
  /* { dg-skip-if "undefined weak not supported" { powerpc-ibm-aix* } } */
+diff --git a/gcc/testsuite/gcc.target/aarch64/acle/bf16_feature.c b/gcc/testsuite/gcc.target/aarch64/acle/bf16_feature.c
+new file mode 100644
+index 00000000000..96584b4b988
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/aarch64/acle/bf16_feature.c
+@@ -0,0 +1,10 @@
++/* { dg-do compile } */
++
++#pragma GCC target "+bf16"
++#ifndef __ARM_FEATURE_BF16
++#error "__ARM_FEATURE_BF16 is not defined but should be!"
++#endif
++
++void
++foo (void) {}
++
+diff --git a/gcc/testsuite/gcc.target/aarch64/acle/bf16_sve_feature.c b/gcc/testsuite/gcc.target/aarch64/acle/bf16_sve_feature.c
+new file mode 100644
+index 00000000000..cb3ddac71a3
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/aarch64/acle/bf16_sve_feature.c
+@@ -0,0 +1,10 @@
++/* { dg-do compile } */
++
++#pragma GCC target "+sve+bf16"
++#ifndef __ARM_FEATURE_SVE_BF16
++#error "__ARM_FEATURE_SVE_BF16 is not defined but should be!"
++#endif
++
++void
++foo (void) {}
++
 diff --git a/gcc/testsuite/gcc.target/aarch64/acle/data-intrinsics.c b/gcc/testsuite/gcc.target/aarch64/acle/data-intrinsics.c
 new file mode 100644
 index 00000000000..e067ef20bbd
@@ -60138,7 +60225,7 @@ index 0d61b0f51d0..04f83c1127a 100644
  		}
  	    }
 diff --git a/gcc/tree.c b/gcc/tree.c
-index 5f87455c68f..8b5b0b7508c 100644
+index 5f87455c68f..2cbdc7b65ba 100644
 --- a/gcc/tree.c
 +++ b/gcc/tree.c
 @@ -3025,6 +3025,35 @@ real_minus_onep (const_tree expr)
@@ -60187,6 +60274,15 @@ index 5f87455c68f..8b5b0b7508c 100644
  
  tree
  build_aligned_type (tree type, unsigned int align)
+@@ -11068,6 +11098,8 @@ build_opaque_vector_type (tree innertype, poly_int64 nunits)
+   TYPE_NEXT_VARIANT (cand) = TYPE_NEXT_VARIANT (t);
+   TYPE_NEXT_VARIANT (t) = cand;
+   TYPE_MAIN_VARIANT (cand) = TYPE_MAIN_VARIANT (t);
++  /* Type variants have no alias set defined.  */
++  TYPE_ALIAS_SET (cand) = -1;
+   return cand;
+ }
+ 
 diff --git a/gcc/tree.h b/gcc/tree.h
 index 44643c74ad9..32e7024ff23 100644
 --- a/gcc/tree.h
