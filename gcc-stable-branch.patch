@@ -96,7 +96,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (794):
+GCC Administrator (795):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1259,7 +1260,7 @@ John David Anglin (5):
       hppa: Fix bug in atomic_storedi_1 pattern
       hppa: Fix ICE caused by mismatched predicate and constraint in xmpyu patterns
 
-Jonathan Wakely (139):
+Jonathan Wakely (140):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -1399,6 +1400,7 @@ Jonathan Wakely (139):
       libstdc++: Add missing std::tuple constructor [PR114147]
       libstdc++: Replace link to gcc-4.3.2 docs in manual [PR115269]
       libstdc++: Replace reference to mainline in release branch docs
+      libstdc++: Destroy allocators in re-inserted container nodes [PR114401]
 
 José Rui Faustino de Sousa (5):
       Fortran: Fix ICE with -fcheck=pointer [PR100136]
@@ -3683,10 +3685,28 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..9d26963248f 100644
+index a0587d18824..2d6b43c3d24 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,3704 @@
+@@ -1,3 +1,3722 @@
++2024-07-09  Kyrylo Tkachov  <ktkachov@nvidia.com>
++
++	Backported from master:
++	2024-07-03  Kyrylo Tkachov  <ktkachov@nvidia.com>
++
++	PR target/115475
++	* config/aarch64/aarch64-c.c (aarch64_update_cpp_builtins):
++	Define __ARM_FEATURE_SVE_BF16 for TARGET_SVE_BF16.
++
++2024-07-09  Kyrylo Tkachov  <ktkachov@nvidia.com>
++
++	Backported from master:
++	2024-07-03  Kyrylo Tkachov  <ktkachov@nvidia.com>
++
++	PR target/115457
++	* config/aarch64/aarch64-c.c (aarch64_update_cpp_builtins):
++	Define __ARM_FEATURE_BF16 for TARGET_BF16_FP.
++
 +2024-07-08  Richard Biener  <rguenther@suse.de>
 +
 +	Backported from master:
@@ -34978,10 +34998,26 @@ index b13e9429577..28c721565a4 100644
     rely on (and therefore test) GCC's string builtins.  */
  #define __NO_STRING_INLINES
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..90b996ef19b 100644
+index 5fc23605244..cd74037df82 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,3738 @@
+@@ -1,3 +1,3754 @@
++2024-07-09  Kyrylo Tkachov  <ktkachov@nvidia.com>
++
++	Backported from master:
++	2024-07-03  Kyrylo Tkachov  <ktkachov@nvidia.com>
++
++	PR target/115475
++	* gcc.target/aarch64/acle/bf16_sve_feature.c: New test.
++
++2024-07-09  Kyrylo Tkachov  <ktkachov@nvidia.com>
++
++	Backported from master:
++	2024-07-03  Kyrylo Tkachov  <ktkachov@nvidia.com>
++
++	PR target/115457
++	* gcc.target/aarch64/acle/bf16_feature.c: New test.
++
 +2024-07-08  Andrew Pinski  <quic_apinski@quicinc.com>
 +
 +	Backported from master:
@@ -68634,6 +68670,46 @@ index 4f3309d842e..f8d11855699 100644
  
    /// @} group numeric_arrays
  
+diff --git a/libstdc++-v3/include/bits/hashtable.h b/libstdc++-v3/include/bits/hashtable.h
+index eeefa785922..ad0d6731de0 100644
+--- a/libstdc++-v3/include/bits/hashtable.h
++++ b/libstdc++-v3/include/bits/hashtable.h
+@@ -950,7 +950,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       // DR 1189.
+       // reserve, if present, comes from _Rehash_base.
+ 
+-#if __cplusplus > 201402L
++#if __cplusplus > 201404L
+       /// Re-insert an extracted node into a container with unique keys.
+       insert_return_type
+       _M_reinsert_node(node_type&& __nh)
+@@ -975,7 +975,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	      {
+ 		__ret.position
+ 		  = _M_insert_unique_node(__bkt, __code, __nh._M_ptr);
+-		__nh._M_ptr = nullptr;
++		__nh.release();
+ 		__ret.inserted = true;
+ 	      }
+ 	  }
+@@ -995,7 +995,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	auto __code = this->_M_hash_code(__k);
+ 	auto __ret
+ 	  = _M_insert_multi_node(__hint._M_cur, __code, __nh._M_ptr);
+-	__nh._M_ptr = nullptr;
++	__nh.release();
+ 	return __ret;
+       }
+ 
+@@ -1062,7 +1062,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 		{
+ 		  auto __nh = __src.extract(__pos);
+ 		  _M_insert_unique_node(__bkt, __code, __nh._M_ptr, __n_elt);
+-		  __nh._M_ptr = nullptr;
++		  __nh.release();
+ 		  __n_elt = 1;
+ 		}
+ 	      else if (__n_elt != 1)
 diff --git a/libstdc++-v3/include/bits/hashtable_policy.h b/libstdc++-v3/include/bits/hashtable_policy.h
 index b97c07cb42e..1fdd351cb56 100644
 --- a/libstdc++-v3/include/bits/hashtable_policy.h
@@ -68859,6 +68935,50 @@ index 153b1bff5f4..d6cdb72662e 100644
 +	  _M_rep |= ~(__max_size_type(-1) >> __r._M_rep);
  	return *this;
        }
+ 
+diff --git a/libstdc++-v3/include/bits/node_handle.h b/libstdc++-v3/include/bits/node_handle.h
+index 7d8d0dc8cea..8f500c2f830 100644
+--- a/libstdc++-v3/include/bits/node_handle.h
++++ b/libstdc++-v3/include/bits/node_handle.h
+@@ -168,6 +168,16 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	_M_ptr = nullptr;
+       }
+ 
++      // Destroys the allocator. Does not deallocate or destroy the node.
++      // Precondition: !empty()
++      // Postcondition: empty()
++      void
++      release() noexcept
++      {
++	_M_alloc.release();
++	_M_ptr = nullptr;
++      }
++
+     protected:
+       typename _AllocTraits::pointer _M_ptr;
+ 
+@@ -219,9 +229,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	  return __tmp;
+ 	}
+ 
+-	struct _Empty { };
+-
+-	[[__no_unique_address__]] _Empty     _M_empty;
+ 	[[__no_unique_address__]] _NodeAlloc _M_alloc;
+       };
+ 
+@@ -231,6 +238,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	       typename _Compare, typename _ValueAlloc>
+ 	friend class _Rb_tree;
+ 
++      template<typename _Key2, typename _Value2, typename _ValueAlloc,
++	       typename _ExtractKey, typename _Equal,
++	       typename _Hash, typename _RangeHash, typename _Unused,
++	       typename _RehashPolicy, typename _Traits>
++	friend class _Hashtable;
++
+       /// @endcond
+     };
  
 diff --git a/libstdc++-v3/include/bits/random.tcc b/libstdc++-v3/include/bits/random.tcc
 index 22ae1f38ebb..2898f7f17e6 100644
@@ -70687,6 +70807,55 @@ index dbe05a9834b..2c70adf2b93 100644
      };
  
  #if __cpp_deduction_guides >= 201606
+diff --git a/libstdc++-v3/include/bits/stl_tree.h b/libstdc++-v3/include/bits/stl_tree.h
+index ca7a663aaef..3aa2c766362 100644
+--- a/libstdc++-v3/include/bits/stl_tree.h
++++ b/libstdc++-v3/include/bits/stl_tree.h
+@@ -1434,7 +1434,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       _M_move_assign(_Rb_tree&, false_type);
+ #endif
+ 
+-#if __cplusplus > 201402L
++#if __cplusplus > 201404L
+     public:
+       /// Re-insert an extracted node.
+       insert_return_type
+@@ -1452,7 +1452,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	      {
+ 		__ret.position
+ 		  = _M_insert_node(__res.first, __res.second, __nh._M_ptr);
+-		__nh._M_ptr = nullptr;
++		__nh.release();
+ 		__ret.inserted = true;
+ 	      }
+ 	    else
+@@ -1480,7 +1480,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	      __ret = _M_insert_node(__res.first, __res.second, __nh._M_ptr);
+ 	    else
+ 	      __ret = _M_insert_equal_lower_node(__nh._M_ptr);
+-	    __nh._M_ptr = nullptr;
++	    __nh.release();
+ 	  }
+ 	return __ret;
+       }
+@@ -1499,7 +1499,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	    if (__res.second)
+ 	      {
+ 		__ret = _M_insert_node(__res.first, __res.second, __nh._M_ptr);
+-		__nh._M_ptr = nullptr;
++		__nh.release();
+ 	      }
+ 	    else
+ 	      __ret = iterator(__res.first);
+@@ -1522,7 +1522,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	      __ret = _M_insert_node(__res.first, __res.second, __nh._M_ptr);
+ 	    else
+ 	      __ret = _M_insert_equal_lower_node(__nh._M_ptr);
+-	    __nh._M_ptr = nullptr;
++	    __nh.release();
+ 	  }
+ 	return __ret;
+       }
 diff --git a/libstdc++-v3/include/bits/this_thread_sleep.h b/libstdc++-v3/include/bits/this_thread_sleep.h
 index bdcd0cdeb77..b7e956f9119 100644
 --- a/libstdc++-v3/include/bits/this_thread_sleep.h
@@ -83948,6 +84117,532 @@ index 00000000000..0f6f520c33b
 +{
 +  test_stable();
 +  test_lwg3088();
++}
+diff --git a/libstdc++-v3/testsuite/23_containers/multiset/modifiers/114401.cc b/libstdc++-v3/testsuite/23_containers/multiset/modifiers/114401.cc
+new file mode 100644
+index 00000000000..630e18e287c
+--- /dev/null
++++ b/libstdc++-v3/testsuite/23_containers/multiset/modifiers/114401.cc
+@@ -0,0 +1,125 @@
++// { dg-do run { target c++17 } }
++
++// PR libstdc++/114401 allocator destructor omitted when reinserting node_handle
++
++#include <set>
++#include <memory>
++#include <testsuite_hooks.h>
++
++template<typename T>
++struct Alloc
++{
++  using value_type = T;
++  using propagate_on_container_copy_assignment = std::true_type;
++  using propagate_on_container_move_assignment = std::true_type;
++  using propagate_on_container_swap = std::true_type;
++
++  Alloc(int identity) : id(std::make_shared<int>(identity)) { }
++
++  template<typename U>
++    Alloc(const Alloc<U> a) : id(a.id) { }
++
++  T* allocate(std::size_t n) { return std::allocator<T>().allocate(n); }
++  void deallocate(T* p, std::size_t n) { std::allocator<T>().deallocate(p, n); }
++
++  template<typename U>
++    friend bool
++    operator==(const Alloc& a, const Alloc<U>& a2)
++    { return a.id == a2.id; }
++
++  template<typename U>
++    friend bool
++    operator!=(const Alloc& a, const Alloc<U>& a2)
++    { return !(a == a2); }
++
++  std::shared_ptr<int> id;
++};
++
++using test_type = std::multiset<int, std::less<int>, Alloc<int>>;
++
++void
++test_node_ops()
++{
++  test_type s1({1,3,5}, Alloc<int>(1));
++  test_type s2({2,4,6,8}, Alloc<int>(2));
++  VERIFY( s1.get_allocator() != s2.get_allocator() );
++
++  auto node_a = s1.extract(1);
++  VERIFY( ! node_a.empty() );
++  VERIFY( node_a.get_allocator() == s1.get_allocator() );
++
++  node_a = std::move(node_a); // self-move
++  VERIFY( node_a.empty() );
++
++  swap(node_a, node_a); // self-swap
++  VERIFY( node_a.empty() );
++
++  auto node_b = s2.extract(2);
++  VERIFY( node_b.get_allocator() == s2.get_allocator() );
++
++  node_a = std::move(node_b); // empty = !empty
++  VERIFY( node_a.get_allocator() == s2.get_allocator() );
++  VERIFY( node_b.empty() );
++
++  swap(node_a, node_b); // swap(!empty, empty)
++  VERIFY( node_a.empty() );
++  VERIFY( node_b.get_allocator() == s2.get_allocator() );
++
++  swap(node_a, node_b); // swap(empty, !empty)
++  VERIFY( node_a.get_allocator() == s2.get_allocator() );
++  VERIFY( node_b.empty() );
++
++  node_a = s1.extract(3); // !empty = !empty
++  VERIFY( node_a.get_allocator() == s1.get_allocator() );
++  node_b = s2.extract(0); // empty = empty
++  VERIFY( node_b.empty() );
++  node_b = s2.extract(6); // empty = !empty
++  VERIFY( node_b.get_allocator() == s2.get_allocator() );
++
++  swap(node_a, node_b); // swap(!empty, !empty)
++  VERIFY( node_a.get_allocator() == s2.get_allocator() );
++  VERIFY( node_b.get_allocator() == s1.get_allocator() );
++
++  node_a = {};
++  node_b = std::move(node_a); // !empty = empty
++  VERIFY( node_a.empty() );
++  VERIFY( node_b.empty() );
++
++  swap(node_a, node_b); // swap(empty, empty)
++  VERIFY( node_a.empty() );
++  VERIFY( node_b.empty() );
++}
++
++void
++test_alloc_lifetime()
++{
++  Alloc<int> a(1);
++  test_type s({1,2,3}, a);
++  VERIFY( a.id.use_count() == 2 ); // a and the copy in s
++
++  s.insert(s.extract(1));
++  VERIFY( a.id.use_count() == 2 );
++
++  s.insert(s.begin(), s.extract(2));
++  VERIFY( a.id.use_count() == 2 );
++
++  auto node = s.extract(1);
++  VERIFY( a.id.use_count() == 3 );
++  node = s.extract(0);
++  VERIFY( a.id.use_count() == 2 );
++
++  s.insert(std::move(node));
++  VERIFY( a.id.use_count() == 2 );
++
++  s.merge(test_type(s));
++  VERIFY( a.id.use_count() == 2 );
++
++  s.merge(test_type({4,5,6}, a));
++  VERIFY( a.id.use_count() == 2 );
++}
++
++int main()
++{
++  test_node_ops();
++  test_alloc_lifetime();
++}
+diff --git a/libstdc++-v3/testsuite/23_containers/set/modifiers/114401.cc b/libstdc++-v3/testsuite/23_containers/set/modifiers/114401.cc
+new file mode 100644
+index 00000000000..f0a06a8c1a2
+--- /dev/null
++++ b/libstdc++-v3/testsuite/23_containers/set/modifiers/114401.cc
+@@ -0,0 +1,125 @@
++// { dg-do run { target c++17 } }
++
++// PR libstdc++/114401 allocator destructor omitted when reinserting node_handle
++
++#include <set>
++#include <memory>
++#include <testsuite_hooks.h>
++
++template<typename T>
++struct Alloc
++{
++  using value_type = T;
++  using propagate_on_container_copy_assignment = std::true_type;
++  using propagate_on_container_move_assignment = std::true_type;
++  using propagate_on_container_swap = std::true_type;
++
++  Alloc(int identity) : id(std::make_shared<int>(identity)) { }
++
++  template<typename U>
++    Alloc(const Alloc<U> a) : id(a.id) { }
++
++  T* allocate(std::size_t n) { return std::allocator<T>().allocate(n); }
++  void deallocate(T* p, std::size_t n) { std::allocator<T>().deallocate(p, n); }
++
++  template<typename U>
++    friend bool
++    operator==(const Alloc& a, const Alloc<U>& a2)
++    { return a.id == a2.id; }
++
++  template<typename U>
++    friend bool
++    operator!=(const Alloc& a, const Alloc<U>& a2)
++    { return !(a == a2); }
++
++  std::shared_ptr<int> id;
++};
++
++using test_type = std::set<int, std::less<int>, Alloc<int>>;
++
++void
++test_node_ops()
++{
++  test_type s1({1,3,5}, Alloc<int>(1));
++  test_type s2({2,4,6,8}, Alloc<int>(2));
++  VERIFY( s1.get_allocator() != s2.get_allocator() );
++
++  auto node_a = s1.extract(1);
++  VERIFY( ! node_a.empty() );
++  VERIFY( node_a.get_allocator() == s1.get_allocator() );
++
++  node_a = std::move(node_a); // self-move
++  VERIFY( node_a.empty() );
++
++  swap(node_a, node_a); // self-swap
++  VERIFY( node_a.empty() );
++
++  auto node_b = s2.extract(2);
++  VERIFY( node_b.get_allocator() == s2.get_allocator() );
++
++  node_a = std::move(node_b); // empty = !empty
++  VERIFY( node_a.get_allocator() == s2.get_allocator() );
++  VERIFY( node_b.empty() );
++
++  swap(node_a, node_b); // swap(!empty, empty)
++  VERIFY( node_a.empty() );
++  VERIFY( node_b.get_allocator() == s2.get_allocator() );
++
++  swap(node_a, node_b); // swap(empty, !empty)
++  VERIFY( node_a.get_allocator() == s2.get_allocator() );
++  VERIFY( node_b.empty() );
++
++  node_a = s1.extract(3); // !empty = !empty
++  VERIFY( node_a.get_allocator() == s1.get_allocator() );
++  node_b = s2.extract(0); // empty = empty
++  VERIFY( node_b.empty() );
++  node_b = s2.extract(6); // empty = !empty
++  VERIFY( node_b.get_allocator() == s2.get_allocator() );
++
++  swap(node_a, node_b); // swap(!empty, !empty)
++  VERIFY( node_a.get_allocator() == s2.get_allocator() );
++  VERIFY( node_b.get_allocator() == s1.get_allocator() );
++
++  node_a = {};
++  node_b = std::move(node_a); // !empty = empty
++  VERIFY( node_a.empty() );
++  VERIFY( node_b.empty() );
++
++  swap(node_a, node_b); // swap(empty, empty)
++  VERIFY( node_a.empty() );
++  VERIFY( node_b.empty() );
++}
++
++void
++test_alloc_lifetime()
++{
++  Alloc<int> a(1);
++  test_type s({1,2,3}, a);
++  VERIFY( a.id.use_count() == 2 ); // a and the copy in s
++
++  s.insert(s.extract(1));
++  VERIFY( a.id.use_count() == 2 );
++
++  s.insert(s.begin(), s.extract(2));
++  VERIFY( a.id.use_count() == 2 );
++
++  auto node = s.extract(1);
++  VERIFY( a.id.use_count() == 3 );
++  node = s.extract(0);
++  VERIFY( a.id.use_count() == 2 );
++
++  s.insert(std::move(node));
++  VERIFY( a.id.use_count() == 2 );
++
++  s.merge(test_type(s));
++  VERIFY( a.id.use_count() == 2 );
++
++  s.merge(test_type({4,5,6}, a));
++  VERIFY( a.id.use_count() == 2 );
++}
++
++int main()
++{
++  test_node_ops();
++  test_alloc_lifetime();
++}
+diff --git a/libstdc++-v3/testsuite/23_containers/unordered_multiset/modifiers/114401.cc b/libstdc++-v3/testsuite/23_containers/unordered_multiset/modifiers/114401.cc
+new file mode 100644
+index 00000000000..0a6ea77bf31
+--- /dev/null
++++ b/libstdc++-v3/testsuite/23_containers/unordered_multiset/modifiers/114401.cc
+@@ -0,0 +1,126 @@
++// { dg-do run { target c++17 } }
++
++// PR libstdc++/114401 allocator destructor omitted when reinserting node_handle
++
++#include <unordered_set>
++#include <memory>
++#include <testsuite_hooks.h>
++
++template<typename T>
++struct Alloc
++{
++  using value_type = T;
++  using propagate_on_container_copy_assignment = std::true_type;
++  using propagate_on_container_move_assignment = std::true_type;
++  using propagate_on_container_swap = std::true_type;
++
++  Alloc(int identity) : id(std::make_shared<int>(identity)) { }
++
++  template<typename U>
++    Alloc(const Alloc<U> a) : id(a.id) { }
++
++  T* allocate(std::size_t n) { return std::allocator<T>().allocate(n); }
++  void deallocate(T* p, std::size_t n) { std::allocator<T>().deallocate(p, n); }
++
++  template<typename U>
++    friend bool
++    operator==(const Alloc& a, const Alloc<U>& a2)
++    { return a.id == a2.id; }
++
++  template<typename U>
++    friend bool
++    operator!=(const Alloc& a, const Alloc<U>& a2)
++    { return !(a == a2); }
++
++  std::shared_ptr<int> id;
++};
++
++using test_type
++  = std::unordered_multiset<int, std::hash<int>, std::equal_to<int>, Alloc<int>>;
++
++void
++test_node_ops()
++{
++  test_type s1({1,3,5}, 3, Alloc<int>(1));
++  test_type s2({2,4,6,8}, 4, Alloc<int>(2));
++  VERIFY( s1.get_allocator() != s2.get_allocator() );
++
++  auto node_a = s1.extract(1);
++  VERIFY( ! node_a.empty() );
++  VERIFY( node_a.get_allocator() == s1.get_allocator() );
++
++  node_a = std::move(node_a); // self-move
++  VERIFY( node_a.empty() );
++
++  swap(node_a, node_a); // self-swap
++  VERIFY( node_a.empty() );
++
++  auto node_b = s2.extract(2);
++  VERIFY( node_b.get_allocator() == s2.get_allocator() );
++
++  node_a = std::move(node_b); // empty = !empty
++  VERIFY( node_a.get_allocator() == s2.get_allocator() );
++  VERIFY( node_b.empty() );
++
++  swap(node_a, node_b); // swap(!empty, empty)
++  VERIFY( node_a.empty() );
++  VERIFY( node_b.get_allocator() == s2.get_allocator() );
++
++  swap(node_a, node_b); // swap(empty, !empty)
++  VERIFY( node_a.get_allocator() == s2.get_allocator() );
++  VERIFY( node_b.empty() );
++
++  node_a = s1.extract(3); // !empty = !empty
++  VERIFY( node_a.get_allocator() == s1.get_allocator() );
++  node_b = s2.extract(0); // empty = empty
++  VERIFY( node_b.empty() );
++  node_b = s2.extract(6); // empty = !empty
++  VERIFY( node_b.get_allocator() == s2.get_allocator() );
++
++  swap(node_a, node_b); // swap(!empty, !empty)
++  VERIFY( node_a.get_allocator() == s2.get_allocator() );
++  VERIFY( node_b.get_allocator() == s1.get_allocator() );
++
++  node_a = {};
++  node_b = std::move(node_a); // !empty = empty
++  VERIFY( node_a.empty() );
++  VERIFY( node_b.empty() );
++
++  swap(node_a, node_b); // swap(empty, empty)
++  VERIFY( node_a.empty() );
++  VERIFY( node_b.empty() );
++}
++
++void
++test_alloc_lifetime()
++{
++  Alloc<int> a(1);
++  test_type s({1,2,3}, 3, a);
++  VERIFY( a.id.use_count() == 2 ); // a and the copy in s
++
++  s.insert(s.extract(1));
++  VERIFY( a.id.use_count() == 2 );
++
++  s.insert(s.begin(), s.extract(2));
++  VERIFY( a.id.use_count() == 2 );
++
++  auto node = s.extract(1);
++  VERIFY( a.id.use_count() == 3 );
++  node = s.extract(0);
++  VERIFY( a.id.use_count() == 2 );
++
++  s.insert(std::move(node));
++  VERIFY( a.id.use_count() == 2 );
++
++  s.merge(test_type(s));
++  VERIFY( a.id.use_count() == 2 );
++
++  s.merge(test_type({4,5,6}, 3, a));
++  VERIFY( a.id.use_count() == 2 );
++}
++
++int main()
++{
++  test_node_ops();
++  test_alloc_lifetime();
++}
+diff --git a/libstdc++-v3/testsuite/23_containers/unordered_set/modifiers/114401.cc b/libstdc++-v3/testsuite/23_containers/unordered_set/modifiers/114401.cc
+new file mode 100644
+index 00000000000..3ae2f2d5b5c
+--- /dev/null
++++ b/libstdc++-v3/testsuite/23_containers/unordered_set/modifiers/114401.cc
+@@ -0,0 +1,126 @@
++// { dg-do run { target c++17 } }
++
++// PR libstdc++/114401 allocator destructor omitted when reinserting node_handle
++
++#include <unordered_set>
++#include <memory>
++#include <testsuite_hooks.h>
++
++template<typename T>
++struct Alloc
++{
++  using value_type = T;
++  using propagate_on_container_copy_assignment = std::true_type;
++  using propagate_on_container_move_assignment = std::true_type;
++  using propagate_on_container_swap = std::true_type;
++
++  Alloc(int identity) : id(std::make_shared<int>(identity)) { }
++
++  template<typename U>
++    Alloc(const Alloc<U> a) : id(a.id) { }
++
++  T* allocate(std::size_t n) { return std::allocator<T>().allocate(n); }
++  void deallocate(T* p, std::size_t n) { std::allocator<T>().deallocate(p, n); }
++
++  template<typename U>
++    friend bool
++    operator==(const Alloc& a, const Alloc<U>& a2)
++    { return a.id == a2.id; }
++
++  template<typename U>
++    friend bool
++    operator!=(const Alloc& a, const Alloc<U>& a2)
++    { return !(a == a2); }
++
++  std::shared_ptr<int> id;
++};
++
++using test_type
++  = std::unordered_set<int, std::hash<int>, std::equal_to<int>, Alloc<int>>;
++
++void
++test_node_ops()
++{
++  test_type s1({1,3,5}, 3, Alloc<int>(1));
++  test_type s2({2,4,6,8}, 4, Alloc<int>(2));
++  VERIFY( s1.get_allocator() != s2.get_allocator() );
++
++  auto node_a = s1.extract(1);
++  VERIFY( ! node_a.empty() );
++  VERIFY( node_a.get_allocator() == s1.get_allocator() );
++
++  node_a = std::move(node_a); // self-move
++  VERIFY( node_a.empty() );
++
++  swap(node_a, node_a); // self-swap
++  VERIFY( node_a.empty() );
++
++  auto node_b = s2.extract(2);
++  VERIFY( node_b.get_allocator() == s2.get_allocator() );
++
++  node_a = std::move(node_b); // empty = !empty
++  VERIFY( node_a.get_allocator() == s2.get_allocator() );
++  VERIFY( node_b.empty() );
++
++  swap(node_a, node_b); // swap(!empty, empty)
++  VERIFY( node_a.empty() );
++  VERIFY( node_b.get_allocator() == s2.get_allocator() );
++
++  swap(node_a, node_b); // swap(empty, !empty)
++  VERIFY( node_a.get_allocator() == s2.get_allocator() );
++  VERIFY( node_b.empty() );
++
++  node_a = s1.extract(3); // !empty = !empty
++  VERIFY( node_a.get_allocator() == s1.get_allocator() );
++  node_b = s2.extract(0); // empty = empty
++  VERIFY( node_b.empty() );
++  node_b = s2.extract(6); // empty = !empty
++  VERIFY( node_b.get_allocator() == s2.get_allocator() );
++
++  swap(node_a, node_b); // swap(!empty, !empty)
++  VERIFY( node_a.get_allocator() == s2.get_allocator() );
++  VERIFY( node_b.get_allocator() == s1.get_allocator() );
++
++  node_a = {};
++  node_b = std::move(node_a); // !empty = empty
++  VERIFY( node_a.empty() );
++  VERIFY( node_b.empty() );
++
++  swap(node_a, node_b); // swap(empty, empty)
++  VERIFY( node_a.empty() );
++  VERIFY( node_b.empty() );
++}
++
++void
++test_alloc_lifetime()
++{
++  Alloc<int> a(1);
++  test_type s({1,2,3}, 3, a);
++  VERIFY( a.id.use_count() == 2 ); // a and the copy in s
++
++  s.insert(s.extract(1));
++  VERIFY( a.id.use_count() == 2 );
++
++  s.insert(s.begin(), s.extract(2));
++  VERIFY( a.id.use_count() == 2 );
++
++  auto node = s.extract(1);
++  VERIFY( a.id.use_count() == 3 );
++  node = s.extract(0);
++  VERIFY( a.id.use_count() == 2 );
++
++  s.insert(std::move(node));
++  VERIFY( a.id.use_count() == 2 );
++
++  s.merge(test_type(s));
++  VERIFY( a.id.use_count() == 2 );
++
++  s.merge(test_type({4,5,6}, 3, a));
++  VERIFY( a.id.use_count() == 2 );
++}
++
++int main()
++{
++  test_node_ops();
++  test_alloc_lifetime();
 +}
 diff --git a/libstdc++-v3/testsuite/24_iterators/common_iterator/1.cc b/libstdc++-v3/testsuite/24_iterators/common_iterator/1.cc
 index fb8c7adab27..e07069adab6 100644
