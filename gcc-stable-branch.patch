@@ -96,7 +96,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (795):
+GCC Administrator (796):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1829,12 +1830,13 @@ Torbjörn SVENSSON (4):
       arm: Zero/Sign extends for CMSE security on Armv8-M.baseline [PR115253]
       testsuite: Fix expand-return CMSE test for Armv8.1-M [PR115253]
 
-Uros Bizjak (5):
+Uros Bizjak (6):
       i386: Fix assert in ix86_function_arg [PR105970]
       alpha: Introduce target specific store_data_bypass_p function [PR105209]
       i386: Handle CONST_WIDE_INT in output_pic_addr_const [PR111340]
       i386: Wrong code with __builtin_parityl [PR112672]
       alpha: Fix invalid RTX in divmodsi insn patterns [PR115297]
+      middle-end: Fix stalled swapped condition code value [PR115836]
 
 Vladimir N. Makarov (1):
       [PR104637] LRA: Split hard regs as many as possible on one subpass
@@ -3685,10 +3687,19 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..2d6b43c3d24 100644
+index a0587d18824..2928303ae1e 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,3722 @@
+@@ -1,3 +1,3731 @@
++2024-07-10  Uros Bizjak  <ubizjak@gmail.com>
++
++	Backported from master:
++	2024-07-10  Uros Bizjak  <ubizjak@gmail.com>
++
++	PR middle-end/115836
++	* expmed.c (emit_store_flag_1): Move calculation of
++	scode just before its only usage site.
++
 +2024-07-09  Kyrylo Tkachov  <ktkachov@nvidia.com>
 +
 +	Backported from master:
@@ -29016,6 +29027,31 @@ index 07e908624a0..0dc51220682 100644
  
    INSN_LOCATION (new_rtx) = INSN_LOCATION (insn);
  
+diff --git a/gcc/expmed.c b/gcc/expmed.c
+index 3143f38e057..2c916eab43b 100644
+--- a/gcc/expmed.c
++++ b/gcc/expmed.c
+@@ -5589,11 +5589,9 @@ emit_store_flag_1 (rtx target, enum rtx_code code, rtx op0, rtx op1,
+   enum insn_code icode;
+   machine_mode compare_mode;
+   enum mode_class mclass;
+-  enum rtx_code scode;
+ 
+   if (unsignedp)
+     code = unsigned_condition (code);
+-  scode = swap_condition (code);
+ 
+   /* If one operand is constant, make it the second one.  Only do this
+      if the other operand is not constant as well.  */
+@@ -5761,6 +5759,8 @@ emit_store_flag_1 (rtx target, enum rtx_code code, rtx op0, rtx op1,
+ 
+ 	  if (GET_MODE_CLASS (mode) == MODE_FLOAT)
+ 	    {
++	      enum rtx_code scode = swap_condition (code);
++
+ 	      tem = emit_cstore (target, icode, scode, mode, compare_mode,
+ 				 unsignedp, op1, op0, normalizep, target_mode);
+ 	      if (tem)
 diff --git a/gcc/expr.c b/gcc/expr.c
 index 14a25c25450..eae9c023cb7 100644
 --- a/gcc/expr.c
@@ -63820,10 +63856,36 @@ index 72119b01c69..2cc64a39649 100644
  
  	* GCC 11.3.0 released.
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..238f5c8adfd 100644
+index 85e04c45288..49dff897d87 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,2352 @@
+@@ -1,3 +1,2378 @@
++2024-07-10  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2024-03-22  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/114401
++	* include/bits/hashtable.h (_Hashtable::_M_reinsert_node): Call
++	release() on node handle instead of just zeroing its pointer.
++	(_Hashtable::_M_reinsert_node_multi): Likewise.
++	(_Hashtable::_M_merge_unique): Likewise.
++	* include/bits/node_handle.h (_Node_handle_common::release()):
++	New member function.
++	(_Node_handle_common::_Optional_alloc::_M_empty): Remove
++	unnecessary union member.
++	(_Node_handle_common): Declare _Hashtable as a friend.
++	* include/bits/stl_tree.h (_Rb_tree::_M_reinsert_node_unique):
++	Call release() on node handle instead of just zeroing its
++	pointer.
++	(_Rb_tree::_M_reinsert_node_equal): Likewise.
++	(_Rb_tree::_M_reinsert_node_hint_unique): Likewise.
++	(_Rb_tree::_M_reinsert_node_hint_equal): Likewise.
++	* testsuite/23_containers/multiset/modifiers/114401.cc: New test.
++	* testsuite/23_containers/set/modifiers/114401.cc: New test.
++	* testsuite/23_containers/unordered_multiset/modifiers/114401.cc: New test.
++	* testsuite/23_containers/unordered_set/modifiers/114401.cc: New test.
++
 +2024-06-27  Martin Liska  <mliska@suse.cz>
 +
 +	Backported from master:
