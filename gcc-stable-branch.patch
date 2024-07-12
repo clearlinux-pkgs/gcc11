@@ -11,9 +11,10 @@ Alexandre Oliva (5):
       libstdc++: check for openat
       libstdc++: check for openat with dirfd in std::filesystem
 
-Andre Vieira (2):
+Andre Vieira (3):
       aarch64: Implement ACLE Data Intrinsics
       arm: Add .type and .size to __gnu_cmse_nonsecure_call [PR115360]
+      mve: Fix vsetq_lane for 64-bit elements with lane 1 [PR 115611]
 
 Andreas Krebbel (1):
       IBM zSystems/testsuite: PR105147: Skip pr105140.c
@@ -96,7 +97,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (796):
+GCC Administrator (797):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1261,7 +1263,7 @@ John David Anglin (5):
       hppa: Fix bug in atomic_storedi_1 pattern
       hppa: Fix ICE caused by mismatched predicate and constraint in xmpyu patterns
 
-Jonathan Wakely (140):
+Jonathan Wakely (142):
       libstdc++: Avoid -Wzero-as-null-pointer-constant warning [PR103848]
       libstdc++: Fix warning in __moneypunct_cache::_M_cache [PR104966]
       libstdc++: Fix macro checked by test
@@ -1402,6 +1404,8 @@ Jonathan Wakely (140):
       libstdc++: Replace link to gcc-4.3.2 docs in manual [PR115269]
       libstdc++: Replace reference to mainline in release branch docs
       libstdc++: Destroy allocators in re-inserted container nodes [PR114401]
+      libstdc++: Reverse arguments in constraint for std::optional's <=> [PR104606]
+      libstdc++: Add missing exports for ppc64le --with-long-double-format=ibm [PR105417]
 
 José Rui Faustino de Sousa (5):
       Fortran: Fix ICE with -fcheck=pointer [PR100136]
@@ -3687,10 +3691,19 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..2928303ae1e 100644
+index a0587d18824..14f3b6b2fd7 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,3731 @@
+@@ -1,3 +1,3740 @@
++2024-07-11  Andre Vieira  <andre.simoesdiasvieira@arm.com>
++
++	Backported from master:
++	2024-07-11  Andre Vieira  <andre.simoesdiasvieira@arm.com>
++
++	PR target/115611
++	* config/arm/mve.md (mve_vec_setv2di_internal): Fix printing of input
++	scalar register pair when lane = 1.
++
 +2024-07-10  Uros Bizjak  <ubizjak@gmail.com>
 +
 +	Backported from master:
@@ -12890,7 +12903,7 @@ index a5a19a7ed5b..c7b65701030 100644
   "@internal
    In ARM/Thumb-2 state a VFP load/store address that supports writeback
 diff --git a/gcc/config/arm/mve.md b/gcc/config/arm/mve.md
-index 5c11885fb73..1935813e474 100644
+index 5c11885fb73..c5424973b66 100644
 --- a/gcc/config/arm/mve.md
 +++ b/gcc/config/arm/mve.md
 @@ -92,7 +92,7 @@
@@ -12929,6 +12942,15 @@ index 5c11885fb73..1935813e474 100644
  		    (unspec:MVE_VLD_ST [(const_int 0)] UNSPEC_VSTRUCTDUMMY)]
  	 VLD4Q))
    ]
+@@ -10510,7 +10510,7 @@
+   if (elt == 0)
+    return "vmov\t%e0, %Q1, %R1";
+   else
+-   return "vmov\t%f0, %J1, %K1";
++   return "vmov\t%f0, %Q1, %R1";
+ }
+  [(set_attr "type" "mve_move")])
+ 
 @@ -10822,7 +10822,7 @@
  )
  
@@ -35034,10 +35056,17 @@ index b13e9429577..28c721565a4 100644
     rely on (and therefore test) GCC's string builtins.  */
  #define __NO_STRING_INLINES
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..cd74037df82 100644
+index 5fc23605244..f181d9bace7 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,3754 @@
+@@ -1,3 +1,3761 @@
++2024-07-11  Andre Vieira  <andre.simoesdiasvieira@arm.com>
++
++	Backported from master:
++	2024-07-11  Andre Vieira  <andre.simoesdiasvieira@arm.com>
++
++	* gcc.target/arm/mve/intrinsics/vsetq_lane_su64.c: New test.
++
 +2024-07-09  Kyrylo Tkachov  <ktkachov@nvidia.com>
 +
 +	Backported from master:
@@ -51178,6 +51207,75 @@ index 00000000000..d028b91e81a
 +
 +/* { dg-final { scan-assembler-not "__ARM_undef" } } */
 \ No newline at end of file
+diff --git a/gcc/testsuite/gcc.target/arm/mve/intrinsics/vsetq_lane_su64.c b/gcc/testsuite/gcc.target/arm/mve/intrinsics/vsetq_lane_su64.c
+new file mode 100644
+index 00000000000..5aa3bc9a76a
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/arm/mve/intrinsics/vsetq_lane_su64.c
+@@ -0,0 +1,63 @@
++/* { dg-require-effective-target arm_v8_1m_mve_ok } */
++/* { dg-add-options arm_v8_1m_mve } */
++/* { dg-require-effective-target arm_hard_ok } */
++/* { dg-additional-options "-mfloat-abi=hard -O2" } */
++/* { dg-final { check-function-bodies "**" "" } } */
++
++#include "arm_mve.h"
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++/*
++**fn1:
++**	vmov	d0, r0, r1
++**	bx	lr
++*/
++uint64x2_t
++fn1 (uint64_t a, uint64x2_t b)
++{
++  return vsetq_lane_u64 (a, b, 0);
++}
++
++/*
++**fn2:
++**	vmov	d1, r0, r1
++**	bx	lr
++*/
++uint64x2_t
++fn2 (uint64_t a, uint64x2_t b)
++{
++  return vsetq_lane_u64 (a, b, 1);
++}
++
++/*
++**fn3:
++**	vmov	d0, r0, r1
++**	bx	lr
++*/
++int64x2_t
++fn3 (int64_t a, int64x2_t b)
++{
++  return vsetq_lane_s64 (a, b, 0);
++}
++
++/*
++**fn4:
++**	vmov	d1, r0, r1
++**	bx	lr
++*/
++int64x2_t
++fn4 (int64_t a, int64x2_t b)
++{
++  return vsetq_lane_s64 (a, b, 1);
++}
++
++
++#ifdef __cplusplus
++}
++#endif
++
++/* { dg-final { scan-assembler-not "__ARM_undef" } } */
++
 diff --git a/gcc/testsuite/gcc.target/arm/neon-recip-div-1.c b/gcc/testsuite/gcc.target/arm/neon-recip-div-1.c
 new file mode 100644
 index 00000000000..e15c3ca5fe9
@@ -63856,10 +63954,20 @@ index 72119b01c69..2cc64a39649 100644
  
  	* GCC 11.3.0 released.
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..49dff897d87 100644
+index 85e04c45288..1538933a777 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,2378 @@
+@@ -1,3 +1,2388 @@
++2024-07-11  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2024-04-03  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/104606
++	* include/std/optional (operator<=>(const optional<T>&, const U&)):
++	Reverse order of three_way_comparable_with template arguments.
++	* testsuite/20_util/optional/relops/104606.cc: New test.
++
 +2024-07-10  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backported from master:
@@ -66352,6 +66460,36 @@ index 61c342681d4..f8f8e6bd557 100644
  /* Define to 1 if you have the `uselocale' function. */
  #undef HAVE_USELOCALE
  
+diff --git a/libstdc++-v3/config/abi/post/powerpc64-linux-gnu/baseline_symbols.txt b/libstdc++-v3/config/abi/post/powerpc64-linux-gnu/baseline_symbols.txt
+index 941c96eb3ff..e1cbf6510bd 100644
+--- a/libstdc++-v3/config/abi/post/powerpc64-linux-gnu/baseline_symbols.txt
++++ b/libstdc++-v3/config/abi/post/powerpc64-linux-gnu/baseline_symbols.txt
+@@ -548,6 +548,12 @@ FUNC:_ZNKSt15basic_streambufIwSt11char_traitsIwEE6getlocEv@@GLIBCXX_3.4
+ FUNC:_ZNKSt15basic_stringbufIcSt11char_traitsIcESaIcEE3strEv@@GLIBCXX_3.4
+ FUNC:_ZNKSt15basic_stringbufIwSt11char_traitsIwESaIwEE3strEv@@GLIBCXX_3.4
+ FUNC:_ZNKSt16bad_array_length4whatEv@@CXXABI_1.3.8
++FUNC:_ZNKSt17__gnu_cxx_ieee1287num_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE14_M_extract_intB5cxx11IjEES4_S4_S4_RSt8ios_baseRSt12_Ios_IostateRT_@@GLIBCXX_IEEE128_3.4.29
++FUNC:_ZNKSt17__gnu_cxx_ieee1287num_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE14_M_extract_intB5cxx11IlEES4_S4_S4_RSt8ios_baseRSt12_Ios_IostateRT_@@GLIBCXX_IEEE128_3.4.29
++FUNC:_ZNKSt17__gnu_cxx_ieee1287num_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE14_M_extract_intB5cxx11ImEES4_S4_S4_RSt8ios_baseRSt12_Ios_IostateRT_@@GLIBCXX_IEEE128_3.4.29
++FUNC:_ZNKSt17__gnu_cxx_ieee1287num_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE14_M_extract_intB5cxx11ItEES4_S4_S4_RSt8ios_baseRSt12_Ios_IostateRT_@@GLIBCXX_IEEE128_3.4.29
++FUNC:_ZNKSt17__gnu_cxx_ieee1287num_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE14_M_extract_intB5cxx11IxEES4_S4_S4_RSt8ios_baseRSt12_Ios_IostateRT_@@GLIBCXX_IEEE128_3.4.29
++FUNC:_ZNKSt17__gnu_cxx_ieee1287num_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE14_M_extract_intB5cxx11IyEES4_S4_S4_RSt8ios_baseRSt12_Ios_IostateRT_@@GLIBCXX_IEEE128_3.4.29
+ FUNC:_ZNKSt17__gnu_cxx_ieee1287num_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE14_M_extract_intIjEES4_S4_S4_RSt8ios_baseRSt12_Ios_IostateRT_@@GLIBCXX_IEEE128_3.4.29
+ FUNC:_ZNKSt17__gnu_cxx_ieee1287num_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE14_M_extract_intIlEES4_S4_S4_RSt8ios_baseRSt12_Ios_IostateRT_@@GLIBCXX_IEEE128_3.4.29
+ FUNC:_ZNKSt17__gnu_cxx_ieee1287num_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE14_M_extract_intImEES4_S4_S4_RSt8ios_baseRSt12_Ios_IostateRT_@@GLIBCXX_IEEE128_3.4.29
+@@ -579,6 +585,12 @@ FUNC:_ZNKSt17__gnu_cxx_ieee1287num_getIcSt19istreambuf_iteratorIcSt11char_traits
+ FUNC:_ZNKSt17__gnu_cxx_ieee1287num_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE6do_getES4_S4_RSt8ios_baseRSt12_Ios_IostateRy@@GLIBCXX_IEEE128_3.4.29
+ FUNC:_ZNKSt17__gnu_cxx_ieee1287num_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE8__do_getES4_S4_RSt8ios_baseRSt12_Ios_IostateRd@@GLIBCXX_IEEE128_3.4.29
+ FUNC:_ZNKSt17__gnu_cxx_ieee1287num_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE8__do_getES4_S4_RSt8ios_baseRSt12_Ios_IostateRg@@GLIBCXX_IEEE128_3.4.29
++FUNC:_ZNKSt17__gnu_cxx_ieee1287num_getIwSt19istreambuf_iteratorIwSt11char_traitsIwEEE14_M_extract_intB5cxx11IjEES4_S4_S4_RSt8ios_baseRSt12_Ios_IostateRT_@@GLIBCXX_IEEE128_3.4.29
++FUNC:_ZNKSt17__gnu_cxx_ieee1287num_getIwSt19istreambuf_iteratorIwSt11char_traitsIwEEE14_M_extract_intB5cxx11IlEES4_S4_S4_RSt8ios_baseRSt12_Ios_IostateRT_@@GLIBCXX_IEEE128_3.4.29
++FUNC:_ZNKSt17__gnu_cxx_ieee1287num_getIwSt19istreambuf_iteratorIwSt11char_traitsIwEEE14_M_extract_intB5cxx11ImEES4_S4_S4_RSt8ios_baseRSt12_Ios_IostateRT_@@GLIBCXX_IEEE128_3.4.29
++FUNC:_ZNKSt17__gnu_cxx_ieee1287num_getIwSt19istreambuf_iteratorIwSt11char_traitsIwEEE14_M_extract_intB5cxx11ItEES4_S4_S4_RSt8ios_baseRSt12_Ios_IostateRT_@@GLIBCXX_IEEE128_3.4.29
++FUNC:_ZNKSt17__gnu_cxx_ieee1287num_getIwSt19istreambuf_iteratorIwSt11char_traitsIwEEE14_M_extract_intB5cxx11IxEES4_S4_S4_RSt8ios_baseRSt12_Ios_IostateRT_@@GLIBCXX_IEEE128_3.4.29
++FUNC:_ZNKSt17__gnu_cxx_ieee1287num_getIwSt19istreambuf_iteratorIwSt11char_traitsIwEEE14_M_extract_intB5cxx11IyEES4_S4_S4_RSt8ios_baseRSt12_Ios_IostateRT_@@GLIBCXX_IEEE128_3.4.29
+ FUNC:_ZNKSt17__gnu_cxx_ieee1287num_getIwSt19istreambuf_iteratorIwSt11char_traitsIwEEE14_M_extract_intIjEES4_S4_S4_RSt8ios_baseRSt12_Ios_IostateRT_@@GLIBCXX_IEEE128_3.4.29
+ FUNC:_ZNKSt17__gnu_cxx_ieee1287num_getIwSt19istreambuf_iteratorIwSt11char_traitsIwEEE14_M_extract_intIlEES4_S4_S4_RSt8ios_baseRSt12_Ios_IostateRT_@@GLIBCXX_IEEE128_3.4.29
+ FUNC:_ZNKSt17__gnu_cxx_ieee1287num_getIwSt19istreambuf_iteratorIwSt11char_traitsIwEEE14_M_extract_intImEES4_S4_S4_RSt8ios_baseRSt12_Ios_IostateRT_@@GLIBCXX_IEEE128_3.4.29
 diff --git a/libstdc++-v3/config/os/bsd/darwin/os_defines.h b/libstdc++-v3/config/os/bsd/darwin/os_defines.h
 index 0b3bb7950b1..394d7209711 100644
 --- a/libstdc++-v3/config/os/bsd/darwin/os_defines.h
@@ -79900,6 +80038,19 @@ index 2ab337a0f3a..2828e16b8ea 100644
      }
  
  #endif // C++17
+diff --git a/libstdc++-v3/include/std/optional b/libstdc++-v3/include/std/optional
+index 449c27a80c4..b3fbd98c569 100644
+--- a/libstdc++-v3/include/std/optional
++++ b/libstdc++-v3/include/std/optional
+@@ -1248,7 +1248,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 
+   template<typename _Tp, typename _Up>
+     requires (!__is_optional_v<_Up>)
+-      && three_way_comparable_with<_Tp, _Up>
++      && three_way_comparable_with<_Up, _Tp>
+     constexpr compare_three_way_result_t<_Tp, _Up>
+     operator<=>(const optional<_Tp>& __x, const _Up& __v)
+     { return bool(__x) ? *__x <=> __v : strong_ordering::less; }
 diff --git a/libstdc++-v3/include/std/ranges b/libstdc++-v3/include/std/ranges
 index f55ee15e1b1..0a67c45f1b8 100644
 --- a/libstdc++-v3/include/std/ranges
@@ -80984,6 +81135,51 @@ index f8a50fb7150..04252d6dc2a 100644
        if ((c4 & 0xC0) != 0x80)
  	return invalid_mb_sequence;
        char32_t c = (c1 << 18) + (c2 << 12) + (c3 << 6) + c4 - 0x3C82080;
+diff --git a/libstdc++-v3/src/c++11/compatibility-ldbl-alt128.cc b/libstdc++-v3/src/c++11/compatibility-ldbl-alt128.cc
+index 36154540101..e8aca3590d3 100644
+--- a/libstdc++-v3/src/c++11/compatibility-ldbl-alt128.cc
++++ b/libstdc++-v3/src/c++11/compatibility-ldbl-alt128.cc
+@@ -241,4 +241,40 @@ _ZNKSt4hashIu9__ieee128EclEu9__ieee128 (void)
+ # error "Configuration error"
+ #endif
+ 
++#if defined _GLIBCXX_USE_DUAL_ABI && defined __LONG_DOUBLE_IEEE128__
++// PR libstdc++/105417
++// The --with-long-double-abi=ibm build is missing some exports that are present in the
++// --with-long-double-abi=ieee build. Those symbols never should have been exported at all,
++// but now that they have been, they should be exported consistently by both ibm and ieee.
++
++#define STR_(X) #X
++#define STR(X) STR_(X)
++#define JOIN_(X,Y) X ## Y
++#define JOIN(X,Y) JOIN_(X,Y)
++
++#define NUM_GET_TYPE(C, I) _ZNKSt17__gnu_cxx_ieee1287num_getI ## C ## St19istreambuf_iteratorI ## C ## St11char_traitsI ## C
++#define FUNC_NAME(TAG, INT) EEE14_M_extract_int ## TAG ## I ## INT ## EES4_S4_S4_RSt8ios_baseRSt12_Ios_IostateRT_
++
++// This defines __gnu_ieee128::num_get<CHAR>::_M_extract_int[abi:cxx11]<INT> as an alias for
++// __gnu_ieee128::num_get<CHAR>::_M_extract_int<INT> (i.e. the same name without the abi-tag).
++#define ALIAS(CHAR,MANGLED_CHAR,INT) extern "C" std::istreambuf_iterator<CHAR> \
++  JOIN(NUM_GET_TYPE(MANGLED_CHAR,INT), FUNC_NAME(B5cxx11,INT)) (void) \
++  __attribute__((alias (STR(NUM_GET_TYPE(MANGLED_CHAR,INT)) STR(FUNC_NAME(,INT)))))
++
++ALIAS(char,c,j);
++ALIAS(char,c,l);
++ALIAS(char,c,m);
++ALIAS(char,c,t);
++ALIAS(char,c,x);
++ALIAS(char,c,y);
++#ifdef _GLIBCXX_USE_WCHAR_T
++ALIAS(wchar_t,w,j);
++ALIAS(wchar_t,w,l);
++ALIAS(wchar_t,w,m);
++ALIAS(wchar_t,w,t);
++ALIAS(wchar_t,w,x);
++ALIAS(wchar_t,w,y);
++#endif
++#endif
++
+ #endif
 diff --git a/libstdc++-v3/src/c++11/cxx11-ios_failure.cc b/libstdc++-v3/src/c++11/cxx11-ios_failure.cc
 index a918ab21015..e40685bf45a 100644
 --- a/libstdc++-v3/src/c++11/cxx11-ios_failure.cc
@@ -83548,6 +83744,30 @@ index 40180223bae..a98815d932b 100644
      // Should not reach here!
      VERIFY( !"attempt to allocate SIZE_MAX-1 should not have succeeded" );
      throw p;
+diff --git a/libstdc++-v3/testsuite/20_util/optional/relops/104606.cc b/libstdc++-v3/testsuite/20_util/optional/relops/104606.cc
+new file mode 100644
+index 00000000000..2b8df245219
+--- /dev/null
++++ b/libstdc++-v3/testsuite/20_util/optional/relops/104606.cc
+@@ -0,0 +1,18 @@
++// { dg-do compile { target c++17 } }
++
++// Bug 104606 comparison operator resolution with std::optional and -std=c++20
++
++#include <optional>
++#include <variant>
++#include <vector>
++
++struct Value : std::variant<std::vector<Value>> { };
++
++struct Comparator {
++  template <typename T> bool operator<=(const T &) { return true; }
++};
++
++std::optional<Value> o;
++Comparator c;
++
++auto x = c <= o;
 diff --git a/libstdc++-v3/testsuite/20_util/pair/astuple/get-2.cc b/libstdc++-v3/testsuite/20_util/pair/astuple/get-2.cc
 new file mode 100644
 index 00000000000..573d239effa
