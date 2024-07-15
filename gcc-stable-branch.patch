@@ -97,7 +97,10 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (797):
+GCC Administrator (800):
+      Daily bump.
+      Daily bump.
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -63954,10 +63957,22 @@ index 72119b01c69..2cc64a39649 100644
  
  	* GCC 11.3.0 released.
 diff --git a/libstdc++-v3/ChangeLog b/libstdc++-v3/ChangeLog
-index 85e04c45288..1538933a777 100644
+index 85e04c45288..6dc17a7330d 100644
 --- a/libstdc++-v3/ChangeLog
 +++ b/libstdc++-v3/ChangeLog
-@@ -1,3 +1,2388 @@
+@@ -1,3 +1,2400 @@
++2024-07-12  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2022-04-29  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/105417
++	* config/abi/post/powerpc64-linux-gnu/baseline_symbols.txt:
++	Regenerate.
++	* src/c++11/compatibility-ldbl-alt128.cc [_GLIBCXX_USE_DUAL_ABI]:
++	Define __gnu_ieee128::num_get<C>::_M_extract_int[abi:cxx11]<I>
++	symbols as aliases for corresponding symbols without abi-tag.
++
 +2024-07-11  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backported from master:
