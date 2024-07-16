@@ -97,7 +97,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (800):
+GCC Administrator (801):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1630,7 +1631,7 @@ Rainer Orth (5):
 Richard Ball (1):
       arm: Zero/Sign extends for CMSE security
 
-Richard Biener (78):
+Richard Biener (79):
       Update BASE-VER to 11.3.1
       ipa/105598 - testcase for PR105598
       middle-end/105140 - fix bogus recursion in fold_convertible_p
@@ -1709,6 +1710,7 @@ Richard Biener (78):
       tree-optimization/111070 - fix ICE with recent ifcombine fix
       middle-end/110176 - wrong zext (bool) <= (int) 4294967295u folding
       middle-end/112732 - stray TYPE_ALIAS_SET in type variant
+      Fixup unaligned load/store cost for znver4
 
 Richard Earnshaw (4):
       arm: big-endian issue in gen_cpymem_ldrd_strd [PR105981]
@@ -15201,7 +15203,7 @@ index 66d5a8cd79b..04b54252222 100644
  i386-builtin-types.inc: s-i386-bt ; @true
  s-i386-bt: $(srcdir)/config/i386/i386-builtin-types.awk \
 diff --git a/gcc/config/i386/x86-tune-costs.h b/gcc/config/i386/x86-tune-costs.h
-index ffe810f2bcb..48100d10415 100644
+index ffe810f2bcb..58dd711864c 100644
 --- a/gcc/config/i386/x86-tune-costs.h
 +++ b/gcc/config/i386/x86-tune-costs.h
 @@ -1820,6 +1820,140 @@ struct processor_costs znver3_cost = {
@@ -15282,8 +15284,8 @@ index ffe810f2bcb..48100d10415 100644
 +					   in 32bit, 64bit, 128bit, 256bit and 512bit */
 +  {8, 8, 8, 12, 12},			/* cost of storing SSE register
 +					   in 32bit, 64bit, 128bit, 256bit and 512bit */
-+  {6, 6, 6, 6, 6},			/* cost of unaligned loads.  */
-+  {8, 8, 8, 8, 8},			/* cost of unaligned stores.  */
++  {6, 6, 10, 10, 12},			/* cost of unaligned loads.  */
++  {8, 8, 8, 12, 12},			/* cost of unaligned stores.  */
 +  2, 2, 2,				/* cost of moving XMM,YMM,ZMM
 +					   register.  */
 +  6,					/* cost of moving SSE register to integer.  */
