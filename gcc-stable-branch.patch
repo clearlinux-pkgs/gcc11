@@ -1070,7 +1070,7 @@ Ian Lance Taylor (2):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
       syscall: add prlimit
 
-Jakub Jelinek (134):
+Jakub Jelinek (135):
       emit-rtl: Fix -fcompare-debug bug with label references in debug insns [PR105203]
       sparc: Preserve ORIGINAL_REGNO in epilogue_renumber [PR105257]
       rtlanal: Fix up replace_rtx [PR105333]
@@ -1205,6 +1205,7 @@ Jakub Jelinek (134):
       fold-const: Fix up CLZ handling in tree_call_nonnegative_warnv_p [PR115337]
       c: Fix up pointer types to may_alias structures [PR114493]
       diagnostics: Fix add_misspelling_candidates [PR115440]
+      gimple-fold: Fix up __builtin_clear_padding lowering [PR115527]
 
 Jan Hubicka (5):
       Fix modref_tree::remap_params
@@ -31967,6 +31968,61 @@ index b1179518651..8bcc0077b8c 100644
  
        if (warning_at (location, OPT_Warray_bounds,
  		      "intermediate array offset %wi is outside array bounds "
+diff --git a/gcc/gimple-fold.c b/gcc/gimple-fold.c
+index bb4db5af280..0449d67dae1 100644
+--- a/gcc/gimple-fold.c
++++ b/gcc/gimple-fold.c
+@@ -4084,7 +4084,8 @@ clear_padding_flush (clear_padding_struct *buf, bool full)
+ 	  i -= wordsize;
+ 	  continue;
+ 	}
+-      for (size_t j = i; j < i + wordsize && j < end; j++)
++      size_t endsize = end - i > wordsize ? wordsize : end - i;
++      for (size_t j = i; j < i + endsize; j++)
+ 	{
+ 	  if (buf->buf[j])
+ 	    {
+@@ -4113,12 +4114,12 @@ clear_padding_flush (clear_padding_struct *buf, bool full)
+       if (padding_bytes)
+ 	{
+ 	  if (nonzero_first == 0
+-	      && nonzero_last == wordsize
++	      && nonzero_last == endsize
+ 	      && all_ones)
+ 	    {
+ 	      /* All bits are padding and we had some padding
+ 		 before too.  Just extend it.  */
+-	      padding_bytes += wordsize;
++	      padding_bytes += endsize;
+ 	      continue;
+ 	    }
+ 	  if (all_ones && nonzero_first == 0)
+@@ -4158,7 +4159,7 @@ clear_padding_flush (clear_padding_struct *buf, bool full)
+       if (nonzero_first == wordsize)
+ 	/* All bits in a word are 0, there are no padding bits.  */
+ 	continue;
+-      if (all_ones && nonzero_last == wordsize)
++      if (all_ones && nonzero_last == endsize)
+ 	{
+ 	  /* All bits between nonzero_first and end of word are padding
+ 	     bits, start counting padding_bytes.  */
+@@ -4200,7 +4201,7 @@ clear_padding_flush (clear_padding_struct *buf, bool full)
+ 		  j = k;
+ 		}
+ 	    }
+-	  if (nonzero_last == wordsize)
++	  if (nonzero_last == endsize)
+ 	    padding_bytes = nonzero_last - zero_last;
+ 	  continue;
+ 	}
+@@ -4630,6 +4631,7 @@ clear_padding_type (clear_padding_struct *buf, tree type, HOST_WIDE_INT sz)
+ 	  buf->off = 0;
+ 	  buf->size = 0;
+ 	  clear_padding_emit_loop (buf, elttype, end);
++	  off += sz;
+ 	  buf->base = base;
+ 	  buf->sz = prev_sz;
+ 	  buf->align = prev_align;
 diff --git a/gcc/gimple-isel.cc b/gcc/gimple-isel.cc
 index 2c78a08d3f1..a055cbecd0c 100644
 --- a/gcc/gimple-isel.cc
@@ -39172,6 +39228,91 @@ index 00000000000..f5fa420415b
 +/* { dg-additional-options "-Wunused-function" } */
 +#pragma GCC diagnostic ignored "-Wunused-function"
 +static void f() {} _Pragma("GCC diagnostic error \"-Wunused-function\"") /* { dg-bogus "-Wunused-function" } */
+diff --git a/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-1.c b/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-1.c
+index 6b01a5614b5..f739963cc4d 100644
+--- a/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-1.c
++++ b/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-1.c
+@@ -1,4 +1,5 @@
+ /* PR libstdc++/88101 */
++/* { dg-do run } */
+ 
+ int i1, i2;
+ long double l1, l2;
+diff --git a/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-2.c b/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-2.c
+index 1188bc07ed2..099f202ebc7 100644
+--- a/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-2.c
++++ b/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-2.c
+@@ -1,4 +1,5 @@
+ /* PR libstdc++/88101 */
++/* { dg-do run } */
+ 
+ typedef int T __attribute__((aligned (16384)));
+ struct S { char a; short b; long double c; T d; T e; long long f; };
+diff --git a/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-3.c b/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-3.c
+index edb7c8eb555..27bf8f6dd73 100644
+--- a/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-3.c
++++ b/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-3.c
+@@ -1,4 +1,5 @@
+ /* PR libstdc++/88101 */
++/* { dg-do run } */
+ 
+ union V { char a; signed char b; unsigned char c; };
+ struct T { char a; int b; union V c; };
+diff --git a/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-4.c b/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-4.c
+index d24f3b59d7b..ebc58932738 100644
+--- a/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-4.c
++++ b/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-4.c
+@@ -1,4 +1,6 @@
+ /* PR libstdc++/88101 */
++/* { dg-do run } */
++/* { dg-require-effective-target alloca } */
+ 
+ struct S { char a; short b; char c; };
+ 
+diff --git a/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-5.c b/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-5.c
+index d5dbafe1c74..3f7d40fddf8 100644
+--- a/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-5.c
++++ b/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-5.c
+@@ -1,4 +1,5 @@
+ /* PR libstdc++/88101 */
++/* { dg-do run } */
+ 
+ struct S { char a; short b; char c; } s1[24], s2[24];
+ struct T { char a; long long b; char c; struct S d[3]; long long e; char f; } t1, t2;
+diff --git a/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-6.c b/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-6.c
+new file mode 100644
+index 00000000000..db1f00eca73
+--- /dev/null
++++ b/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-6.c
+@@ -0,0 +1,28 @@
++/* PR middle-end/115527 */
++/* { dg-do run } */
++
++struct T { struct S { double a; signed char b; long c; } d[3]; int e; } t1, t2;
++
++__attribute__((noipa)) void
++foo (struct T *t)
++{
++  for (int i = 0; i < 3; ++i)
++    {
++      t->d[i].a = 1. + 3 * i;
++      t->d[i].b = 2 + 3 * i;
++      t->d[i].c = 3 + 3 * i;
++    }
++  t->e = 10;
++}
++
++int
++main ()
++{
++  __builtin_memset (&t2, -1, sizeof (t2));
++  foo (&t1);
++  foo (&t2);
++  __builtin_clear_padding (&t2);
++  if (__builtin_memcmp (&t1, &t2, sizeof (t1)))
++    __builtin_abort ();
++  return 0;
++}
 diff --git a/gcc/testsuite/c-c++-common/ubsan/div-by-zero-8.c b/gcc/testsuite/c-c++-common/ubsan/div-by-zero-8.c
 new file mode 100644
 index 00000000000..02e1d7cfc95
