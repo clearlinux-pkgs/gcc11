@@ -97,7 +97,8 @@ François-Xavier Coudert (1):
 Fritz Reese (1):
       fortran: Fix conv of UNION constructors [PR105310]
 
-GCC Administrator (802):
+GCC Administrator (803):
+      Daily bump.
       Daily bump.
       Daily bump.
       Daily bump.
@@ -1070,7 +1071,7 @@ Ian Lance Taylor (2):
       libgo: don't include <linux/fs.h> when building gen-sysinfo.go
       syscall: add prlimit
 
-Jakub Jelinek (135):
+Jakub Jelinek (136):
       emit-rtl: Fix -fcompare-debug bug with label references in debug insns [PR105203]
       sparc: Preserve ORIGINAL_REGNO in epilogue_renumber [PR105257]
       rtlanal: Fix up replace_rtx [PR105333]
@@ -1206,6 +1207,7 @@ Jakub Jelinek (135):
       c: Fix up pointer types to may_alias structures [PR114493]
       diagnostics: Fix add_misspelling_candidates [PR115440]
       gimple-fold: Fix up __builtin_clear_padding lowering [PR115527]
+      testsuite: Fix up builtin-clear-padding-3.c for -funsigned-char
 
 Jan Hubicka (5):
       Fix modref_tree::remap_params
@@ -3698,10 +3700,21 @@ index f628d2eafc5..a6e5b12f92f 100644
 -11.3.0
 +11.4.1
 diff --git a/gcc/ChangeLog b/gcc/ChangeLog
-index a0587d18824..9bad5fa2fe1 100644
+index a0587d18824..fbbd2f292ed 100644
 --- a/gcc/ChangeLog
 +++ b/gcc/ChangeLog
-@@ -1,3 +1,3749 @@
+@@ -1,3 +1,3760 @@
++2024-07-17  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-07-17  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/115527
++	* gimple-fold.c (clear_padding_flush): Introduce endsize
++	variable and use it instead of wordsize when comparing it against
++	nonzero_last.
++	(clear_padding_type): Increment off by sz.
++
 +2024-07-16  Richard Biener  <rguenther@suse.de>
 +
 +	Backported from master:
@@ -35127,10 +35140,24 @@ index b13e9429577..28c721565a4 100644
     rely on (and therefore test) GCC's string builtins.  */
  #define __NO_STRING_INLINES
 diff --git a/gcc/testsuite/ChangeLog b/gcc/testsuite/ChangeLog
-index 5fc23605244..f181d9bace7 100644
+index 5fc23605244..754076deff1 100644
 --- a/gcc/testsuite/ChangeLog
 +++ b/gcc/testsuite/ChangeLog
-@@ -1,3 +1,3761 @@
+@@ -1,3 +1,3775 @@
++2024-07-17  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from master:
++	2024-07-17  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/115527
++	* c-c++-common/torture/builtin-clear-padding-1.c: Add dg-do run
++	directive.
++	* c-c++-common/torture/builtin-clear-padding-2.c: Likewise.
++	* c-c++-common/torture/builtin-clear-padding-3.c: Likewise.
++	* c-c++-common/torture/builtin-clear-padding-4.c: Likewise.
++	* c-c++-common/torture/builtin-clear-padding-5.c: Likewise.
++	* c-c++-common/torture/builtin-clear-padding-6.c: New test.
++
 +2024-07-11  Andre Vieira  <andre.simoesdiasvieira@arm.com>
 +
 +	Backported from master:
@@ -39249,7 +39276,7 @@ index 1188bc07ed2..099f202ebc7 100644
  typedef int T __attribute__((aligned (16384)));
  struct S { char a; short b; long double c; T d; T e; long long f; };
 diff --git a/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-3.c b/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-3.c
-index edb7c8eb555..27bf8f6dd73 100644
+index edb7c8eb555..2c673169e13 100644
 --- a/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-3.c
 +++ b/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-3.c
 @@ -1,4 +1,5 @@
@@ -39258,6 +39285,15 @@ index edb7c8eb555..27bf8f6dd73 100644
  
  union V { char a; signed char b; unsigned char c; };
  struct T { char a; int b; union V c; };
+@@ -33,7 +34,7 @@ main ()
+   foo (&s1, 0);
+   foo (&s2, 0);
+   __builtin_clear_padding (&s2);
+-  if (s2.b.a != (char) -1)
++  if (s2.b.a != -1)
+     __builtin_abort ();
+   __builtin_clear_padding (&s2.b.a);
+   __builtin_memset (&s2.b.a + 1, 0, sizeof (union U) - sizeof (s2.b.a));
 diff --git a/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-4.c b/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-4.c
 index d24f3b59d7b..ebc58932738 100644
 --- a/gcc/testsuite/c-c++-common/torture/builtin-clear-padding-4.c
