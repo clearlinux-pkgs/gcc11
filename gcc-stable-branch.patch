@@ -24045,15 +24045,21 @@ index 7218b0c331a..86f44a35f42 100755
 -
 -$as_echo "#define ENABLE_STDLIB_OPTION 1" >>confdefs.h
 -
+-else
+-  $as_echo "#define ENABLE_STDLIB_OPTION 0" >>confdefs.h
+-
+-fi
+-# ??? This logic must match libstdc++-v3/acinclude.m4:GLIBCXX_EXPORT_INSTALL_INFO.
+-if test x${gcc_gxx_libcxx_include_dir} = x; then
+-  if test x${enable_version_specific_runtime_libs} = xyes; then
+-    gcc_gxx_libcxx_include_dir='${libsubdir}/libc++_include/c++/v1'
 +  if test x${gcc_gxx_libcxx_include_dir} = xno; then
 +    # set defaults for the dir, but the option is disabled anyway.
 +    gcc_gxx_libcxx_include_dir=
 +  else
 +    gcc_enable_stdlib_opt=1
 +  fi
- else
--  $as_echo "#define ENABLE_STDLIB_OPTION 0" >>confdefs.h
--
++else
 +  case $target in
 +    *-darwin1[1-9]* | *-darwin2*)
 +       # Default this on for Darwin versions which default to libcxx,
@@ -24063,8 +24069,7 @@ index 7218b0c331a..86f44a35f42 100755
 +       ;;
 +    *) ;;
 +  esac
- fi
--# ??? This logic must match libstdc++-v3/acinclude.m4:GLIBCXX_EXPORT_INSTALL_INFO.
++fi
 +
 +cat >>confdefs.h <<_ACEOF
 +#define ENABLE_STDLIB_OPTION $gcc_enable_stdlib_opt
@@ -24072,11 +24077,10 @@ index 7218b0c331a..86f44a35f42 100755
 +
 +
 +# Sysroot behaviour as for gxx-include-dir
- if test x${gcc_gxx_libcxx_include_dir} = x; then
++if test x${gcc_gxx_libcxx_include_dir} = x; then
 +  # default path,embedded in the compiler tree.
 +  libcxx_incdir='include/c++/v1'
-   if test x${enable_version_specific_runtime_libs} = xyes; then
--    gcc_gxx_libcxx_include_dir='${libsubdir}/libc++_include/c++/v1'
++  if test x${enable_version_specific_runtime_libs} = xyes; then
 +    gcc_gxx_libcxx_include_dir='${libsubdir}/$libcxx_incdir'
    else
 -    libcxx_incdir='libc++_include/c++/$(version)/v1'
@@ -24279,14 +24283,20 @@ index 49f043ed29b..a4d5bdb1b8d 100644
  if test x${gcc_gxx_libcxx_include_dir} != x; then
 -  AC_DEFINE(ENABLE_STDLIB_OPTION, 1,
 -            [Define if the -stdlib= option should be enabled.])
+-else
+-  AC_DEFINE(ENABLE_STDLIB_OPTION, 0)
+-fi
+-# ??? This logic must match libstdc++-v3/acinclude.m4:GLIBCXX_EXPORT_INSTALL_INFO.
+-if test x${gcc_gxx_libcxx_include_dir} = x; then
+-  if test x${enable_version_specific_runtime_libs} = xyes; then
+-    gcc_gxx_libcxx_include_dir='${libsubdir}/libc++_include/c++/v1'
 +  if test x${gcc_gxx_libcxx_include_dir} = xno; then
 +    # set defaults for the dir, but the option is disabled anyway.
 +    gcc_gxx_libcxx_include_dir=
 +  else
 +    gcc_enable_stdlib_opt=1
 +  fi
- else
--  AC_DEFINE(ENABLE_STDLIB_OPTION, 0)
++else
 +  case $target in
 +    *-darwin1[[1-9]]* | *-darwin2*)
 +       # Default this on for Darwin versions which default to libcxx,
@@ -24296,17 +24306,15 @@ index 49f043ed29b..a4d5bdb1b8d 100644
 +       ;;
 +    *) ;;
 +  esac
- fi
--# ??? This logic must match libstdc++-v3/acinclude.m4:GLIBCXX_EXPORT_INSTALL_INFO.
++fi
 +AC_DEFINE_UNQUOTED(ENABLE_STDLIB_OPTION, $gcc_enable_stdlib_opt,
 +          [Define if the -stdlib= option should be enabled.])
 +
 +# Sysroot behaviour as for gxx-include-dir
- if test x${gcc_gxx_libcxx_include_dir} = x; then
++if test x${gcc_gxx_libcxx_include_dir} = x; then
 +  # default path,embedded in the compiler tree.
 +  libcxx_incdir='include/c++/v1'
-   if test x${enable_version_specific_runtime_libs} = xyes; then
--    gcc_gxx_libcxx_include_dir='${libsubdir}/libc++_include/c++/v1'
++  if test x${enable_version_specific_runtime_libs} = xyes; then
 +    gcc_gxx_libcxx_include_dir='${libsubdir}/$libcxx_incdir'
    else
 -    libcxx_incdir='libc++_include/c++/$(version)/v1'
@@ -28415,7 +28423,11 @@ index a30549ce8e0..5e3cc1c0c86 100644
 -	     so that they can be correctly cloned in finish_thunk.  */
 -	  tree fntype = TREE_TYPE (function);
 -	  tree params = NULL_TREE;
--
++      /* Build parameters for functions that are not being compiled,
++	 so that they can be correctly cloned in finish_thunk.  */
++      tree function = get_symbol_decl (decl);
++      DECL_ARGUMENTS (function) = get_fndecl_arguments (decl);
+ 
 -	  for (tree t = TYPE_ARG_TYPES (fntype); t; t = TREE_CHAIN (t))
 -	    {
 -	      if (t == void_list_node)
@@ -28442,11 +28454,6 @@ index a30549ce8e0..5e3cc1c0c86 100644
 -	  DECL_CONTEXT (resdecl) = function;
 -	  DECL_RESULT (function) = resdecl;
 -	}
-+      /* Build parameters for functions that are not being compiled,
-+	 so that they can be correctly cloned in finish_thunk.  */
-+      tree function = get_symbol_decl (decl);
-+      DECL_ARGUMENTS (function) = get_fndecl_arguments (decl);
-+
 +      /* Also build the result decl, which is needed when force creating
 +	 the thunk in gimple inside cgraph_node::expand_thunk.  */
 +      DECL_RESULT (function) = get_fndecl_result (decl);
@@ -34551,31 +34558,30 @@ index bace44e6468..fa3365f4c81 100644
 -      INSN_CODE (insn) = -1;
 -      if (recog_memoized (insn) == -1)
 -	fail = 1;
+-      /* In case the flags don't die here, recurse to try fix
+-         following user too.  */
+-      else if (! dead_or_set_p (insn, ix86_flags_rtx))
 +      if (DEBUG_INSN_P (insn))
 +	gcc_assert (debug_seen < 0);
 +      else
-+	{
-+	  INSN_CODE (insn) = -1;
-+	  if (recog_memoized (insn) == -1)
-+	    fail = 1;
-+	}
-       /* In case the flags don't die here, recurse to try fix
--         following user too.  */
--      else if (! dead_or_set_p (insn, ix86_flags_rtx))
-+	 following user too.  */
-+      if (!fail && !dead_or_set_p (insn, ix86_flags_rtx))
  	{
 -	  insn = next_flags_user (insn);
 -	  if (!insn || !swap_rtx_condition (insn))
-+	  insn = next_flags_user (insn, debug_seen);
-+	  if (!insn || !swap_rtx_condition (insn, debug_seen))
++	  INSN_CODE (insn) = -1;
++	  if (recog_memoized (insn) == -1)
  	    fail = 1;
  	}
 -      if (fail)
--	{
++      /* In case the flags don't die here, recurse to try fix
++	 following user too.  */
++      if (!fail && !dead_or_set_p (insn, ix86_flags_rtx))
+ 	{
 -	  swap_rtx_condition_1 (pat);
 -	  return 0;
--	}
++	  insn = next_flags_user (insn, debug_seen);
++	  if (!insn || !swap_rtx_condition (insn, debug_seen))
++	    fail = 1;
+ 	}
 -      return 1;
 +      if (fail || debug_seen == 1)
 +	swap_rtx_condition_1 (pat);
@@ -58789,6 +58795,14 @@ index ef990604030..bf6c51654cc 100644
 +			gcc_checking_assert (!ef || (gimple_code (stmt)
 +						     == GIMPLE_ASM));
  			ef = e;
+-		      }
+-		  /* If there are other predecessors to ef->dest, then
+-		     there must be PHI nodes for the modified
+-		     variable, and therefore there will be debug bind
+-		     stmts after the PHI nodes.  The debug bind notes
+-		     we'd insert would force the creation of a new
+-		     block (diverging codegen) and be redundant with
+-		     the post-PHI bind stmts, so don't add them.
 +			/* If there are other predecessors to ef->dest, then
 +			   there must be PHI nodes for the modified
 +			   variable, and therefore there will be debug bind
@@ -58796,7 +58810,20 @@ index ef990604030..bf6c51654cc 100644
 +			   we'd insert would force the creation of a new
 +			   block (diverging codegen) and be redundant with
 +			   the post-PHI bind stmts, so don't add them.
-+
+ 
+-		     As for the exit edge, there wouldn't be redundant
+-		     bind stmts, but there wouldn't be a PC to bind
+-		     them to either, so avoid diverging the CFG.  */
+-		  if (ef && single_pred_p (ef->dest)
+-		      && ef->dest != EXIT_BLOCK_PTR_FOR_FN (cfun))
+-		    {
+-		      /* If there were PHI nodes in the node, we'd
+-			 have to make sure the value we're binding
+-			 doesn't need rewriting.  But there shouldn't
+-			 be PHI nodes in a single-predecessor block,
+-			 so we just add the note.  */
+-		      gsi_insert_on_edge_immediate (ef, note);
+-		    }
 +			   As for the exit edge, there wouldn't be redundant
 +			   bind stmts, but there wouldn't be a PC to bind
 +			   them to either, so avoid diverging the CFG.  */
@@ -58815,28 +58842,7 @@ index ef990604030..bf6c51654cc 100644
 +							 stmt);
 +			    gsi_insert_on_edge_immediate (ef, note);
 +			  }
- 		      }
--		  /* If there are other predecessors to ef->dest, then
--		     there must be PHI nodes for the modified
--		     variable, and therefore there will be debug bind
--		     stmts after the PHI nodes.  The debug bind notes
--		     we'd insert would force the creation of a new
--		     block (diverging codegen) and be redundant with
--		     the post-PHI bind stmts, so don't add them.
--
--		     As for the exit edge, there wouldn't be redundant
--		     bind stmts, but there wouldn't be a PC to bind
--		     them to either, so avoid diverging the CFG.  */
--		  if (ef && single_pred_p (ef->dest)
--		      && ef->dest != EXIT_BLOCK_PTR_FOR_FN (cfun))
--		    {
--		      /* If there were PHI nodes in the node, we'd
--			 have to make sure the value we're binding
--			 doesn't need rewriting.  But there shouldn't
--			 be PHI nodes in a single-predecessor block,
--			 so we just add the note.  */
--		      gsi_insert_on_edge_immediate (ef, note);
--		    }
++		      }
  		}
  	      else
 -		gsi_insert_after (&gsi, note, GSI_SAME_STMT);
@@ -69125,13 +69131,20 @@ index a1f780a9c9b..029a6f365b3 100644
 +	  string_view __str(reinterpret_cast<const char*>(__f), __l - __f);
 +	  return _GLIBCXX_CONV_FROM_UTF8(__str);
 +	}
- #endif
--      else
--	{
- #ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
++#endif
++#ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
 +      else if constexpr (is_same_v<_EcharT, char>)
 +	{
- 	  std::wstring __wstr;
++	  std::wstring __wstr;
++	  path::_Codecvt<wchar_t> __cvt;
++	  if (__str_codecvt_in_all(__f, __l, __wstr, __cvt))
++	    return __wstr;
++	}
+ #endif
+       else
+ 	{
+-#ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
+-	  std::wstring __wstr;
 -	  if constexpr (is_same_v<_EcharT, char>)
 -	    {
 -	      struct _UCvt : std::codecvt<wchar_t, char, std::mbstate_t>
@@ -69145,11 +69158,7 @@ index a1f780a9c9b..029a6f365b3 100644
 -	      const auto __f2 = reinterpret_cast<const char*>(__f);
 -	      return __detail::__wstr_from_utf8(string_view(__f2, __l - __f));
 -	    }
-+	  path::_Codecvt<wchar_t> __cvt;
-+	  if (__str_codecvt_in_all(__f, __l, __wstr, __cvt))
-+	    return __wstr;
-+	}
- #endif
+-#endif
 -	  else // char16_t or char32_t
 -	    {
 -	      struct _UCvt : std::codecvt<_EcharT, char, std::mbstate_t>
@@ -69161,8 +69170,6 @@ index a1f780a9c9b..029a6f365b3 100644
 -#else // ! windows
 -	  struct _UCvt : std::codecvt<_EcharT, char, std::mbstate_t>
 -	  { } __cvt;
-+      else
-+	{
 +	  path::_Codecvt<_EcharT> __cvt;
  	  std::string __str;
  	  if (__str_codecvt_out_all(__f, __l, __str, __cvt))
@@ -69218,15 +69225,18 @@ index a1f780a9c9b..029a6f365b3 100644
 -	  struct _UCvt : std::codecvt<_CharT, char, std::mbstate_t> { } __cvt;
 -	  if (__str_codecvt_in_all(__first, __last, __wstr, __cvt))
 -	    return __wstr;
+-	}
 +	  const char* __first = __u8str.data();
 +	  const char* __last = __first + __u8str.size();
-+
+ 
+-#ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
+-      } }
 +	  // Convert UTF-8 string to requested format.
 +#ifdef _GLIBCXX_USE_CHAR8_T
 +	  if constexpr (is_same_v<_CharT, char8_t>)
 +	    return _WString(__first, __last, __a);
 +	  else
-+#endif
+ #endif
 +	    {
 +	      // Convert UTF-8 to wide string.
 +	      _WString __wstr(__a);
@@ -69234,11 +69244,7 @@ index a1f780a9c9b..029a6f365b3 100644
 +	      if (__str_codecvt_in_all(__first, __last, __wstr, __cvt))
 +		return __wstr;
 +	    }
- 	}
--
--#ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
--      } }
--#endif
++	}
        __detail::__throw_conversion_error();
      }
    /// @endcond
@@ -69399,7 +69405,12 @@ index 0ce4c47a90e..62b0ba1063a 100644
 -	      else
 -		++__first1;
 -	    if (__first2 != __last2)
-+
+-	      _M_transfer(__last1, __first2, __last2);
+ 
+-	    this->_M_inc_size(__x._M_get_size());
+-	    __x._M_set_size(0);
+-	  }
+-	  __catch(...)
 +	  const _Finalize_merge __fin(*this, __x, __first2);
 +
 +	  while (__first1 != __last1 && __first2 != __last2)
@@ -69412,18 +69423,12 @@ index 0ce4c47a90e..62b0ba1063a 100644
 +	    else
 +	      ++__first1;
 +	  if (__first2 != __last2)
-+	    {
- 	      _M_transfer(__last1, __first2, __last2);
--
--	    this->_M_inc_size(__x._M_get_size());
--	    __x._M_set_size(0);
--	  }
--	  __catch(...)
--	    {
+ 	    {
 -	      const size_t __dist = std::distance(__first2, __last2);
 -	      this->_M_inc_size(__orig_size - __dist);
 -	      __x._M_set_size(__dist);
 -	      __throw_exception_again;
++	      _M_transfer(__last1, __first2, __last2);
 +	      __first2 = __last2;
  	    }
  	}
@@ -72590,34 +72595,36 @@ index 421c923e7b0..56ec9dd4a84 100644
  
      _GLIBCXX_SIMD_INTRINSIC constexpr _SimdWrapper<bool, _S_full_size>
 -    __as_full_vector() const { return _M_data; }
-+    __as_full_vector() const
-+    { return _M_data; }
-+
-+    _GLIBCXX_SIMD_INTRINSIC constexpr
-+    _SimdWrapper() = default;
- 
+-
 -    _GLIBCXX_SIMD_INTRINSIC constexpr _SimdWrapper() = default;
 -    _GLIBCXX_SIMD_INTRINSIC constexpr _SimdWrapper(_BuiltinType __k)
 -      : _M_data(__k) {};
+-
+-    _GLIBCXX_SIMD_INTRINSIC operator const _BuiltinType&() const
++    __as_full_vector() const
+     { return _M_data; }
+ 
+-    _GLIBCXX_SIMD_INTRINSIC operator _BuiltinType&()
++    _GLIBCXX_SIMD_INTRINSIC constexpr
++    _SimdWrapper() = default;
++
 +    _GLIBCXX_SIMD_INTRINSIC constexpr
 +    _SimdWrapper(_BuiltinType __k) : _M_data(__k) {};
- 
--    _GLIBCXX_SIMD_INTRINSIC operator const _BuiltinType&() const
++
 +    _GLIBCXX_SIMD_INTRINSIC
 +    operator const _BuiltinType&() const
      { return _M_data; }
  
--    _GLIBCXX_SIMD_INTRINSIC operator _BuiltinType&()
+-    _GLIBCXX_SIMD_INTRINSIC _BuiltinType __intrin() const
 +    _GLIBCXX_SIMD_INTRINSIC
 +    operator _BuiltinType&()
      { return _M_data; }
  
--    _GLIBCXX_SIMD_INTRINSIC _BuiltinType __intrin() const
+-    _GLIBCXX_SIMD_INTRINSIC constexpr value_type operator[](size_t __i) const
 +    _GLIBCXX_SIMD_INTRINSIC _BuiltinType
 +    __intrin() const
-     { return _M_data; }
- 
--    _GLIBCXX_SIMD_INTRINSIC constexpr value_type operator[](size_t __i) const
++    { return _M_data; }
++
 +    _GLIBCXX_SIMD_INTRINSIC constexpr value_type
 +    operator[](size_t __i) const
      { return _M_data & (_BuiltinType(1) << __i); }
@@ -79796,10 +79803,10 @@ index 2731ddf573d..51cdfb4d2fe 100644
 -      static_assert(is_integral_v<_Nn>,
 -	  "std::experimental::lcm arguments must be integers");
 -      static_assert(_Mn(2) != _Mn(1),
--	  "std::experimental::lcm arguments must not be bool");
--      static_assert(_Nn(2) != _Nn(1),
 +      static_assert(_Mn(2) == 2 && _Nn(2) == 2,
  	  "std::experimental::lcm arguments must not be bool");
+-      static_assert(_Nn(2) != _Nn(1),
+-	  "std::experimental::lcm arguments must not be bool");
 -      using _Up = make_unsigned_t<common_type_t<_Mn, _Nn>>;
 -      return std::__detail::__lcm(std::__detail::__absu<_Up>(__m),
 -				  std::__detail::__absu<_Up>(__n));
@@ -80312,8 +80319,12 @@ index 5ad60dbd709..109564b3c0d 100644
  	  __in.width(0);
  	  __in.setstate(ios_base::failbit);
  	}
+-      else
 +      else if (__n != (size_t)-1)
-+	{
+ 	{
+-	  if (__n == (size_t)-1)
+-	    __n = __gnu_cxx::__numeric_traits<streamsize>::__max;
+-	  std::__istream_extract(__in, __s, __n / sizeof(_CharT));
 +	  __n /= sizeof(_CharT);
 +	  streamsize __w = __in.width();
 +	  std::__istream_extract(__in, __s, __n);
@@ -80327,12 +80338,9 @@ index 5ad60dbd709..109564b3c0d 100644
 +		__in.setstate(ios_base::eofbit);
 +	    }
 +	}
-       else
++      else
 +#endif // __OPTIMIZE
- 	{
--	  if (__n == (size_t)-1)
--	    __n = __gnu_cxx::__numeric_traits<streamsize>::__max;
--	  std::__istream_extract(__in, __s, __n / sizeof(_CharT));
++	{
 +	  // Buffer size is unknown, have to assume it's huge.
 +	  streamsize __n = __gnu_cxx::__numeric_traits<streamsize>::__max;
 +	  __n /= sizeof(_CharT);
@@ -88500,10 +88508,10 @@ index e9719cc67fe..3c4f0c80361 100644
  	    }
  	  return tmp;
  	};
-+#ifdef __STDC_IEC_559__
+-	const auto expect1 = expected(input);
+ #ifdef __STDC_IEC_559__
 +	const V totest = modf(input, &integral);
- 	const auto expect1 = expected(input);
--#ifdef __STDC_IEC_559__
++	const auto expect1 = expected(input);
  	COMPARE(isnan(totest), isnan(expect1.first))
  	  << "modf(" << input << ", iptr) = " << totest << " != " << expect1;
  	COMPARE(isnan(integral), isnan(expect1.second))
